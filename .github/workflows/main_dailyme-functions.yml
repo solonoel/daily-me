@@ -30,12 +30,11 @@ jobs:
 
       - name: 'Resolve Project Dependencies Using Npm'
         shell: pwsh
+        working-directory: api
         run: |
-          pushd './api'
           npm install
           npm run build --if-present
           npm run test --if-present
-          popd
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
