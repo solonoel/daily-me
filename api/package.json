@@ -16,12 +16,8 @@
 }
 ```
 
-Save with **Ctrl+S**, then recreate the zip and redeploy:
+Save with **Ctrl+S** then:
 ```
-cd "C:\_NoSync\OneDrive\_Brunsusa Projects\daily-me"
-```
-```
-Compress-Archive -Path api\host.json, api\package.json, api\package-lock.json, api\src -DestinationPath api.zip -Force
-```
-```
-az functionapp deployment source config-zip --resource-group daily-me --name dailyme-functions --src "C:\_NoSync\OneDrive\_Brunsusa Projects\daily-me\api.zip"
+git add api/package.json
+git commit -m "Fix corrupted package.json"
+git push
