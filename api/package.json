@@ -2,16 +2,11 @@
   "name": "dailyme-functions",
   "version": "1.0.0",
   "description": "Daily Me Azure Functions API",
-  "main": "src/index.js",
   "scripts": {
     "start": "func start",
     "test": "echo \"No tests yet...\""
   },
   "dependencies": {
-    "@azure/functions": "^4.0.0",
     "mssql": "^12.2.1"
-  },
-  "devDependencies": {
-    "azure-functions-core-tools": "^4.x"
   }
 }
