@@ -1,0 +1,27 @@
+{
+  "name": "dailyme-functions",
+  "version": "1.0.0",
+  "description": "Daily Me Azure Functions API",
+  "scripts": {
+    "start": "func start",
+    "test": "echo \"No tests yet...\""
+  },
+  "dependencies": {
+    "@azure/functions": "^4.0.0",
+    "mssql": "^12.2.1"
+  },
+  "devDependencies": {
+    "azure-functions-core-tools": "^4.x"
+  }
+}
+```
+
+Save with **Ctrl+S**, then recreate the zip and redeploy:
+```
+cd "C:\_NoSync\OneDrive\_Brunsusa Projects\daily-me"
+```
+```
+Compress-Archive -Path api\host.json, api\package.json, api\package-lock.json, api\src -DestinationPath api.zip -Force
+```
+```
+az functionapp deployment source config-zip --resource-group daily-me --name dailyme-functions --src "C:\_NoSync\OneDrive\_Brunsusa Projects\daily-me\api.zip"
