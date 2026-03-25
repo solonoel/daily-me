@@ -17,16 +17,30 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: '20.x'
+          node-version: '22.x'
 
       - name: Install dependencies
-        run: npm install
         working-directory: api
+        run: npm install --production
 
-      - name: Deploy to Azure Functions
-        uses: Azure/functions-action@v1
-        with:
-          app-name: 'dailyme-functions'
-          slot-name: 'Production'
-          package: api
-          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+      - name: Create deployment zip
+        run: |
+          cd api
+          zip -r ../deploy.zip . -x "*.git*" -x "node_modules/.cache/*"
+
+      - name: Deploy via Kudu REST API
+        env:
+          PUBLISH_PROFILE: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+        run: |
+          USERNAME=$(echo "$PUBLISH_PROFILE" | grep -o 'userName="[^"]*"' | head -1 | cut -d'"' -f2)
+          PASSWORD=$(echo "$PUBLISH_PROFILE" | grep -o 'userPWD="[^"]*"' | head -1 | cut -d'"' -f2)
+          SCMURL=$(echo "$PUBLISH_PROFILE" | grep -o 'publishUrl="[^"]*scm[^"]*"' | head -1 | cut -d'"' -f2)
+          
+          echo "Deploying to $SCMURL"
+          
+          curl -X POST \
+            "https://$SCMURL/api/zipdeploy" \
+            -u "$USERNAME:$PASSWORD" \
+            -H "Content-Type: application/zip" \
+            --data-binary @deploy.zip \
+            -w "\nHTTP Status: %{http_code}\n"
