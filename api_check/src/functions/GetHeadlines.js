@@ -46,8 +46,4 @@ app.http('GetHeadlines', {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(result.recordset)
       };
-    } catch (err) {
-      return { status: 500, body: 'Error: ' + err.message };
-    }
-  }
-});
+    } catch (err

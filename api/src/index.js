@@ -1,9 +1,0 @@
-require('./functions/GetCategories');
-require('./functions/GetHeadlineSources');
-require('./functions/GetHeadlineKeywords');
-require('./functions/GetHeadlineTopics');
-require('./functions/GetHeadlineSetting');
-require('./functions/SaveHeadlineSetting');
-require('./functions/GetHeadlines');
-require('./functions/SaveRetain');
-require('./functions/FetchHeadlines');
