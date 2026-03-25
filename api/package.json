@@ -14,10 +14,3 @@
     "azure-functions-core-tools": "^4.x"
   }
 }
-```
-
-Save with **Ctrl+S** then:
-```
-git add api/package.json
-git commit -m "Fix corrupted package.json"
-git push
