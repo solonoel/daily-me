@@ -9,7 +9,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
       --sky-deep: #2b7fd4;
       --sky-mid: #b8d8f8;
@@ -19,364 +18,88 @@
       --gold: #e8a020;
       --border: #c4dcf0;
       --shadow: 0 2px 12px rgba(43,127,212,0.08);
-      --shadow-md: 0 4px 24px rgba(43,127,212,0.14);
     }
-
-    body {
-      font-family: 'DM Sans', sans-serif;
-      background: linear-gradient(160deg, #e8f4ff 0%, #f5f9ff 60%, #eef7f0 100%);
-      min-height: 100vh;
-      color: var(--text);
-    }
-
-    /* ── HEADER ── */
-    .header {
-      background: linear-gradient(135deg, #2b7fd4 0%, #1a9fd4 100%);
-      padding: 20px 32px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      box-shadow: 0 4px 24px rgba(43,127,212,0.25);
-      position: relative;
-      overflow: hidden;
-    }
-    .header::before {
-      content: '';
-      position: absolute;
-      top: -40px; right: -40px;
-      width: 200px; height: 200px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.07);
-    }
-    .header::after {
-      content: '';
-      position: absolute;
-      bottom: -60px; left: 20%;
-      width: 300px; height: 300px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.04);
-    }
-    .header-left { position: relative; z-index: 1; }
-    .app-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 28px;
-      font-weight: 600;
-      color: white;
-      letter-spacing: -0.5px;
-      line-height: 1;
-    }
-    .app-title span { color: rgba(255,255,255,0.6); font-weight: 400; }
-    .greeting {
-      font-size: 13px;
-      color: rgba(255,255,255,0.85);
-      margin-top: 6px;
-      font-weight: 300;
-    }
-    .weather-block {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      background: rgba(255,255,255,0.15);
-      border: 1px solid rgba(255,255,255,0.25);
-      border-radius: 16px;
-      padding: 12px 20px;
-      position: relative;
-      z-index: 1;
-      min-width: 160px;
-      cursor: default;
-    }
-    .weather-icon { font-size: 34px; line-height: 1; }
-    .weather-temp {
-      font-family: 'Playfair Display', serif;
-      font-size: 24px;
-      font-weight: 600;
-      color: white;
-      line-height: 1;
-    }
-    .weather-desc {
-      font-size: 10px;
-      color: rgba(255,255,255,0.8);
-      margin-top: 3px;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-    }
-    .weather-detail { font-size: 10px; color: rgba(255,255,255,0.7); margin-top: 2px; }
-    .weather-loading { color: rgba(255,255,255,0.7); font-size: 13px; }
-
-    /* ── NAV ── */
-    .nav {
-      background: white;
-      border-bottom: 2px solid var(--border);
-      display: flex;
-      align-items: stretch;
-      padding: 0 24px;
-      box-shadow: 0 2px 8px rgba(43,127,212,0.06);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-    .nav-btn {
-      padding: 10px 22px;
-      font-family: 'DM Sans', sans-serif;
-      background: none;
-      border: none;
-      border-bottom: 3px solid transparent;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 3px;
-      min-width: 80px;
-      transition: all 0.2s;
-    }
-    .nav-btn:hover { background: #f0f7ff; }
-    .nav-btn.active { border-bottom-color: var(--sky-deep); background: #f5faff; }
-    .nav-icon { font-size: 18px; line-height: 1; }
-    .nav-label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.4px;
-      color: #2a4a6a;
-    }
-    .nav-btn.active .nav-label { color: var(--sky-deep); }
-
-    /* ── MAIN ── */
-    .main { padding: 24px 32px; max-width: 1100px; margin: 0 auto; }
-    .screen { display: none; animation: fadeIn 0.2s ease; }
-    .screen.active { display: block; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-
-    /* ── DATE STRIP ── */
-    .date-strip { display: flex; align-items: baseline; gap: 12px; margin-bottom: 20px; }
-    .date-main { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--text); }
-    .date-sub { font-size: 13px; color: var(--text-soft); }
-
-    /* ── CATEGORIES ── */
-    .section-label {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1.2px;
-      color: var(--text-soft);
-      margin-bottom: 10px;
-    }
-    .category-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .category-row { display: flex; gap: 7px; flex-wrap: wrap; flex: 1; }
-    .cat-tile {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 13px;
-      border-radius: 100px;
-      border: 1.5px solid var(--border);
-      background: white;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-soft);
-      transition: all 0.2s;
-      white-space: nowrap;
-    }
-    .cat-tile:hover { border-color: var(--sky-deep); color: var(--sky-deep); background: #f0f7ff; }
-    .cat-tile.active { background: var(--sky-deep); color: white; border-color: var(--sky-deep); }
-    .cat-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-
-    /* ── RECENCY PILL ── */
-    .recency-pill {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      color: var(--text-soft);
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: 100px;
-      padding: 5px 12px;
-      white-space: nowrap;
-      flex-shrink: 0;
-      cursor: pointer;
-      user-select: none;
-      transition: all 0.2s;
-    }
-    .recency-pill:hover { border-color: var(--sky-deep); color: var(--sky-deep); }
-    .recency-pill-value { font-weight: 700; color: var(--sky-deep); font-size: 11px; }
-    .recency-pill-arrow { font-size: 9px; color: var(--text-muted); }
-
-    /* ── HEADLINE COUNT ── */
-    .headline-count {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-soft);
-      margin-bottom: 14px;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-    }
-
-    /* ── GROUPED HEADLINES ── */
-    .cat-group {
-      margin-bottom: 18px;
-      border: 1.5px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: var(--shadow);
-    }
-    .cat-group-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 9px 14px;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.4px;
-      border-bottom: 1.5px solid var(--border);
-    }
-    .cat-group-icon { font-size: 14px; }
-    .cat-group-count { margin-left: auto; font-size: 11px; opacity: 0.75; font-weight: 600; }
-
-    .headline-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 9px 14px;
-      border-bottom: 1px solid #eef5fc;
-      background: white;
-      transition: background 0.15s;
-      cursor: pointer;
-    }
-    .headline-row:last-child { border-bottom: none; }
-    .headline-row:hover { background: #f4f9ff; }
-    .headline-row.retained { border-left: 3px solid var(--gold); padding-left: 11px; }
-    .headline-row-title {
-      flex: 1;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text);
-      line-height: 1.4;
-    }
-    .headline-row-source { font-size: 11px; color: var(--sky-deep); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
-    .headline-row-age { font-size: 11px; color: var(--text-soft); white-space: nowrap; flex-shrink: 0; min-width: 28px; text-align: right; }
-    .retain-btn {
-      width: 24px; height: 24px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      background: white;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      transition: all 0.15s;
-      color: var(--text-muted);
-      flex-shrink: 0;
-    }
-    .retain-btn:hover { border-color: var(--gold); color: var(--gold); }
-    .retain-btn.active { background: var(--gold); border-color: var(--gold); color: white; }
-
-    /* ── SETTINGS ── */
-    .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-    .settings-card {
-      background: white;
-      border: 1.5px solid var(--border);
-      border-radius: 14px;
-      padding: 20px;
-      box-shadow: var(--shadow);
-    }
-    .settings-card-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 16px;
-      margin-bottom: 14px;
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .settings-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 9px 0;
-      border-bottom: 1px solid #eef5fc;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text);
-    }
-    .settings-item:last-child { border-bottom: none; }
-    .settings-item-left { display: flex; flex-direction: column; gap: 2px; }
-    .settings-item-sub { font-size: 11px; color: var(--text-muted); font-weight: 400; }
-    .toggle {
-      width: 36px; height: 20px;
-      border-radius: 10px;
-      background: var(--border);
-      position: relative;
-      cursor: pointer;
-      transition: background 0.2s;
-      border: none;
-      flex-shrink: 0;
-    }
-    .toggle.on { background: var(--sky-deep); }
-    .toggle::after {
-      content: '';
-      position: absolute;
-      width: 14px; height: 14px;
-      border-radius: 50%;
-      background: white;
-      top: 3px; left: 3px;
-      transition: transform 0.2s;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    }
-    .toggle.on::after { transform: translateX(16px); }
-    .add-btn {
-      width: 100%;
-      margin-top: 12px;
-      padding: 9px;
-      border-radius: 8px;
-      border: 1.5px dashed var(--border);
-      background: none;
-      color: var(--sky-deep);
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      font-family: 'DM Sans', sans-serif;
-      transition: all 0.2s;
-    }
-    .add-btn:hover { background: #f0f7ff; border-color: var(--sky-deep); }
-
-    /* ── MY WORDS ── */
-    .mywords-placeholder {
-      background: white;
-      border: 1.5px solid var(--border);
-      border-radius: 16px;
-      padding: 48px;
-      text-align: center;
-      box-shadow: var(--shadow);
-    }
-    .placeholder-icon { font-size: 48px; margin-bottom: 16px; }
-    .placeholder-title { font-family: 'Playfair Display', serif; font-size: 20px; margin-bottom: 8px; color: var(--text); }
-    .placeholder-sub { font-size: 14px; color: var(--text-soft); line-height: 1.6; }
-
-    /* ── EMPTY STATE ── */
-    .empty-state {
-      text-align: center;
-      padding: 40px;
-      color: var(--text-muted);
-      font-size: 14px;
-    }
-
-    /* ── RESPONSIVE ── */
-    @media (max-width: 600px) {
-      .header { padding: 16px 20px; }
-      .main { padding: 16px 20px; }
-      .weather-block { padding: 10px 14px; min-width: 0; }
-      .weather-temp { font-size: 20px; }
-      .app-title { font-size: 22px; }
-      .nav-btn { padding: 8px 14px; min-width: 60px; }
+    body { font-family:'DM Sans',sans-serif; background:linear-gradient(160deg,#e8f4ff 0%,#f5f9ff 60%,#eef7f0 100%); min-height:100vh; color:var(--text); }
+    .header { background:linear-gradient(135deg,#2b7fd4 0%,#1a9fd4 100%); padding:20px 32px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 4px 24px rgba(43,127,212,0.25); position:relative; overflow:hidden; }
+    .header::before { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,0.07); }
+    .header-left { position:relative; z-index:1; }
+    .app-title { font-family:'Playfair Display',serif; font-size:28px; font-weight:600; color:white; letter-spacing:-0.5px; line-height:1; }
+    .app-title span { color:rgba(255,255,255,0.6); font-weight:400; }
+    .greeting { font-size:13px; color:rgba(255,255,255,0.85); margin-top:6px; font-weight:300; }
+    .weather-block { display:flex; align-items:center; gap:14px; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); border-radius:16px; padding:12px 20px; position:relative; z-index:1; min-width:160px; }
+    .weather-icon { font-size:34px; line-height:1; }
+    .weather-temp { font-family:'Playfair Display',serif; font-size:24px; font-weight:600; color:white; line-height:1; }
+    .weather-desc { font-size:10px; color:rgba(255,255,255,0.8); margin-top:3px; text-transform:uppercase; letter-spacing:0.8px; }
+    .weather-detail { font-size:10px; color:rgba(255,255,255,0.7); margin-top:2px; }
+    .weather-loading { color:rgba(255,255,255,0.7); font-size:13px; }
+    .nav { background:white; border-bottom:2px solid var(--border); display:flex; align-items:stretch; padding:0 24px; box-shadow:0 2px 8px rgba(43,127,212,0.06); position:sticky; top:0; z-index:100; }
+    .nav-btn { padding:10px 22px; font-family:'DM Sans',sans-serif; background:none; border:none; border-bottom:3px solid transparent; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px; min-width:80px; transition:all 0.2s; }
+    .nav-btn:hover { background:#f0f7ff; }
+    .nav-btn.active { border-bottom-color:var(--sky-deep); background:#f5faff; }
+    .nav-icon { font-size:18px; line-height:1; }
+    .nav-label { font-size:11px; font-weight:600; letter-spacing:0.4px; color:#2a4a6a; }
+    .nav-btn.active .nav-label { color:var(--sky-deep); }
+    .main { padding:24px 32px; max-width:1100px; margin:0 auto; }
+    .screen { display:none; animation:fadeIn 0.2s ease; }
+    .screen.active { display:block; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+    .date-strip { display:flex; align-items:baseline; gap:12px; margin-bottom:20px; }
+    .date-main { font-family:'Playfair Display',serif; font-size:22px; color:var(--text); }
+    .date-sub { font-size:13px; color:var(--text-soft); }
+    .section-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-soft); margin-bottom:10px; }
+    .category-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:8px; }
+    .category-row { display:flex; gap:7px; flex-wrap:wrap; flex:1; }
+    .cat-tile { display:flex; align-items:center; gap:6px; padding:6px 13px; border-radius:100px; border:1.5px solid var(--border); background:white; cursor:pointer; font-size:12px; font-weight:600; color:var(--text-soft); transition:all 0.2s; white-space:nowrap; }
+    .cat-tile:hover { border-color:var(--sky-deep); color:var(--sky-deep); background:#f0f7ff; }
+    .cat-tile.active { background:var(--sky-deep); color:white; border-color:var(--sky-deep); }
+    .cat-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+    .recency-pill { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-soft); background:white; border:1px solid var(--border); border-radius:100px; padding:5px 12px; white-space:nowrap; flex-shrink:0; cursor:pointer; user-select:none; transition:all 0.2s; }
+    .recency-pill:hover { border-color:var(--sky-deep); color:var(--sky-deep); }
+    .recency-pill-value { font-weight:700; color:var(--sky-deep); font-size:11px; }
+    .recency-pill-arrow { font-size:9px; color:var(--text-muted); }
+    .headline-toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+    .headline-count { font-size:12px; font-weight:600; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.8px; }
+    .refresh-btn { font-size:11px; font-weight:600; color:var(--sky-deep); background:white; border:1px solid var(--border); border-radius:100px; padding:5px 12px; cursor:pointer; transition:all 0.2s; }
+    .refresh-btn:hover { background:#f0f7ff; border-color:var(--sky-deep); }
+    .cat-group { margin-bottom:18px; border:1.5px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:var(--shadow); }
+    .cat-group-header { display:flex; align-items:center; gap:10px; padding:9px 14px; font-size:12px; font-weight:700; letter-spacing:0.4px; border-bottom:1.5px solid var(--border); }
+    .cat-group-icon { font-size:14px; }
+    .cat-group-count { margin-left:auto; font-size:11px; opacity:0.75; font-weight:600; }
+    .headline-row { display:flex; align-items:center; gap:12px; padding:9px 14px; border-bottom:1px solid #eef5fc; background:white; transition:background 0.15s; cursor:pointer; }
+    .headline-row:last-child { border-bottom:none; }
+    .headline-row:hover { background:#f4f9ff; }
+    .headline-row.retained { border-left:3px solid var(--gold); padding-left:11px; }
+    .headline-row-title { flex:1; font-size:13px; font-weight:500; color:var(--text); line-height:1.4; }
+    .headline-row-source { font-size:11px; color:var(--sky-deep); font-weight:600; white-space:nowrap; flex-shrink:0; }
+    .headline-row-age { font-size:11px; color:var(--text-soft); white-space:nowrap; flex-shrink:0; min-width:28px; text-align:right; }
+    .retain-btn { width:24px; height:24px; border-radius:6px; border:1px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:11px; transition:all 0.15s; color:var(--text-muted); flex-shrink:0; }
+    .retain-btn:hover { border-color:var(--gold); color:var(--gold); }
+    .retain-btn.active { background:var(--gold); border-color:var(--gold); color:white; }
+    .settings-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; }
+    .settings-card { background:white; border:1.5px solid var(--border); border-radius:14px; padding:20px; box-shadow:var(--shadow); }
+    .settings-card-title { font-family:'Playfair Display',serif; font-size:16px; margin-bottom:14px; color:var(--text); display:flex; align-items:center; gap:8px; }
+    .settings-item { display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid #eef5fc; font-size:13px; font-weight:500; color:var(--text); }
+    .settings-item:last-child { border-bottom:none; }
+    .settings-item-left { display:flex; flex-direction:column; gap:2px; }
+    .settings-item-sub { font-size:11px; color:var(--text-muted); font-weight:400; }
+    .toggle { width:36px; height:20px; border-radius:10px; background:var(--border); position:relative; cursor:pointer; transition:background 0.2s; border:none; flex-shrink:0; }
+    .toggle.on { background:var(--sky-deep); }
+    .toggle::after { content:''; position:absolute; width:14px; height:14px; border-radius:50%; background:white; top:3px; left:3px; transition:transform 0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+    .toggle.on::after { transform:translateX(16px); }
+    .add-btn { width:100%; margin-top:12px; padding:9px; border-radius:8px; border:1.5px dashed var(--border); background:none; color:var(--sky-deep); font-size:13px; font-weight:500; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; }
+    .add-btn:hover { background:#f0f7ff; border-color:var(--sky-deep); }
+    .mywords-placeholder { background:white; border:1.5px solid var(--border); border-radius:16px; padding:48px; text-align:center; box-shadow:var(--shadow); }
+    .placeholder-icon { font-size:48px; margin-bottom:16px; }
+    .placeholder-title { font-family:'Playfair Display',serif; font-size:20px; margin-bottom:8px; color:var(--text); }
+    .placeholder-sub { font-size:14px; color:var(--text-soft); line-height:1.6; }
+    .empty-state { text-align:center; padding:40px; color:var(--text-muted); font-size:14px; }
+    @media (max-width:600px) {
+      .header { padding:16px 20px; }
+      .main { padding:16px 20px; }
+      .weather-block { padding:10px 14px; min-width:0; }
+      .weather-temp { font-size:20px; }
+      .app-title { font-size:22px; }
+      .nav-btn { padding:8px 14px; min-width:60px; }
     }
   </style>
 </head>
@@ -409,7 +132,6 @@
 
 <main class="main">
 
-  <!-- HEADLINES SCREEN -->
   <div class="screen active" id="screen-headlines">
     <div class="date-strip">
       <div class="date-main" id="date-main"></div>
@@ -421,18 +143,6 @@
         <div class="cat-tile active" onclick="filterCat('all',this)">
           <div class="cat-dot" style="background:#2b7fd4"></div>All
         </div>
-        <div class="cat-tile" onclick="filterCat('world',this)">
-          <div class="cat-dot" style="background:#e8a020"></div>World
-        </div>
-        <div class="cat-tile" onclick="filterCat('tech',this)">
-          <div class="cat-dot" style="background:#2abfaa"></div>Technology
-        </div>
-        <div class="cat-tile" onclick="filterCat('sports',this)">
-          <div class="cat-dot" style="background:#e05050"></div>Sports
-        </div>
-        <div class="cat-tile" onclick="filterCat('local',this)">
-          <div class="cat-dot" style="background:#8b5cf6"></div>Local
-        </div>
       </div>
       <div class="recency-pill" onclick="cycleRecency()" title="Click to change recency">
         <span>Recency</span>
@@ -440,14 +150,13 @@
         <span class="recency-pill-arrow">▲▼</span>
       </div>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-      <div class="headline-count" id="headline-count"></div>
-      <button onclick="refreshHeadlines()" style="font-size:11px;font-weight:600;color:var(--sky-deep);background:white;border:1px solid var(--border);border-radius:100px;padding:5px 12px;cursor:pointer;">↻ Refresh</button>
+    <div class="headline-toolbar">
+      <div class="headline-count" id="headline-count">Loading...</div>
+      <button class="refresh-btn" onclick="refreshHeadlines()">↻ Refresh</button>
     </div>
     <div id="headlines-grouped"></div>
   </div>
 
-  <!-- MY WORDS SCREEN -->
   <div class="screen" id="screen-mywords">
     <div class="date-strip">
       <div class="date-main">My Words</div>
@@ -456,93 +165,45 @@
     <div class="mywords-placeholder">
       <div class="placeholder-icon">🗣️</div>
       <div class="placeholder-title">Spanish Practice</div>
-      <div class="placeholder-sub">
-        Your daily Spanish vocabulary and practice sessions will appear here.<br>
-        Coming in the next module.
-      </div>
+      <div class="placeholder-sub">Your daily Spanish vocabulary and practice sessions will appear here.<br>Coming in the next module.</div>
     </div>
   </div>
 
-  <!-- SETTINGS SCREEN -->
   <div class="screen" id="screen-settings">
     <div class="date-strip">
       <div class="date-main">Settings</div>
       <div class="date-sub">Manage your Daily Me preferences</div>
     </div>
     <div class="settings-grid">
-
       <div class="settings-card">
         <div class="settings-card-title">📁 Categories</div>
-        <div class="settings-item">
-          <div class="settings-item-left"><span>World</span><span class="settings-item-sub">Headlines, My Words</span></div>
-          <button class="toggle on" onclick="this.classList.toggle('on')"></button>
-        </div>
-        <div class="settings-item">
-          <div class="settings-item-left"><span>Technology</span><span class="settings-item-sub">Headlines</span></div>
-          <button class="toggle on" onclick="this.classList.toggle('on')"></button>
-        </div>
-        <div class="settings-item">
-          <div class="settings-item-left"><span>Sports</span><span class="settings-item-sub">Headlines</span></div>
-          <button class="toggle on" onclick="this.classList.toggle('on')"></button>
-        </div>
-        <div class="settings-item">
-          <div class="settings-item-left"><span>Local</span><span class="settings-item-sub">Headlines</span></div>
-          <button class="toggle" onclick="this.classList.toggle('on')"></button>
-        </div>
+        <div class="settings-item"><div class="settings-item-left"><span>World</span><span class="settings-item-sub">Headlines, My Words</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
+        <div class="settings-item"><div class="settings-item-left"><span>Technology</span><span class="settings-item-sub">Headlines</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
+        <div class="settings-item"><div class="settings-item-left"><span>Sports</span><span class="settings-item-sub">Headlines</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
+        <div class="settings-item"><div class="settings-item-left"><span>Local</span><span class="settings-item-sub">Headlines</span></div><button class="toggle" onclick="this.classList.toggle('on')"></button></div>
         <button class="add-btn">+ Add Category</button>
       </div>
-
       <div class="settings-card">
         <div class="settings-card-title">🌐 Headline Sources</div>
-        <div class="settings-item">
-          <div class="settings-item-left"><span>Reuters</span><span class="settings-item-sub">reuters.com</span></div>
-          <button class="toggle on" onclick="this.classList.toggle('on')"></button>
-        </div>
-        <div class="settings-item">
-          <div class="settings-item-left"><span>BBC News</span><span class="settings-item-sub">bbc.com/news</span></div>
-          <button class="toggle on" onclick="this.classList.toggle('on')"></button>
-        </div>
-        <div class="settings-item">
-          <div class="settings-item-left"><span>AP News</span><span class="settings-item-sub">apnews.com</span></div>
-          <button class="toggle" onclick="this.classList.toggle('on')"></button>
-        </div>
+        <div class="settings-item"><div class="settings-item-left"><span>The Guardian</span><span class="settings-item-sub">theguardian.com</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
+        <div class="settings-item"><div class="settings-item-left"><span>Chicago Tribune</span><span class="settings-item-sub">chicagotribune.com</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
         <button class="add-btn">+ Add Source</button>
       </div>
-
       <div class="settings-card">
         <div class="settings-card-title">🔍 Keywords</div>
-        <div class="settings-item">
-          <div class="settings-item-left"><span>Inca Trail</span><span class="settings-item-sub">Exact match</span></div>
-          <button class="toggle on" onclick="this.classList.toggle('on')"></button>
-        </div>
-        <div class="settings-item">
-          <div class="settings-item-left"><span>Cubs</span><span class="settings-item-sub">Exact match</span></div>
-          <button class="toggle on" onclick="this.classList.toggle('on')"></button>
-        </div>
-        <div class="settings-item">
-          <div class="settings-item-left"><span>AI</span><span class="settings-item-sub">Exact match</span></div>
-          <button class="toggle on" onclick="this.classList.toggle('on')"></button>
-        </div>
+        <div class="settings-item"><div class="settings-item-left"><span>Inca Trail</span><span class="settings-item-sub">Exact match</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
+        <div class="settings-item"><div class="settings-item-left"><span>White Sox</span><span class="settings-item-sub">Exact match</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
+        <div class="settings-item"><div class="settings-item-left"><span>artificial intelligence</span><span class="settings-item-sub">Exact match</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
+        <div class="settings-item"><div class="settings-item-left"><span>Ukraine</span><span class="settings-item-sub">Exact match</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
         <button class="add-btn">+ Add Keyword</button>
       </div>
-
       <div class="settings-card">
         <div class="settings-card-title">💡 Topics</div>
-        <div class="settings-item">
-          <div class="settings-item-left"><span>US foreign policy</span><span class="settings-item-sub">Fuzzy match</span></div>
-          <button class="toggle on" onclick="this.classList.toggle('on')"></button>
-        </div>
-        <div class="settings-item">
-          <div class="settings-item-left"><span>Machine learning</span><span class="settings-item-sub">Fuzzy match</span></div>
-          <button class="toggle on" onclick="this.classList.toggle('on')"></button>
-        </div>
-        <div class="settings-item">
-          <div class="settings-item-left"><span>Small business tech</span><span class="settings-item-sub">Fuzzy match</span></div>
-          <button class="toggle" onclick="this.classList.toggle('on')"></button>
-        </div>
+        <div class="settings-item"><div class="settings-item-left"><span>US foreign policy</span><span class="settings-item-sub">Fuzzy match</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
+        <div class="settings-item"><div class="settings-item-left"><span>machine learning</span><span class="settings-item-sub">Fuzzy match</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
+        <div class="settings-item"><div class="settings-item-left"><span>small business technology</span><span class="settings-item-sub">Fuzzy match</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
         <button class="add-btn">+ Add Topic</button>
       </div>
-
     </div>
   </div>
 
@@ -594,13 +255,13 @@
       const data = await res.json();
       const c = data.current, d = data.daily;
       const wm = {
-        0:['☀️','Clear'], 1:['🌤️','Mostly Clear'], 2:['⛅','Partly Cloudy'], 3:['☁️','Overcast'],
-        45:['🌫️','Foggy'], 48:['🌫️','Icy Fog'],
-        51:['🌦️','Drizzle'], 53:['🌦️','Drizzle'], 55:['🌧️','Heavy Drizzle'],
-        61:['🌧️','Light Rain'], 63:['🌧️','Rain'], 65:['🌧️','Heavy Rain'],
-        71:['🌨️','Light Snow'], 73:['🌨️','Snow'], 75:['❄️','Heavy Snow'],
-        80:['🌦️','Showers'], 81:['🌧️','Showers'], 82:['⛈️','Violent Showers'],
-        95:['⛈️','Thunderstorm'], 96:['⛈️','Thunderstorm'], 99:['⛈️','Thunderstorm']
+        0:['☀️','Clear'],1:['🌤️','Mostly Clear'],2:['⛅','Partly Cloudy'],3:['☁️','Overcast'],
+        45:['🌫️','Foggy'],48:['🌫️','Icy Fog'],
+        51:['🌦️','Drizzle'],53:['🌦️','Drizzle'],55:['🌧️','Heavy Drizzle'],
+        61:['🌧️','Light Rain'],63:['🌧️','Rain'],65:['🌧️','Heavy Rain'],
+        71:['🌨️','Light Snow'],73:['🌨️','Snow'],75:['❄️','Heavy Snow'],
+        80:['🌦️','Showers'],81:['🌧️','Showers'],82:['⛈️','Violent Showers'],
+        95:['⛈️','Thunderstorm'],96:['⛈️','Thunderstorm'],99:['⛈️','Thunderstorm']
       };
       const [icon, desc] = wm[c.weathercode] || ['🌡️','Unknown'];
       document.getElementById('weather-block').innerHTML = `
@@ -615,16 +276,18 @@
     }
   }
 
-  const cats = {
-    world:  { label:'World',      icon:'🌍', color:'#7a3e00', bg:'#fff0d6' },
-    tech:   { label:'Technology', icon:'💻', color:'#0a5c4e', bg:'#d6f5ef' },
-    sports: { label:'Sports',     icon:'⚾', color:'#8a1010', bg:'#fde0e0' },
-    local:  { label:'Local',      icon:'📍', color:'#3d1580', bg:'#ede6ff' },
-  };
-
-let headlines = [];
+  let headlines = [];
   let categories = [];
   let currentFilter = 'all';
+
+  const recencyOptions = ['1 day','3 days','7 days','14 days','30 days'];
+  let recencyIdx = 2;
+
+  function cycleRecency() {
+    recencyIdx = (recencyIdx + 1) % recencyOptions.length;
+    document.getElementById('recency-val').textContent = recencyOptions[recencyIdx];
+    loadHeadlines();
+  }
 
   async function loadCategories() {
     try {
@@ -638,15 +301,19 @@ let headlines = [];
 
   async function loadHeadlines() {
     try {
+      document.getElementById('headline-count').textContent = 'Loading...';
       const recency = recencyOptions[recencyIdx].split(' ')[0];
-      const url = currentFilter === 'all'
-        ? `${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recency}`
-        : `${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recency}&categoryID=${getCategoryID(currentFilter)}`;
+      let url = `${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recency}`;
+      if (currentFilter !== 'all') {
+        const catID = getCategoryID(currentFilter);
+        if (catID) url += `&categoryID=${catID}`;
+      }
       const res = await fetch(url);
       headlines = await res.json();
       renderHeadlines();
     } catch(e) {
       console.error('Failed to load headlines:', e);
+      document.getElementById('headline-count').textContent = 'Error loading headlines';
     }
   }
 
@@ -657,29 +324,42 @@ let headlines = [];
 
   async function refreshHeadlines() {
     try {
-      document.getElementById('headline-count').textContent = 'Fetching headlines...';
+      document.getElementById('headline-count').textContent = 'Fetching new headlines...';
       const res = await fetch(`${API_BASE}/FetchHeadlines?code=${API_KEY}`, { method: 'POST' });
       const data = await res.json();
-      document.getElementById('headline-count').textContent = `Fetched ${data.inserted} new headlines`;
+      document.getElementById('headline-count').textContent = `Fetched ${data.inserted} new, ${data.duplicates} already stored`;
       await loadHeadlines();
     } catch(e) {
       console.error('Failed to fetch headlines:', e);
     }
   }
 
-  const recencyOptions = ['1 day','3 days','7 days','14 days','30 days'];
-  let recencyIdx = 2;
-  function cycleRecency() {
-    recencyIdx = (recencyIdx + 1) % recencyOptions.length;
-    document.getElementById('recency-val').textContent = recencyOptions[recencyIdx];
+  function formatAge(dateStr) {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const hrs = Math.floor(diff / 3600000);
+    if (hrs < 1) return '<1h';
+    if (hrs < 24) return `${hrs}h`;
+    return `${Math.floor(hrs/24)}d`;
   }
 
-function renderHeadlines() {
+  function renderCategoryTiles() {
+    const headlineCategories = categories.filter(c => c.Headlines === 'Y');
+    const row = document.getElementById('cat-row');
+    const allTile = `<div class="cat-tile active" onclick="filterCat('all',this)"><div class="cat-dot" style="background:#2b7fd4"></div>All</div>`;
+    const catColors = {'World':'#e8a020','Technology':'#2abfaa','Sports':'#e05050','Local':'#8b5cf6','Spanish':'#2b7fd4'};
+    const catTiles = headlineCategories.map(c => {
+      const color = catColors[c.Name] || '#888';
+      return `<div class="cat-tile" onclick="filterCat('${c.Name}',this)"><div class="cat-dot" style="background:${color}"></div>${c.Name}</div>`;
+    }).join('');
+    row.innerHTML = allTile + catTiles;
+  }
+
+  function renderHeadlines() {
     const filtered = currentFilter === 'all' ? headlines : headlines.filter(h => h.CategoryID === getCategoryID(currentFilter));
     document.getElementById('headline-count').textContent = `${filtered.length} Headline${filtered.length !== 1 ? 's' : ''}`;
 
     if (filtered.length === 0) {
-      document.getElementById('headlines-grouped').innerHTML = '<div class="empty-state">No headlines found. Click Refresh to fetch latest headlines.</div>';
+      document.getElementById('headlines-grouped').innerHTML = '<div class="empty-state">No headlines found. Click ↻ Refresh to fetch latest headlines.</div>';
       return;
     }
 
@@ -691,12 +371,12 @@ function renderHeadlines() {
     });
 
     const catColors = {
-      'World':      { icon:'🌍', color:'#7a3e00', bg:'#fff0d6' },
-      'Technology': { icon:'💻', color:'#0a5c4e', bg:'#d6f5ef' },
-      'Sports':     { icon:'⚾', color:'#8a1010', bg:'#fde0e0' },
-      'Local':      { icon:'📍', color:'#3d1580', bg:'#ede6ff' },
-      'Spanish':    { icon:'🗣️', color:'#1a5fa8', bg:'#e6f1ff' },
-      'Other':      { icon:'📰', color:'#444', bg:'#f5f5f5' },
+      'World':      {icon:'🌍',color:'#7a3e00',bg:'#fff0d6'},
+      'Technology': {icon:'💻',color:'#0a5c4e',bg:'#d6f5ef'},
+      'Sports':     {icon:'⚾',color:'#8a1010',bg:'#fde0e0'},
+      'Local':      {icon:'📍',color:'#3d1580',bg:'#ede6ff'},
+      'Spanish':    {icon:'🗣️',color:'#1a5fa8',bg:'#e6f1ff'},
+      'Other':      {icon:'📰',color:'#444',bg:'#f5f5f5'},
     };
 
     document.getElementById('headlines-grouped').innerHTML = Object.entries(groups).map(([catName, items]) => {
@@ -723,55 +403,9 @@ function renderHeadlines() {
     }).join('');
   }
 
-  function formatAge(dateStr) {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const hrs = Math.floor(diff / 3600000);
-    if (hrs < 1) return '<1h';
-    if (hrs < 24) return `${hrs}h`;
-    return `${Math.floor(hrs/24)}d`;
-  }
-    const filtered = currentFilter === 'all' ? headlines : headlines.filter(h => h.cat === currentFilter);
-    document.getElementById('headline-count').textContent = `${filtered.length} Headline${filtered.length !== 1 ? 's' : ''}`;
-
-    if (filtered.length === 0) {
-      document.getElementById('headlines-grouped').innerHTML = '<div class="empty-state">No headlines found for this category.</div>';
-      return;
-    }
-
-    const groups = {};
-    filtered.forEach(h => {
-      if (!groups[h.cat]) groups[h.cat] = [];
-      groups[h.cat].push(h);
-    });
-
-    document.getElementById('headlines-grouped').innerHTML = Object.entries(groups).map(([cat, items]) => {
-      const c = cats[cat];
-      const rows = items.map(h => `
-        <div class="headline-row ${h.retained ? 'retained' : ''}" onclick="openHeadline('${h.link}')">
-          <div class="headline-row-title">${h.title}</div>
-          <div class="headline-row-source">${h.source}</div>
-          <div class="headline-row-age">${h.age}</div>
-          <button class="retain-btn ${h.retained ? 'active' : ''}"
-            onclick="toggleRetain(${headlines.indexOf(h)}, event)"
-            title="${h.retained ? 'Remove bookmark' : 'Bookmark'}">⭐</button>
-        </div>`).join('');
-
-      return `
-        <div class="cat-group">
-          <div class="cat-group-header" style="background:${c.bg};color:${c.color};border-bottom:1.5px solid ${c.color}44">
-            <span class="cat-group-icon">${c.icon}</span>
-            <span>${c.label}</span>
-            <span class="cat-group-count">${items.length}</span>
-          </div>
-          ${rows}
-        </div>`;
-    }).join('');
-  }
-
   function openHeadline(link) {
     if (link && link !== '#') window.open(link, '_blank', 'noopener');
   }
-
 
   async function toggleRetain(headlineID, e) {
     e.stopPropagation();
@@ -795,21 +429,7 @@ function renderHeadlines() {
     currentFilter = cat;
     document.querySelectorAll('.cat-tile').forEach(t => t.classList.remove('active'));
     el.classList.add('active');
-    renderHeadlines();
-  }
-
-function renderCategoryTiles() {
-    const headlineCategories = categories.filter(c => c.Headlines === 'Y');
-    const row = document.getElementById('cat-row');
-    const allTile = `<div class="cat-tile active" onclick="filterCat('all',this)"><div class="cat-dot" style="background:#2b7fd4"></div>All</div>`;
-    const catTiles = headlineCategories.map(c => {
-      const colors = {
-        'World':'#e8a020','Technology':'#2abfaa','Sports':'#e05050','Local':'#8b5cf6','Spanish':'#2b7fd4'
-      };
-      const color = colors[c.Name] || '#888';
-      return `<div class="cat-tile" onclick="filterCat('${c.Name}',this)"><div class="cat-dot" style="background:${color}"></div>${c.Name}</div>`;
-    }).join('');
-    row.innerHTML = allTile + catTiles;
+    loadHeadlines();
   }
 
   function showScreen(name) {
