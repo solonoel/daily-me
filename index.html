@@ -440,7 +440,10 @@
         <span class="recency-pill-arrow">▲▼</span>
       </div>
     </div>
-    <div class="headline-count" id="headline-count"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="headline-count" id="headline-count"></div>
+      <button onclick="refreshHeadlines()" style="font-size:11px;font-weight:600;color:var(--sky-deep);background:white;border:1px solid var(--border);border-radius:100px;padding:5px 12px;cursor:pointer;">↻ Refresh</button>
+    </div>
     <div id="headlines-grouped"></div>
   </div>
 
@@ -547,6 +550,7 @@
 
 <script>
   const API_BASE = 'https://dailyme-functions-ewhcg5akbxhhcugr.centralus-01.azurewebsites.net/api';
+  const API_KEY = 'OoYIR1YZC3r5Ge3kgfTkY7k1eetRuMakZ8GshiK_7S-HAzFuAn_oIQ==';
   const USER_ID = 1;
 
   const greetings = {
@@ -618,18 +622,50 @@
     local:  { label:'Local',      icon:'📍', color:'#3d1580', bg:'#ede6ff' },
   };
 
-  const sampleHeadlines = [
-    { cat:'world',  title:'G7 Leaders Convene for Emergency Climate Summit in Rome',              source:'Reuters',         age:'2h',  link:'#', retained:false },
-    { cat:'world',  title:'Inca Trail Sees Record Tourism Numbers Ahead of Peak Season',          source:'Reuters',         age:'6h',  link:'#', retained:false },
-    { cat:'tech',   title:'New AI Model Demonstrates Breakthrough in Medical Diagnosis',          source:'BBC News',        age:'4h',  link:'#', retained:true  },
-    { cat:'tech',   title:'Small Businesses Increasingly Adopting AI Tools for Operations',      source:'BBC News',        age:'3h',  link:'#', retained:false },
-    { cat:'sports', title:'Cubs Extend Winning Streak to Seven Games with Extra-Inning Win',     source:'AP News',         age:'1h',  link:'#', retained:false },
-    { cat:'sports', title:"Women's Basketball Finals Draw Record Viewership Nationwide",         source:'ESPN',            age:'5h',  link:'#', retained:false },
-    { cat:'local',  title:'Illinois Budget Proposal Includes Funding for Rural Infrastructure', source:'Chicago Tribune', age:'5h',  link:'#', retained:false },
-  ];
-
-  let headlines = [...sampleHeadlines];
+let headlines = [];
+  let categories = [];
   let currentFilter = 'all';
+
+  async function loadCategories() {
+    try {
+      const res = await fetch(`${API_BASE}/GetCategories?code=${API_KEY}&userID=${USER_ID}`);
+      categories = await res.json();
+      renderCategoryTiles();
+    } catch(e) {
+      console.error('Failed to load categories:', e);
+    }
+  }
+
+  async function loadHeadlines() {
+    try {
+      const recency = recencyOptions[recencyIdx].split(' ')[0];
+      const url = currentFilter === 'all'
+        ? `${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recency}`
+        : `${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recency}&categoryID=${getCategoryID(currentFilter)}`;
+      const res = await fetch(url);
+      headlines = await res.json();
+      renderHeadlines();
+    } catch(e) {
+      console.error('Failed to load headlines:', e);
+    }
+  }
+
+  function getCategoryID(catName) {
+    const cat = categories.find(c => c.Name.toLowerCase() === catName.toLowerCase());
+    return cat ? cat.CategoryID : null;
+  }
+
+  async function refreshHeadlines() {
+    try {
+      document.getElementById('headline-count').textContent = 'Fetching headlines...';
+      const res = await fetch(`${API_BASE}/FetchHeadlines?code=${API_KEY}`, { method: 'POST' });
+      const data = await res.json();
+      document.getElementById('headline-count').textContent = `Fetched ${data.inserted} new headlines`;
+      await loadHeadlines();
+    } catch(e) {
+      console.error('Failed to fetch headlines:', e);
+    }
+  }
 
   const recencyOptions = ['1 day','3 days','7 days','14 days','30 days'];
   let recencyIdx = 2;
@@ -638,7 +674,62 @@
     document.getElementById('recency-val').textContent = recencyOptions[recencyIdx];
   }
 
-  function renderHeadlines() {
+function renderHeadlines() {
+    const filtered = currentFilter === 'all' ? headlines : headlines.filter(h => h.CategoryID === getCategoryID(currentFilter));
+    document.getElementById('headline-count').textContent = `${filtered.length} Headline${filtered.length !== 1 ? 's' : ''}`;
+
+    if (filtered.length === 0) {
+      document.getElementById('headlines-grouped').innerHTML = '<div class="empty-state">No headlines found. Click Refresh to fetch latest headlines.</div>';
+      return;
+    }
+
+    const groups = {};
+    filtered.forEach(h => {
+      const key = h.CategoryName || 'Other';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(h);
+    });
+
+    const catColors = {
+      'World':      { icon:'🌍', color:'#7a3e00', bg:'#fff0d6' },
+      'Technology': { icon:'💻', color:'#0a5c4e', bg:'#d6f5ef' },
+      'Sports':     { icon:'⚾', color:'#8a1010', bg:'#fde0e0' },
+      'Local':      { icon:'📍', color:'#3d1580', bg:'#ede6ff' },
+      'Spanish':    { icon:'🗣️', color:'#1a5fa8', bg:'#e6f1ff' },
+      'Other':      { icon:'📰', color:'#444', bg:'#f5f5f5' },
+    };
+
+    document.getElementById('headlines-grouped').innerHTML = Object.entries(groups).map(([catName, items]) => {
+      const c = catColors[catName] || catColors['Other'];
+      const rows = items.map(h => `
+        <div class="headline-row ${h.Retain === 'Y' ? 'retained' : ''}" onclick="openHeadline('${h.Link}')">
+          <div class="headline-row-title">${h.HeadlineName}</div>
+          <div class="headline-row-source">${h.Keyword || h.Topic || ''}</div>
+          <div class="headline-row-age">${formatAge(h.CreatedDate)}</div>
+          <button class="retain-btn ${h.Retain === 'Y' ? 'active' : ''}"
+            onclick="toggleRetain(${h.HeadlineID}, event)"
+            title="${h.Retain === 'Y' ? 'Remove bookmark' : 'Bookmark'}">⭐</button>
+        </div>`).join('');
+
+      return `
+        <div class="cat-group">
+          <div class="cat-group-header" style="background:${c.bg};color:${c.color};border-bottom:1.5px solid ${c.color}44">
+            <span class="cat-group-icon">${c.icon}</span>
+            <span>${catName}</span>
+            <span class="cat-group-count">${items.length}</span>
+          </div>
+          ${rows}
+        </div>`;
+    }).join('');
+  }
+
+  function formatAge(dateStr) {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const hrs = Math.floor(diff / 3600000);
+    if (hrs < 1) return '<1h';
+    if (hrs < 24) return `${hrs}h`;
+    return `${Math.floor(hrs/24)}d`;
+  }
     const filtered = currentFilter === 'all' ? headlines : headlines.filter(h => h.cat === currentFilter);
     document.getElementById('headline-count').textContent = `${filtered.length} Headline${filtered.length !== 1 ? 's' : ''}`;
 
@@ -681,10 +772,23 @@
     if (link && link !== '#') window.open(link, '_blank', 'noopener');
   }
 
-  function toggleRetain(i, e) {
+
+  async function toggleRetain(headlineID, e) {
     e.stopPropagation();
-    headlines[i].retained = !headlines[i].retained;
-    renderHeadlines();
+    const headline = headlines.find(h => h.HeadlineID === headlineID);
+    if (!headline) return;
+    const newRetain = headline.Retain !== 'Y';
+    try {
+      await fetch(`${API_BASE}/SaveRetain?code=${API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ headlineID, retain: newRetain })
+      });
+      headline.Retain = newRetain ? 'Y' : 'N';
+      renderHeadlines();
+    } catch(e) {
+      console.error('Failed to save retain:', e);
+    }
   }
 
   function filterCat(cat, el) {
@@ -692,6 +796,20 @@
     document.querySelectorAll('.cat-tile').forEach(t => t.classList.remove('active'));
     el.classList.add('active');
     renderHeadlines();
+  }
+
+function renderCategoryTiles() {
+    const headlineCategories = categories.filter(c => c.Headlines === 'Y');
+    const row = document.getElementById('cat-row');
+    const allTile = `<div class="cat-tile active" onclick="filterCat('all',this)"><div class="cat-dot" style="background:#2b7fd4"></div>All</div>`;
+    const catTiles = headlineCategories.map(c => {
+      const colors = {
+        'World':'#e8a020','Technology':'#2abfaa','Sports':'#e05050','Local':'#8b5cf6','Spanish':'#2b7fd4'
+      };
+      const color = colors[c.Name] || '#888';
+      return `<div class="cat-tile" onclick="filterCat('${c.Name}',this)"><div class="cat-dot" style="background:${color}"></div>${c.Name}</div>`;
+    }).join('');
+    row.innerHTML = allTile + catTiles;
   }
 
   function showScreen(name) {
@@ -704,7 +822,7 @@
   setGreeting();
   setDate();
   loadWeather();
-  renderHeadlines();
+  loadCategories().then(() => loadHeadlines());
 </script>
 </body>
 </html>
