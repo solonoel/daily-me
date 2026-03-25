@@ -1,0 +1,19 @@
+{
+  "navigationFallback": {
+    "rewrite": "/index.html"
+  },
+  "responseOverrides": {
+    "404": {
+      "rewrite": "/index.html"
+    }
+  }
+}
+```
+
+4. Save with **Ctrl+S**
+
+Then in the terminal run:
+```
+git add staticwebapp.config.json
+git commit -m "Add static web app config"
+git push
