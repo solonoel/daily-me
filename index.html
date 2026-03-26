@@ -322,15 +322,28 @@
     return cat ? cat.CategoryID : null;
   }
 
-  async function refreshHeadlines() {
+async function refreshHeadlines() {
     try {
-      document.getElementById('headline-count').textContent = 'Fetching new headlines...';
-      const res = await fetch(`${API_BASE}/FetchHeadlines?code=${API_KEY}`, { method: 'POST' });
-      const data = await res.json();
-      document.getElementById('headline-count').textContent = `Fetched ${data.inserted} new, ${data.duplicates} already stored`;
+      document.getElementById('headline-count').textContent = 'Cleaning old headlines...';
+      
+      // Step 1 - delete unflagged headlines
+      const cleanRes = await fetch(`${API_BASE}/CleanHeadlines?code=${API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userID: USER_ID })
+      });
+      const cleanData = await cleanRes.json();
+
+      // Step 2 - fetch fresh headlines
+      document.getElementById('headline-count').textContent = `Cleared ${cleanData.deleted} headlines. Fetching new...`;
+      const fetchRes = await fetch(`${API_BASE}/FetchHeadlines?code=${API_KEY}`, { method: 'POST' });
+      const fetchData = await fetchRes.json();
+
+      document.getElementById('headline-count').textContent = `Fetched ${fetchData.inserted} new headlines`;
       await loadHeadlines();
     } catch(e) {
-      console.error('Failed to fetch headlines:', e);
+      console.error('Failed to refresh headlines:', e);
+      document.getElementById('headline-count').textContent = 'Error refreshing headlines';
     }
   }
 
