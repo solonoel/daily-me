@@ -15,7 +15,6 @@ const config = {
   }
 };
 
-// Generic HTTP fetch helper
 function fetchUrl(url) {
   return new Promise((resolve, reject) => {
     const client = url.startsWith('https') ? https : http;
@@ -27,7 +26,6 @@ function fetchUrl(url) {
   });
 }
 
-// Parse RSS XML into articles array
 function parseRSS(xml) {
   const articles = [];
   const itemRegex = /<item>([\s\S]*?)<\/item>/g;
@@ -50,7 +48,6 @@ function parseRSS(xml) {
   return articles;
 }
 
-// Source handlers
 async function fetchGuardian(source, keywords, topics, fromDate) {
   const apiKey = process.env.GUARDIAN_API_KEY;
   const articles = [];
@@ -140,6 +137,29 @@ async function fetchRSS(source) {
   return parseRSS(xml);
 }
 
+async function aiCategorize(title, summary, categoryNames) {
+  try {
+    const prompt = `You are a news categorizer. Given this headline and summary, assign it to exactly one of these categories: ${categoryNames.join(', ')}. If none fit well, reply "Other". Reply with only the category name, nothing else.\n\nHeadline: ${title}\nSummary: ${summary || 'none'}`;
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 20,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    return data.content?.[0]?.text?.trim() || 'Other';
+  } catch(e) {
+    return 'Other';
+  }
+}
+
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
@@ -161,13 +181,13 @@ module.exports = async function(context, req) {
       .query(`SELECT * FROM [HeadlineSource] WHERE IsActive = 'Y'`);
     const sources = sourcesResult.recordset;
 
-    // Get keywords and topics for Guardian/search-based sources
+    // Get keywords and topics
     const kwResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT k.KeywordID, k.Keyword AS text, k.CategoryID, 'keyword' AS termType FROM [HeadlineKeyword] k WHERE k.UserID = @UserID AND k.IsActive = 'Y'`);
+      .query(`SELECT k.KeywordID, k.Keyword AS text, k.CategoryID FROM [HeadlineKeyword] k WHERE k.UserID = @UserID AND k.IsActive = 'Y'`);
     const tpResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT t.TopicID, t.Topic AS text, t.CategoryID, 'topic' AS termType FROM [HeadlineTopic] t WHERE t.UserID = @UserID AND t.IsActive = 'Y'`);
+      .query(`SELECT t.TopicID, t.Topic AS text, t.CategoryID FROM [HeadlineTopic] t WHERE t.UserID = @UserID AND t.IsActive = 'Y'`);
 
     const keywords = kwResult.recordset.map(k => ({ ...k, keywordID: k.KeywordID, topicID: null }));
     const topics = tpResult.recordset.map(t => ({ ...t, keywordID: null, topicID: t.TopicID }));
@@ -180,20 +200,18 @@ module.exports = async function(context, req) {
 
     // Fetch from all sources
     let allArticles = [];
-
     for (const source of sources) {
       try {
         let articles = [];
         switch(source.SourceType) {
-          case 'Guardian':  articles = await fetchGuardian(source, keywords, topics, fromDateStr); break;
-          case 'NYT':       articles = await fetchNYT(source); break;
-          case 'GNews':     articles = await fetchGNews(source); break;
-          case 'Currents':  articles = await fetchCurrents(source); break;
-          case 'MediaStack':articles = await fetchMediaStack(source); break;
-          case 'NewsAPI':   articles = await fetchNewsAPI(source); break;
-          case 'RSS':       articles = await fetchRSS(source); break;
+          case 'Guardian':   articles = await fetchGuardian(source, keywords, topics, fromDateStr); break;
+          case 'NYT':        articles = await fetchNYT(source); break;
+          case 'GNews':      articles = await fetchGNews(source); break;
+          case 'Currents':   articles = await fetchCurrents(source); break;
+          case 'MediaStack': articles = await fetchMediaStack(source); break;
+          case 'NewsAPI':    articles = await fetchNewsAPI(source); break;
+          case 'RSS':        articles = await fetchRSS(source); break;
         }
-        // Tag with source info
         articles.forEach(a => {
           a.sourceName = source.Name;
           a.sourceID = source.SourceID;
@@ -215,6 +233,77 @@ module.exports = async function(context, req) {
       return true;
     });
 
+    // Get categories for AI
+    const catNamesResult = await pool.request()
+      .input('UserID', sql.Int, userID)
+      .query(`SELECT CategoryID, Name FROM [Category] WHERE UserID = @UserID AND IsActive = 'Y' AND Headlines = 'Y'`);
+    const categoryNames = catNamesResult.recordset.map(c => c.Name);
+
+    // Build vocabulary for recognizable words check
+    const vocabulary = new Set();
+    [...kwResult.recordset, ...tpResult.recordset].forEach(t => {
+      t.text.toLowerCase().split(' ')
+        .filter(w => w.length > 4)
+        .forEach(w => vocabulary.add(w));
+    });
+
+    // Categorize each article
+    for (const a of unique) {
+      if (a.categoryID) continue;
+
+      const text = `${a.title} ${a.summary}`.toLowerCase();
+
+      // Step 1 — exact keyword match
+      let matched = false;
+      for (const kw of kwResult.recordset) {
+        if (text.includes(kw.text.toLowerCase())) {
+          a.categoryID = kw.CategoryID;
+          a.keywordID = kw.KeywordID;
+          matched = true;
+          break;
+        }
+      }
+      if (matched) continue;
+
+      // Step 2 — fuzzy keyword match
+      for (const kw of kwResult.recordset) {
+        const words = kw.text.toLowerCase().split(' ').filter(w => w.length > 4);
+        if (words.some(w => text.includes(w))) {
+          a.categoryID = kw.CategoryID;
+          a.keywordID = kw.KeywordID;
+          matched = true;
+          break;
+        }
+      }
+      if (matched) continue;
+
+      // Step 3 — fuzzy topic match
+      for (const tp of tpResult.recordset) {
+        const words = tp.text.toLowerCase().split(' ').filter(w => w.length > 3);
+        const matchCount = words.filter(w => text.includes(w)).length;
+        if (matchCount >= Math.ceil(words.length * 0.5)) {
+          a.categoryID = tp.CategoryID;
+          a.topicID = tp.TopicID;
+          matched = true;
+          break;
+        }
+      }
+      if (matched) continue;
+
+      // Step 4 — check for recognizable words
+      const titleWords = a.title.toLowerCase().split(' ').filter(w => w.length > 4);
+      const hasRecognizable = titleWords.some(w => vocabulary.has(w));
+
+      if (!hasRecognizable) {
+        // Step 5 — AI categorization
+        const aiCategory = await aiCategorize(a.title, a.summary, categoryNames);
+        if (aiCategory !== 'Other') {
+          const cat = catNamesResult.recordset.find(c => c.Name.toLowerCase() === aiCategory.toLowerCase());
+          if (cat) a.categoryID = cat.CategoryID;
+        }
+      }
+    }
+
     // Sort by date descending
     unique.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
 
@@ -223,7 +312,6 @@ module.exports = async function(context, req) {
     const catCounts = {};
     const maxPerCat = Math.ceil(maxHeadlines / 5);
 
-    // First pass — spread across categories
     for (const a of unique) {
       if (selected.length >= maxHeadlines) break;
       const cat = a.categoryID || 'none';
@@ -231,7 +319,6 @@ module.exports = async function(context, req) {
       if (catCounts[cat] <= maxPerCat) selected.push(a);
     }
 
-    // Second pass — fill remaining slots
     for (const a of unique) {
       if (selected.length >= maxHeadlines) break;
       if (!selected.includes(a)) selected.push(a);
@@ -242,12 +329,12 @@ module.exports = async function(context, req) {
     for (const a of selected) {
       await pool.request()
         .input('UserID', sql.Int, userID)
-        .input('CategoryID', sql.Int, a.categoryID)
+        .input('CategoryID', sql.Int, a.categoryID || null)
         .input('HeadlineName', sql.NVarChar(500), (a.title || '').substring(0, 500))
         .input('Link', sql.NVarChar(500), (a.link || '').substring(0, 500))
         .input('Summary', sql.NVarChar(1000), (a.summary || '').substring(0, 1000))
-        .input('KeywordID', sql.Int, a.keywordID)
-        .input('TopicID', sql.Int, a.topicID)
+        .input('KeywordID', sql.Int, a.keywordID || null)
+        .input('TopicID', sql.Int, a.topicID || null)
         .query(`
           INSERT INTO [Headline]
             (UserID, CategoryID, HeadlineName, Link, Summary, CreatedDate, Retain, KeywordID, TopicID)
