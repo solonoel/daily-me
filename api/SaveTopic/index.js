@@ -65,6 +65,9 @@ module.exports = async function(context, req) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ success: true })
       };
+
+    } else {
+      context.res = { status: 400, body: 'Unknown action' };
     }
   } catch(err) {
     context.res = { status: 500, body: 'Error: ' + err.message };

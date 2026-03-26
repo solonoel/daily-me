@@ -276,19 +276,11 @@ module.exports = async function(context, req) {
       const text = `${a.title} ${a.summary}`.toLowerCase();
       let matched = false;
 
+// Exact whole-word/phrase keyword match only
       for (const kw of kwResult.recordset) {
-        if (text.includes(kw.text.toLowerCase())) {
-          a.categoryID = kw.CategoryID;
-          a.keywordID = kw.KeywordID;
-          matched = true;
-          break;
-        }
-      }
-      if (matched) continue;
-
-      for (const kw of kwResult.recordset) {
-        const words = kw.text.toLowerCase().split(' ').filter(w => w.length > 4);
-        if (words.some(w => text.includes(w))) {
+        const escaped = kw.text.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+        if (regex.test(text)) {
           a.categoryID = kw.CategoryID;
           a.keywordID = kw.KeywordID;
           matched = true;
