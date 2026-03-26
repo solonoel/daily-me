@@ -137,6 +137,34 @@ async function fetchRSS(source) {
   return parseRSS(xml);
 }
 
+async function fetchYouTube(source) {
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  const channelHandle = source.URL.split('@')[1];
+  const articles = [];
+  try {
+    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(channelHandle)}&type=channel&key=${apiKey}`;
+    const searchData = JSON.parse(await fetchUrl(searchUrl));
+    const channelID = searchData.items?.[0]?.id?.channelId;
+    if (!channelID) return articles;
+    const videosUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelID}&type=video&order=date&maxResults=10&key=${apiKey}`;
+    const videosData = JSON.parse(await fetchUrl(videosUrl));
+    for (const item of (videosData.items || [])) {
+      const videoID = item.id?.videoId;
+      if (!videoID) continue;
+      articles.push({
+        title: item.snippet.title,
+        link: `https://www.youtube.com/watch?v=${videoID}`,
+        summary: item.snippet.description?.substring(0, 500) || '',
+        thumbnailURL: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || null,
+        channelName: item.snippet.channelTitle,
+        channelURL: `https://www.youtube.com/channel/${item.snippet.channelId}`,
+        pubDate: new Date(item.snippet.publishedAt)
+      });
+    }
+  } catch(e) {}
+  return articles;
+}
+
 async function aiCategorize(title, summary, categoryNames) {
   try {
     const prompt = `You are a news categorizer. Given this headline and summary, assign it to exactly one of these categories: ${categoryNames.join(', ')}. If none fit well, reply "Other". Reply with only the category name, nothing else.\n\nHeadline: ${title}\nSummary: ${summary || 'none'}`;
@@ -165,7 +193,6 @@ module.exports = async function(context, req) {
     const pool = await sql.connect(config);
     const userID = 1;
 
-    // Get settings
     const settingResult = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`SELECT RecencyDays, MaxHeadlines FROM [HeadlineSetting] WHERE UserID = @UserID`);
@@ -176,12 +203,10 @@ module.exports = async function(context, req) {
     fromDate.setDate(fromDate.getDate() - recencyDays);
     const fromDateStr = fromDate.toISOString().split('T')[0];
 
-    // Get active sources
     const sourcesResult = await pool.request()
       .query(`SELECT * FROM [HeadlineSource] WHERE IsActive = 'Y'`);
     const sources = sourcesResult.recordset;
 
-    // Get keywords and topics
     const kwResult = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`SELECT k.KeywordID, k.Keyword AS text, k.CategoryID FROM [HeadlineKeyword] k WHERE k.UserID = @UserID AND k.IsActive = 'Y'`);
@@ -192,13 +217,11 @@ module.exports = async function(context, req) {
     const keywords = kwResult.recordset.map(k => ({ ...k, keywordID: k.KeywordID, topicID: null }));
     const topics = tpResult.recordset.map(t => ({ ...t, keywordID: null, topicID: t.TopicID }));
 
-    // Get existing links to deduplicate
     const existingResult = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`SELECT Link FROM [Headline] WHERE UserID = @UserID`);
     const existingLinks = new Set(existingResult.recordset.map(r => r.Link));
 
-    // Fetch from all sources
     let allArticles = [];
     for (const source of sources) {
       try {
@@ -211,6 +234,7 @@ module.exports = async function(context, req) {
           case 'MediaStack': articles = await fetchMediaStack(source); break;
           case 'NewsAPI':    articles = await fetchNewsAPI(source); break;
           case 'RSS':        articles = await fetchRSS(source); break;
+          case 'YouTube':    articles = await fetchYouTube(source); break;
         }
         articles.forEach(a => {
           a.sourceName = source.Name;
@@ -218,6 +242,9 @@ module.exports = async function(context, req) {
           if (!a.categoryID) a.categoryID = null;
           if (!a.keywordID) a.keywordID = null;
           if (!a.topicID) a.topicID = null;
+          if (!a.thumbnailURL) a.thumbnailURL = null;
+          if (!a.channelName) a.channelName = null;
+          if (!a.channelURL) a.channelURL = null;
         });
         allArticles = allArticles.concat(articles);
       } catch(err) {
@@ -225,7 +252,6 @@ module.exports = async function(context, req) {
       }
     }
 
-    // Deduplicate by URL
     const seen = new Set();
     const unique = allArticles.filter(a => {
       if (!a.link || seen.has(a.link) || existingLinks.has(a.link)) return false;
@@ -233,13 +259,11 @@ module.exports = async function(context, req) {
       return true;
     });
 
-    // Get categories for AI
     const catNamesResult = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`SELECT CategoryID, Name FROM [Category] WHERE UserID = @UserID AND IsActive = 'Y' AND Headlines = 'Y'`);
     const categoryNames = catNamesResult.recordset.map(c => c.Name);
 
-    // Build vocabulary for recognizable words check
     const vocabulary = new Set();
     [...kwResult.recordset, ...tpResult.recordset].forEach(t => {
       t.text.toLowerCase().split(' ')
@@ -247,14 +271,11 @@ module.exports = async function(context, req) {
         .forEach(w => vocabulary.add(w));
     });
 
-    // Categorize each article
     for (const a of unique) {
       if (a.categoryID) continue;
-
       const text = `${a.title} ${a.summary}`.toLowerCase();
-
-      // Step 1 — exact keyword match
       let matched = false;
+
       for (const kw of kwResult.recordset) {
         if (text.includes(kw.text.toLowerCase())) {
           a.categoryID = kw.CategoryID;
@@ -265,7 +286,6 @@ module.exports = async function(context, req) {
       }
       if (matched) continue;
 
-      // Step 2 — fuzzy keyword match
       for (const kw of kwResult.recordset) {
         const words = kw.text.toLowerCase().split(' ').filter(w => w.length > 4);
         if (words.some(w => text.includes(w))) {
@@ -277,7 +297,6 @@ module.exports = async function(context, req) {
       }
       if (matched) continue;
 
-      // Step 3 — fuzzy topic match
       for (const tp of tpResult.recordset) {
         const words = tp.text.toLowerCase().split(' ').filter(w => w.length > 3);
         const matchCount = words.filter(w => text.includes(w)).length;
@@ -290,12 +309,9 @@ module.exports = async function(context, req) {
       }
       if (matched) continue;
 
-      // Step 4 — check for recognizable words
       const titleWords = a.title.toLowerCase().split(' ').filter(w => w.length > 4);
       const hasRecognizable = titleWords.some(w => vocabulary.has(w));
-
       if (!hasRecognizable) {
-        // Step 5 — AI categorization
         const aiCategory = await aiCategorize(a.title, a.summary, categoryNames);
         if (aiCategory !== 'Other') {
           const cat = catNamesResult.recordset.find(c => c.Name.toLowerCase() === aiCategory.toLowerCase());
@@ -304,10 +320,8 @@ module.exports = async function(context, req) {
       }
     }
 
-    // Sort by date descending
     unique.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
 
-    // Apply MaxHeadlines limit with category spread
     const selected = [];
     const catCounts = {};
     const maxPerCat = Math.ceil(maxHeadlines / 5);
@@ -318,13 +332,11 @@ module.exports = async function(context, req) {
       catCounts[cat] = (catCounts[cat] || 0) + 1;
       if (catCounts[cat] <= maxPerCat) selected.push(a);
     }
-
     for (const a of unique) {
       if (selected.length >= maxHeadlines) break;
       if (!selected.includes(a)) selected.push(a);
     }
 
-    // Insert into database
     let totalInserted = 0;
     for (const a of selected) {
       await pool.request()
@@ -335,11 +347,16 @@ module.exports = async function(context, req) {
         .input('Summary', sql.NVarChar(1000), (a.summary || '').substring(0, 1000))
         .input('KeywordID', sql.Int, a.keywordID || null)
         .input('TopicID', sql.Int, a.topicID || null)
+        .input('ThumbnailURL', sql.NVarChar(500), a.thumbnailURL || null)
+        .input('ChannelName', sql.NVarChar(200), a.channelName || null)
+        .input('ChannelURL', sql.NVarChar(500), a.channelURL || null)
         .query(`
           INSERT INTO [Headline]
-            (UserID, CategoryID, HeadlineName, Link, Summary, CreatedDate, Retain, KeywordID, TopicID)
+            (UserID, CategoryID, HeadlineName, Link, Summary, CreatedDate, Retain,
+             KeywordID, TopicID, ThumbnailURL, ChannelName, ChannelURL)
           VALUES
-            (@UserID, @CategoryID, @HeadlineName, @Link, @Summary, GETDATE(), 'N', @KeywordID, @TopicID)
+            (@UserID, @CategoryID, @HeadlineName, @Link, @Summary, GETDATE(), 'N',
+             @KeywordID, @TopicID, @ThumbnailURL, @ChannelName, @ChannelURL)
         `);
       totalInserted++;
     }

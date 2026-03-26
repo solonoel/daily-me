@@ -22,8 +22,8 @@ module.exports = async function(context, req) {
 
     let query = `
       SELECT h.HeadlineID, h.UserID, h.CategoryID, h.HeadlineName,
-             h.Link, h.CreatedDate, h.LastViewedDate, h.Retain,
-             h.KeywordID, h.TopicID,
+             h.Link, h.Summary, h.CreatedDate, h.LastViewedDate, h.Retain,
+             h.KeywordID, h.TopicID, h.ThumbnailURL, h.ChannelName, h.ChannelURL,
              c.Name AS CategoryName,
              k.Keyword, t.Topic
       FROM [Headline] h
@@ -34,19 +34,14 @@ module.exports = async function(context, req) {
       AND h.CreatedDate >= DATEADD(day, -@RecencyDays, GETDATE())
     `;
 
-    if (categoryID) {
-      query += ` AND h.CategoryID = @CategoryID`;
-    }
-
+    if (categoryID) query += ` AND h.CategoryID = @CategoryID`;
     query += ` ORDER BY h.CreatedDate DESC`;
 
     const request = pool.request()
       .input('UserID', sql.Int, userID)
       .input('RecencyDays', sql.Int, recencyDays);
 
-    if (categoryID) {
-      request.input('CategoryID', sql.Int, parseInt(categoryID));
-    }
+    if (categoryID) request.input('CategoryID', sql.Int, parseInt(categoryID));
 
     const result = await request.query(query);
 
@@ -55,7 +50,7 @@ module.exports = async function(context, req) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(result.recordset)
     };
-  } catch (err) {
+  } catch(err) {
     context.res = { status: 500, body: 'Error: ' + err.message };
   }
 };
