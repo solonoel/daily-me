@@ -17,22 +17,20 @@ module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
     const userID = parseInt(req.query.userID || '1');
-    
     const result = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`
-        SELECT CategoryID, Name, IsActive, Headlines, MyWords
+        SELECT CategoryID, Name, IsActive, Headlines, MyWords, Sequence
         FROM [Category]
-        WHERE UserID = @UserID AND IsActive = 'Y'
-        ORDER BY Name
+        WHERE UserID = @UserID
+        ORDER BY ISNULL(Sequence, 999), Name
       `);
-
     context.res = {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(result.recordset)
     };
-  } catch (err) {
+  } catch(err) {
     context.res = { status: 500, body: 'Error: ' + err.message };
   }
 };
