@@ -20,12 +20,14 @@
       --shadow: 0 2px 12px rgba(43,127,212,0.08);
     }
     body { font-family:'DM Sans',sans-serif; background:linear-gradient(160deg,#e8f4ff 0%,#f5f9ff 60%,#eef7f0 100%); min-height:100vh; color:var(--text); }
-    .header { background:linear-gradient(135deg,#2b7fd4 0%,#1a9fd4 100%); padding:20px 32px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 4px 24px rgba(43,127,212,0.25); position:relative; overflow:hidden; }
+    .header { background:linear-gradient(135deg,#2b7fd4 0%,#1a9fd4 100%); padding:16px 32px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 4px 24px rgba(43,127,212,0.25); position:relative; overflow:hidden; }
     .header::before { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,0.07); }
-    .header-left { position:relative; z-index:1; }
-    .app-title { font-family:'Playfair Display',serif; font-size:28px; font-weight:600; color:white; letter-spacing:-0.5px; line-height:1; }
+    .header-left { position:relative; z-index:1; display:flex; align-items:center; gap:14px; }
+    .header-logo { height:52px; width:auto; }
+    .header-text {}
+    .app-title { font-family:'Playfair Display',serif; font-size:26px; font-weight:600; color:white; letter-spacing:-0.5px; line-height:1; }
     .app-title span { color:rgba(255,255,255,0.6); font-weight:400; }
-    .greeting { font-size:13px; color:rgba(255,255,255,0.85); margin-top:6px; font-weight:300; }
+    .greeting { font-size:12px; color:rgba(255,255,255,0.85); margin-top:4px; font-weight:300; }
     .weather-block { display:flex; align-items:center; gap:14px; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); border-radius:16px; padding:12px 20px; position:relative; z-index:1; min-width:160px; }
     .weather-icon { font-size:34px; line-height:1; }
     .weather-temp { font-family:'Playfair Display',serif; font-size:24px; font-weight:600; color:white; line-height:1; }
@@ -69,36 +71,62 @@
     .headline-row:last-child { border-bottom:none; }
     .headline-row:hover { background:#f4f9ff; }
     .headline-row.retained { border-left:3px solid var(--gold); padding-left:11px; }
-    .headline-row-title { flex:1; font-size:13px; font-weight:500; color:var(--text); line-height:1.4; }
-    .headline-row-source { font-size:11px; color:var(--sky-deep); font-weight:600; white-space:nowrap; flex-shrink:0; }
-    .headline-row-age { font-size:11px; color:var(--text-soft); white-space:nowrap; flex-shrink:0; min-width:28px; text-align:right; }
+    .headline-body { flex:1; min-width:0; }
+    .headline-row-title { font-size:13px; font-weight:500; color:var(--text); line-height:1.4; }
+    .headline-row-summary { font-size:11px; color:var(--text-soft); line-height:1.4; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .headline-row-meta { display:flex; align-items:center; gap:8px; margin-top:3px; }
+    .headline-row-source { font-size:11px; color:var(--sky-deep); font-weight:600; white-space:nowrap; }
+    .headline-row-age { font-size:11px; color:var(--text-soft); white-space:nowrap; }
     .retain-btn { width:24px; height:24px; border-radius:6px; border:1px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:11px; transition:all 0.15s; color:var(--text-muted); flex-shrink:0; }
     .retain-btn:hover { border-color:var(--gold); color:var(--gold); }
     .retain-btn.active { background:var(--gold); border-color:var(--gold); color:white; }
-    .settings-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; }
-    .settings-card { background:white; border:1.5px solid var(--border); border-radius:14px; padding:20px; box-shadow:var(--shadow); }
-    .settings-card-title { font-family:'Playfair Display',serif; font-size:16px; margin-bottom:14px; color:var(--text); display:flex; align-items:center; gap:8px; }
-    .settings-item { display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid #eef5fc; font-size:13px; font-weight:500; color:var(--text); }
-    .settings-item:last-child { border-bottom:none; }
-    .settings-item-left { display:flex; flex-direction:column; gap:2px; }
-    .settings-item-sub { font-size:11px; color:var(--text-muted); font-weight:400; }
+
+    /* SETTINGS */
+    .settings-section { margin-bottom:28px; }
+    .settings-section-title { font-family:'Playfair Display',serif; font-size:18px; color:var(--text); margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+    .settings-table { width:100%; border-collapse:collapse; background:white; border:1.5px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:var(--shadow); }
+    .settings-table th { background:#f5f9ff; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-soft); padding:10px 14px; text-align:left; border-bottom:1.5px solid var(--border); }
+    .settings-table td { padding:10px 14px; font-size:13px; color:var(--text); border-bottom:1px solid #eef5fc; vertical-align:middle; }
+    .settings-table tr:last-child td { border-bottom:none; }
+    .settings-table tr:hover td { background:#f8fbff; }
     .toggle { width:36px; height:20px; border-radius:10px; background:var(--border); position:relative; cursor:pointer; transition:background 0.2s; border:none; flex-shrink:0; }
     .toggle.on { background:var(--sky-deep); }
     .toggle::after { content:''; position:absolute; width:14px; height:14px; border-radius:50%; background:white; top:3px; left:3px; transition:transform 0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
     .toggle.on::after { transform:translateX(16px); }
-    .add-btn { width:100%; margin-top:12px; padding:9px; border-radius:8px; border:1.5px dashed var(--border); background:none; color:var(--sky-deep); font-size:13px; font-weight:500; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; }
-    .add-btn:hover { background:#f0f7ff; border-color:var(--sky-deep); }
+    .btn-icon { width:28px; height:28px; border-radius:6px; border:1px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:13px; transition:all 0.15s; color:var(--text-soft); }
+    .btn-icon:hover { border-color:var(--sky-deep); color:var(--sky-deep); background:#f0f7ff; }
+    .btn-icon.danger:hover { border-color:#e05050; color:#e05050; background:#fef0f0; }
+    .btn-add { display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; border:1.5px dashed var(--border); background:none; color:var(--sky-deep); font-size:13px; font-weight:500; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; margin-top:10px; }
+    .btn-add:hover { background:#f0f7ff; border-color:var(--sky-deep); }
+    .badge { display:inline-block; padding:2px 8px; border-radius:100px; font-size:10px; font-weight:700; background:#e6f1ff; color:var(--sky-deep); }
+
+    /* MODAL */
+    .modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.4); z-index:1000; display:flex; align-items:center; justify-content:center; }
+    .modal { background:white; border-radius:16px; padding:28px; width:440px; max-width:90vw; box-shadow:0 8px 40px rgba(0,0,0,0.2); }
+    .modal-title { font-family:'Playfair Display',serif; font-size:18px; color:var(--text); margin-bottom:20px; }
+    .form-group { margin-bottom:16px; }
+    .form-label { font-size:12px; font-weight:600; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:6px; }
+    .form-input { width:100%; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:13px; font-family:'DM Sans',sans-serif; color:var(--text); transition:border-color 0.2s; }
+    .form-input:focus { outline:none; border-color:var(--sky-deep); }
+    .form-select { width:100%; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:13px; font-family:'DM Sans',sans-serif; color:var(--text); background:white; }
+    .form-select:focus { outline:none; border-color:var(--sky-deep); }
+    .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+    .btn-primary { padding:9px 20px; border-radius:8px; border:none; background:var(--sky-deep); color:white; font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .btn-primary:hover { background:var(--sky-dark,#1a5fa8); }
+    .btn-secondary { padding:9px 20px; border-radius:8px; border:1.5px solid var(--border); background:white; color:var(--text-soft); font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .btn-secondary:hover { border-color:var(--sky-deep); color:var(--sky-deep); }
+
     .mywords-placeholder { background:white; border:1.5px solid var(--border); border-radius:16px; padding:48px; text-align:center; box-shadow:var(--shadow); }
     .placeholder-icon { font-size:48px; margin-bottom:16px; }
     .placeholder-title { font-family:'Playfair Display',serif; font-size:20px; margin-bottom:8px; color:var(--text); }
     .placeholder-sub { font-size:14px; color:var(--text-soft); line-height:1.6; }
     .empty-state { text-align:center; padding:40px; color:var(--text-muted); font-size:14px; }
+
     @media (max-width:600px) {
-      .header { padding:16px 20px; }
-      .main { padding:16px 20px; }
-      .weather-block { padding:10px 14px; min-width:0; }
-      .weather-temp { font-size:20px; }
-      .app-title { font-size:22px; }
+      .header { padding:14px 16px; }
+      .main { padding:16px; }
+      .header-logo { height:40px; }
+      .app-title { font-size:20px; }
       .nav-btn { padding:8px 14px; min-width:60px; }
     }
   </style>
@@ -107,8 +135,11 @@
 
 <header class="header">
   <div class="header-left">
-    <div class="app-title">Daily <span>Me</span></div>
-    <div class="greeting" id="greeting"></div>
+    <img src="logo.png" alt="Daily Me" class="header-logo">
+    <div class="header-text">
+      <div class="app-title">Daily <span>Me</span></div>
+      <div class="greeting" id="greeting"></div>
+    </div>
   </div>
   <div class="weather-block" id="weather-block">
     <div class="weather-loading">Loading weather...</div>
@@ -132,6 +163,7 @@
 
 <main class="main">
 
+  <!-- HEADLINES -->
   <div class="screen active" id="screen-headlines">
     <div class="date-strip">
       <div class="date-main" id="date-main"></div>
@@ -139,11 +171,7 @@
     </div>
     <div class="section-label">Categories</div>
     <div class="category-bar">
-      <div class="category-row" id="cat-row">
-        <div class="cat-tile active" onclick="filterCat('all',this)">
-          <div class="cat-dot" style="background:#2b7fd4"></div>All
-        </div>
-      </div>
+      <div class="category-row" id="cat-row"></div>
       <div class="recency-pill" onclick="cycleRecency()" title="Click to change recency">
         <span>Recency</span>
         <span class="recency-pill-value" id="recency-val">7 days</span>
@@ -157,6 +185,7 @@
     <div id="headlines-grouped"></div>
   </div>
 
+  <!-- MY WORDS -->
   <div class="screen" id="screen-mywords">
     <div class="date-strip">
       <div class="date-main">My Words</div>
@@ -169,68 +198,86 @@
     </div>
   </div>
 
+  <!-- SETTINGS -->
   <div class="screen" id="screen-settings">
     <div class="date-strip">
       <div class="date-main">Settings</div>
       <div class="date-sub">Manage your Daily Me preferences</div>
     </div>
-    <div class="settings-grid">
-      <div class="settings-card">
-        <div class="settings-card-title">📁 Categories</div>
-        <div class="settings-item"><div class="settings-item-left"><span>World</span><span class="settings-item-sub">Headlines, My Words</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
-        <div class="settings-item"><div class="settings-item-left"><span>Technology</span><span class="settings-item-sub">Headlines</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
-        <div class="settings-item"><div class="settings-item-left"><span>Sports</span><span class="settings-item-sub">Headlines</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
-        <div class="settings-item"><div class="settings-item-left"><span>Local</span><span class="settings-item-sub">Headlines</span></div><button class="toggle" onclick="this.classList.toggle('on')"></button></div>
-        <button class="add-btn">+ Add Category</button>
-      </div>
-      <div class="settings-card">
-        <div class="settings-card-title">🌐 Headline Sources</div>
-        <div class="settings-item"><div class="settings-item-left"><span>The Guardian</span><span class="settings-item-sub">theguardian.com</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
-        <div class="settings-item"><div class="settings-item-left"><span>Chicago Tribune</span><span class="settings-item-sub">chicagotribune.com</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
-        <button class="add-btn">+ Add Source</button>
-      </div>
-      <div class="settings-card">
-        <div class="settings-card-title">🔍 Keywords</div>
-        <div class="settings-item"><div class="settings-item-left"><span>Inca Trail</span><span class="settings-item-sub">Exact match</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
-        <div class="settings-item"><div class="settings-item-left"><span>White Sox</span><span class="settings-item-sub">Exact match</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
-        <div class="settings-item"><div class="settings-item-left"><span>artificial intelligence</span><span class="settings-item-sub">Exact match</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
-        <div class="settings-item"><div class="settings-item-left"><span>Ukraine</span><span class="settings-item-sub">Exact match</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
-        <button class="add-btn">+ Add Keyword</button>
-      </div>
-      <div class="settings-card">
-        <div class="settings-card-title">💡 Topics</div>
-        <div class="settings-item"><div class="settings-item-left"><span>US foreign policy</span><span class="settings-item-sub">Fuzzy match</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
-        <div class="settings-item"><div class="settings-item-left"><span>machine learning</span><span class="settings-item-sub">Fuzzy match</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
-        <div class="settings-item"><div class="settings-item-left"><span>small business technology</span><span class="settings-item-sub">Fuzzy match</span></div><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
-        <button class="add-btn">+ Add Topic</button>
-      </div>
+
+    <!-- Categories -->
+    <div class="settings-section">
+      <div class="settings-section-title">📁 Categories</div>
+      <table class="settings-table">
+        <thead><tr><th>Category</th><th>Headlines</th><th>My Words</th><th>Active</th></tr></thead>
+        <tbody id="settings-categories"></tbody>
+      </table>
     </div>
+
+    <!-- Sources -->
+    <div class="settings-section">
+      <div class="settings-section-title">🌐 Headline Sources</div>
+      <table class="settings-table">
+        <thead><tr><th>Name</th><th>Type</th><th>Active</th><th></th></tr></thead>
+        <tbody id="settings-sources"></tbody>
+      </table>
+      <button class="btn-add" onclick="openModal('source')">+ Add Source</button>
+    </div>
+
+    <!-- Keywords -->
+    <div class="settings-section">
+      <div class="settings-section-title">🔍 Keywords <span style="font-size:12px;font-weight:400;color:var(--text-soft);font-family:'DM Sans',sans-serif"> — exact match</span></div>
+      <table class="settings-table">
+        <thead><tr><th>Keyword</th><th>Category</th><th>Active</th><th></th></tr></thead>
+        <tbody id="settings-keywords"></tbody>
+      </table>
+      <button class="btn-add" onclick="openModal('keyword')">+ Add Keyword</button>
+    </div>
+
+    <!-- Topics -->
+    <div class="settings-section">
+      <div class="settings-section-title">💡 Topics <span style="font-size:12px;font-weight:400;color:var(--text-soft);font-family:'DM Sans',sans-serif"> — fuzzy match</span></div>
+      <table class="settings-table">
+        <thead><tr><th>Topic</th><th>Category</th><th>Active</th><th></th></tr></thead>
+        <tbody id="settings-topics"></tbody>
+      </table>
+      <button class="btn-add" onclick="openModal('topic')">+ Add Topic</button>
+    </div>
+
   </div>
 
 </main>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" style="display:none" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="modal-title">Add Item</div>
+    <div id="modal-body"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveModal()">Save</button>
+    </div>
+  </div>
+</div>
 
 <script>
   const API_BASE = 'https://dailyme-functions-ewhcg5akbxhhcugr.centralus-01.azurewebsites.net/api';
   const API_KEY = 'OoYIR1YZC3r5Ge3kgfTkY7k1eetRuMakZ8GshiK_7S-HAzFuAn_oIQ==';
   const USER_ID = 1;
 
+  const catColors = {
+    'World':      {icon:'🌍', color:'#7a3e00', bg:'#fff0d6', dot:'#e8a020'},
+    'Technology': {icon:'💻', color:'#0a5c4e', bg:'#d6f5ef', dot:'#2abfaa'},
+    'Sports':     {icon:'⚾', color:'#8a1010', bg:'#fde0e0', dot:'#e05050'},
+    'Local':      {icon:'📍', color:'#3d1580', bg:'#ede6ff', dot:'#8b5cf6'},
+    'Spanish':    {icon:'🗣️', color:'#1a5fa8', bg:'#e6f1ff', dot:'#2b7fd4'},
+    'Other':      {icon:'📰', color:'#444',    bg:'#f5f5f5', dot:'#888'},
+  };
+
   const greetings = {
-    morning: [
-      "Good morning, Noel — let's make it a great one.",
-      "Good morning, Noel. Oregon's finest day awaits.",
-      "Rise and shine, Noel. The news won't read itself.",
-      "Good morning, Noel. Coffee first, headlines second.",
-    ],
-    afternoon: [
-      "Good afternoon, Noel. How's the day treating you?",
-      "Afternoon, Noel. Time for a mid-day check-in.",
-      "Good afternoon, Noel. Stay curious.",
-    ],
-    evening: [
-      "Good evening, Noel. Wind down with the day's news.",
-      "Evening, Noel. Let's see what the world was up to.",
-      "Good evening, Noel. Almost time to rest.",
-    ]
+    morning: ["Good morning, Noel — let's make it a great one.", "Good morning, Noel. Oregon's finest day awaits.", "Rise and shine, Noel. The news won't read itself.", "Good morning, Noel. Coffee first, headlines second."],
+    afternoon: ["Good afternoon, Noel. How's the day treating you?", "Afternoon, Noel. Time for a mid-day check-in.", "Good afternoon, Noel. Stay curious."],
+    evening: ["Good evening, Noel. Wind down with the day's news.", "Evening, Noel. Let's see what the world was up to.", "Good evening, Noel. Almost time to rest."]
   };
 
   function setGreeting() {
@@ -250,27 +297,12 @@
 
   async function loadWeather() {
     try {
-      const url = 'https://api.open-meteo.com/v1/forecast?latitude=41.9945&longitude=-89.3334&current=temperature_2m,weathercode,windspeed_10m&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FChicago&forecast_days=1';
-      const res = await fetch(url);
+      const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=41.9945&longitude=-89.3334&current=temperature_2m,weathercode,windspeed_10m&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FChicago&forecast_days=1');
       const data = await res.json();
       const c = data.current, d = data.daily;
-      const wm = {
-        0:['☀️','Clear'],1:['🌤️','Mostly Clear'],2:['⛅','Partly Cloudy'],3:['☁️','Overcast'],
-        45:['🌫️','Foggy'],48:['🌫️','Icy Fog'],
-        51:['🌦️','Drizzle'],53:['🌦️','Drizzle'],55:['🌧️','Heavy Drizzle'],
-        61:['🌧️','Light Rain'],63:['🌧️','Rain'],65:['🌧️','Heavy Rain'],
-        71:['🌨️','Light Snow'],73:['🌨️','Snow'],75:['❄️','Heavy Snow'],
-        80:['🌦️','Showers'],81:['🌧️','Showers'],82:['⛈️','Violent Showers'],
-        95:['⛈️','Thunderstorm'],96:['⛈️','Thunderstorm'],99:['⛈️','Thunderstorm']
-      };
+      const wm = {0:['☀️','Clear'],1:['🌤️','Mostly Clear'],2:['⛅','Partly Cloudy'],3:['☁️','Overcast'],45:['🌫️','Foggy'],48:['🌫️','Icy Fog'],51:['🌦️','Drizzle'],53:['🌦️','Drizzle'],55:['🌧️','Heavy Drizzle'],61:['🌧️','Light Rain'],63:['🌧️','Rain'],65:['🌧️','Heavy Rain'],71:['🌨️','Light Snow'],73:['🌨️','Snow'],75:['❄️','Heavy Snow'],80:['🌦️','Showers'],81:['🌧️','Showers'],82:['⛈️','Violent Showers'],95:['⛈️','Thunderstorm'],96:['⛈️','Thunderstorm'],99:['⛈️','Thunderstorm']};
       const [icon, desc] = wm[c.weathercode] || ['🌡️','Unknown'];
-      document.getElementById('weather-block').innerHTML = `
-        <div class="weather-icon">${icon}</div>
-        <div class="weather-info">
-          <div class="weather-temp">${Math.round(c.temperature_2m)}°F</div>
-          <div class="weather-desc">${desc}</div>
-          <div class="weather-detail">H:${Math.round(d.temperature_2m_max[0])}° L:${Math.round(d.temperature_2m_min[0])}° · Wind ${Math.round(c.windspeed_10m)} mph</div>
-        </div>`;
+      document.getElementById('weather-block').innerHTML = `<div class="weather-icon">${icon}</div><div class="weather-info"><div class="weather-temp">${Math.round(c.temperature_2m)}°F</div><div class="weather-desc">${desc}</div><div class="weather-detail">H:${Math.round(d.temperature_2m_max[0])}° L:${Math.round(d.temperature_2m_min[0])}° · Wind ${Math.round(c.windspeed_10m)} mph</div></div>`;
     } catch(e) {
       document.getElementById('weather-block').innerHTML = '<div class="weather-loading">Weather unavailable</div>';
     }
@@ -278,7 +310,10 @@
 
   let headlines = [];
   let categories = [];
-  let currentFilter = 'all';
+  let sources = [];
+  let keywords = [];
+  let topics = [];
+  let currentFilter = 'Local';
 
   const recencyOptions = ['1 day','3 days','7 days','14 days','30 days'];
   let recencyIdx = 2;
@@ -289,60 +324,67 @@
     loadHeadlines();
   }
 
-  async function loadCategories() {
-    try {
-      const res = await fetch(`${API_BASE}/GetCategories?code=${API_KEY}&userID=${USER_ID}`);
-      categories = await res.json();
-      renderCategoryTiles();
-    } catch(e) {
-      console.error('Failed to load categories:', e);
-    }
+  async function apiCall(endpoint, method='GET', body=null) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(`${API_BASE}/${endpoint}?code=${API_KEY}&userID=${USER_ID}`, opts);
+    return res.json();
+  }
+
+  async function loadAll() {
+    const [cats, srcs, kwds, tpcs] = await Promise.all([
+      apiCall('GetCategories'),
+      apiCall('GetHeadlineSources'),
+      apiCall('GetHeadlineKeywords'),
+      apiCall('GetHeadlineTopics')
+    ]);
+    categories = Array.isArray(cats) ? cats : [];
+    sources = Array.isArray(srcs) ? srcs : [];
+    keywords = Array.isArray(kwds) ? kwds : [];
+    topics = Array.isArray(tpcs) ? tpcs : [];
+    renderCategoryTiles();
+    await loadHeadlines();
   }
 
   async function loadHeadlines() {
     try {
       document.getElementById('headline-count').textContent = 'Loading...';
       const recency = recencyOptions[recencyIdx].split(' ')[0];
-      let url = `${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recency}`;
+      let url = `GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recency}`;
       if (currentFilter !== 'all') {
         const catID = getCategoryID(currentFilter);
         if (catID) url += `&categoryID=${catID}`;
       }
-      const res = await fetch(url);
+      const res = await fetch(`${API_BASE}/${url}`);
       headlines = await res.json();
+      if (!Array.isArray(headlines)) headlines = [];
       renderHeadlines();
     } catch(e) {
-      console.error('Failed to load headlines:', e);
       document.getElementById('headline-count').textContent = 'Error loading headlines';
     }
   }
 
   function getCategoryID(catName) {
+    if (!catName || catName === 'all') return null;
     const cat = categories.find(c => c.Name.toLowerCase() === catName.toLowerCase());
     return cat ? cat.CategoryID : null;
   }
 
-async function refreshHeadlines() {
+  async function refreshHeadlines() {
     try {
       document.getElementById('headline-count').textContent = 'Cleaning old headlines...';
-      
-      // Step 1 - delete unflagged headlines
       const cleanRes = await fetch(`${API_BASE}/CleanHeadlines?code=${API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userID: USER_ID })
       });
       const cleanData = await cleanRes.json();
-
-      // Step 2 - fetch fresh headlines
       document.getElementById('headline-count').textContent = `Cleared ${cleanData.deleted} headlines. Fetching new...`;
       const fetchRes = await fetch(`${API_BASE}/FetchHeadlines?code=${API_KEY}`, { method: 'POST' });
       const fetchData = await fetchRes.json();
-
       document.getElementById('headline-count').textContent = `Fetched ${fetchData.inserted} new headlines`;
       await loadHeadlines();
     } catch(e) {
-      console.error('Failed to refresh headlines:', e);
       document.getElementById('headline-count').textContent = 'Error refreshing headlines';
     }
   }
@@ -355,20 +397,33 @@ async function refreshHeadlines() {
     return `${Math.floor(hrs/24)}d`;
   }
 
+  const catOrder = ['Local','World','Technology','Sports','Spanish','Other'];
+
   function renderCategoryTiles() {
     const headlineCategories = categories.filter(c => c.Headlines === 'Y');
     const row = document.getElementById('cat-row');
-    const allTile = `<div class="cat-tile active" onclick="filterCat('all',this)"><div class="cat-dot" style="background:#2b7fd4"></div>All</div>`;
-    const catColors = {'World':'#e8a020','Technology':'#2abfaa','Sports':'#e05050','Local':'#8b5cf6','Spanish':'#2b7fd4'};
-    const catTiles = headlineCategories.map(c => {
-      const color = catColors[c.Name] || '#888';
-      return `<div class="cat-tile" onclick="filterCat('${c.Name}',this)"><div class="cat-dot" style="background:${color}"></div>${c.Name}</div>`;
+
+    const ordered = catOrder
+      .map(name => headlineCategories.find(c => c.Name === name))
+      .filter(Boolean);
+
+    const catTiles = ordered.map(c => {
+      const style = catColors[c.Name] || catColors['Other'];
+      const active = currentFilter === c.Name ? 'active' : '';
+      return `<div class="cat-tile ${active}" onclick="filterCat('${c.Name}',this)"><div class="cat-dot" style="background:${style.dot}"></div>${c.Name}</div>`;
     }).join('');
-    row.innerHTML = allTile + catTiles;
+
+    const allActive = currentFilter === 'all' ? 'active' : '';
+    row.innerHTML = catTiles + `<div class="cat-tile ${allActive}" onclick="filterCat('all',this)"><div class="cat-dot" style="background:#2b7fd4"></div>All</div>`;
   }
 
   function renderHeadlines() {
-    const filtered = currentFilter === 'all' ? headlines : headlines.filter(h => h.CategoryID === getCategoryID(currentFilter));
+    const filtered = currentFilter === 'all'
+      ? headlines
+      : currentFilter === 'Other'
+        ? headlines.filter(h => !h.CategoryID)
+        : headlines.filter(h => h.CategoryID === getCategoryID(currentFilter));
+
     document.getElementById('headline-count').textContent = `${filtered.length} Headline${filtered.length !== 1 ? 's' : ''}`;
 
     if (filtered.length === 0) {
@@ -383,36 +438,39 @@ async function refreshHeadlines() {
       groups[key].push(h);
     });
 
-    const catColors = {
-      'World':      {icon:'🌍',color:'#7a3e00',bg:'#fff0d6'},
-      'Technology': {icon:'💻',color:'#0a5c4e',bg:'#d6f5ef'},
-      'Sports':     {icon:'⚾',color:'#8a1010',bg:'#fde0e0'},
-      'Local':      {icon:'📍',color:'#3d1580',bg:'#ede6ff'},
-      'Spanish':    {icon:'🗣️',color:'#1a5fa8',bg:'#e6f1ff'},
-      'Other':      {icon:'📰',color:'#444',bg:'#f5f5f5'},
-    };
+    const orderedGroups = catOrder
+      .filter(name => groups[name])
+      .map(name => [name, groups[name]]);
 
-    document.getElementById('headlines-grouped').innerHTML = Object.entries(groups).map(([catName, items]) => {
+    Object.keys(groups).forEach(k => {
+      if (!catOrder.includes(k)) orderedGroups.push([k, groups[k]]);
+    });
+
+    document.getElementById('headlines-grouped').innerHTML = orderedGroups.map(([catName, items]) => {
       const c = catColors[catName] || catColors['Other'];
       const rows = items.map(h => `
         <div class="headline-row ${h.Retain === 'Y' ? 'retained' : ''}" onclick="openHeadline('${h.Link}')">
-          <div class="headline-row-title">${h.HeadlineName}</div>
-          <div class="headline-row-source">${h.Keyword || h.Topic || ''}</div>
-          <div class="headline-row-age">${formatAge(h.CreatedDate)}</div>
+          <div class="headline-body">
+            <div class="headline-row-title">${h.HeadlineName}</div>
+            ${h.Summary ? `<div class="headline-row-summary">${h.Summary}</div>` : ''}
+            <div class="headline-row-meta">
+              <span class="headline-row-source">${h.Keyword || h.Topic || ''}</span>
+              <span class="headline-row-age">${formatAge(h.CreatedDate)}</span>
+            </div>
+          </div>
           <button class="retain-btn ${h.Retain === 'Y' ? 'active' : ''}"
             onclick="toggleRetain(${h.HeadlineID}, event)"
             title="${h.Retain === 'Y' ? 'Remove bookmark' : 'Bookmark'}">⭐</button>
         </div>`).join('');
 
-      return `
-        <div class="cat-group">
-          <div class="cat-group-header" style="background:${c.bg};color:${c.color};border-bottom:1.5px solid ${c.color}44">
-            <span class="cat-group-icon">${c.icon}</span>
-            <span>${catName}</span>
-            <span class="cat-group-count">${items.length}</span>
-          </div>
-          ${rows}
-        </div>`;
+      return `<div class="cat-group">
+        <div class="cat-group-header" style="background:${c.bg};color:${c.color};border-bottom:1.5px solid ${c.color}44">
+          <span class="cat-group-icon">${c.icon}</span>
+          <span>${catName}</span>
+          <span class="cat-group-count">${items.length}</span>
+        </div>
+        ${rows}
+      </div>`;
     }).join('');
   }
 
@@ -450,12 +508,236 @@ async function refreshHeadlines() {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('screen-' + name).classList.add('active');
     document.getElementById('nav-' + name).classList.add('active');
+    if (name === 'settings') renderSettings();
+  }
+
+  // ── SETTINGS ──
+
+  function renderSettings() {
+    renderSettingsCategories();
+    renderSettingsSources();
+    renderSettingsKeywords();
+    renderSettingsTopics();
+  }
+
+  function renderSettingsCategories() {
+    document.getElementById('settings-categories').innerHTML = categories.map(c => `
+      <tr>
+        <td><strong>${c.Name}</strong></td>
+        <td>${c.Headlines === 'Y' ? '✓' : '—'}</td>
+        <td>${c.MyWords === 'Y' ? '✓' : '—'}</td>
+        <td>
+          <button class="toggle ${c.IsActive === 'Y' ? 'on' : ''}"
+            onclick="toggleCategory(${c.CategoryID}, this)"></button>
+        </td>
+      </tr>`).join('');
+  }
+
+  function renderSettingsSources() {
+    document.getElementById('settings-sources').innerHTML = sources.map(s => `
+      <tr>
+        <td>${s.Name || s.URL}</td>
+        <td><span class="badge">${s.SourceType || 'RSS'}</span></td>
+        <td>
+          <button class="toggle ${s.IsActive === 'Y' ? 'on' : ''}"
+            onclick="toggleSource(${s.SourceID}, this)"></button>
+        </td>
+        <td style="display:flex;gap:6px;">
+          <button class="btn-icon" onclick="openModal('source',${s.SourceID})" title="Edit">✏️</button>
+          <button class="btn-icon danger" onclick="deleteSource(${s.SourceID})" title="Delete">🗑️</button>
+        </td>
+      </tr>`).join('');
+  }
+
+  function renderSettingsKeywords() {
+    document.getElementById('settings-keywords').innerHTML = keywords.map(k => `
+      <tr>
+        <td>${k.Keyword}</td>
+        <td>${k.CategoryName || '—'}</td>
+        <td>
+          <button class="toggle ${k.IsActive === 'Y' ? 'on' : ''}"
+            onclick="toggleKeyword(${k.KeywordID}, this)"></button>
+        </td>
+        <td style="display:flex;gap:6px;">
+          <button class="btn-icon" onclick="openModal('keyword',${k.KeywordID})" title="Edit">✏️</button>
+          <button class="btn-icon danger" onclick="deleteKeyword(${k.KeywordID})" title="Delete">🗑️</button>
+        </td>
+      </tr>`).join('');
+  }
+
+  function renderSettingsTopics() {
+    document.getElementById('settings-topics').innerHTML = topics.map(t => `
+      <tr>
+        <td>${t.Topic}</td>
+        <td>${t.CategoryName || '—'}</td>
+        <td>
+          <button class="toggle ${t.IsActive === 'Y' ? 'on' : ''}"
+            onclick="toggleTopic(${t.TopicID}, this)"></button>
+        </td>
+        <td style="display:flex;gap:6px;">
+          <button class="btn-icon" onclick="openModal('topic',${t.TopicID})" title="Edit">✏️</button>
+          <button class="btn-icon danger" onclick="deleteTopic(${t.TopicID})" title="Delete">🗑️</button>
+        </td>
+      </tr>`).join('');
+  }
+
+  // Toggles
+  async function toggleCategory(categoryID, btn) {
+    const isActive = !btn.classList.contains('on');
+    btn.classList.toggle('on');
+    await apiCall('SaveCategory', 'POST', { categoryID, isActive, userID: USER_ID });
+    const cat = categories.find(c => c.CategoryID === categoryID);
+    if (cat) cat.IsActive = isActive ? 'Y' : 'N';
+  }
+
+  async function toggleSource(sourceID, btn) {
+    const isActive = !btn.classList.contains('on');
+    btn.classList.toggle('on');
+    await apiCall('SaveSource', 'POST', { action: 'update', sourceID, isActive, userID: USER_ID, ...sources.find(s => s.SourceID === sourceID) });
+    const src = sources.find(s => s.SourceID === sourceID);
+    if (src) src.IsActive = isActive ? 'Y' : 'N';
+  }
+
+  async function toggleKeyword(keywordID, btn) {
+    const isActive = !btn.classList.contains('on');
+    btn.classList.toggle('on');
+    const kw = keywords.find(k => k.KeywordID === keywordID);
+    await apiCall('SaveKeyword', 'POST', { action: 'update', keywordID, isActive, keyword: kw?.Keyword, categoryID: kw?.CategoryID, userID: USER_ID });
+    if (kw) kw.IsActive = isActive ? 'Y' : 'N';
+  }
+
+  async function toggleTopic(topicID, btn) {
+    const isActive = !btn.classList.contains('on');
+    btn.classList.toggle('on');
+    const tp = topics.find(t => t.TopicID === topicID);
+    await apiCall('SaveTopic', 'POST', { action: 'update', topicID, isActive, topic: tp?.Topic, categoryID: tp?.CategoryID, userID: USER_ID });
+    if (tp) tp.IsActive = isActive ? 'Y' : 'N';
+  }
+
+  // Deletes
+  async function deleteSource(sourceID) {
+    if (!confirm('Remove this source?')) return;
+    await apiCall('SaveSource', 'POST', { action: 'delete', sourceID, userID: USER_ID });
+    sources = sources.filter(s => s.SourceID !== sourceID);
+    renderSettingsSources();
+  }
+
+  async function deleteKeyword(keywordID) {
+    if (!confirm('Delete this keyword?')) return;
+    await apiCall('SaveKeyword', 'POST', { action: 'delete', keywordID, userID: USER_ID });
+    keywords = keywords.filter(k => k.KeywordID !== keywordID);
+    renderSettingsKeywords();
+  }
+
+  async function deleteTopic(topicID) {
+    if (!confirm('Delete this topic?')) return;
+    await apiCall('SaveTopic', 'POST', { action: 'delete', topicID, userID: USER_ID });
+    topics = topics.filter(t => t.TopicID !== topicID);
+    renderSettingsTopics();
+  }
+
+  // Modal
+  let modalType = null;
+  let modalID = null;
+
+  function openModal(type, id = null) {
+    modalType = type;
+    modalID = id;
+    const catOptions = categories.map(c => `<option value="${c.CategoryID}">${c.Name}</option>`).join('');
+    const sourceTypeOptions = ['Guardian','NYT','GNews','Currents','MediaStack','NewsAPI','RSS'].map(t => `<option value="${t}">${t}</option>`).join('');
+
+    let title = '', body = '';
+
+    if (type === 'source') {
+      const src = id ? sources.find(s => s.SourceID === id) : null;
+      title = id ? 'Edit Source' : 'Add Source';
+      body = `
+        <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="modal-name" value="${src?.Name || ''}"></div>
+        <div class="form-group"><label class="form-label">URL</label><input class="form-input" id="modal-url" value="${src?.URL || ''}"></div>
+        <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="modal-type">${sourceTypeOptions}</select></div>`;
+      if (src) setTimeout(() => document.getElementById('modal-type').value = src.SourceType || 'RSS', 0);
+
+    } else if (type === 'keyword') {
+      const kw = id ? keywords.find(k => k.KeywordID === id) : null;
+      title = id ? 'Edit Keyword' : 'Add Keyword';
+      body = `
+        <div class="form-group"><label class="form-label">Keyword (exact match)</label><input class="form-input" id="modal-keyword" value="${kw?.Keyword || ''}"></div>
+        <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="modal-cat"><option value="">— None —</option>${catOptions}</select></div>`;
+      if (kw?.CategoryID) setTimeout(() => document.getElementById('modal-cat').value = kw.CategoryID, 0);
+
+    } else if (type === 'topic') {
+      const tp = id ? topics.find(t => t.TopicID === id) : null;
+      title = id ? 'Edit Topic' : 'Add Topic';
+      body = `
+        <div class="form-group"><label class="form-label">Topic (fuzzy match)</label><input class="form-input" id="modal-topic" value="${tp?.Topic || ''}"></div>
+        <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="modal-cat"><option value="">— None —</option>${catOptions}</select></div>`;
+      if (tp?.CategoryID) setTimeout(() => document.getElementById('modal-cat').value = tp.CategoryID, 0);
+    }
+
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-body').innerHTML = body;
+    document.getElementById('modal').style.display = 'flex';
+  }
+
+  function closeModal(e) {
+    if (e && e.target !== document.getElementById('modal')) return;
+    document.getElementById('modal').style.display = 'none';
+    modalType = null;
+    modalID = null;
+  }
+
+  async function saveModal() {
+    if (modalType === 'source') {
+      const name = document.getElementById('modal-name').value.trim();
+      const url = document.getElementById('modal-url').value.trim();
+      const sourceType = document.getElementById('modal-type').value;
+      if (!url) return alert('URL is required');
+      if (modalID) {
+        await apiCall('SaveSource', 'POST', { action: 'update', sourceID: modalID, name, url, sourceType, isActive: true, userID: USER_ID });
+        const src = sources.find(s => s.SourceID === modalID);
+        if (src) { src.Name = name; src.URL = url; src.SourceType = sourceType; }
+      } else {
+        const result = await apiCall('SaveSource', 'POST', { action: 'add', name, url, sourceType, userID: USER_ID });
+        sources.push({ SourceID: result.sourceID, Name: name, URL: url, SourceType: sourceType, IsActive: 'Y' });
+      }
+      renderSettingsSources();
+
+    } else if (modalType === 'keyword') {
+      const keyword = document.getElementById('modal-keyword').value.trim();
+      const categoryID = document.getElementById('modal-cat').value || null;
+      if (!keyword) return alert('Keyword is required');
+      if (modalID) {
+        await apiCall('SaveKeyword', 'POST', { action: 'update', keywordID: modalID, keyword, categoryID, isActive: true, userID: USER_ID });
+        const kw = keywords.find(k => k.KeywordID === modalID);
+        if (kw) { kw.Keyword = keyword; kw.CategoryID = categoryID; kw.CategoryName = categories.find(c => c.CategoryID == categoryID)?.Name || ''; }
+      } else {
+        const result = await apiCall('SaveKeyword', 'POST', { action: 'add', keyword, categoryID, userID: USER_ID });
+        keywords.push({ KeywordID: result.keywordID, Keyword: keyword, CategoryID: categoryID, CategoryName: categories.find(c => c.CategoryID == categoryID)?.Name || '', IsActive: 'Y' });
+      }
+      renderSettingsKeywords();
+
+    } else if (modalType === 'topic') {
+      const topic = document.getElementById('modal-topic').value.trim();
+      const categoryID = document.getElementById('modal-cat').value || null;
+      if (!topic) return alert('Topic is required');
+      if (modalID) {
+        await apiCall('SaveTopic', 'POST', { action: 'update', topicID: modalID, topic, categoryID, isActive: true, userID: USER_ID });
+        const tp = topics.find(t => t.TopicID === modalID);
+        if (tp) { tp.Topic = topic; tp.CategoryID = categoryID; tp.CategoryName = categories.find(c => c.CategoryID == categoryID)?.Name || ''; }
+      } else {
+        const result = await apiCall('SaveTopic', 'POST', { action: 'add', topic, categoryID, userID: USER_ID });
+        topics.push({ TopicID: result.topicID, Topic: topic, CategoryID: categoryID, CategoryName: categories.find(c => c.CategoryID == categoryID)?.Name || '', IsActive: 'Y' });
+      }
+      renderSettingsTopics();
+    }
+
+    document.getElementById('modal').style.display = 'none';
   }
 
   setGreeting();
   setDate();
   loadWeather();
-  loadCategories().then(() => loadHeadlines());
+  loadAll();
 </script>
 </body>
 </html>
