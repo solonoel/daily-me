@@ -11,7 +11,6 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --sky-deep: #2b7fd4;
-      --sky-mid: #b8d8f8;
       --text: #0f1e2e;
       --text-soft: #3a5a7a;
       --text-muted: #5a7a9a;
@@ -20,11 +19,12 @@
       --shadow: 0 2px 12px rgba(43,127,212,0.08);
     }
     body { font-family:'DM Sans',sans-serif; background:linear-gradient(160deg,#e8f4ff 0%,#f5f9ff 60%,#eef7f0 100%); min-height:100vh; color:var(--text); }
+
+    /* HEADER */
     .header { background:linear-gradient(135deg,#2b7fd4 0%,#1a9fd4 100%); padding:16px 32px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 4px 24px rgba(43,127,212,0.25); position:relative; overflow:hidden; }
     .header::before { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,0.07); }
     .header-left { position:relative; z-index:1; display:flex; align-items:center; gap:14px; }
-    .header-logo { height:52px; width:auto; }
-    .header-text {}
+    .header-logo { height:52px; width:52px; border-radius:50%; object-fit:cover; object-position:center; border:2px solid rgba(255,255,255,0.3); }
     .app-title { font-family:'Playfair Display',serif; font-size:26px; font-weight:600; color:white; letter-spacing:-0.5px; line-height:1; }
     .app-title span { color:rgba(255,255,255,0.6); font-weight:400; }
     .greeting { font-size:12px; color:rgba(255,255,255,0.85); margin-top:4px; font-weight:300; }
@@ -34,6 +34,8 @@
     .weather-desc { font-size:10px; color:rgba(255,255,255,0.8); margin-top:3px; text-transform:uppercase; letter-spacing:0.8px; }
     .weather-detail { font-size:10px; color:rgba(255,255,255,0.7); margin-top:2px; }
     .weather-loading { color:rgba(255,255,255,0.7); font-size:13px; }
+
+    /* NAV */
     .nav { background:white; border-bottom:2px solid var(--border); display:flex; align-items:stretch; padding:0 24px; box-shadow:0 2px 8px rgba(43,127,212,0.06); position:sticky; top:0; z-index:100; }
     .nav-btn { padding:10px 22px; font-family:'DM Sans',sans-serif; background:none; border:none; border-bottom:3px solid transparent; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px; min-width:80px; transition:all 0.2s; }
     .nav-btn:hover { background:#f0f7ff; }
@@ -41,6 +43,8 @@
     .nav-icon { font-size:18px; line-height:1; }
     .nav-label { font-size:11px; font-weight:600; letter-spacing:0.4px; color:#2a4a6a; }
     .nav-btn.active .nav-label { color:var(--sky-deep); }
+
+    /* MAIN */
     .main { padding:24px 32px; max-width:1100px; margin:0 auto; }
     .screen { display:none; animation:fadeIn 0.2s ease; }
     .screen.active { display:block; }
@@ -48,6 +52,8 @@
     .date-strip { display:flex; align-items:baseline; gap:12px; margin-bottom:20px; }
     .date-main { font-family:'Playfair Display',serif; font-size:22px; color:var(--text); }
     .date-sub { font-size:13px; color:var(--text-soft); }
+
+    /* HEADLINES */
     .section-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-soft); margin-bottom:10px; }
     .category-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:8px; }
     .category-row { display:flex; gap:7px; flex-wrap:wrap; flex:1; }
@@ -67,42 +73,51 @@
     .cat-group-header { display:flex; align-items:center; gap:10px; padding:9px 14px; font-size:12px; font-weight:700; letter-spacing:0.4px; border-bottom:1.5px solid var(--border); }
     .cat-group-icon { font-size:14px; }
     .cat-group-count { margin-left:auto; font-size:11px; opacity:0.75; font-weight:600; }
-    .headline-row { display:flex; align-items:center; gap:12px; padding:9px 14px; border-bottom:1px solid #eef5fc; background:white; transition:background 0.15s; cursor:pointer; }
+    .headline-row { display:flex; align-items:flex-start; gap:12px; padding:10px 14px; border-bottom:1px solid #eef5fc; background:white; transition:background 0.15s; cursor:pointer; }
     .headline-row:last-child { border-bottom:none; }
     .headline-row:hover { background:#f4f9ff; }
     .headline-row.retained { border-left:3px solid var(--gold); padding-left:11px; }
     .headline-body { flex:1; min-width:0; }
     .headline-row-title { font-size:13px; font-weight:500; color:var(--text); line-height:1.4; }
-    .headline-row-summary { font-size:11px; color:var(--text-soft); line-height:1.4; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .headline-row-meta { display:flex; align-items:center; gap:8px; margin-top:3px; }
-    .headline-row-source { font-size:11px; color:var(--sky-deep); font-weight:600; white-space:nowrap; }
-    .headline-row-age { font-size:11px; color:var(--text-soft); white-space:nowrap; }
-    .retain-btn { width:24px; height:24px; border-radius:6px; border:1px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:11px; transition:all 0.15s; color:var(--text-muted); flex-shrink:0; }
+    .headline-row-summary { font-size:11px; color:var(--text-soft); line-height:1.4; margin-top:3px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .headline-row-meta { display:flex; align-items:center; gap:8px; margin-top:4px; }
+    .headline-row-source { font-size:11px; color:var(--sky-deep); font-weight:600; }
+    .headline-row-age { font-size:11px; color:var(--text-soft); }
+    .retain-btn { width:24px; height:24px; border-radius:6px; border:1px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:11px; transition:all 0.15s; color:var(--text-muted); flex-shrink:0; margin-top:2px; }
     .retain-btn:hover { border-color:var(--gold); color:var(--gold); }
     .retain-btn.active { background:var(--gold); border-color:var(--gold); color:white; }
 
-    /* SETTINGS */
-    .settings-section { margin-bottom:28px; }
-    .settings-section-title { font-family:'Playfair Display',serif; font-size:18px; color:var(--text); margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+    /* SETTINGS MENU */
+    .settings-menu { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; }
+    .settings-menu-card { background:white; border:1.5px solid var(--border); border-radius:14px; padding:24px 20px; cursor:pointer; transition:all 0.2s; box-shadow:var(--shadow); display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+    .settings-menu-card:hover { border-color:var(--sky-deep); box-shadow:0 4px 20px rgba(43,127,212,0.15); transform:translateY(-2px); }
+    .settings-menu-icon { font-size:28px; }
+    .settings-menu-title { font-family:'Playfair Display',serif; font-size:16px; color:var(--text); }
+    .settings-menu-sub { font-size:12px; color:var(--text-soft); }
+    .settings-back { display:flex; align-items:center; gap:8px; color:var(--sky-deep); font-size:13px; font-weight:600; cursor:pointer; margin-bottom:20px; background:none; border:none; font-family:'DM Sans',sans-serif; padding:0; }
+    .settings-back:hover { text-decoration:underline; }
+
+    /* SETTINGS TABLES */
+    .settings-section-title { font-family:'Playfair Display',serif; font-size:20px; color:var(--text); margin-bottom:16px; }
     .settings-table { width:100%; border-collapse:collapse; background:white; border:1.5px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:var(--shadow); }
     .settings-table th { background:#f5f9ff; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-soft); padding:10px 14px; text-align:left; border-bottom:1.5px solid var(--border); }
     .settings-table td { padding:10px 14px; font-size:13px; color:var(--text); border-bottom:1px solid #eef5fc; vertical-align:middle; }
     .settings-table tr:last-child td { border-bottom:none; }
     .settings-table tr:hover td { background:#f8fbff; }
-    .toggle { width:36px; height:20px; border-radius:10px; background:var(--border); position:relative; cursor:pointer; transition:background 0.2s; border:none; flex-shrink:0; }
+    .toggle { width:36px; height:20px; border-radius:10px; background:var(--border); position:relative; cursor:pointer; transition:background 0.2s; border:none; flex-shrink:0; display:inline-block; }
     .toggle.on { background:var(--sky-deep); }
     .toggle::after { content:''; position:absolute; width:14px; height:14px; border-radius:50%; background:white; top:3px; left:3px; transition:transform 0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
     .toggle.on::after { transform:translateX(16px); }
-    .btn-icon { width:28px; height:28px; border-radius:6px; border:1px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:13px; transition:all 0.15s; color:var(--text-soft); }
+    .btn-icon { width:28px; height:28px; border-radius:6px; border:1px solid var(--border); background:white; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-size:13px; transition:all 0.15s; color:var(--text-soft); }
     .btn-icon:hover { border-color:var(--sky-deep); color:var(--sky-deep); background:#f0f7ff; }
     .btn-icon.danger:hover { border-color:#e05050; color:#e05050; background:#fef0f0; }
-    .btn-add { display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; border:1.5px dashed var(--border); background:none; color:var(--sky-deep); font-size:13px; font-weight:500; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; margin-top:10px; }
+    .btn-add { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; border:1.5px dashed var(--border); background:none; color:var(--sky-deep); font-size:13px; font-weight:500; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; margin-top:12px; }
     .btn-add:hover { background:#f0f7ff; border-color:var(--sky-deep); }
     .badge { display:inline-block; padding:2px 8px; border-radius:100px; font-size:10px; font-weight:700; background:#e6f1ff; color:var(--sky-deep); }
 
     /* MODAL */
     .modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.4); z-index:1000; display:flex; align-items:center; justify-content:center; }
-    .modal { background:white; border-radius:16px; padding:28px; width:440px; max-width:90vw; box-shadow:0 8px 40px rgba(0,0,0,0.2); }
+    .modal { background:white; border-radius:16px; padding:28px; width:460px; max-width:90vw; box-shadow:0 8px 40px rgba(0,0,0,0.2); }
     .modal-title { font-family:'Playfair Display',serif; font-size:18px; color:var(--text); margin-bottom:20px; }
     .form-group { margin-bottom:16px; }
     .form-label { font-size:12px; font-weight:600; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:6px; }
@@ -110,12 +125,16 @@
     .form-input:focus { outline:none; border-color:var(--sky-deep); }
     .form-select { width:100%; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:13px; font-family:'DM Sans',sans-serif; color:var(--text); background:white; }
     .form-select:focus { outline:none; border-color:var(--sky-deep); }
+    .form-row { display:flex; gap:12px; }
+    .form-row .form-group { flex:1; }
+    .form-checkbox-row { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text); }
     .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
     .btn-primary { padding:9px 20px; border-radius:8px; border:none; background:var(--sky-deep); color:white; font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; }
-    .btn-primary:hover { background:var(--sky-dark,#1a5fa8); }
+    .btn-primary:hover { opacity:0.9; }
     .btn-secondary { padding:9px 20px; border-radius:8px; border:1.5px solid var(--border); background:white; color:var(--text-soft); font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; }
     .btn-secondary:hover { border-color:var(--sky-deep); color:var(--sky-deep); }
 
+    /* OTHER */
     .mywords-placeholder { background:white; border:1.5px solid var(--border); border-radius:16px; padding:48px; text-align:center; box-shadow:var(--shadow); }
     .placeholder-icon { font-size:48px; margin-bottom:16px; }
     .placeholder-title { font-family:'Playfair Display',serif; font-size:20px; margin-bottom:8px; color:var(--text); }
@@ -125,7 +144,7 @@
     @media (max-width:600px) {
       .header { padding:14px 16px; }
       .main { padding:16px; }
-      .header-logo { height:40px; }
+      .header-logo { height:40px; width:40px; }
       .app-title { font-size:20px; }
       .nav-btn { padding:8px 14px; min-width:60px; }
     }
@@ -136,7 +155,7 @@
 <header class="header">
   <div class="header-left">
     <img src="logo.png" alt="Daily Me" class="header-logo">
-    <div class="header-text">
+    <div>
       <div class="app-title">Daily <span>Me</span></div>
       <div class="greeting" id="greeting"></div>
     </div>
@@ -200,46 +219,77 @@
 
   <!-- SETTINGS -->
   <div class="screen" id="screen-settings">
-    <div class="date-strip">
-      <div class="date-main">Settings</div>
-      <div class="date-sub">Manage your Daily Me preferences</div>
+
+    <!-- Settings Menu -->
+    <div id="settings-menu-view">
+      <div class="date-strip">
+        <div class="date-main">Settings</div>
+        <div class="date-sub">Manage your Daily Me preferences</div>
+      </div>
+      <div class="settings-menu">
+        <div class="settings-menu-card" onclick="showSettingsSection('categories')">
+          <div class="settings-menu-icon">📁</div>
+          <div class="settings-menu-title">Categories</div>
+          <div class="settings-menu-sub">Add, edit, reorder categories</div>
+        </div>
+        <div class="settings-menu-card" onclick="showSettingsSection('sources')">
+          <div class="settings-menu-icon">🌐</div>
+          <div class="settings-menu-title">Headline Sources</div>
+          <div class="settings-menu-sub">Manage news sources and feeds</div>
+        </div>
+        <div class="settings-menu-card" onclick="showSettingsSection('keywords')">
+          <div class="settings-menu-icon">🔍</div>
+          <div class="settings-menu-title">Keywords</div>
+          <div class="settings-menu-sub">Exact match search terms</div>
+        </div>
+        <div class="settings-menu-card" onclick="showSettingsSection('topics')">
+          <div class="settings-menu-icon">💡</div>
+          <div class="settings-menu-title">Topics</div>
+          <div class="settings-menu-sub">Fuzzy match search phrases</div>
+        </div>
+      </div>
     </div>
 
-    <!-- Categories -->
-    <div class="settings-section">
+    <!-- Categories Section -->
+    <div id="settings-section-categories" style="display:none">
+      <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
       <div class="settings-section-title">📁 Categories</div>
       <table class="settings-table">
-        <thead><tr><th>Category</th><th>Headlines</th><th>My Words</th><th>Active</th></tr></thead>
-        <tbody id="settings-categories"></tbody>
+        <thead><tr><th>Sequence</th><th>Name</th><th>Headlines</th><th>My Words</th><th>Active</th><th></th></tr></thead>
+        <tbody id="tbl-categories"></tbody>
       </table>
+      <button class="btn-add" onclick="openModal('category')">+ Add Category</button>
     </div>
 
-    <!-- Sources -->
-    <div class="settings-section">
+    <!-- Sources Section -->
+    <div id="settings-section-sources" style="display:none">
+      <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
       <div class="settings-section-title">🌐 Headline Sources</div>
       <table class="settings-table">
-        <thead><tr><th>Name</th><th>Type</th><th>Active</th><th></th></tr></thead>
-        <tbody id="settings-sources"></tbody>
+        <thead><tr><th>Name</th><th>URL</th><th>Type</th><th>Active</th><th></th></tr></thead>
+        <tbody id="tbl-sources"></tbody>
       </table>
       <button class="btn-add" onclick="openModal('source')">+ Add Source</button>
     </div>
 
-    <!-- Keywords -->
-    <div class="settings-section">
-      <div class="settings-section-title">🔍 Keywords <span style="font-size:12px;font-weight:400;color:var(--text-soft);font-family:'DM Sans',sans-serif"> — exact match</span></div>
+    <!-- Keywords Section -->
+    <div id="settings-section-keywords" style="display:none">
+      <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
+      <div class="settings-section-title">🔍 Keywords <span style="font-size:13px;font-weight:400;color:var(--text-soft);font-family:'DM Sans',sans-serif"> — exact match</span></div>
       <table class="settings-table">
         <thead><tr><th>Keyword</th><th>Category</th><th>Active</th><th></th></tr></thead>
-        <tbody id="settings-keywords"></tbody>
+        <tbody id="tbl-keywords"></tbody>
       </table>
       <button class="btn-add" onclick="openModal('keyword')">+ Add Keyword</button>
     </div>
 
-    <!-- Topics -->
-    <div class="settings-section">
-      <div class="settings-section-title">💡 Topics <span style="font-size:12px;font-weight:400;color:var(--text-soft);font-family:'DM Sans',sans-serif"> — fuzzy match</span></div>
+    <!-- Topics Section -->
+    <div id="settings-section-topics" style="display:none">
+      <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
+      <div class="settings-section-title">💡 Topics <span style="font-size:13px;font-weight:400;color:var(--text-soft);font-family:'DM Sans',sans-serif"> — fuzzy match</span></div>
       <table class="settings-table">
         <thead><tr><th>Topic</th><th>Category</th><th>Active</th><th></th></tr></thead>
-        <tbody id="settings-topics"></tbody>
+        <tbody id="tbl-topics"></tbody>
       </table>
       <button class="btn-add" onclick="openModal('topic')">+ Add Topic</button>
     </div>
@@ -249,7 +299,7 @@
 </main>
 
 <!-- MODAL -->
-<div class="modal-overlay" id="modal" style="display:none" onclick="closeModal(event)">
+<div class="modal-overlay" id="modal" style="display:none" onclick="closeModalOverlay(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title" id="modal-title">Add Item</div>
     <div id="modal-body"></div>
@@ -275,9 +325,9 @@
   };
 
   const greetings = {
-    morning: ["Good morning, Noel — let's make it a great one.", "Good morning, Noel. Oregon's finest day awaits.", "Rise and shine, Noel. The news won't read itself.", "Good morning, Noel. Coffee first, headlines second."],
-    afternoon: ["Good afternoon, Noel. How's the day treating you?", "Afternoon, Noel. Time for a mid-day check-in.", "Good afternoon, Noel. Stay curious."],
-    evening: ["Good evening, Noel. Wind down with the day's news.", "Evening, Noel. Let's see what the world was up to.", "Good evening, Noel. Almost time to rest."]
+    morning: ["Good morning, Noel — let's make it a great one.","Good morning, Noel. Oregon's finest day awaits.","Rise and shine, Noel. The news won't read itself.","Good morning, Noel. Coffee first, headlines second."],
+    afternoon: ["Good afternoon, Noel. How's the day treating you?","Afternoon, Noel. Time for a mid-day check-in.","Good afternoon, Noel. Stay curious."],
+    evening: ["Good evening, Noel. Wind down with the day's news.","Evening, Noel. Let's see what the world was up to.","Good evening, Noel. Almost time to rest."]
   };
 
   function setGreeting() {
@@ -324,19 +374,26 @@
     loadHeadlines();
   }
 
-  async function apiCall(endpoint, method='GET', body=null) {
-    const opts = { method, headers: { 'Content-Type': 'application/json' } };
-    if (body) opts.body = JSON.stringify(body);
-    const res = await fetch(`${API_BASE}/${endpoint}?code=${API_KEY}&userID=${USER_ID}`, opts);
+  async function apiPost(endpoint, body) {
+    const res = await fetch(`${API_BASE}/${endpoint}?code=${API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    return res.json();
+  }
+
+  async function apiGet(endpoint, params = '') {
+    const res = await fetch(`${API_BASE}/${endpoint}?code=${API_KEY}&userID=${USER_ID}${params}`);
     return res.json();
   }
 
   async function loadAll() {
     const [cats, srcs, kwds, tpcs] = await Promise.all([
-      apiCall('GetCategories'),
-      apiCall('GetHeadlineSources'),
-      apiCall('GetHeadlineKeywords'),
-      apiCall('GetHeadlineTopics')
+      apiGet('GetCategories'),
+      apiGet('GetHeadlineSources'),
+      apiGet('GetHeadlineKeywords'),
+      apiGet('GetHeadlineTopics')
     ]);
     categories = Array.isArray(cats) ? cats : [];
     sources = Array.isArray(srcs) ? srcs : [];
@@ -350,14 +407,15 @@
     try {
       document.getElementById('headline-count').textContent = 'Loading...';
       const recency = recencyOptions[recencyIdx].split(' ')[0];
-      let url = `GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recency}`;
-      if (currentFilter !== 'all') {
+      let params = `&recencyDays=${recency}`;
+      if (currentFilter !== 'all' && currentFilter !== 'Other') {
         const catID = getCategoryID(currentFilter);
-        if (catID) url += `&categoryID=${catID}`;
+        if (catID) params += `&categoryID=${catID}`;
       }
-      const res = await fetch(`${API_BASE}/${url}`);
-      headlines = await res.json();
-      if (!Array.isArray(headlines)) headlines = [];
+      const res = await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}${params}`);
+      let data = await res.json();
+      if (!Array.isArray(data)) data = [];
+      headlines = currentFilter === 'Other' ? data.filter(h => !h.CategoryID) : data;
       renderHeadlines();
     } catch(e) {
       document.getElementById('headline-count').textContent = 'Error loading headlines';
@@ -365,7 +423,7 @@
   }
 
   function getCategoryID(catName) {
-    if (!catName || catName === 'all') return null;
+    if (!catName || catName === 'all' || catName === 'Other') return null;
     const cat = categories.find(c => c.Name.toLowerCase() === catName.toLowerCase());
     return cat ? cat.CategoryID : null;
   }
@@ -373,15 +431,9 @@
   async function refreshHeadlines() {
     try {
       document.getElementById('headline-count').textContent = 'Cleaning old headlines...';
-      const cleanRes = await fetch(`${API_BASE}/CleanHeadlines?code=${API_KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userID: USER_ID })
-      });
-      const cleanData = await cleanRes.json();
+      const cleanData = await apiPost('CleanHeadlines', { userID: USER_ID });
       document.getElementById('headline-count').textContent = `Cleared ${cleanData.deleted} headlines. Fetching new...`;
-      const fetchRes = await fetch(`${API_BASE}/FetchHeadlines?code=${API_KEY}`, { method: 'POST' });
-      const fetchData = await fetchRes.json();
+      const fetchData = await apiPost('FetchHeadlines', {});
       document.getElementById('headline-count').textContent = `Fetched ${fetchData.inserted} new headlines`;
       await loadHeadlines();
     } catch(e) {
@@ -397,56 +449,38 @@
     return `${Math.floor(hrs/24)}d`;
   }
 
-  const catOrder = ['Local','World','Technology','Sports','Spanish','Other'];
-
   function renderCategoryTiles() {
-    const headlineCategories = categories.filter(c => c.Headlines === 'Y');
+    const headlineCategories = categories.filter(c => c.Headlines === 'Y' && c.IsActive === 'Y');
+    headlineCategories.sort((a, b) => (a.Sequence || 999) - (b.Sequence || 999));
     const row = document.getElementById('cat-row');
-
-    const ordered = catOrder
-      .map(name => headlineCategories.find(c => c.Name === name))
-      .filter(Boolean);
-
-    const catTiles = ordered.map(c => {
-      const style = catColors[c.Name] || catColors['Other'];
+    const catTiles = headlineCategories.map(c => {
+      const style = catColors[c.Name] || {dot:'#888'};
       const active = currentFilter === c.Name ? 'active' : '';
       return `<div class="cat-tile ${active}" onclick="filterCat('${c.Name}',this)"><div class="cat-dot" style="background:${style.dot}"></div>${c.Name}</div>`;
     }).join('');
-
+    const otherActive = currentFilter === 'Other' ? 'active' : '';
     const allActive = currentFilter === 'all' ? 'active' : '';
-    row.innerHTML = catTiles + `<div class="cat-tile ${allActive}" onclick="filterCat('all',this)"><div class="cat-dot" style="background:#2b7fd4"></div>All</div>`;
+    row.innerHTML = catTiles +
+      `<div class="cat-tile ${otherActive}" onclick="filterCat('Other',this)"><div class="cat-dot" style="background:#888"></div>Other</div>` +
+      `<div class="cat-tile ${allActive}" onclick="filterCat('all',this)"><div class="cat-dot" style="background:#2b7fd4"></div>All</div>`;
   }
 
   function renderHeadlines() {
-    const filtered = currentFilter === 'all'
-      ? headlines
-      : currentFilter === 'Other'
-        ? headlines.filter(h => !h.CategoryID)
-        : headlines.filter(h => h.CategoryID === getCategoryID(currentFilter));
-
-    document.getElementById('headline-count').textContent = `${filtered.length} Headline${filtered.length !== 1 ? 's' : ''}`;
-
-    if (filtered.length === 0) {
+    document.getElementById('headline-count').textContent = `${headlines.length} Headline${headlines.length !== 1 ? 's' : ''}`;
+    if (headlines.length === 0) {
       document.getElementById('headlines-grouped').innerHTML = '<div class="empty-state">No headlines found. Click ↻ Refresh to fetch latest headlines.</div>';
       return;
     }
-
     const groups = {};
-    filtered.forEach(h => {
+    headlines.forEach(h => {
       const key = h.CategoryName || 'Other';
       if (!groups[key]) groups[key] = [];
       groups[key].push(h);
     });
-
-    const orderedGroups = catOrder
-      .filter(name => groups[name])
-      .map(name => [name, groups[name]]);
-
-    Object.keys(groups).forEach(k => {
-      if (!catOrder.includes(k)) orderedGroups.push([k, groups[k]]);
-    });
-
-    document.getElementById('headlines-grouped').innerHTML = orderedGroups.map(([catName, items]) => {
+    const orderedKeys = [...categories.filter(c => groups[c.Name]).sort((a,b) => (a.Sequence||999)-(b.Sequence||999)).map(c => c.Name), ...(groups['Other'] ? ['Other'] : [])];
+    Object.keys(groups).forEach(k => { if (!orderedKeys.includes(k)) orderedKeys.push(k); });
+    document.getElementById('headlines-grouped').innerHTML = orderedKeys.map(catName => {
+      const items = groups[catName] || [];
       const c = catColors[catName] || catColors['Other'];
       const rows = items.map(h => `
         <div class="headline-row ${h.Retain === 'Y' ? 'retained' : ''}" onclick="openHeadline('${h.Link}')">
@@ -458,19 +492,13 @@
               <span class="headline-row-age">${formatAge(h.CreatedDate)}</span>
             </div>
           </div>
-          <button class="retain-btn ${h.Retain === 'Y' ? 'active' : ''}"
-            onclick="toggleRetain(${h.HeadlineID}, event)"
-            title="${h.Retain === 'Y' ? 'Remove bookmark' : 'Bookmark'}">⭐</button>
+          <button class="retain-btn ${h.Retain === 'Y' ? 'active' : ''}" onclick="toggleRetain(${h.HeadlineID},event)">⭐</button>
         </div>`).join('');
-
       return `<div class="cat-group">
         <div class="cat-group-header" style="background:${c.bg};color:${c.color};border-bottom:1.5px solid ${c.color}44">
-          <span class="cat-group-icon">${c.icon}</span>
-          <span>${catName}</span>
+          <span class="cat-group-icon">${c.icon}</span><span>${catName}</span>
           <span class="cat-group-count">${items.length}</span>
-        </div>
-        ${rows}
-      </div>`;
+        </div>${rows}</div>`;
     }).join('');
   }
 
@@ -480,20 +508,12 @@
 
   async function toggleRetain(headlineID, e) {
     e.stopPropagation();
-    const headline = headlines.find(h => h.HeadlineID === headlineID);
-    if (!headline) return;
-    const newRetain = headline.Retain !== 'Y';
-    try {
-      await fetch(`${API_BASE}/SaveRetain?code=${API_KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ headlineID, retain: newRetain })
-      });
-      headline.Retain = newRetain ? 'Y' : 'N';
-      renderHeadlines();
-    } catch(e) {
-      console.error('Failed to save retain:', e);
-    }
+    const h = headlines.find(h => h.HeadlineID === headlineID);
+    if (!h) return;
+    const newRetain = h.Retain !== 'Y';
+    await apiPost('SaveRetain', { headlineID, retain: newRetain });
+    h.Retain = newRetain ? 'Y' : 'N';
+    renderHeadlines();
   }
 
   function filterCat(cat, el) {
@@ -508,84 +528,95 @@
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('screen-' + name).classList.add('active');
     document.getElementById('nav-' + name).classList.add('active');
-    if (name === 'settings') renderSettings();
+    if (name === 'settings') showSettingsMenu();
   }
 
-  // ── SETTINGS ──
+  // ── SETTINGS NAVIGATION ──
 
-  function renderSettings() {
-    renderSettingsCategories();
-    renderSettingsSources();
-    renderSettingsKeywords();
-    renderSettingsTopics();
+  function showSettingsMenu() {
+    document.getElementById('settings-menu-view').style.display = 'block';
+    ['categories','sources','keywords','topics'].forEach(s =>
+      document.getElementById(`settings-section-${s}`).style.display = 'none'
+    );
+  }
+
+  function showSettingsSection(section) {
+    document.getElementById('settings-menu-view').style.display = 'none';
+    ['categories','sources','keywords','topics'].forEach(s =>
+      document.getElementById(`settings-section-${s}`).style.display = 'none'
+    );
+    document.getElementById(`settings-section-${section}`).style.display = 'block';
+    renderSettingsSection(section);
+  }
+
+  function renderSettingsSection(section) {
+    if (section === 'categories') renderSettingsCategories();
+    if (section === 'sources') renderSettingsSources();
+    if (section === 'keywords') renderSettingsKeywords();
+    if (section === 'topics') renderSettingsTopics();
   }
 
   function renderSettingsCategories() {
-    document.getElementById('settings-categories').innerHTML = categories.map(c => `
+    const sorted = [...categories].sort((a,b) => (a.Sequence||999)-(b.Sequence||999));
+    document.getElementById('tbl-categories').innerHTML = sorted.map(c => `
       <tr>
+        <td style="width:70px">${c.Sequence || '—'}</td>
         <td><strong>${c.Name}</strong></td>
         <td>${c.Headlines === 'Y' ? '✓' : '—'}</td>
         <td>${c.MyWords === 'Y' ? '✓' : '—'}</td>
-        <td>
-          <button class="toggle ${c.IsActive === 'Y' ? 'on' : ''}"
-            onclick="toggleCategory(${c.CategoryID}, this)"></button>
+        <td><button class="toggle ${c.IsActive === 'Y' ? 'on' : ''}" onclick="toggleCategory(${c.CategoryID},this)"></button></td>
+        <td style="display:flex;gap:6px">
+          <button class="btn-icon" onclick="openModal('category',${c.CategoryID})">✏️</button>
         </td>
       </tr>`).join('');
   }
 
   function renderSettingsSources() {
-    document.getElementById('settings-sources').innerHTML = sources.map(s => `
+    document.getElementById('tbl-sources').innerHTML = sources.map(s => `
       <tr>
-        <td>${s.Name || s.URL}</td>
+        <td>${s.Name || '—'}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)">${s.URL}</td>
         <td><span class="badge">${s.SourceType || 'RSS'}</span></td>
-        <td>
-          <button class="toggle ${s.IsActive === 'Y' ? 'on' : ''}"
-            onclick="toggleSource(${s.SourceID}, this)"></button>
-        </td>
-        <td style="display:flex;gap:6px;">
-          <button class="btn-icon" onclick="openModal('source',${s.SourceID})" title="Edit">✏️</button>
-          <button class="btn-icon danger" onclick="deleteSource(${s.SourceID})" title="Delete">🗑️</button>
+        <td><button class="toggle ${s.IsActive === 'Y' ? 'on' : ''}" onclick="toggleSource(${s.SourceID},this)"></button></td>
+        <td style="display:flex;gap:6px">
+          <button class="btn-icon" onclick="openModal('source',${s.SourceID})">✏️</button>
+          <button class="btn-icon danger" onclick="deleteSource(${s.SourceID})">🗑️</button>
         </td>
       </tr>`).join('');
   }
 
   function renderSettingsKeywords() {
-    document.getElementById('settings-keywords').innerHTML = keywords.map(k => `
+    document.getElementById('tbl-keywords').innerHTML = keywords.map(k => `
       <tr>
         <td>${k.Keyword}</td>
         <td>${k.CategoryName || '—'}</td>
-        <td>
-          <button class="toggle ${k.IsActive === 'Y' ? 'on' : ''}"
-            onclick="toggleKeyword(${k.KeywordID}, this)"></button>
-        </td>
-        <td style="display:flex;gap:6px;">
-          <button class="btn-icon" onclick="openModal('keyword',${k.KeywordID})" title="Edit">✏️</button>
-          <button class="btn-icon danger" onclick="deleteKeyword(${k.KeywordID})" title="Delete">🗑️</button>
+        <td><button class="toggle ${k.IsActive === 'Y' ? 'on' : ''}" onclick="toggleKeyword(${k.KeywordID},this)"></button></td>
+        <td style="display:flex;gap:6px">
+          <button class="btn-icon" onclick="openModal('keyword',${k.KeywordID})">✏️</button>
+          <button class="btn-icon danger" onclick="deleteKeyword(${k.KeywordID})">🗑️</button>
         </td>
       </tr>`).join('');
   }
 
   function renderSettingsTopics() {
-    document.getElementById('settings-topics').innerHTML = topics.map(t => `
+    document.getElementById('tbl-topics').innerHTML = topics.map(t => `
       <tr>
         <td>${t.Topic}</td>
         <td>${t.CategoryName || '—'}</td>
-        <td>
-          <button class="toggle ${t.IsActive === 'Y' ? 'on' : ''}"
-            onclick="toggleTopic(${t.TopicID}, this)"></button>
-        </td>
-        <td style="display:flex;gap:6px;">
-          <button class="btn-icon" onclick="openModal('topic',${t.TopicID})" title="Edit">✏️</button>
-          <button class="btn-icon danger" onclick="deleteTopic(${t.TopicID})" title="Delete">🗑️</button>
+        <td><button class="toggle ${t.IsActive === 'Y' ? 'on' : ''}" onclick="toggleTopic(${t.TopicID},this)"></button></td>
+        <td style="display:flex;gap:6px">
+          <button class="btn-icon" onclick="openModal('topic',${t.TopicID})">✏️</button>
+          <button class="btn-icon danger" onclick="deleteTopic(${t.TopicID})">🗑️</button>
         </td>
       </tr>`).join('');
   }
 
-  // Toggles
+  // ── TOGGLES ──
+
   async function toggleCategory(categoryID, btn) {
     const isActive = !btn.classList.contains('on');
     btn.classList.toggle('on');
-    await apiCall('SaveCategory', 'POST', { categoryID, isActive, userID: USER_ID });
+    await apiPost('SaveCategory', { action:'toggle', categoryID, isActive, userID:USER_ID });
     const cat = categories.find(c => c.CategoryID === categoryID);
     if (cat) cat.IsActive = isActive ? 'Y' : 'N';
   }
@@ -593,8 +624,8 @@
   async function toggleSource(sourceID, btn) {
     const isActive = !btn.classList.contains('on');
     btn.classList.toggle('on');
-    await apiCall('SaveSource', 'POST', { action: 'update', sourceID, isActive, userID: USER_ID, ...sources.find(s => s.SourceID === sourceID) });
     const src = sources.find(s => s.SourceID === sourceID);
+    await apiPost('SaveSource', { action:'update', sourceID, isActive, name:src?.Name, url:src?.URL, sourceType:src?.SourceType, userID:USER_ID });
     if (src) src.IsActive = isActive ? 'Y' : 'N';
   }
 
@@ -602,7 +633,7 @@
     const isActive = !btn.classList.contains('on');
     btn.classList.toggle('on');
     const kw = keywords.find(k => k.KeywordID === keywordID);
-    await apiCall('SaveKeyword', 'POST', { action: 'update', keywordID, isActive, keyword: kw?.Keyword, categoryID: kw?.CategoryID, userID: USER_ID });
+    await apiPost('SaveKeyword', { action:'update', keywordID, isActive, keyword:kw?.Keyword, categoryID:kw?.CategoryID, userID:USER_ID });
     if (kw) kw.IsActive = isActive ? 'Y' : 'N';
   }
 
@@ -610,33 +641,35 @@
     const isActive = !btn.classList.contains('on');
     btn.classList.toggle('on');
     const tp = topics.find(t => t.TopicID === topicID);
-    await apiCall('SaveTopic', 'POST', { action: 'update', topicID, isActive, topic: tp?.Topic, categoryID: tp?.CategoryID, userID: USER_ID });
+    await apiPost('SaveTopic', { action:'update', topicID, isActive, topic:tp?.Topic, categoryID:tp?.CategoryID, userID:USER_ID });
     if (tp) tp.IsActive = isActive ? 'Y' : 'N';
   }
 
-  // Deletes
+  // ── DELETES ──
+
   async function deleteSource(sourceID) {
     if (!confirm('Remove this source?')) return;
-    await apiCall('SaveSource', 'POST', { action: 'delete', sourceID, userID: USER_ID });
+    await apiPost('SaveSource', { action:'delete', sourceID, userID:USER_ID });
     sources = sources.filter(s => s.SourceID !== sourceID);
     renderSettingsSources();
   }
 
   async function deleteKeyword(keywordID) {
     if (!confirm('Delete this keyword?')) return;
-    await apiCall('SaveKeyword', 'POST', { action: 'delete', keywordID, userID: USER_ID });
+    await apiPost('SaveKeyword', { action:'delete', keywordID, userID:USER_ID });
     keywords = keywords.filter(k => k.KeywordID !== keywordID);
     renderSettingsKeywords();
   }
 
   async function deleteTopic(topicID) {
     if (!confirm('Delete this topic?')) return;
-    await apiCall('SaveTopic', 'POST', { action: 'delete', topicID, userID: USER_ID });
+    await apiPost('SaveTopic', { action:'delete', topicID, userID:USER_ID });
     topics = topics.filter(t => t.TopicID !== topicID);
     renderSettingsTopics();
   }
 
-  // Modal
+  // ── MODAL ──
+
   let modalType = null;
   let modalID = null;
 
@@ -645,33 +678,48 @@
     modalID = id;
     const catOptions = categories.map(c => `<option value="${c.CategoryID}">${c.Name}</option>`).join('');
     const sourceTypeOptions = ['Guardian','NYT','GNews','Currents','MediaStack','NewsAPI','RSS'].map(t => `<option value="${t}">${t}</option>`).join('');
-
     let title = '', body = '';
 
-    if (type === 'source') {
+    if (type === 'category') {
+      const cat = id ? categories.find(c => c.CategoryID === id) : null;
+      title = id ? 'Edit Category' : 'Add Category';
+      body = `
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="m-name" value="${cat?.Name || ''}"></div>
+          <div class="form-group" style="flex:0 0 80px"><label class="form-label">Sequence</label><input class="form-input" id="m-seq" type="number" value="${cat?.Sequence || ''}"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Used In</label>
+          <div style="display:flex;gap:20px;margin-top:4px">
+            <label class="form-checkbox-row"><input type="checkbox" id="m-headlines" ${cat?.Headlines === 'Y' ? 'checked' : ''}> Headlines</label>
+            <label class="form-checkbox-row"><input type="checkbox" id="m-mywords" ${cat?.MyWords === 'Y' ? 'checked' : ''}> My Words</label>
+          </div>
+        </div>`;
+
+    } else if (type === 'source') {
       const src = id ? sources.find(s => s.SourceID === id) : null;
       title = id ? 'Edit Source' : 'Add Source';
       body = `
-        <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="modal-name" value="${src?.Name || ''}"></div>
-        <div class="form-group"><label class="form-label">URL</label><input class="form-input" id="modal-url" value="${src?.URL || ''}"></div>
-        <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="modal-type">${sourceTypeOptions}</select></div>`;
-      if (src) setTimeout(() => document.getElementById('modal-type').value = src.SourceType || 'RSS', 0);
+        <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="m-name" value="${src?.Name || ''}"></div>
+        <div class="form-group"><label class="form-label">URL</label><input class="form-input" id="m-url" value="${src?.URL || ''}"></div>
+        <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="m-type">${sourceTypeOptions}</select></div>`;
+      if (src) setTimeout(() => document.getElementById('m-type').value = src.SourceType || 'RSS', 0);
 
     } else if (type === 'keyword') {
       const kw = id ? keywords.find(k => k.KeywordID === id) : null;
       title = id ? 'Edit Keyword' : 'Add Keyword';
       body = `
-        <div class="form-group"><label class="form-label">Keyword (exact match)</label><input class="form-input" id="modal-keyword" value="${kw?.Keyword || ''}"></div>
-        <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="modal-cat"><option value="">— None —</option>${catOptions}</select></div>`;
-      if (kw?.CategoryID) setTimeout(() => document.getElementById('modal-cat').value = kw.CategoryID, 0);
+        <div class="form-group"><label class="form-label">Keyword (exact match)</label><input class="form-input" id="m-keyword" value="${kw?.Keyword || ''}"></div>
+        <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>`;
+      if (kw?.CategoryID) setTimeout(() => document.getElementById('m-cat').value = kw.CategoryID, 0);
 
     } else if (type === 'topic') {
       const tp = id ? topics.find(t => t.TopicID === id) : null;
       title = id ? 'Edit Topic' : 'Add Topic';
       body = `
-        <div class="form-group"><label class="form-label">Topic (fuzzy match)</label><input class="form-input" id="modal-topic" value="${tp?.Topic || ''}"></div>
-        <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="modal-cat"><option value="">— None —</option>${catOptions}</select></div>`;
-      if (tp?.CategoryID) setTimeout(() => document.getElementById('modal-cat').value = tp.CategoryID, 0);
+        <div class="form-group"><label class="form-label">Topic (fuzzy match)</label><input class="form-input" id="m-topic" value="${tp?.Topic || ''}"></div>
+        <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>`;
+      if (tp?.CategoryID) setTimeout(() => document.getElementById('m-cat').value = tp.CategoryID, 0);
     }
 
     document.getElementById('modal-title').textContent = title;
@@ -679,59 +727,78 @@
     document.getElementById('modal').style.display = 'flex';
   }
 
-  function closeModal(e) {
-    if (e && e.target !== document.getElementById('modal')) return;
+  function closeModal() {
     document.getElementById('modal').style.display = 'none';
-    modalType = null;
-    modalID = null;
+    modalType = null; modalID = null;
+  }
+
+  function closeModalOverlay(e) {
+    if (e.target === document.getElementById('modal')) closeModal();
   }
 
   async function saveModal() {
-    if (modalType === 'source') {
-      const name = document.getElementById('modal-name').value.trim();
-      const url = document.getElementById('modal-url').value.trim();
-      const sourceType = document.getElementById('modal-type').value;
+    if (modalType === 'category') {
+      const name = document.getElementById('m-name').value.trim();
+      const sequence = parseInt(document.getElementById('m-seq').value) || 99;
+      const headlines = document.getElementById('m-headlines').checked;
+      const myWords = document.getElementById('m-mywords').checked;
+      if (!name) return alert('Name is required');
+      if (modalID) {
+        await apiPost('SaveCategory', { action:'update', categoryID:modalID, name, sequence, headlines, myWords, isActive:true, userID:USER_ID });
+        const cat = categories.find(c => c.CategoryID === modalID);
+        if (cat) { cat.Name = name; cat.Sequence = sequence; cat.Headlines = headlines?'Y':'N'; cat.MyWords = myWords?'Y':'N'; }
+      } else {
+        const result = await apiPost('SaveCategory', { action:'add', name, sequence, headlines, myWords, userID:USER_ID });
+        categories.push({ CategoryID:result.categoryID, Name:name, Sequence:sequence, Headlines:headlines?'Y':'N', MyWords:myWords?'Y':'N', IsActive:'Y' });
+      }
+      renderSettingsCategories();
+      renderCategoryTiles();
+
+    } else if (modalType === 'source') {
+      const name = document.getElementById('m-name').value.trim();
+      const url = document.getElementById('m-url').value.trim();
+      const sourceType = document.getElementById('m-type').value;
       if (!url) return alert('URL is required');
       if (modalID) {
-        await apiCall('SaveSource', 'POST', { action: 'update', sourceID: modalID, name, url, sourceType, isActive: true, userID: USER_ID });
+        await apiPost('SaveSource', { action:'update', sourceID:modalID, name, url, sourceType, isActive:true, userID:USER_ID });
         const src = sources.find(s => s.SourceID === modalID);
         if (src) { src.Name = name; src.URL = url; src.SourceType = sourceType; }
       } else {
-        const result = await apiCall('SaveSource', 'POST', { action: 'add', name, url, sourceType, userID: USER_ID });
-        sources.push({ SourceID: result.sourceID, Name: name, URL: url, SourceType: sourceType, IsActive: 'Y' });
+        const result = await apiPost('SaveSource', { action:'add', name, url, sourceType, userID:USER_ID });
+        sources.push({ SourceID:result.sourceID, Name:name, URL:url, SourceType:sourceType, IsActive:'Y' });
       }
       renderSettingsSources();
 
     } else if (modalType === 'keyword') {
-      const keyword = document.getElementById('modal-keyword').value.trim();
-      const categoryID = document.getElementById('modal-cat').value || null;
+      const keyword = document.getElementById('m-keyword').value.trim();
+      const categoryID = document.getElementById('m-cat').value || null;
       if (!keyword) return alert('Keyword is required');
       if (modalID) {
-        await apiCall('SaveKeyword', 'POST', { action: 'update', keywordID: modalID, keyword, categoryID, isActive: true, userID: USER_ID });
+        await apiPost('SaveKeyword', { action:'update', keywordID:modalID, keyword, categoryID, isActive:true, userID:USER_ID });
         const kw = keywords.find(k => k.KeywordID === modalID);
         if (kw) { kw.Keyword = keyword; kw.CategoryID = categoryID; kw.CategoryName = categories.find(c => c.CategoryID == categoryID)?.Name || ''; }
       } else {
-        const result = await apiCall('SaveKeyword', 'POST', { action: 'add', keyword, categoryID, userID: USER_ID });
-        keywords.push({ KeywordID: result.keywordID, Keyword: keyword, CategoryID: categoryID, CategoryName: categories.find(c => c.CategoryID == categoryID)?.Name || '', IsActive: 'Y' });
+        const result = await apiPost('SaveKeyword', { action:'add', keyword, categoryID, userID:USER_ID });
+        keywords.push({ KeywordID:result.keywordID, Keyword:keyword, CategoryID:categoryID, CategoryName:categories.find(c => c.CategoryID == categoryID)?.Name || '', IsActive:'Y' });
       }
       renderSettingsKeywords();
 
     } else if (modalType === 'topic') {
-      const topic = document.getElementById('modal-topic').value.trim();
-      const categoryID = document.getElementById('modal-cat').value || null;
+      const topic = document.getElementById('m-topic').value.trim();
+      const categoryID = document.getElementById('m-cat').value || null;
       if (!topic) return alert('Topic is required');
       if (modalID) {
-        await apiCall('SaveTopic', 'POST', { action: 'update', topicID: modalID, topic, categoryID, isActive: true, userID: USER_ID });
+        await apiPost('SaveTopic', { action:'update', topicID:modalID, topic, categoryID, isActive:true, userID:USER_ID });
         const tp = topics.find(t => t.TopicID === modalID);
         if (tp) { tp.Topic = topic; tp.CategoryID = categoryID; tp.CategoryName = categories.find(c => c.CategoryID == categoryID)?.Name || ''; }
       } else {
-        const result = await apiCall('SaveTopic', 'POST', { action: 'add', topic, categoryID, userID: USER_ID });
-        topics.push({ TopicID: result.topicID, Topic: topic, CategoryID: categoryID, CategoryName: categories.find(c => c.CategoryID == categoryID)?.Name || '', IsActive: 'Y' });
+        const result = await apiPost('SaveTopic', { action:'add', topic, categoryID, userID:USER_ID });
+        topics.push({ TopicID:result.topicID, Topic:topic, CategoryID:categoryID, CategoryName:categories.find(c => c.CategoryID == categoryID)?.Name || '', IsActive:'Y' });
       }
       renderSettingsTopics();
     }
 
-    document.getElementById('modal').style.display = 'none';
+    closeModal();
   }
 
   setGreeting();
