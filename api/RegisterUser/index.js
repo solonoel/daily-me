@@ -29,7 +29,8 @@ async function sendVerificationEmail(toEmail, token, name) {
       html: `<h2>Welcome to Daily Me, ${name}!</h2><p>Click the link below to verify your email address:</p><p><a href="${verifyUrl}" style="background:#2b7fd4;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block">Verify my email</a></p><p>This link expires in 24 hours.</p>`
     })
   });
-  return res.status;
+   const body = await res.text();
+  return `${res.status}: ${body}`;
 }
 
 module.exports = async function(context, req) {
@@ -81,7 +82,8 @@ module.exports = async function(context, req) {
       .input('UserID', sql.Int, userID)
       .query(`INSERT INTO [HeadlineSetting] (UserID, RecencyDays, MaxHeadlines) VALUES (@UserID, 7, 50)`);
 
-    await sendVerificationEmail(email, verifyToken, name);
+    const emailStatus = await sendVerificationEmail(email, verifyToken, name);
+    context.log(`Email send status: ${emailStatus}`);
 
     context.res = {
       status: 200,
