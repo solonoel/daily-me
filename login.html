@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Me — Sign In</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'DM Sans',sans-serif; background:linear-gradient(160deg,#e8f4ff 0%,#f5f9ff 60%,#eef7f0 100%); min-height:100vh; display:flex; align-items:center; justify-content:center; }
+    .card { background:white; border-radius:20px; padding:40px; max-width:420px; width:90%; box-shadow:0 8px 40px rgba(43,127,212,0.12); }
+    .header { text-align:center; margin-bottom:32px; }
+    .logo { width:56px; height:56px; border-radius:50%; object-fit:cover; margin-bottom:12px; }
+    .title { font-family:'Playfair Display',serif; font-size:24px; color:#0f1e2e; }
+    .subtitle { font-size:13px; color:#3a5a7a; margin-top:4px; }
+    .tabs { display:flex; border-bottom:2px solid #c4dcf0; margin-bottom:24px; }
+    .tab { flex:1; padding:10px; text-align:center; font-size:13px; font-weight:600; color:#5a7a9a; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; transition:all 0.2s; }
+    .tab.active { color:#2b7fd4; border-bottom-color:#2b7fd4; }
+    .form-group { margin-bottom:16px; }
+    .form-label { font-size:12px; font-weight:600; color:#3a5a7a; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:6px; }
+    .form-input { width:100%; padding:10px 12px; border:1.5px solid #c4dcf0; border-radius:8px; font-size:13px; font-family:'DM Sans',sans-serif; color:#0f1e2e; transition:border-color 0.2s; }
+    .form-input:focus { outline:none; border-color:#2b7fd4; }
+    .btn-primary { width:100%; padding:11px; border-radius:8px; border:none; background:#2b7fd4; color:white; font-size:14px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; margin-top:8px; transition:opacity 0.2s; }
+    .btn-primary:hover { opacity:0.9; }
+    .message { margin-top:14px; padding:10px 14px; border-radius:8px; font-size:13px; display:none; }
+    .message.error { background:#fef0f0; color:#e05050; display:block; }
+    .message.success { background:#edfaf7; color:#0a5c4e; display:block; }
+    .form-panel { display:none; }
+    .form-panel.active { display:block; }
+    .hint { font-size:11px; color:#5a7a9a; margin-top:4px; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <img src="logo.png" alt="Daily Me" class="logo">
+    <div class="title">Daily Me</div>
+    <div class="subtitle">Your personal daily briefing</div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('login')">Sign In</div>
+    <div class="tab" onclick="switchTab('register')">Register</div>
+  </div>
+
+  <div class="form-panel active" id="panel-login">
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-input" type="email" id="login-email" placeholder="your@email.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input class="form-input" type="password" id="login-password" placeholder="••••••••">
+    </div>
+    <button class="btn-primary" onclick="login()">Sign In</button>
+    <div class="message" id="login-message"></div>
+  </div>
+
+  <div class="form-panel" id="panel-register">
+    <div class="form-group">
+      <label class="form-label">Full Name</label>
+      <input class="form-input" type="text" id="reg-name" placeholder="Noel Bruns">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-input" type="email" id="reg-email" placeholder="your@email.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input class="form-input" type="password" id="reg-password" placeholder="••••••••">
+      <div class="hint">Minimum 8 characters</div>
+    </div>
+    <button class="btn-primary" onclick="register()">Create Account</button>
+    <div class="message" id="reg-message"></div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = 'https://dailyme-functions-ewhcg5akbxhhcugr.centralus-01.azurewebsites.net/api';
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+    document.querySelector(`.tab:${tab === 'login' ? 'first-child' : 'last-child'}`).classList.add('active');
+    document.getElementById(`panel-${tab}`).classList.add('active');
+  }
+
+  function showMessage(id, text, type) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = `message ${type}`;
+  }
+
+  async function login() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    if (!email || !password) return showMessage('login-message', 'Please enter your email and password', 'error');
+    try {
+      const res = await fetch(`${API_BASE}/LoginUser`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem('dailyme_user', JSON.stringify({ userID: data.userID, name: data.name, email: data.email, token: data.sessionToken }));
+        window.location.href = 'index.html';
+      } else {
+        showMessage('login-message', data.message || 'Invalid email or password', 'error');
+      }
+    } catch(e) {
+      showMessage('login-message', 'Connection error. Please try again.', 'error');
+    }
+  }
+
+  async function register() {
+    const name = document.getElementById('reg-name').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+    if (!name || !email || !password) return showMessage('reg-message', 'All fields are required', 'error');
+    if (password.length < 8) return showMessage('reg-message', 'Password must be at least 8 characters', 'error');
+    try {
+      const res = await fetch(`${API_BASE}/RegisterUser`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showMessage('reg-message', data.message, 'success');
+        document.getElementById('reg-name').value = '';
+        document.getElementById('reg-email').value = '';
+        document.getElementById('reg-password').value = '';
+      } else {
+        showMessage('reg-message', data.message || 'Registration failed', 'error');
+      }
+    } catch(e) {
+      showMessage('reg-message', 'Connection error. Please try again.', 'error');
+    }
+  }
+
+  // Check if already logged in
+  const user = localStorage.getItem('dailyme_user');
+  if (user) window.location.href = 'index.html';
+
+  // Allow Enter key
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const activePanel = document.querySelector('.form-panel.active').id;
+      if (activePanel === 'panel-login') login();
+      else register();
+    }
+  });
+</script>
+</body>
+</html>

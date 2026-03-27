@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Email — Daily Me</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'DM Sans',sans-serif; background:linear-gradient(160deg,#e8f4ff 0%,#f5f9ff 60%,#eef7f0 100%); min-height:100vh; display:flex; align-items:center; justify-content:center; }
+    .card { background:white; border-radius:20px; padding:48px; max-width:440px; width:90%; text-align:center; box-shadow:0 8px 40px rgba(43,127,212,0.12); }
+    .logo { width:64px; height:64px; border-radius:50%; object-fit:cover; margin-bottom:20px; }
+    .title { font-family:'Playfair Display',serif; font-size:24px; color:#0f1e2e; margin-bottom:10px; }
+    .message { font-size:14px; color:#3a5a7a; line-height:1.6; margin-bottom:24px; }
+    .btn { display:inline-block; padding:12px 28px; border-radius:8px; background:#2b7fd4; color:white; font-size:14px; font-weight:600; text-decoration:none; font-family:'DM Sans',sans-serif; }
+    .icon { font-size:48px; margin-bottom:16px; }
+    .error { color:#e05050; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <img src="logo.png" alt="Daily Me" class="logo">
+  <div id="content">
+    <div class="icon">⏳</div>
+    <div class="title">Verifying your email...</div>
+    <div class="message">Please wait a moment.</div>
+  </div>
+</div>
+<script>
+  const API_BASE = 'https://dailyme-functions-ewhcg5akbxhhcugr.centralus-01.azurewebsites.net/api';
+
+  async function verify() {
+    const token = new URLSearchParams(window.location.search).get('token');
+    if (!token) {
+      document.getElementById('content').innerHTML = `<div class="icon">❌</div><div class="title error">Invalid Link</div><div class="message">This verification link is invalid.</div><a href="index.html" class="btn">Go to Daily Me</a>`;
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/VerifyEmail?token=${token}`);
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('content').innerHTML = `<div class="icon">✅</div><div class="title">Email Verified!</div><div class="message">Your account is verified. You can now log in to Daily Me.</div><a href="index.html" class="btn">Go to Daily Me</a>`;
+      } else {
+        document.getElementById('content').innerHTML = `<div class="icon">❌</div><div class="title error">Verification Failed</div><div class="message">${data.message || 'This link may have expired.'}</div><a href="index.html" class="btn">Go to Daily Me</a>`;
+      }
+    } catch(e) {
+      document.getElementById('content').innerHTML = `<div class="icon">❌</div><div class="title error">Error</div><div class="message">Something went wrong. Please try again.</div><a href="index.html" class="btn">Go to Daily Me</a>`;
+    }
+  }
+
+  verify();
+</script>
+</body>
+</html>
