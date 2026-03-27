@@ -23,7 +23,7 @@ async function sendVerificationEmail(toEmail, token, name) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      from: 'Daily Me <onboarding@resend.dev>',
+      from: 'Daily Me <noreply@brunsusa.com>',
       to: toEmail,
       subject: 'Verify your Daily Me account',
       html: `<h2>Welcome to Daily Me, ${name}!</h2><p>Click the link below to verify your email address:</p><p><a href="${verifyUrl}" style="background:#2b7fd4;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block">Verify my email</a></p><p>This link expires in 24 hours.</p>`
