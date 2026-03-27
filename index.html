@@ -302,9 +302,17 @@
 </div>
 
 <script>
-  const API_BASE = 'https://dailyme-functions-ewhcg5akbxhhcugr.centralus-01.azurewebsites.net/api';
-  const API_KEY = 'OoYIR1YZC3r5Ge3kgfTkY7k1eetRuMakZ8GshiK_7S-HAzFuAn_oIQ==';
-  const USER_ID = 1;
+function setGreeting() {
+    const h = new Date().getHours();
+    const p = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+    const firstName = storedUser?.name?.split(' ')[0] || 'Noel';
+    const msgs = {
+      morning: [`Good morning, ${firstName} — let's make it a great one.`, `Good morning, ${firstName}. Oregon's finest day awaits.`, `Rise and shine, ${firstName}. The news won't read itself.`, `Good morning, ${firstName}. Coffee first, headlines second.`],
+      afternoon: [`Good afternoon, ${firstName}. How's the day treating you?`, `Afternoon, ${firstName}. Time for a mid-day check-in.`, `Good afternoon, ${firstName}. Stay curious.`],
+      evening: [`Good evening, ${firstName}. Wind down with the day's news.`, `Evening, ${firstName}. Let's see what the world was up to.`, `Good evening, ${firstName}. Almost time to rest.`]
+    };
+    document.getElementById('greeting').textContent = msgs[p][Math.floor(Math.random() * msgs[p].length)];
+  }
 
   const catColors = {
     'World':      {icon:'🌍', color:'#7a3e00', bg:'#fff0d6', dot:'#e8a020'},
@@ -523,7 +531,11 @@
   }
 
   // ── SCREEN NAVIGATION WITH BROWSER HISTORY ──
-
+  function logout() {
+    localStorage.removeItem('dailyme_user');
+    window.location.href = 'login.html';
+  }
+  
   function showScreen(name, pushState = true) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
