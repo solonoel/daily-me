@@ -47,7 +47,7 @@
     .date-main { font-family:'Playfair Display',serif; font-size:22px; color:var(--text); }
     .date-sub { font-size:13px; color:var(--text-soft); }
     .section-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-soft); margin-bottom:10px; }
-    .category-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:8px; position:sticky; top:52px; z-index:90; background:linear-gradient(160deg,#e8f4ff 0%,#f5f9ff 60%,#eef7f0 100%); padding:8px 0; }
+    .category-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:8px; position:sticky; top:52px; z-index:90; background:linear-gradient(160deg,#e8f4ff 0%,#f5f9ff 60%,#eef7f0 100%); padding:8px 32px; margin-left:-32px; margin-right:-32px; }
     .category-row { display:flex; gap:7px; flex-wrap:wrap; flex:1; }
     .cat-tile { display:flex; align-items:center; gap:6px; padding:6px 13px; border-radius:100px; border:1.5px solid var(--border); background:white; cursor:pointer; font-size:12px; font-weight:600; color:var(--text-soft); transition:all 0.2s; white-space:nowrap; }
     .cat-tile:hover { border-color:var(--sky-deep); color:var(--sky-deep); background:#f0f7ff; }
@@ -693,8 +693,8 @@ function renderSettingsSection(section) {
           ${USER_ID === 1 ? `<button class="btn-icon danger" onclick="deleteSource(${s.SourceID})">🗑️</button>` : ''}
         </td>
       </tr>`).join('');
-      if (document.getElementById('btn-add-source')) 
-      document.getElementById('btn-add-source').style.display = USER_ID === 1 ? 'inline-flex' : 'none';
+          if (document.getElementById('btn-add-source')) 
+      document.getElementById('btn-add-source').style.display = 'inline-flex';
   }
 
   function renderSettingsKeywords() {
