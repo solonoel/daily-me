@@ -168,7 +168,7 @@ async function fetchYouTube(source) {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const userID = 1;
+    const userID = req.body?.userID || req.query?.userID || 1;
 
     const settingResult = await pool.request()
       .input('UserID', sql.Int, userID)

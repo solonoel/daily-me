@@ -439,7 +439,7 @@ function setGreeting() {
       document.getElementById('headline-count').textContent = 'Cleaning old headlines...';
       const cleanData = await apiPost('CleanHeadlines', { userID: USER_ID });
       document.getElementById('headline-count').textContent = `Cleared ${cleanData.deleted} headlines. Fetching new...`;
-      const fetchData = await apiPost('FetchHeadlines', {});
+      const fetchData = await apiPost('FetchHeadlines', { userID: USER_ID });
       document.getElementById('headline-count').textContent = `Fetched ${fetchData.inserted} new headlines`;
       await loadHeadlines();
     } catch(e) {
