@@ -22,7 +22,7 @@
     .header { background:linear-gradient(135deg,#2b7fd4 0%,#1a9fd4 100%); padding:16px 32px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 4px 24px rgba(43,127,212,0.25); position:relative; overflow:hidden; }
     .header::before { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,0.07); }
     .header-left { position:relative; z-index:1; display:flex; align-items:center; gap:14px; }
-    .header-logo { height:52px; width:52px; border-radius:50%; object-fit:cover; object-position:center; border:2px solid rgba(255,255,255,0.3); }
+    .header-logo { height:40px; width:40px; border-radius:50%; object-fit:cover; object-position:center; border:2px solid rgba(255,255,255,0.3); }
     .app-title { font-family:'Playfair Display',serif; font-size:26px; font-weight:600; color:white; letter-spacing:-0.5px; line-height:1; }
     .app-title span { color:rgba(255,255,255,0.6); font-weight:400; }
     .greeting { font-size:12px; color:rgba(255,255,255,0.85); margin-top:4px; font-weight:300; }
@@ -47,7 +47,7 @@
     .date-main { font-family:'Playfair Display',serif; font-size:22px; color:var(--text); }
     .date-sub { font-size:13px; color:var(--text-soft); }
     .section-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-soft); margin-bottom:10px; }
-    .category-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:8px; }
+    .category-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:8px; position:sticky; top:52px; z-index:90; background:linear-gradient(160deg,#e8f4ff 0%,#f5f9ff 60%,#eef7f0 100%); padding:8px 0; }
     .category-row { display:flex; gap:7px; flex-wrap:wrap; flex:1; }
     .cat-tile { display:flex; align-items:center; gap:6px; padding:6px 13px; border-radius:100px; border:1.5px solid var(--border); background:white; cursor:pointer; font-size:12px; font-weight:600; color:var(--text-soft); transition:all 0.2s; white-space:nowrap; }
     .cat-tile:hover { border-color:var(--sky-deep); color:var(--sky-deep); background:#f0f7ff; }
@@ -160,6 +160,7 @@
     <div>
       <div class="app-title">Daily <span>Me</span></div>
       <div class="greeting" id="greeting"></div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px" id="header-date"></div>
     </div>
   </div>
   <div class="weather-block" id="weather-block">
@@ -348,6 +349,7 @@ function setGreeting() {
     const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     document.getElementById('date-main').textContent = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`;
     document.getElementById('date-sub').textContent = `${now.getFullYear()}`;
+    document.getElementById('header-date').textContent = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
   }
 
   async function loadWeather() {
@@ -357,7 +359,7 @@ function setGreeting() {
       const c = data.current, d = data.daily;
       const wm = {0:['☀️','Clear'],1:['🌤️','Mostly Clear'],2:['⛅','Partly Cloudy'],3:['☁️','Overcast'],45:['🌫️','Foggy'],48:['🌫️','Icy Fog'],51:['🌦️','Drizzle'],53:['🌦️','Drizzle'],55:['🌧️','Heavy Drizzle'],61:['🌧️','Light Rain'],63:['🌧️','Rain'],65:['🌧️','Heavy Rain'],71:['🌨️','Light Snow'],73:['🌨️','Snow'],75:['❄️','Heavy Snow'],80:['🌦️','Showers'],81:['🌧️','Showers'],82:['⛈️','Violent Showers'],95:['⛈️','Thunderstorm'],96:['⛈️','Thunderstorm'],99:['⛈️','Thunderstorm']};
       const [icon, desc] = wm[c.weathercode] || ['🌡️','Unknown'];
-      document.getElementById('weather-block').innerHTML = `<div class="weather-icon">${icon}</div><div class="weather-info"><div class="weather-temp">${Math.round(c.temperature_2m)}°F</div><div class="weather-desc">${desc}</div><div class="weather-detail">H:${Math.round(d.temperature_2m_max[0])}° L:${Math.round(d.temperature_2m_min[0])}° · Wind ${Math.round(c.windspeed_10m)} mph</div></div>`;
+      document.getElementById('weather-block').innerHTML = `<a href="https://forecast.weather.gov/MapClick.php?CityName=Oregon&state=IL&site=LOT&textField1=41.9945&textField2=-89.3334" target="_blank" style="display:flex;align-items:center;gap:14px;text-decoration:none"><div class="weather-icon">${icon}</div><div class="weather-info"><div class="weather-temp">${Math.round(c.temperature_2m)}°F</div><div class="weather-desc">${desc}</div><div class="weather-detail">H:${Math.round(d.temperature_2m_max[0])}° L:${Math.round(d.temperature_2m_min[0])}° · Wind ${Math.round(c.windspeed_10m)} mph</div></div></a>`;
     } catch(e) {
       document.getElementById('weather-block').innerHTML = '<div class="weather-loading">Weather unavailable</div>';
     }
