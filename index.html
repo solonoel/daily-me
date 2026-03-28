@@ -426,16 +426,29 @@ function setGreeting() {
   }
 
   async function loadAll() {
-    const [cats, srcs, kwds, tpcs] = await Promise.all([
+    const [cats, srcs, kwds, tpcs, userSettings] = await Promise.all([
       apiGet('GetCategories'),
       apiGet('GetHeadlineSources'),
       apiGet('GetHeadlineKeywords'),
-      apiGet('GetHeadlineTopics')
+      apiGet('GetHeadlineTopics'),
+      apiGet('GetUserSettings')
     ]);
     categories = Array.isArray(cats) ? cats : [];
     sources = Array.isArray(srcs) ? srcs : [];
     keywords = Array.isArray(kwds) ? kwds : [];
     topics = Array.isArray(tpcs) ? tpcs : [];
+
+    // Apply saved recency setting
+    if (userSettings?.headlineSetting?.RecencyDays) {
+      const savedRecency = userSettings.headlineSetting.RecencyDays;
+      const recencyDays = ['1 day','3 days','7 days','14 days','30 days'];
+      const match = recencyDays.findIndex(r => parseInt(r) === savedRecency);
+      if (match >= 0) {
+        recencyIdx = match;
+        document.getElementById('recency-val').textContent = recencyDays[match];
+      }
+    }
+
     renderCategoryTiles();
     await loadHeadlines();
   }
@@ -585,7 +598,7 @@ function setGreeting() {
   function showSettingsMenu(pushState = true) {
     currentSettingsSection = null;
     document.getElementById('settings-menu-view').style.display = 'block';
-    ['categories','sources','keywords','topics'].forEach(s =>
+    ['categories','sources','keywords','topics','usersettings'].forEach(s =>
       document.getElementById(`settings-section-${s}`).style.display = 'none'
     );
     if (pushState) history.pushState({ screen: 'settings', section: null }, '', '');
