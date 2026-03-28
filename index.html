@@ -265,7 +265,7 @@
         <thead><tr><th>Name</th><th>URL</th><th>Type</th><th>Active</th><th></th></tr></thead>
         <tbody id="tbl-sources"></tbody>
       </table>
-      <button class="btn-add" onclick="openModal('source')">+ Add Source</button>
+      ${USER_ID === 1 ? '<button class="btn-add" onclick="openModal(\'source\')">+ Add Source</button>' : ''}
     </div>
 
     <div id="settings-section-keywords" style="display:none">
@@ -614,7 +614,7 @@ function setGreeting() {
         <td><button class="toggle ${s.IsActive === 'Y' ? 'on' : ''}" onclick="toggleSource(${s.SourceID},this)"></button></td>
         <td style="display:flex;gap:6px">
           <button class="btn-icon" onclick="openModal('source',${s.SourceID})">✏️</button>
-          <button class="btn-icon danger" onclick="deleteSource(${s.SourceID})">🗑️</button>
+          ${USER_ID === 1 ? `<button class="btn-icon danger" onclick="deleteSource(${s.SourceID})">🗑️</button>` : ''}
         </td>
       </tr>`).join('');
   }
