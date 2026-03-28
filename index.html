@@ -198,11 +198,9 @@
         <span>Recency</span>
         <span class="recency-pill-value" id="recency-val">7 days</span>
       </div>
+      <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn">↻ Refresh</button>
     </div>
-    <div class="headline-toolbar">
-      <div class="headline-count" id="headline-count">Loading...</div>
-      <button class="refresh-btn" onclick="refreshHeadlines()">↻ Refresh</button>
-    </div>
+    <div id="refresh-status" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep);margin-bottom:12px;padding:8px 14px;background:#f0f7ff;border-radius:8px;border:1px solid var(--border)"></div>
     <div id="headlines-grouped"></div>
   </div>
 
@@ -475,14 +473,28 @@ function setGreeting() {
 
   async function refreshHeadlines() {
     try {
-      document.getElementById('headline-count').textContent = 'Cleaning old headlines...';
+      const btn = document.getElementById('refresh-btn');
+      const status = document.getElementById('refresh-status');
+      btn.textContent = '⏳ Refreshing...';
+      btn.disabled = true;
+      status.style.display = 'none';
+
       const cleanData = await apiPost('CleanHeadlines', { userID: USER_ID });
-      document.getElementById('headline-count').textContent = `Cleared ${cleanData.deleted} headlines. Fetching new...`;
       const fetchData = await apiPost('FetchHeadlines', { userID: USER_ID });
-      document.getElementById('headline-count').textContent = `Fetched ${fetchData.inserted} new headlines`;
+
+      btn.textContent = '↻ Refresh';
+      btn.disabled = false;
+      status.textContent = `✓ Updated — ${fetchData.inserted} new headlines fetched`;
+      status.style.display = 'block';
+
       await loadHeadlines();
+
+      // Clear status on next user interaction
+      document.addEventListener('click', () => { status.style.display = 'none'; }, { once: true });
     } catch(e) {
-      document.getElementById('headline-count').textContent = 'Error refreshing headlines';
+      const btn = document.getElementById('refresh-btn');
+      btn.textContent = '↻ Refresh';
+      btn.disabled = false;
     }
   }
 
@@ -511,11 +523,37 @@ function setGreeting() {
   }
 
   function renderHeadlines() {
-    document.getElementById('headline-count').textContent = `${headlines.length} Headline${headlines.length !== 1 ? 's' : ''}`;
+    if (headlines.length === 0 && currentFilter !== 'all' && currentFilter !== 'Other') {
+      // Auto-select first category with headlines
+      const allHeadlinesRes = fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`)
+        .then(r => r.json())
+        .then(all => {
+          if (!Array.isArray(all) || all.length === 0) {
+            document.getElementById('headlines-grouped').innerHTML = '<div class="empty-state">No headlines found. Click ↻ Refresh to fetch latest headlines.</div>';
+            return;
+          }
+          // Find first category with headlines ordered by sequence
+          const orderedCats = [...categories].filter(c => c.IsActive === 'Y' && c.Headlines === 'Y').sort((a,b) => (a.Sequence||999)-(b.Sequence||999));
+          for (const cat of orderedCats) {
+            const hasHeadlines = all.some(h => h.CategoryID === cat.CategoryID);
+            if (hasHeadlines) {
+              currentFilter = cat.Name;
+              renderCategoryTiles();
+              headlines = all.filter(h => h.CategoryID === cat.CategoryID);
+              renderHeadlines();
+              return;
+            }
+          }
+          document.getElementById('headlines-grouped').innerHTML = '<div class="empty-state">No headlines found. Click ↻ Refresh to fetch latest headlines.</div>';
+        });
+      return;
+    }
+
     if (headlines.length === 0) {
       document.getElementById('headlines-grouped').innerHTML = '<div class="empty-state">No headlines found. Click ↻ Refresh to fetch latest headlines.</div>';
       return;
     }
+
     const groups = {};
     headlines.forEach(h => {
       const key = h.CategoryName || 'Other';
