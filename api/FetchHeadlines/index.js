@@ -181,7 +181,12 @@ module.exports = async function(context, req) {
     const fromDateStr = fromDate.toISOString().split('T')[0];
 
     const sourcesResult = await pool.request()
-      .query(`SELECT * FROM [HeadlineSource] WHERE IsActive = 'Y'`);
+      .input('UserID', sql.Int, userID)
+      .query(`
+        SELECT h.* FROM [HeadlineSource] h
+        INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
+        WHERE uhs.UserID = @UserID AND h.IsActive = 'Y'
+      `);
     const sources = sourcesResult.recordset;
 
     const kwResult = await pool.request()

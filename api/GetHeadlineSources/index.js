@@ -5,12 +5,7 @@ const config = {
   database: 'DailyMeDB',
   user: 'noeladmin',
   password: process.env.DB_PASSWORD,
-  options: {
-    encrypt: true,
-    trustServerCertificate: false,
-    connectTimeout: 60000,
-    requestTimeout: 60000
-  }
+  options: { encrypt: true, trustServerCertificate: false, connectTimeout: 60000, requestTimeout: 60000 }
 };
 
 module.exports = async function(context, req) {
@@ -21,11 +16,11 @@ module.exports = async function(context, req) {
     const result = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`
-        SELECT SourceID, UserID, Name, URL, IsActive
-        FROM [HeadlineSource]
-        WHERE (UserID = @UserID OR UserID IS NULL)
-        AND IsActive = 'Y'
-        ORDER BY Name
+        SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.CategoryID, h.IsActive, h.UserID
+        FROM [HeadlineSource] h
+        INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
+        WHERE uhs.UserID = @UserID
+        ORDER BY h.Name
       `);
 
     context.res = {
@@ -33,7 +28,7 @@ module.exports = async function(context, req) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(result.recordset)
     };
-  } catch (err) {
+  } catch(err) {
     context.res = { status: 500, body: 'Error: ' + err.message };
   }
 };
