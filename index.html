@@ -246,6 +246,11 @@
           <div class="settings-menu-title">Topics</div>
           <div class="settings-menu-sub">Fuzzy match search phrases</div>
         </div>
+        <div class="settings-menu-card" onclick="showSettingsSection('usersettings')">
+          <div class="settings-menu-icon">👤</div>
+          <div class="settings-menu-title">My Settings</div>
+          <div class="settings-menu-sub">Recency, limits, preferences</div>
+        </div>
       </div>
     </div>
 
@@ -287,6 +292,29 @@
         <tbody id="tbl-topics"></tbody>
       </table>
       <button class="btn-add" onclick="openModal('topic')">+ Add Topic</button>
+    </div>
+    <div id="settings-section-usersettings" style="display:none">
+      <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
+      <div class="settings-section-title">👤 My Settings</div>
+      <table class="settings-table" style="margin-bottom:20px">
+        <thead><tr><th>Setting</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Recency Days</td>
+            <td><input type="number" id="us-recency" class="form-input" style="width:80px" min="1" max="30"></td>
+          </tr>
+          <tr>
+            <td>Max Headlines</td>
+            <td><input type="number" id="us-maxheadlines" class="form-input" style="width:80px" min="10" max="200"></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="settings-section-title" style="font-size:16px;margin-bottom:12px">Per-Category Limits</div>
+      <table class="settings-table" style="margin-bottom:20px">
+        <thead><tr><th>Category</th><th>Max Items</th></tr></thead>
+        <tbody id="tbl-catsettings"></tbody>
+      </table>
+      <button class="btn-primary" onclick="saveUserSettings()">Save Settings</button>
     </div>
   </div>
 
@@ -563,10 +591,10 @@ function setGreeting() {
     if (pushState) history.pushState({ screen: 'settings', section: null }, '', '');
   }
 
-  function showSettingsSection(section, pushState = true) {
+function showSettingsSection(section, pushState = true) {
     currentSettingsSection = section;
     document.getElementById('settings-menu-view').style.display = 'none';
-    ['categories','sources','keywords','topics'].forEach(s =>
+    ['categories','sources','keywords','topics','usersettings'].forEach(s =>
       document.getElementById(`settings-section-${s}`).style.display = 'none'
     );
     document.getElementById(`settings-section-${section}`).style.display = 'block';
@@ -586,11 +614,12 @@ function setGreeting() {
     }
   });
 
-  function renderSettingsSection(section) {
+function renderSettingsSection(section) {
     if (section === 'categories') renderSettingsCategories();
     if (section === 'sources') renderSettingsSources();
     if (section === 'keywords') renderSettingsKeywords();
     if (section === 'topics') renderSettingsTopics();
+    if (section === 'usersettings') renderSettingsUserSettings();
   }
 
   function renderSettingsCategories() {
@@ -646,6 +675,38 @@ function setGreeting() {
           <button class="btn-icon danger" onclick="deleteTopic(${t.TopicID})">🗑️</button>
         </td>
       </tr>`).join('');
+  }
+
+  async function renderSettingsUserSettings() {
+    try {
+      const data = await apiGet('GetUserSettings');
+      document.getElementById('us-recency').value = data.headlineSetting?.RecencyDays || 7;
+      document.getElementById('us-maxheadlines').value = data.headlineSetting?.MaxHeadlines || 50;
+
+      const catRows = categories.filter(c => c.IsActive === 'Y').map(c => {
+        const existing = data.categorySettings?.find(cs => cs.CategoryID === c.CategoryID);
+        return `<tr>
+          <td>${c.Name}</td>
+          <td><input type="number" class="form-input" style="width:80px" min="1" max="100"
+            id="cs-${c.CategoryID}" value="${existing?.MaxItems || 20}"></td>
+        </tr>`;
+      }).join('');
+      document.getElementById('tbl-catsettings').innerHTML = catRows;
+    } catch(e) {
+      console.error('Failed to load user settings:', e);
+    }
+  }
+
+  async function saveUserSettings() {
+    const recencyDays = parseInt(document.getElementById('us-recency').value);
+    const maxHeadlines = parseInt(document.getElementById('us-maxheadlines').value);
+    const categorySettings = categories.filter(c => c.IsActive === 'Y').map(c => ({
+      categoryID: c.CategoryID,
+      maxItems: parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value || 20)
+    }));
+
+    await apiPost('SaveUserSettings', { userID: USER_ID, recencyDays, maxHeadlines, categorySettings });
+    alert('Settings saved!');
   }
 
   async function toggleCategory(categoryID, btn) {
