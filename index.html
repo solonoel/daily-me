@@ -266,7 +266,7 @@
         <thead><tr><th>Name</th><th>URL</th><th>Type</th><th>Active</th><th></th></tr></thead>
         <tbody id="tbl-sources"></tbody>
       </table>
-      ${USER_ID === 1 ? '<button class="btn-add" onclick="openModal(\'source\')">+ Add Source</button>' : ''}
+      <button class="btn-add" id="btn-add-source" onclick="openModal('source')">+ Add Source</button>
     </div>
 
     <div id="settings-section-keywords" style="display:none">
@@ -618,6 +618,8 @@ function setGreeting() {
           ${USER_ID === 1 ? `<button class="btn-icon danger" onclick="deleteSource(${s.SourceID})">🗑️</button>` : ''}
         </td>
       </tr>`).join('');
+      if (document.getElementById('btn-add-source')) 
+      document.getElementById('btn-add-source').style.display = USER_ID === 1 ? 'inline-flex' : 'none';
   }
 
   function renderSettingsKeywords() {
