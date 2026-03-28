@@ -448,7 +448,7 @@ function setGreeting() {
 
   async function loadHeadlines() {
     try {
-      document.getElementById('headline-count').textContent = 'Loading...';
+      // headline-count removed from UI
       const recency = recencyDays_value;
       let params = `&recencyDays=${recency}`;
       if (currentFilter !== 'all' && currentFilter !== 'Other') {
@@ -458,7 +458,14 @@ function setGreeting() {
       const res = await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}${params}`);
       let data = await res.json();
       if (!Array.isArray(data)) data = [];
-      headlines = currentFilter === 'Other' ? data.filter(h => !h.CategoryID) : data;
+      if (currentFilter === 'Other') {
+        headlines = data.filter(h => !h.CategoryID);
+      } else if (currentFilter === 'all') {
+        headlines = data;
+      } else {
+        const catID = getCategoryID(currentFilter);
+        headlines = catID ? data.filter(h => h.CategoryID === catID) : data;
+      }
       renderHeadlines();
     } catch(e) {
       document.getElementById('headline-count').textContent = 'Error loading headlines';

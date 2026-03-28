@@ -52,14 +52,15 @@ module.exports = async function(context, req) {
         body: JSON.stringify({ success: true })
       };
 
-    } else if (action === 'delete') {
+} else if (action === 'delete') {
+      await pool.request()
+        .input('TopicID', sql.Int, topicID)
+        .query(`UPDATE [Headline] SET TopicID = NULL WHERE TopicID = @TopicID`);
       await pool.request()
         .input('TopicID', sql.Int, topicID)
         .input('UserID', sql.Int, userID)
-        .query(`
-          DELETE FROM [HeadlineTopic]
-          WHERE TopicID = @TopicID AND UserID = @UserID
-        `);
+        .query(`DELETE FROM [HeadlineTopic] WHERE TopicID = @TopicID AND UserID = @UserID`);
+      context.res = { status:200, headers:{'Content-Type':'application/json'}, body: JSON.stringify({ success: true }) };
       context.res = {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
