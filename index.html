@@ -733,7 +733,9 @@ function setGreeting() {
       body = `
         <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="m-name" value="${src?.Name || ''}"></div>
         <div class="form-group"><label class="form-label">URL</label><input class="form-input" id="m-url" value="${src?.URL || ''}"></div>
-        <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="m-type">${sourceTypeOptions}</select></div>`;
+        <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="m-type">${sourceTypeOptions}</select></div>
+        <div class="form-group"><label class="form-label">Default Category (optional)</label><select class="form-select" id="m-source-cat"><option value="">— None —</option>${catOptions}</select></div>`;
+      if (src?.CategoryID) setTimeout(() => document.getElementById('m-source-cat').value = src.CategoryID, 0);
       if (src) setTimeout(() => document.getElementById('m-type').value = src.SourceType || 'RSS', 0);
 
     } else if (type === 'keyword') {
@@ -785,18 +787,19 @@ function setGreeting() {
       renderSettingsCategories();
       renderCategoryTiles();
 
-    } else if (modalType === 'source') {
+        } else if (modalType === 'source') {
       const name = document.getElementById('m-name').value.trim();
       const url = document.getElementById('m-url').value.trim();
       const sourceType = document.getElementById('m-type').value;
+      const sourceCategoryID = document.getElementById('m-source-cat')?.value || null;
       if (!url) return alert('URL is required');
       if (modalID) {
-        await apiPost('SaveSource', { action:'update', sourceID:modalID, name, url, sourceType, isActive:true, userID:USER_ID });
+        await apiPost('SaveSource', { action:'update', sourceID:modalID, name, url, sourceType, categoryID:sourceCategoryID, isActive:true, userID:USER_ID });
         const src = sources.find(s => s.SourceID === modalID);
-        if (src) { src.Name=name; src.URL=url; src.SourceType=sourceType; }
+        if (src) { src.Name=name; src.URL=url; src.SourceType=sourceType; src.CategoryID=sourceCategoryID; }
       } else {
-        const result = await apiPost('SaveSource', { action:'add', name, url, sourceType, userID:USER_ID });
-        sources.push({ SourceID:result.sourceID, Name:name, URL:url, SourceType:sourceType, IsActive:'Y' });
+        const result = await apiPost('SaveSource', { action:'add', name, url, sourceType, categoryID:sourceCategoryID, userID:USER_ID });
+        sources.push({ SourceID:result.sourceID, Name:name, URL:url, SourceType:sourceType, CategoryID:sourceCategoryID, IsActive:'Y' });
       }
       renderSettingsSources();
 
