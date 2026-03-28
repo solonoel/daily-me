@@ -194,10 +194,9 @@
     <div class="section-label">Categories</div>
     <div class="category-bar">
       <div class="category-row" id="cat-row"></div>
-      <div class="recency-pill" onclick="cycleRecency()" title="Click to change recency">
+      <div class="recency-pill" title="Change recency in Settings > My Settings">
         <span>Recency</span>
         <span class="recency-pill-value" id="recency-val">7 days</span>
-        <span class="recency-pill-arrow">▲▼</span>
       </div>
     </div>
     <div class="headline-toolbar">
@@ -395,6 +394,7 @@ function setGreeting() {
   }
 
   let headlines = [];
+  let recencyDays_value = 7;
   let categories = [];
   let sources = [];
   let keywords = [];
@@ -440,13 +440,8 @@ function setGreeting() {
 
     // Apply saved recency setting
     if (userSettings?.headlineSetting?.RecencyDays) {
-      const savedRecency = userSettings.headlineSetting.RecencyDays;
-      const recencyDays = ['1 day','3 days','7 days','14 days','30 days'];
-      const match = recencyDays.findIndex(r => parseInt(r) === savedRecency);
-      if (match >= 0) {
-        recencyIdx = match;
-        document.getElementById('recency-val').textContent = recencyDays[match];
-      }
+      recencyDays_value = userSettings.headlineSetting.RecencyDays;
+      document.getElementById('recency-val').textContent = recencyDays_value === 1 ? '1 day' : `${recencyDays_value} days`;
     }
 
     renderCategoryTiles();
@@ -456,7 +451,7 @@ function setGreeting() {
   async function loadHeadlines() {
     try {
       document.getElementById('headline-count').textContent = 'Loading...';
-      const recency = recencyOptions[recencyIdx].split(' ')[0];
+      const recency = recencyDays_value;
       let params = `&recencyDays=${recency}`;
       if (currentFilter !== 'all' && currentFilter !== 'Other') {
         const catID = getCategoryID(currentFilter);
