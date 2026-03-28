@@ -836,14 +836,25 @@ function renderSettingsSection(section) {
 
     } else if (type === 'source') {
       const src = id ? sources.find(s => s.SourceID === id) : null;
-      title = id ? 'Edit Source' : 'Add Source';
-      body = `
-        <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="m-name" value="${src?.Name || ''}"></div>
-        <div class="form-group"><label class="form-label">URL</label><input class="form-input" id="m-url" value="${src?.URL || ''}"></div>
-        <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="m-type">${sourceTypeOptions}</select></div>
-        <div class="form-group"><label class="form-label">Default Category (optional)</label><select class="form-select" id="m-source-cat"><option value="">— None —</option>${catOptions}</select></div>`;
-      if (src?.CategoryID) setTimeout(() => document.getElementById('m-source-cat').value = src.CategoryID, 0);
-      if (src) setTimeout(() => document.getElementById('m-type').value = src.SourceType || 'RSS', 0);
+      if (!id && USER_ID !== 1) {
+        title = 'Add Source';
+        const allSourcesRes = await fetch(`${API_BASE}/GetHeadlineSources?code=${API_KEY}&userID=1`);
+        const allSources = await allSourcesRes.json();
+        const mySourceIDs = new Set(sources.map(s => s.SourceID));
+        const available = allSources.filter(s => !mySourceIDs.has(s.SourceID));
+        if (available.length === 0) { alert('You already have all available sources added.'); return; }
+        const sourceOptions = available.map(s => `<option value="${s.SourceID}">${s.Name} (${s.SourceType || 'RSS'})</option>`).join('');
+        body = `<div class="form-group"><label class="form-label">Select Source</label><select class="form-select" id="m-source-pick">${sourceOptions}</select></div>`;
+      } else {
+        title = id ? 'Edit Source' : 'Add Source';
+        body = `
+          <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="m-name" value="${src?.Name || ''}"></div>
+          <div class="form-group"><label class="form-label">URL</label><input class="form-input" id="m-url" value="${src?.URL || ''}"></div>
+          <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="m-type">${sourceTypeOptions}</select></div>
+          <div class="form-group"><label class="form-label">Default Category (optional)</label><select class="form-select" id="m-source-cat"><option value="">— None —</option>${catOptions}</select></div>`;
+        if (src?.CategoryID) setTimeout(() => document.getElementById('m-source-cat').value = src.CategoryID, 0);
+        if (src) setTimeout(() => document.getElementById('m-type').value = src.SourceType || 'RSS', 0);
+      }
 
     } else if (type === 'keyword') {
       const kw = id ? keywords.find(k => k.KeywordID === id) : null;
@@ -895,19 +906,29 @@ function renderSettingsSection(section) {
       renderCategoryTiles();
 
         } else if (modalType === 'source') {
-      const name = document.getElementById('m-name').value.trim();
-      const url = document.getElementById('m-url').value.trim();
-      const sourceType = document.getElementById('m-type').value;
-      const sourceCategoryID = document.getElementById('m-source-cat')?.value || null;
-      if (!url) return alert('URL is required');
-      if (modalID) {
-        await apiPost('SaveSource', { action:'update', sourceID:modalID, name, url, sourceType, categoryID:sourceCategoryID, isActive:true, userID:USER_ID });
-        const src = sources.find(s => s.SourceID === modalID);
-        if (src) { src.Name=name; src.URL=url; src.SourceType=sourceType; src.CategoryID=sourceCategoryID; }
+      if (!modalID && USER_ID !== 1) {
+        const sourceID = parseInt(document.getElementById('m-source-pick').value);
+        await apiPost('SaveSource', { action:'add', sourceID, userID:USER_ID });
+        const allSourcesRes = await fetch(`${API_BASE}/GetHeadlineSources?code=${API_KEY}&userID=1`);
+        const allSources = await allSourcesRes.json();
+        const picked = allSources.find(s => s.SourceID === sourceID);
+        if (picked) sources.push(picked);
       } else {
-        const result = await apiPost('SaveSource', { action:'add', name, url, sourceType, categoryID:sourceCategoryID, userID:USER_ID });
-        sources.push({ SourceID:result.sourceID, Name:name, URL:url, SourceType:sourceType, CategoryID:sourceCategoryID, IsActive:'Y' });
+        const name = document.getElementById('m-name').value.trim();
+        const url = document.getElementById('m-url').value.trim();
+        const sourceType = document.getElementById('m-type').value;
+        const sourceCategoryID = document.getElementById('m-source-cat')?.value || null;
+        if (!url) return alert('URL is required');
+        if (modalID) {
+          await apiPost('SaveSource', { action:'update', sourceID:modalID, name, url, sourceType, categoryID:sourceCategoryID, isActive:true, userID:USER_ID });
+          const src = sources.find(s => s.SourceID === modalID);
+          if (src) { src.Name=name; src.URL=url; src.SourceType=sourceType; src.CategoryID=sourceCategoryID; }
+        } else {
+          const result = await apiPost('SaveSource', { action:'add', name, url, sourceType, categoryID:sourceCategoryID, userID:USER_ID });
+          sources.push({ SourceID:result.sourceID, Name:name, URL:url, SourceType:sourceType, CategoryID:sourceCategoryID, IsActive:'Y' });
+        }
       }
+
       renderSettingsSources();
 
     } else if (modalType === 'keyword') {
