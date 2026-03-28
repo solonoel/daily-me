@@ -25,9 +25,10 @@ module.exports = async function(context, req) {
         .input('URL', sql.NVarChar(500), url)
         .input('SourceType', sql.NVarChar(20), sourceType || 'RSS')
         .input('IsActive', sql.Char(1), 'Y')
+        .input('CategoryID', sql.Int, categoryID || null)
         .query(`
-          INSERT INTO [HeadlineSource] (UserID, Name, URL, SourceType, IsActive, CreatedDate)
-          VALUES (@UserID, @Name, @URL, @SourceType, @IsActive, GETDATE());
+          INSERT INTO [HeadlineSource] (UserID, Name, URL, SourceType, IsActive, CategoryID, CreatedDate)
+          VALUES (@UserID, @Name, @URL, @SourceType, @IsActive, @CategoryID, GETDATE());
           SELECT SCOPE_IDENTITY() AS SourceID;
         `);
       context.res = {
@@ -43,9 +44,10 @@ module.exports = async function(context, req) {
         .input('URL', sql.NVarChar(500), url)
         .input('SourceType', sql.NVarChar(20), sourceType)
         .input('IsActive', sql.Char(1), isActive ? 'Y' : 'N')
+        .input('CategoryID', sql.Int, categoryID || null)
         .query(`
           UPDATE [HeadlineSource]
-          SET Name = @Name, URL = @URL, SourceType = @SourceType, IsActive = @IsActive
+          SET Name = @Name, URL = @URL, SourceType = @SourceType, IsActive = @IsActive, CategoryID = @CategoryID
           WHERE SourceID = @SourceID
         `);
       context.res = {
