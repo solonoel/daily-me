@@ -12,16 +12,25 @@ module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
     const userID = parseInt(req.query.userID || '1');
+    const allSources = req.query.all === 'true';
 
-    const result = await pool.request()
-      .input('UserID', sql.Int, userID)
-      .query(`
-        SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.CategoryID, h.IsActive, h.UserID
-        FROM [HeadlineSource] h
-        INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
-        WHERE uhs.UserID = @UserID
-        ORDER BY h.Name
-      `);
+    let result;
+    if (allSources) {
+      // Return all global sources regardless of user
+      result = await pool.request()
+        .query(`SELECT SourceID, Name, URL, SourceType, CategoryID, IsActive, UserID FROM [HeadlineSource] WHERE IsActive = 'Y' ORDER BY Name`);
+    } else {
+      // Return only sources assigned to this user
+      result = await pool.request()
+        .input('UserID', sql.Int, userID)
+        .query(`
+          SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.CategoryID, h.IsActive, h.UserID
+          FROM [HeadlineSource] h
+          INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
+          WHERE uhs.UserID = @UserID
+          ORDER BY h.Name
+        `);
+    }
 
     context.res = {
       status: 200,

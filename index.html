@@ -523,6 +523,7 @@ function setGreeting() {
   }
 
   function renderHeadlines() {
+    console.log('renderHeadlines called, headlines:', headlines.length, 'filter:', currentFilter);
     if (headlines.length === 0 && currentFilter !== 'all' && currentFilter !== 'Other') {
       // Auto-select first category with headlines
       const allHeadlinesRes = fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`)
@@ -677,7 +678,10 @@ function renderSettingsSection(section) {
         <td>${c.Headlines === 'Y' ? '✓' : '—'}</td>
         <td>${c.MyWords === 'Y' ? '✓' : '—'}</td>
         <td><button class="toggle ${c.IsActive === 'Y' ? 'on' : ''}" onclick="toggleCategory(${c.CategoryID},this)"></button></td>
-        <td><button class="btn-icon" onclick="openModal('category',${c.CategoryID})">✏️</button></td>
+        <td style="display:flex;gap:6px">
+          <button class="btn-icon" onclick="openModal('category',${c.CategoryID})">✏️</button>
+          <button class="btn-icon danger" onclick="deleteCategory(${c.CategoryID})">🗑️</button>
+        </td>
       </tr>`).join('');
   }
 
@@ -794,6 +798,14 @@ function renderSettingsSection(section) {
     renderSettingsSources();
   }
 
+  async function deleteCategory(categoryID) {
+    if (!confirm('Remove this category? Headlines in this category will become uncategorized.')) return;
+    await apiPost('SaveCategory', { action:'delete', categoryID, userID:USER_ID });
+    categories = categories.filter(c => c.CategoryID !== categoryID);
+    renderSettingsCategories();
+    renderCategoryTiles();
+  }
+
   async function deleteKeyword(keywordID) {
     if (!confirm('Delete this keyword?')) return;
     await apiPost('SaveKeyword', { action:'delete', keywordID, userID:USER_ID });
@@ -838,7 +850,7 @@ function renderSettingsSection(section) {
       const src = id ? sources.find(s => s.SourceID === id) : null;
       if (!id && USER_ID !== 1) {
         title = 'Add Source';
-        const allSourcesRes = await fetch(`${API_BASE}/GetHeadlineSources?code=${API_KEY}&userID=1`);
+        const allSourcesRes = await fetch(`${API_BASE}/GetHeadlineSources?code=${API_KEY}&userID=${USER_ID}&all=true`);
         const allSources = await allSourcesRes.json();
         const mySourceIDs = new Set(sources.map(s => s.SourceID));
         const available = allSources.filter(s => !mySourceIDs.has(s.SourceID));
@@ -909,7 +921,7 @@ function renderSettingsSection(section) {
       if (!modalID && USER_ID !== 1) {
         const sourceID = parseInt(document.getElementById('m-source-pick').value);
         await apiPost('SaveSource', { action:'add', sourceID, userID:USER_ID });
-        const allSourcesRes = await fetch(`${API_BASE}/GetHeadlineSources?code=${API_KEY}&userID=1`);
+        const allSourcesRes = await fetch(`${API_BASE}/GetHeadlineSources?code=${API_KEY}&userID=${USER_ID}&all=true`);
         const allSources = await allSourcesRes.json();
         const picked = allSources.find(s => s.SourceID === sourceID);
         if (picked) sources.push(picked);
