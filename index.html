@@ -811,7 +811,7 @@ function renderSettingsSection(section) {
   let modalType = null;
   let modalID = null;
 
-  function openModal(type, id = null) {
+  async function openModal(type, id = null) {
     modalType = type;
     modalID = id;
     const catOptions = categories.map(c => `<option value="${c.CategoryID}">${c.Name}</option>`).join('');
