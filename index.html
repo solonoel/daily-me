@@ -195,6 +195,7 @@
     .word-btn:hover { border-color:var(--sky-deep); background:#f0f7ff; }
     .word-btn.flag-active { border-color:var(--gold); background:rgba(232,160,32,0.08); }
     .word-btn.gotit:hover { background:#f0fdf4; border-color:#16a34a; }
+    .word-btn.gotit-active { border-color:#22c55e; background:#f0fdf4; color:#16a34a; font-weight:700; }
     .word-btn.del:hover { border-color:#e05050; background:#fef0f0; }
 
     /* NEW WORD */
@@ -708,8 +709,8 @@
         <div class="word-actions">
           <button class="word-btn" onclick="speakWord('${w.WordsName.replace(/'/g,"\\'")}','${currentLangName}')" title="Pronounce">🔊</button>
           <button class="word-btn ${w.Flag ? 'flag-active' : ''}" onclick="toggleWordFlag(${w.UserLanguageWordsID},this)" title="Flag">${w.Flag ? '★' : '☆'}</button>
-          <button class="word-btn gotit" onclick="markWordMastered(${w.UserLanguageWordsID},this)" title="Got it">✓</button>
-          <div style="width:1px;height:20px;background:var(--border);margin:0 2px"></div>
+          <button class="word-btn ${w.DateMastered ? 'gotit-active' : ''}" onclick="markWordMastered(${w.UserLanguageWordsID},this)" title="Got it">✓</button>
+          <div style="width:1px;height:20px;background:var(--border);margin:0 14px"></div>
           <button class="word-btn" onclick="editWord(${w.UserLanguageWordsID})" title="Edit">✏️</button>
           <button class="word-btn del" onclick="deleteWord(${w.UserLanguageWordsID})" title="Delete">✕</button>
         </div>
@@ -772,7 +773,14 @@
             <div class="form-group">
               <label class="form-label">${currentLangName} Word or Phrase</label>
               <input class="form-input" id="nw-word" value="${word.WordsName}" style="font-size:22px;font-weight:700;color:var(--text)">
-              <a href="#" id="nw-fetch-btn" onclick="fetchTranslation();return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;display:inline-block">🔍 Fetch Translation</a>
+              <a href="#" id="nw-fetch-btn" onclick="fetchTranslation('${langName}');return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;display:inline-block">🔍 Fetch Translation</a>
+
+              <span id="nw-fetch-status" style="font-size:12px;color:var(--text-muted);margin-left:8px"></span>
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="flex:0 0 auto">
+                <label class="form-label">Is Verb?</label>
+                <label class="form-checkbox-row" style="margin-top:9px"><input type="checkbox" id="nw-isverb" ${word.IsVerb === 'Y' ? 'checked' : ''}> Verb</label>
               <span id="nw-fetch-status" style="font-size:12px;color:var(--text-muted);margin-left:8px"></span>
             </div>
             <div class="form-row">
@@ -849,7 +857,13 @@ screenEl.innerHTML = `
             <div class="form-group">
               <label class="form-label">${langName} Word or Phrase</label>
               <input class="form-input" id="nw-word" placeholder="e.g. la bicicleta" style="font-size:22px;font-weight:700;color:var(--text)">
-              <a href="#" id="nw-fetch-btn" onclick="fetchTranslation();return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;display:inline-block">🔍 Fetch Translation</a>
+              <a href="#" id="nw-fetch-btn" onclick="fetchTranslation('${langName}');return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;display:inline-block">🔍 Fetch Translation</a>
+              <span id="nw-fetch-status" style="font-size:12px;color:var(--text-muted);margin-left:8px"></span>
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="flex:0 0 auto">
+                <label class="form-label">Is Verb?</label>
+                <label class="form-checkbox-row" style="margin-top:9px"><input type="checkbox" id="nw-isverb" ${word.IsVerb === 'Y' ? 'checked' : ''}> Verb</label>
               <span id="nw-fetch-status" style="font-size:12px;color:var(--text-muted);margin-left:8px"></span>
             </div>
             <div class="form-row">
@@ -871,15 +885,19 @@ screenEl.innerHTML = `
           <label class="form-label">Translation(s)</label>
           <textarea class="form-textarea" id="nw-translation" placeholder="Enter one or more translations, one per line"></textarea>
         </div>
-        <div style="display:flex;gap:10px;margin-top:16px">
-          <button class="btn-primary" onclick="saveNewWord(false)">Save Word</button>
-          <button class="btn-primary" style="background:#22c55e" onclick="saveNewWord(true)">Save & Add Another</button>
-          <button class="btn-secondary" onclick="showScreen('mywords-${langID}')">Cancel</button>
+<div style="display:flex;gap:10px;margin-top:16px">
+          <button class="btn-primary" onclick="saveEditWord(${wordID})">Save Changes</button>
+          <button class="btn-secondary" onclick="cancelEditWord()">Cancel</button>
         </div>
       </div>`;
-    showScreen(`newword-${langID}`);
+    showScreen(`newword-${currentLangID}`);
   }
 
+  function cancelEditWord() {
+    showScreen(`lang-${currentLangID}`);
+    showLangFeature(currentLangID, 'mywords', currentLangName);
+  }
+  
   function handleNewWordImage(event) {
     const file = event.target.files[0]; if (file) resizeAndStoreImage(file);
   }
@@ -914,9 +932,10 @@ newWordImage = canvas.toDataURL('image/jpeg', 0.8);
   document.addEventListener('keydown', (e) => {
     if (e.code === 'Space' && document.activeElement?.id === 'nw-fetch-btn') {
       e.preventDefault();
-      fetchTranslation();
+      fetchTranslation(currentLangName);
       return;
     }
+
     const fcScreen = document.getElementById(`screen-flashcards-${currentLangID}`);
     if (!fcScreen?.classList.contains('active')) return;
     if (e.code === 'Enter') { e.preventDefault(); toggleFlashcardTranslation(); }
@@ -924,13 +943,14 @@ newWordImage = canvas.toDataURL('image/jpeg', 0.8);
     if (e.code === 'ArrowLeft') { e.preventDefault(); moveFlashcard(-1); }
   });
 
-  async function fetchTranslation() {
+  async function fetchTranslation(langName) {
+    const useLang = langName || currentLangName;
     const word = document.getElementById('nw-word')?.value.trim();
     if (!word) { alert('Enter a word first.'); return; }
     const btn = document.getElementById('nw-fetch-btn'), status = document.getElementById('nw-fetch-status');
     btn.style.pointerEvents = 'none'; btn.textContent = '⏳ Fetching...'; status.textContent = '';
     try {
-      const result = await apiPost('GetWordTranslation', { word, languageCode: currentLangName });
+      const result = await apiPost('GetWordTranslation', { word, languageCode: useLang });
       if (result.translation) {
         document.getElementById('nw-translation').value = result.translation;
         if (result.isVerb === true || result.isVerb === 'true') {
@@ -938,7 +958,6 @@ newWordImage = canvas.toDataURL('image/jpeg', 0.8);
         }
         if (result.gender) {
           const sel = document.getElementById('nw-gender'); if (sel) sel.value = result.gender;
-          // Auto-add article if not already present
           const wordInput = document.getElementById('nw-word');
           if (wordInput) {
             const articles = {
@@ -948,7 +967,7 @@ newWordImage = canvas.toDataURL('image/jpeg', 0.8);
               'Portuguese': { M:'o',  F:'a'  },
               'Romanian':   { M:'',   F:''   }
             };
-            const langArticles = articles[currentLangName];
+            const langArticles = articles[useLang];
             const article = langArticles?.[result.gender];
             if (article) {
               const current = wordInput.value.trim();
