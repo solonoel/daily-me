@@ -158,6 +158,18 @@
     .lang-feature-title { font-family:'Playfair Display',serif; font-size:15px; color:var(--text); }
     .lang-feature-sub { font-size:11px; color:var(--text-soft); }
     .coming-soon { display:inline-block; font-size:9px; font-weight:700; background:#fff0d6; color:#b07000; border-radius:4px; padding:2px 6px; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px; }
+    .lang-compact-header { display:flex; align-items:center; gap:12px; padding:10px 16px; background:white; border:1.5px solid var(--border); border-radius:12px; margin-bottom:12px; box-shadow:var(--shadow); }
+    .lang-compact-flag { height:28px; width:auto; border-radius:3px; }
+    .lang-compact-name { font-family:'Playfair Display',serif; font-size:18px; color:var(--text); font-weight:600; }
+    .lang-compact-native { font-size:12px; color:var(--text-soft); margin-left:4px; }
+    .lang-compact-greeting { font-size:12px; color:var(--sky-deep); font-style:italic; margin-left:auto; }
+    .lang-tab-bar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:0; }
+    .lang-tab { padding:7px 16px; border-radius:10px 10px 0 0; border:1.5px solid var(--border); border-bottom:none; background:#f5f9ff; font-size:12px; font-weight:600; color:var(--sky-deep); cursor:pointer; transition:all 0.15s; }
+    .lang-tab:hover { background:#e8f4ff; }
+    .lang-tab-active { background:white; color:var(--text); border-bottom:1.5px solid white; margin-bottom:-1px; }
+    .lang-tab-disabled { color:var(--text-muted); cursor:default; background:#fafafa; }
+    .lang-tab-disabled:hover { background:#fafafa; }
+    .lang-feature-panel { border:1.5px solid var(--border); border-radius:0 10px 10px 10px; background:white; padding:16px; min-height:200px; }
 
     /* MY WORDS */
     .mywords-header { display:flex; align-items:center; gap:16px; margin-bottom:20px; background:white; border:1.5px solid var(--border); border-radius:14px; padding:16px 20px; box-shadow:var(--shadow); }
@@ -176,7 +188,7 @@
     .word-img-placeholder { width:52px; height:52px; border-radius:8px; background:#f0f7ff; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--text-muted); }
     .word-body { flex:1; min-width:0; }
     .word-name { font-size:15px; font-weight:600; color:var(--text); }
-    .word-gender { font-size:15px; color:var(--text-muted); margin-left:12px; }
+    .word-gender { font-size:17px; color:var(--text-soft); margin-left:12px; font-weight:700; }
     .word-translation { font-size:12px; color:var(--text-soft); margin-top:3px; white-space:pre-line; line-height:1.4; }
     .word-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
     .word-btn { width:30px; height:30px; border-radius:6px; border:1.5px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:15px; transition:all 0.15s; }
@@ -556,46 +568,46 @@
     container.innerHTML = activeUserLangs.map(ul => {
       const lang = allLanguages.find(l => l.LanguageID === ul.LanguageID);
       if (!lang) return '';
-      const greeting = langGreetings[lang.LanguageNameEng] || '';
       return `
         <div class="screen" id="screen-lang-${lang.LanguageID}">
-          <div class="lang-screen-header">
-            <img src="${lang.FlagImage}" class="lang-screen-flag" alt="${lang.LanguageNameEng}">
-            <div>
-              <div class="lang-screen-name">${lang.LanguageNameEng}</div>
-              <div class="lang-screen-native">${lang.LanguageName}</div>
-              <div class="lang-greeting">${greeting}</div>
-            </div>
+          <div class="lang-compact-header">
+            <img src="${lang.FlagImage}" class="lang-compact-flag" alt="${lang.LanguageNameEng}">
+            <div class="lang-compact-name">${lang.LanguageNameEng}</div>
+            <div class="lang-compact-native">${lang.LanguageName}</div>
+            <div class="lang-compact-greeting">${langGreetings[lang.LanguageNameEng] || ''}</div>
           </div>
-          <div class="lang-btn-grid">
-            <div class="lang-feature-btn" onclick="showFlashcards(${lang.LanguageID},'${lang.LanguageNameEng}')">
-              <div class="lang-feature-icon">🃏</div>
-              <div class="lang-feature-title">Flashcards</div>
-              <div class="lang-feature-sub">Study your vocabulary</div>
-            </div>
-            <div class="lang-feature-btn" onclick="alert('Coming soon!')">
-              <div class="lang-feature-icon">🔤</div>
-              <div class="lang-feature-title">Conjugation</div>
-              <div class="lang-feature-sub">Verb practice</div>
-              <span class="coming-soon">Coming soon</span>
-            </div>
-            <div class="lang-feature-btn" onclick="alert('Coming soon!')">
-              <div class="lang-feature-icon">💬</div>
-              <div class="lang-feature-title">Conversation</div>
-              <div class="lang-feature-sub">Practice dialogue</div>
-              <span class="coming-soon">Coming soon</span>
-            </div>
-            <div class="lang-feature-btn" onclick="showMyWords(${lang.LanguageID},'${lang.LanguageNameEng}')">
-              <div class="lang-feature-icon">📝</div>
-              <div class="lang-feature-title">My Words</div>
-              <div class="lang-feature-sub">Your vocabulary list</div>
-            </div>
+          <div class="lang-tab-bar">
+            <div class="lang-tab" id="langtab-fc-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'flashcards','${lang.LanguageNameEng}')">🃏 Flashcards</div>
+            <div class="lang-tab" id="langtab-mw-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'mywords','${lang.LanguageNameEng}')">📝 My Words</div>
+            <div class="lang-tab lang-tab-disabled">🔤 Conjugation</div>
+            <div class="lang-tab lang-tab-disabled">💬 Conversation</div>
           </div>
+          <div id="lang-feature-${lang.LanguageID}" class="lang-feature-panel"></div>
         </div>
-        <div class="screen" id="screen-mywords-${lang.LanguageID}"></div>
-        <div class="screen" id="screen-newword-${lang.LanguageID}"></div>
-        <div class="screen" id="screen-flashcards-${lang.LanguageID}"></div>`;
+        <div class="screen" id="screen-newword-${lang.LanguageID}"></div>`;
     }).join('');
+  }
+
+  async function showLangFeature(langID, feature, langName) {
+    currentLangID = langID; currentLangName = langName;
+    // Update tab active state
+    document.querySelectorAll(`[id^="langtab-"]`).forEach(t => t.classList.remove('lang-tab-active'));
+    const tabID = feature === 'flashcards' ? `langtab-fc-${langID}` : `langtab-mw-${langID}`;
+    const tabEl = document.getElementById(tabID);
+    if (tabEl) tabEl.classList.add('lang-tab-active');
+    const panel = document.getElementById(`lang-feature-${langID}`);
+    if (!panel) return;
+    if (feature === 'flashcards') {
+      flashcardFilter = 'all'; flashcardIndex = 0; flashcardShowTranslation = false; flashcardAutoPronounce = true;
+      const data = await apiGet('GetUserLanguageWords', `&languageID=${langID}&filter=active`);
+      flashcards = Array.isArray(data) ? data : [];
+      panel.innerHTML = renderFlashcardsHTML(langID, langName);
+    } else if (feature === 'mywords') {
+      myWordsFilter = 'active'; showImages = true;
+      const data = await apiGet('GetUserLanguageWords', `&languageID=${langID}&filter=${myWordsFilter}`);
+      myWords = Array.isArray(data) ? data : [];
+      panel.innerHTML = renderMyWordsHTML(langID, langName);
+    }
   }
 
   function renderLanguageCheckList() {
@@ -649,26 +661,29 @@
 
   let currentLangID = null, currentLangName = null;
   let myWords = [], myWordsFilter = 'active', showImages = true;
-  let flashcards = [], flashcardIndex = 0, flashcardShowTranslation = false, flashcardFilter = 'all';
+  let flashcards = [], flashcardIndex = 0, flashcardShowTranslation = false, flashcardFilter = 'all', flashcardAutoPronounce = true;
 
   // ── MY WORDS ──
 
   async function showMyWords(langID, langName) {
     currentLangID = langID; currentLangName = langName;
-    myWordsFilter = 'active'; showImages = true;
-    await loadMyWords();
-    showScreen(`mywords-${langID}`);
+    await showLangFeature(langID, 'mywords', langName);
   }
 
   async function loadMyWords() {
     const data = await apiGet('GetUserLanguageWords', `&languageID=${currentLangID}&filter=${myWordsFilter}`);
     myWords = Array.isArray(data) ? data : [];
-    renderMyWords();
+    const panel = document.getElementById(`lang-feature-${currentLangID}`);
+    if (panel) panel.innerHTML = renderMyWordsHTML(currentLangID, currentLangName);
   }
 
   function renderMyWords() {
-    const lang = allLanguages.find(l => l.LanguageID === currentLangID);
-    const screenEl = document.getElementById(`screen-mywords-${currentLangID}`);
+    const panel = document.getElementById(`lang-feature-${currentLangID}`);
+    if (panel) panel.innerHTML = renderMyWordsHTML(currentLangID, currentLangName);
+  }
+
+  function renderMyWordsHTML(langID, langName) {
+    const lang = allLanguages.find(l => l.LanguageID === langID);
     const activeCount = myWords.filter(w => !w.DateMastered).length;
     const flaggedCount = myWords.filter(w => w.Flag).length;
     const masteredCount = myWords.filter(w => w.DateMastered).length;
@@ -681,13 +696,13 @@
     const wordRows = myWords.map(w => {
       const genderLabel = w.Gender === 'M' ? '<span class="word-gender">♂</span>' : w.Gender === 'F' ? '<span class="word-gender">♀</span>' : '';
       const verbLabel = w.IsVerb === 'Y' ? '<span style="font-size:10px;color:var(--text-muted);margin-left:4px">verb</span>' : '';
-      const imgEl = showImages && w.WordsImage
-        ? `<img src="${w.WordsImage}" class="word-img" alt="">`
-        : showImages ? `<div class="word-img-placeholder">📖</div>` : '';
+      const imgEl = showImages
+        ? (w.WordsImage ? `<img src="${w.WordsImage}" class="word-img" alt="">` : `<div class="word-img-placeholder">📖</div>`)
+        : '';
       return `<div class="word-row">
         ${imgEl}
         <div class="word-body">
-          <div class="word-name">${w.WordsName}${genderLabel}${verbLabel}</div>
+          <div class="word-name"><a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;" style="color:var(--text);text-decoration:none;border-bottom:1px dashed var(--border)">${w.WordsName}</a>${genderLabel}${verbLabel}</div>
           <div class="word-translation">${w.WordsTranslation || ''}</div>
         </div>
         <div class="word-actions">
@@ -701,18 +716,13 @@
       </div>`;
     }).join('') || '<div class="empty-state">No words yet. Add your first word!</div>';
 
-    screenEl.innerHTML = `
-      <button class="settings-back" onclick="showScreen('lang-${currentLangID}')">← Back to ${currentLangName}</button>
-      <div class="mywords-header">
-        <img src="${lang?.FlagImage || ''}" class="mywords-flag" alt="${currentLangName}">
-        <div class="mywords-title">My ${currentLangName} Words</div>
-        <button class="btn-primary" onclick="showNewWord(${currentLangID},'${currentLangName}')">+ New Word</button>
-      </div>
-      <div class="mywords-filter-bar">
+    return `
+      <div class="mywords-filter-bar" style="margin-top:12px">
         ${filters.map(f => `<button class="filter-btn ${myWordsFilter === f.key ? 'active' : ''}" onclick="setWordsFilter('${f.key}')">${f.label}</button>`).join('')}
+        <button class="btn-primary" style="margin-left:auto;padding:6px 14px;font-size:12px" onclick="showNewWord(${langID},'${langName}')">+ New Word</button>
         <label class="images-toggle"><input type="checkbox" ${showImages ? 'checked' : ''} onchange="showImages=this.checked;renderMyWords()"> Images</label>
       </div>
-      <div class="word-grid">${wordRows}</div>`;
+      <div class="word-grid" style="margin-top:10px">${wordRows}</div>`;
   }
 
   function setWordsFilter(filter) { myWordsFilter = filter; loadMyWords(); }
@@ -745,6 +755,7 @@
     const lang = allLanguages.find(l => l.LanguageID === currentLangID);
     const screenEl = document.getElementById(`screen-newword-${currentLangID}`);
     newWordImage = word.WordsImage || null;
+    newWordImageChanged = false;
     screenEl.innerHTML = `
       <button class="settings-back" onclick="showScreen('mywords-${currentLangID}')">← Back to My Words</button>
       <div class="date-strip"><div class="date-main">Edit ${currentLangName} Word</div></div>
@@ -800,8 +811,12 @@
     const wordsTranslation = document.getElementById('nw-translation')?.value.trim();
     const isVerb = document.getElementById('nw-isverb')?.checked;
     const gender = document.getElementById('nw-gender')?.value || null;
-    await apiPost('SaveUserLanguageWord', { action:'update', userID:USER_ID, wordID, wordsName, wordsTranslation, isVerb, gender, wordsImage:newWordImage });
-    await showMyWords(currentLangID, currentLangName);
+    const payload = { action:'update', userID:USER_ID, wordID, wordsName, wordsTranslation, isVerb, gender };
+    if (newWordImageChanged) payload.wordsImage = newWordImage;
+    await apiPost('SaveUserLanguageWord', payload);
+    newWordImageChanged = false;
+    showScreen(`lang-${currentLangID}`);
+    await showLangFeature(currentLangID, 'mywords', currentLangName);
   }
 
   async function deleteWord(wordID) {
@@ -813,13 +828,14 @@
 
   // ── NEW WORD ──
 
-  let newWordImage = null;
+let newWordImage = null;
+  let newWordImageChanged = false;
 
   async function showNewWord(langID, langName) {
-    currentLangID = langID; currentLangName = langName; newWordImage = null;
+    currentLangID = langID; currentLangName = langName; newWordImage = null; newWordImageChanged = false;
     const screenEl = document.getElementById(`screen-newword-${langID}`);
 screenEl.innerHTML = `
-      <button class="settings-back" onclick="showScreen('mywords-${langID}')">← Back to My Words</button>
+      <button class="settings-back" onclick="showScreen('lang-${langID}');showLangFeature(${langID},'mywords','${langName}')">← Back to My Words</button>
       <div class="date-strip"><div class="date-main">New ${langName} Word</div></div>
       <div class="newword-form">
         <div style="display:flex;gap:20px;align-items:flex-start;margin-bottom:16px">
@@ -887,9 +903,10 @@ screenEl.innerHTML = `
         const scale = Math.max(size / img.width, size / img.height);
         const w = img.width * scale, h = img.height * scale;
         ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
-        newWordImage = canvas.toDataURL('image/jpeg', 0.8);
+newWordImage = canvas.toDataURL('image/jpeg', 0.8);
+        newWordImageChanged = true;
         const area = document.getElementById('nw-img-area');
-        if (area) area.innerHTML = `<img src="${newWordImage}">`;
+        if (area) area.innerHTML = `<img src="${newWordImage}" style="width:100%;height:100%;object-fit:cover">`;
       };
       img.src = e.target.result;
     };
@@ -900,7 +917,13 @@ screenEl.innerHTML = `
     if (e.code === 'Space' && document.activeElement?.id === 'nw-fetch-btn') {
       e.preventDefault();
       fetchTranslation();
+      return;
     }
+    const fcScreen = document.getElementById(`screen-flashcards-${currentLangID}`);
+    if (!fcScreen?.classList.contains('active')) return;
+    if (e.code === 'Enter') { e.preventDefault(); toggleFlashcardTranslation(); }
+    if (e.code === 'ArrowRight') { e.preventDefault(); moveFlashcard(1); }
+    if (e.code === 'ArrowLeft') { e.preventDefault(); moveFlashcard(-1); }
   });
 
   async function fetchTranslation() {
@@ -917,6 +940,24 @@ screenEl.innerHTML = `
         }
         if (result.gender) {
           const sel = document.getElementById('nw-gender'); if (sel) sel.value = result.gender;
+          // Auto-add article if not already present
+          const wordInput = document.getElementById('nw-word');
+          if (wordInput) {
+            const articles = {
+              'Spanish':    { M:'el', F:'la' },
+              'French':     { M:'le', F:'la' },
+              'Italian':    { M:'il', F:'la' },
+              'Portuguese': { M:'o',  F:'a'  },
+              'Romanian':   { M:'',   F:''   }
+            };
+            const langArticles = articles[currentLangName];
+            const article = langArticles?.[result.gender];
+            if (article) {
+              const current = wordInput.value.trim();
+              const hasArticle = current.toLowerCase().startsWith(article + ' ');
+              if (!hasArticle) wordInput.value = article + ' ' + current;
+            }
+          }
         }
         status.textContent = '✓ Done';
       } else status.textContent = 'No translation found';
@@ -934,7 +975,8 @@ async function saveNewWord(addAnother = false) {
     if (addAnother) {
       await showNewWord(currentLangID, currentLangName);
     } else {
-      await showMyWords(currentLangID, currentLangName);
+      showScreen(`lang-${currentLangID}`);
+      await showLangFeature(currentLangID, 'mywords', currentLangName);
     }
   }
 
@@ -942,16 +984,16 @@ async function saveNewWord(addAnother = false) {
 
   async function showFlashcards(langID, langName) {
     currentLangID = langID; currentLangName = langName;
-    flashcardFilter = 'all'; flashcardIndex = 0; flashcardShowTranslation = false;
-    const data = await apiGet('GetUserLanguageWords', `&languageID=${langID}&filter=active`);
-    flashcards = Array.isArray(data) ? data : [];
-    renderFlashcardsScreen(langID, langName);
-    showScreen(`flashcards-${langID}`);
+    await showLangFeature(langID, 'flashcards', langName);
   }
 
   function renderFlashcardsScreen(langID, langName) {
+    const panel = document.getElementById(`lang-feature-${langID}`);
+    if (panel) panel.innerHTML = renderFlashcardsHTML(langID, langName);
+  }
+
+  function renderFlashcardsHTML(langID, langName) {
     const lang = allLanguages.find(l => l.LanguageID === langID);
-    const screenEl = document.getElementById(`screen-flashcards-${langID}`);
     const filtered = getFilteredFlashcards();
     const total = filtered.length;
     const card = filtered[flashcardIndex];
@@ -977,22 +1019,19 @@ async function saveNewWord(addAnother = false) {
           <button class="fc-speaker" onclick="event.stopPropagation();speakWord('${card.WordsName.replace(/'/g,"\\'")}','${langName}')" style="position:absolute;bottom:14px;left:14px">🔊</button>
           <button class="fc-flag ${isFlagged ? 'fc-flag-active' : ''}" onclick="event.stopPropagation();flashcardToggleFlag(${card.UserLanguageWordsID},this)" style="position:absolute;bottom:14px;right:14px" title="Flag word">${isFlagged ? '★' : '☆'}</button>
         </div>
-        <div class="flashcard-actions">
-          <button class="fc-gotit" onclick="flashcardGotIt(${card.UserLanguageWordsID})">✓ Got it</button>
+        <div class="flashcard-actions" style="display:flex;align-items:center;gap:16px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-soft);cursor:pointer">
+            <input type="checkbox" onchange="if(this.checked)flashcardGotIt(${card.UserLanguageWordsID})" style="accent-color:#22c55e;width:18px;height:18px"> Mastered
+          </label>
         </div>`;
     }
     const prevDis = flashcardIndex === 0 ? 'disabled' : '';
     const nextDis = flashcardIndex >= total - 1 ? 'disabled' : '';
-    screenEl.innerHTML = `
-      <button class="settings-back" onclick="showScreen('lang-${langID}')">← Back to ${langName}</button>
-      <div class="date-strip" style="justify-content:space-between">
-        <div style="display:flex;align-items:baseline;gap:12px">
-          <img src="${lang?.FlagImage || ''}" style="height:28px;border-radius:3px;margin-right:4px" alt="">
-          <div class="date-main">Flashcards</div>
-        </div>
+    return `
+      <div style="display:flex;align-items:center;justify-content:flex-end;margin-top:12px;margin-bottom:8px">
         <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-soft);cursor:pointer;background:white;border:1px solid var(--border);border-radius:100px;padding:5px 14px">
           🔊 <span>Auto Pronounce</span>
-          <input type="checkbox" id="fc-auto-pronounce" checked style="accent-color:var(--sky-deep)">
+          <input type="checkbox" id="fc-auto-pronounce" ${flashcardAutoPronounce ? 'checked' : ''} onchange="flashcardAutoPronounce=this.checked" style="accent-color:var(--sky-deep)">
         </label>
       </div>
       <div class="flashcard-container">
@@ -1018,13 +1057,10 @@ async function saveNewWord(addAnother = false) {
   function toggleFlashcardTranslation() {
     flashcardShowTranslation = !flashcardShowTranslation;
     renderFlashcardsScreen(currentLangID, currentLangName);
-    if (flashcardShowTranslation) {
-      const autoPronounce = document.getElementById('fc-auto-pronounce')?.checked;
-      if (autoPronounce) {
-        const filtered = getFilteredFlashcards();
-        const card = filtered[flashcardIndex];
-        if (card) speakWord(card.WordsName, currentLangName);
-      }
+    if (flashcardShowTranslation && flashcardAutoPronounce) {
+      const filtered = getFilteredFlashcards();
+      const card = filtered[flashcardIndex];
+      if (card) speakWord(card.WordsName, currentLangName);
     }
   }
 
