@@ -491,6 +491,13 @@ function setGreeting() {
       btn.disabled = true;
       status.style.display = 'none';
 
+      // Reload user settings to pick up any changes made since last refresh
+      const userSettings = await apiGet('GetUserSettings');
+      if (userSettings?.headlineSetting?.RecencyDays) {
+        recencyDays_value = userSettings.headlineSetting.RecencyDays;
+        document.getElementById('recency-val').textContent = recencyDays_value === 1 ? '1 day' : `${recencyDays_value} days`;
+      }
+
       const cleanData = await apiPost('CleanHeadlines', { userID: USER_ID });
       const fetchData = await apiPost('FetchHeadlines', { userID: USER_ID });
 
