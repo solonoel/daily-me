@@ -691,8 +691,15 @@ function showSettingsSection(section, pushState = true) {
   });
 
 async function renderSettingsSection(section) {
-    if (section === 'categories') renderSettingsCategories();
-    if (section === 'sources') renderSettingsSources();
+    if (section === 'categories') {
+      categories = await apiGet('GetCategories');
+      renderSettingsCategories();
+      renderCategoryTiles(null);
+    }
+    if (section === 'sources') {
+      sources = await apiGet('GetHeadlineSources');
+      renderSettingsSources();
+    }
     if (section === 'keywords') {
       keywords = await apiGet('GetHeadlineKeywords');
       renderSettingsKeywords();
