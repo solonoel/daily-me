@@ -147,9 +147,8 @@ module.exports = async function(context, req) {
 
       const newWordID = result.recordset[0].WordID;
 
-      // Fire-and-forget auto-conjugation for verbs
       if (isVerb) {
-        autoConjugateVerb(pool, userID, newWordID, wordsName, languageID);
+        await autoConjugateVerb(pool, userID, newWordID, wordsName, languageID);
       }
 
       context.res = {

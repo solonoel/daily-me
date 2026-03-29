@@ -956,7 +956,7 @@ function renderMyWordsHTML(langID,langName){
   async function refreshHeadlines(){
     try{
       const btn=document.getElementById('refresh-btn'),status=document.getElementById('refresh-status');
-      btn.textContent='⏳ Refreshing...';btn.disabled=true;status.style.display='none';
+      btn.innerHTML='⏳ Refreshing...';btn.disabled=true;status.style.display='none';
       const userSettings=await apiGet('GetUserSettings');
       if(userSettings?.headlineSetting?.RecencyDays){recencyDays_value=userSettings.headlineSetting.RecencyDays;document.getElementById('recency-val').textContent=recencyDays_value===1?'1 day':`${recencyDays_value} days`;}
       await apiPost('CleanHeadlines',{userID:USER_ID});
