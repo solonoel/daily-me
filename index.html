@@ -677,11 +677,17 @@ function showSettingsSection(section, pushState = true) {
     }
   });
 
-function renderSettingsSection(section) {
+async function renderSettingsSection(section) {
     if (section === 'categories') renderSettingsCategories();
     if (section === 'sources') renderSettingsSources();
-    if (section === 'keywords') renderSettingsKeywords();
-    if (section === 'topics') renderSettingsTopics();
+    if (section === 'keywords') {
+      keywords = await apiGet('GetHeadlineKeywords');
+      renderSettingsKeywords();
+    }
+    if (section === 'topics') {
+      topics = await apiGet('GetHeadlineTopics');
+      renderSettingsTopics();
+    }
     if (section === 'usersettings') renderSettingsUserSettings();
   }
 
