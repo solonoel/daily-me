@@ -700,14 +700,14 @@
       const imgEl = showImages
         ? (w.WordsImage ? `<img src="${w.WordsImage}" class="word-img" alt="">` : `<div class="word-img-placeholder">📖</div>`)
         : '';
-      return `<div class="word-row">
+      return `<div class="word-row" data-wordid="${w.UserLanguageWordsID}">
         ${imgEl}
         <div class="word-body">
           <div class="word-name"><a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;" style="color:var(--text);text-decoration:none;border-bottom:1px dashed var(--border)">${w.WordsName}</a>${genderLabel}${verbLabel}</div>
           <div class="word-translation">${w.WordsTranslation || ''}</div>
         </div>
         <div class="word-actions">
-          <button class="word-btn" onclick="speakWord('${w.WordsName.replace(/'/g,"\\'")}','${currentLangName}')" title="Pronounce">🔊</button>
+          <button class="word-btn" onclick="speakWordByID(${w.UserLanguageWordsID})" title="Pronounce">🔊</button>
           <button class="word-btn ${w.Flag ? 'flag-active' : ''}" onclick="toggleWordFlag(${w.UserLanguageWordsID},this)" title="Flag">${w.Flag ? '★' : '☆'}</button>
           <button class="word-btn ${w.DateMastered ? 'gotit-active' : ''}" onclick="markWordMastered(${w.UserLanguageWordsID},this)" title="Got it">✓</button>
           <div style="width:1px;height:20px;background:var(--border);margin:0 14px"></div>
@@ -720,13 +720,18 @@
     return `
       <div class="mywords-filter-bar" style="margin-top:12px">
         ${filters.map(f => `<button class="filter-btn ${myWordsFilter === f.key ? 'active' : ''}" onclick="setWordsFilter('${f.key}')">${f.label}</button>`).join('')}
-        <button class="btn-primary" style="margin-left:auto;padding:6px 14px;font-size:12px" onclick="showNewWord(${langID},'${langName}')">+ New Word</button>
+        <button class="btn-primary" style="margin-left:auto;padding:6px 14px;font-size:12px" onclick="showNewWord(currentLangID,currentLangName)">+ New Word</button>
         <label class="images-toggle"><input type="checkbox" ${showImages ? 'checked' : ''} onchange="showImages=this.checked;renderMyWords()"> Images</label>
       </div>
       <div class="word-grid" style="margin-top:10px">${wordRows}</div>`;
   }
 
   function setWordsFilter(filter) { myWordsFilter = filter; loadMyWords(); }
+
+    function speakWordByID(wordID) {
+    const word = myWords.find(w => w.UserLanguageWordsID === wordID);
+    if (word) speakWord(word.WordsName, currentLangName);
+  }
 
   function speakWord(word, langName) {
     const utterance = new SpeechSynthesisUtterance(word);
