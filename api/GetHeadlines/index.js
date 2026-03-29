@@ -44,11 +44,40 @@ module.exports = async function(context, req) {
     if (categoryID) request.input('CategoryID', sql.Int, parseInt(categoryID));
 
     const result = await request.query(query);
+    let headlines = result.recordset;
+
+    // Apply per-category display limits when not filtering by a single category
+    if (!categoryID) {
+      const catLimitsResult = await pool.request()
+        .input('UserID', sql.Int, userID)
+        .query(`SELECT CategoryID, MaxItems FROM [UserCategorySetting] WHERE UserID = @UserID`);
+      const catLimits = {};
+      catLimitsResult.recordset.forEach(r => catLimits[r.CategoryID] = r.MaxItems);
+
+      const settingResult = await pool.request()
+        .input('UserID', sql.Int, userID)
+        .query(`SELECT MaxHeadlines FROM [HeadlineSetting] WHERE UserID = @UserID`);
+      const maxHeadlines = settingResult.recordset[0]?.MaxHeadlines || 50;
+      const numCats = Object.keys(catLimits).length || 5;
+      const defaultPerCat = Math.ceil(maxHeadlines / numCats);
+
+      const catCounts = {};
+      headlines = headlines.filter(h => {
+        const cat = h.CategoryID || 'none';
+        const limit = cat === 'none' ? defaultPerCat : (catLimits[cat] || defaultPerCat);
+        catCounts[cat] = (catCounts[cat] || 0);
+        if (catCounts[cat] < limit) {
+          catCounts[cat]++;
+          return true;
+        }
+        return false;
+      });
+    }
 
     context.res = {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(result.recordset)
+      body: JSON.stringify(headlines)
     };
   } catch(err) {
     context.res = { status: 500, body: 'Error: ' + err.message };

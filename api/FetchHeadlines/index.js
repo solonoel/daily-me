@@ -137,31 +137,34 @@ async function fetchRSS(source) {
   return parseRSS(xml);
 }
 
-async function fetchYouTube(source) {
+async function fetchYouTube(source, keywords, topics, maxResults) {
   const apiKey = process.env.YOUTUBE_API_KEY;
-  const channelHandle = source.URL.split('@')[1];
   const articles = [];
-  try {
-    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(channelHandle)}&type=channel&key=${apiKey}`;
-    const searchData = JSON.parse(await fetchUrl(searchUrl));
-    const channelID = searchData.items?.[0]?.id?.channelId;
-    if (!channelID) return articles;
-    const videosUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelID}&type=video&order=date&maxResults=10&key=${apiKey}`;
-    const videosData = JSON.parse(await fetchUrl(videosUrl));
-    for (const item of (videosData.items || [])) {
-      const videoID = item.id?.videoId;
-      if (!videoID) continue;
-      articles.push({
-        title: item.snippet.title,
-        link: `https://www.youtube.com/watch?v=${videoID}`,
-        summary: item.snippet.description?.substring(0, 500) || '',
-        thumbnailURL: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || null,
-        channelName: item.snippet.channelTitle,
-        channelURL: `https://www.youtube.com/channel/${item.snippet.channelId}`,
-        pubDate: new Date(item.snippet.publishedAt)
-      });
+  const terms = [...keywords, ...topics];
+  for (const term of terms) {
+    try {
+      const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(term.text)}&type=video&order=date&maxResults=${maxResults}&key=${apiKey}`;
+      const searchData = JSON.parse(await fetchUrl(searchUrl));
+      for (const item of (searchData.items || [])) {
+        const videoID = item.id?.videoId;
+        if (!videoID) continue;
+        articles.push({
+          title: item.snippet.title,
+          link: `https://www.youtube.com/watch?v=${videoID}`,
+          summary: item.snippet.description?.substring(0, 500) || '',
+          thumbnailURL: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || null,
+          channelName: item.snippet.channelTitle,
+          channelURL: `https://www.youtube.com/channel/${item.snippet.channelId}`,
+          categoryID: term.categoryID,
+          keywordID: term.keywordID || null,
+          topicID: term.topicID || null,
+          pubDate: new Date(item.snippet.publishedAt)
+        });
+      }
+    } catch(e) {
+      context.log(`YouTube fetch error for term "${term.text}": ${e.message}`);
     }
-  } catch(e) {}
+  }
   return articles;
 }
 
@@ -172,9 +175,10 @@ module.exports = async function(context, req) {
 
     const settingResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT RecencyDays, MaxHeadlines FROM [HeadlineSetting] WHERE UserID = @UserID`);
+      .query(`SELECT RecencyDays, MaxHeadlines, YouTubeMaxResults FROM [HeadlineSetting] WHERE UserID = @UserID`);
     const recencyDays = settingResult.recordset[0]?.RecencyDays || 7;
     const maxHeadlines = settingResult.recordset[0]?.MaxHeadlines || 50;
+    const youTubeMaxResults = settingResult.recordset[0]?.YouTubeMaxResults || 3;
 
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - recencyDays);
@@ -216,7 +220,7 @@ module.exports = async function(context, req) {
           case 'MediaStack': articles = await fetchMediaStack(source); break;
           case 'NewsAPI':    articles = await fetchNewsAPI(source); break;
           case 'RSS':        articles = await fetchRSS(source); break;
-          case 'YouTube':    articles = await fetchYouTube(source); break;
+          case 'YouTube':    articles = await fetchYouTube(source, keywords, topics, youTubeMaxResults); break;
         }
         articles.forEach(a => {
           a.sourceName = source.Name;
@@ -286,25 +290,36 @@ module.exports = async function(context, req) {
 
     unique.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
 
+    // Get per-category limits for this user
+    const catLimitsResult = await pool.request()
+      .input('UserID', sql.Int, userID)
+      .query(`SELECT CategoryID, MaxItems FROM [UserCategorySetting] WHERE UserID = @UserID`);
+    const catLimits = {};
+    catLimitsResult.recordset.forEach(r => catLimits[r.CategoryID] = r.MaxItems);
+    const numCats = catNamesResult.recordset.length || 5;
+    const defaultPerCat = Math.ceil(maxHeadlines / numCats);
+
     const selected = [];
     const catCounts = {};
-    const numCats = catNamesResult.recordset.length || 5;
-    const maxPerCat = Math.ceil(maxHeadlines / numCats);
 
     for (const a of unique) {
-      if (selected.length >= maxHeadlines) break;
-      const cat = a.categoryID || 'none';
-      catCounts[cat] = (catCounts[cat] || 0) + 1;
-      if (catCounts[cat] <= maxPerCat) selected.push(a);
+      const cat = a.categoryID !== null && a.categoryID !== undefined ? a.categoryID : 'none';
+      if (!(cat in catCounts)) catCounts[cat] = 0;
+      if (cat === 'none') {
+        selected.push(a);
+      } else {
+        const limit = catLimits[cat] || defaultPerCat;
+        if (catCounts[cat] < limit) {
+          selected.push(a);
+          catCounts[cat]++;
+        }
+      }
     }
 
-    for (const a of unique) {
-      if (selected.length >= maxHeadlines) break;
-      if (!selected.includes(a)) selected.push(a);
-    }
-
+    context.log(`unique: ${unique.length}, selected: ${selected.length}`);
     let totalInserted = 0;
     for (const a of selected) {
+      try {
       await pool.request()
         .input('UserID', sql.Int, userID)
         .input('CategoryID', sql.Int, a.categoryID || null)
@@ -316,15 +331,19 @@ module.exports = async function(context, req) {
         .input('ThumbnailURL', sql.NVarChar(500), a.thumbnailURL || null)
         .input('ChannelName', sql.NVarChar(200), a.channelName || null)
         .input('ChannelURL', sql.NVarChar(500), a.channelURL || null)
+        .input('SourceName', sql.NVarChar(200), a.sourceName || null)
         .query(`
           INSERT INTO [Headline]
             (UserID, CategoryID, HeadlineName, Link, Summary, CreatedDate, Retain,
-             KeywordID, TopicID, ThumbnailURL, ChannelName, ChannelURL)
+             KeywordID, TopicID, ThumbnailURL, ChannelName, ChannelURL, SourceName)
           VALUES
             (@UserID, @CategoryID, @HeadlineName, @Link, @Summary, GETDATE(), 'N',
-             @KeywordID, @TopicID, @ThumbnailURL, @ChannelName, @ChannelURL)
+@KeywordID, @TopicID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID)
         `);
       totalInserted++;
+      } catch(insertErr) {
+        context.log(`Insert error: ${insertErr.message} | title: ${a.title?.substring(0,50)}`);
+      }
     }
 
     context.res = {

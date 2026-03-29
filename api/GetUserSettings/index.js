@@ -15,7 +15,7 @@ module.exports = async function(context, req) {
 
     const settingResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT RecencyDays, MaxHeadlines FROM [HeadlineSetting] WHERE UserID = @UserID`);
+      .query(`SELECT RecencyDays, MaxHeadlines, YouTubeMaxResults FROM [HeadlineSetting] WHERE UserID = @UserID`);
 
     const catSettingResult = await pool.request()
       .input('UserID', sql.Int, userID)
@@ -35,7 +35,7 @@ module.exports = async function(context, req) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         user: userResult.recordset[0] || null,
-        headlineSetting: settingResult.recordset[0] || { RecencyDays: 7, MaxHeadlines: 50 },
+        headlineSetting: settingResult.recordset[0] || { RecencyDays: 7, MaxHeadlines: 50, YouTubeMaxResults: 3 },
         categorySettings: catSettingResult.recordset
       })
     };

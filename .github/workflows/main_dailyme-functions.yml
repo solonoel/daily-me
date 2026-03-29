@@ -23,24 +23,30 @@ jobs:
         working-directory: api
         run: npm install --production
 
-      - name: Create deployment zip
-        run: |
-          cd api
-          zip -r ../deploy.zip . -x "*.git*" -x "node_modules/*" -x ".vscode/*"
-
-      - name: Deploy via Kudu REST API
+      - name: Deploy files via Kudu VFS
         env:
           PUBLISH_PROFILE: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
         run: |
           USERNAME=$(echo "$PUBLISH_PROFILE" | grep -o 'userName="[^"]*"' | head -1 | cut -d'"' -f2)
           PASSWORD=$(echo "$PUBLISH_PROFILE" | grep -o 'userPWD="[^"]*"' | head -1 | cut -d'"' -f2)
-          SCMURL=$(echo "$PUBLISH_PROFILE" | grep -o 'publishUrl="[^"]*scm[^"]*"' | head -1 | cut -d'"' -f2)
           
-          echo "Deploying to $SCMURL"
-          
-          curl -X POST \
-            "https://$SCMURL/api/zipdeploy" \
+          for file in api/*/index.js api/*/function.json; do
+            FUNCPATH=${file#api/}
+            echo "Uploading $file to $FUNCPATH"
+            curl -X PUT \
+              "https://dailyme-functions-ewhcg5akbxhhcugr.scm.centralus-01.azurewebsites.net/api/vfs/site/wwwroot/$FUNCPATH" \
+              -u "$USERNAME:$PASSWORD" \
+              -H "Content-Type: application/octet-stream" \
+              -H "If-Match: *" \
+              --data-binary @$file \
+              -w "\nHTTP Status: %{http_code}\n"
+          done
+
+          echo "Uploading package.json"
+          curl -X PUT \
+            "https://dailyme-functions-ewhcg5akbxhhcugr.scm.centralus-01.azurewebsites.net/api/vfs/site/wwwroot/package.json" \
             -u "$USERNAME:$PASSWORD" \
-            -H "Content-Type: application/zip" \
-            --data-binary @deploy.zip \
+            -H "Content-Type: application/octet-stream" \
+            -H "If-Match: *" \
+            --data-binary @api/package.json \
             -w "\nHTTP Status: %{http_code}\n"

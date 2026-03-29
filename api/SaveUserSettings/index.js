@@ -11,19 +11,23 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { userID = 1, recencyDays, maxHeadlines, categorySettings } = req.body;
+    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, categorySettings } = req.body;
 
     if (recencyDays || maxHeadlines) {
       await pool.request()
         .input('UserID', sql.Int, userID)
         .input('RecencyDays', sql.Int, recencyDays || 7)
         .input('MaxHeadlines', sql.Int, maxHeadlines || 50)
+        .input('YouTubeMaxResults', sql.Int, youTubeMaxResults || 3)
         .query(`
           UPDATE [HeadlineSetting]
-          SET RecencyDays = @RecencyDays, MaxHeadlines = @MaxHeadlines
+          SET RecencyDays = @RecencyDays, MaxHeadlines = @MaxHeadlines, YouTubeMaxResults = @YouTubeMaxResults
           WHERE UserID = @UserID
         `);
     }
+
+    let maxAdjusted = false;
+    let newMaxHeadlines = maxHeadlines;
 
     if (categorySettings && Array.isArray(categorySettings)) {
       for (const cs of categorySettings) {
@@ -46,12 +50,31 @@ module.exports = async function(context, req) {
             .query(`INSERT INTO [UserCategorySetting] (UserID, CategoryID, MaxItems) VALUES (@UserID, @CategoryID, @MaxItems)`);
         }
       }
+
+      const sumResult = await pool.request()
+        .input('UserID', sql.Int, userID)
+        .query(`SELECT SUM(MaxItems) AS Total FROM [UserCategorySetting] WHERE UserID = @UserID`);
+      const catSum = sumResult.recordset[0]?.Total || 0;
+
+      const currentMax = await pool.request()
+        .input('UserID', sql.Int, userID)
+        .query(`SELECT MaxHeadlines FROM [HeadlineSetting] WHERE UserID = @UserID`);
+      const currentMaxVal = currentMax.recordset[0]?.MaxHeadlines || 50;
+
+      if (catSum > currentMaxVal) {
+        await pool.request()
+          .input('UserID', sql.Int, userID)
+          .input('MaxHeadlines', sql.Int, catSum)
+          .query(`UPDATE [HeadlineSetting] SET MaxHeadlines = @MaxHeadlines WHERE UserID = @UserID`);
+        newMaxHeadlines = catSum;
+        maxAdjusted = true;
+      }
     }
 
     context.res = {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ success: true })
+      body: JSON.stringify({ success: true, maxAdjusted, newMaxHeadlines })
     };
   } catch(err) {
     context.res = { status: 500, body: 'Error: ' + err.message };
