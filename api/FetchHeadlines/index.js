@@ -222,7 +222,7 @@ module.exports = async function(context, req) {
           case 'MediaStack': articles = await fetchMediaStack(source); break;
           case 'NewsAPI':    articles = await fetchNewsAPI(source); break;
           case 'RSS':        articles = await fetchRSS(source); break;
-          case 'YouTube':    articles = await fetchYouTube(source, keywords, topics, youTubeMaxResults, context); break;
+          case 'YouTube':    articles = await fetchYouTube(source, keywords, [], youTubeMaxResults, context); break;
         }
         articles.forEach(a => {
           a.sourceName = source.Name;
