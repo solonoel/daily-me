@@ -75,14 +75,27 @@ module.exports = async function(context, req) {
       };
 
     } else if (action === 'delete') {
+      // Null out CategoryID on related records before deleting
+      await pool.request()
+        .input('CategoryID', sql.Int, categoryID)
+        .query(`UPDATE [Headline] SET CategoryID = NULL WHERE CategoryID = @CategoryID`);
+      await pool.request()
+        .input('CategoryID', sql.Int, categoryID)
+        .query(`UPDATE [HeadlineKeyword] SET CategoryID = NULL WHERE CategoryID = @CategoryID`);
+      await pool.request()
+        .input('CategoryID', sql.Int, categoryID)
+        .query(`UPDATE [HeadlineTopic] SET CategoryID = NULL WHERE CategoryID = @CategoryID`);
+      await pool.request()
+        .input('CategoryID', sql.Int, categoryID)
+        .query(`UPDATE [HeadlineSource] SET CategoryID = NULL WHERE CategoryID = @CategoryID`);
       await pool.request()
         .input('CategoryID', sql.Int, categoryID)
         .input('UserID', sql.Int, userID)
-        .query(`
-          UPDATE [Category]
-          SET IsActive = 'N'
-          WHERE CategoryID = @CategoryID AND UserID = @UserID
-        `);
+        .query(`DELETE FROM [UserCategorySetting] WHERE CategoryID = @CategoryID AND UserID = @UserID`);
+      await pool.request()
+        .input('CategoryID', sql.Int, categoryID)
+        .input('UserID', sql.Int, userID)
+        .query(`DELETE FROM [Category] WHERE CategoryID = @CategoryID AND UserID = @UserID`);
       context.res = {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
