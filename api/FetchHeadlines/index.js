@@ -137,14 +137,16 @@ async function fetchRSS(source) {
   return parseRSS(xml);
 }
 
-async function fetchYouTube(source, keywords, topics, maxResults) {
+async function fetchYouTube(source, keywords, topics, maxResults, context) {
   const apiKey = process.env.YOUTUBE_API_KEY;
   const articles = [];
   const terms = [...keywords, ...topics];
+  context.log(`YouTube: ${terms.length} terms, maxResults: ${maxResults}`);
   for (const term of terms) {
     try {
       const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(term.text)}&type=video&order=date&maxResults=${maxResults}&key=${apiKey}`;
       const searchData = JSON.parse(await fetchUrl(searchUrl));
+      context.log(`YouTube term "${term.text}": ${searchData.items?.length || 0} results, error: ${JSON.stringify(searchData.error || null)}`);
       for (const item of (searchData.items || [])) {
         const videoID = item.id?.videoId;
         if (!videoID) continue;
@@ -220,7 +222,7 @@ module.exports = async function(context, req) {
           case 'MediaStack': articles = await fetchMediaStack(source); break;
           case 'NewsAPI':    articles = await fetchNewsAPI(source); break;
           case 'RSS':        articles = await fetchRSS(source); break;
-          case 'YouTube':    articles = await fetchYouTube(source, keywords, topics, youTubeMaxResults); break;
+          case 'YouTube':    articles = await fetchYouTube(source, keywords, topics, youTubeMaxResults, context); break;
         }
         articles.forEach(a => {
           a.sourceName = source.Name;
