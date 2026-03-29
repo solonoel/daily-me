@@ -762,8 +762,13 @@ function renderSettingsSection(section) {
       maxItems: parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value || 20)
     }));
 
-    await apiPost('SaveUserSettings', { userID: USER_ID, recencyDays, maxHeadlines, categorySettings });
-    alert('Settings saved!');
+    const result = await apiPost('SaveUserSettings', { userID: USER_ID, recencyDays, maxHeadlines, categorySettings });
+    if (result.maxAdjusted) {
+      alert(`Settings saved! Note: Max Headlines was automatically adjusted to ${result.newMaxHeadlines} to match your category limits.`);
+      document.getElementById('us-maxheadlines').value = result.newMaxHeadlines;
+    } else {
+      alert('Settings saved!');
+    }
   }
 
   async function toggleCategory(categoryID, btn) {
