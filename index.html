@@ -692,8 +692,10 @@
         </div>
         <div class="word-actions">
           <button class="word-btn" onclick="speakWord('${w.WordsName.replace(/'/g,"\\'")}','${currentLangName}')" title="Pronounce">🔊</button>
-          <button class="word-btn ${w.Flag ? 'flag-active' : ''}" onclick="toggleWordFlag(${w.UserLanguageWordsID},this)">${w.Flag ? '★' : '☆'}</button>
+          <button class="word-btn ${w.Flag ? 'flag-active' : ''}" onclick="toggleWordFlag(${w.UserLanguageWordsID},this)" title="Flag">${w.Flag ? '★' : '☆'}</button>
           <button class="word-btn gotit" onclick="markWordMastered(${w.UserLanguageWordsID},this)" title="Got it">✓</button>
+          <div style="width:1px;height:20px;background:var(--border);margin:0 2px"></div>
+          <button class="word-btn" onclick="editWord(${w.UserLanguageWordsID})" title="Edit">✏️</button>
           <button class="word-btn del" onclick="deleteWord(${w.UserLanguageWordsID})" title="Delete">✕</button>
         </div>
       </div>`;
@@ -737,6 +739,71 @@
     setTimeout(() => loadMyWords(), 500);
   }
 
+  async function editWord(wordID) {
+    const word = myWords.find(w => w.UserLanguageWordsID === wordID);
+    if (!word) return;
+    const lang = allLanguages.find(l => l.LanguageID === currentLangID);
+    const screenEl = document.getElementById(`screen-newword-${currentLangID}`);
+    newWordImage = word.WordsImage || null;
+    screenEl.innerHTML = `
+      <button class="settings-back" onclick="showScreen('mywords-${currentLangID}')">← Back to My Words</button>
+      <div class="date-strip"><div class="date-main">Edit ${currentLangName} Word</div></div>
+      <div class="newword-form">
+        <div style="display:flex;gap:20px;align-items:flex-start;margin-bottom:16px">
+          <div>
+            <div class="form-label">Image</div>
+            <div class="newword-image-area" id="nw-img-area">
+              ${newWordImage ? `<img src="${newWordImage}">` : '<div class="newword-image-placeholder">🖼️</div>'}
+            </div>
+            <input type="file" id="nw-img-input" accept="image/*" style="display:none" onchange="handleNewWordImage(event)">
+            <a href="#" onclick="document.getElementById('nw-img-input').click();return false;" style="font-size:10px;color:var(--sky-deep);display:block;margin-top:4px;text-align:center">Browse</a>
+          </div>
+          <div style="flex:1">
+            <div class="form-group">
+              <label class="form-label">${currentLangName} Word or Phrase</label>
+              <input class="form-input" id="nw-word" value="${word.WordsName}" style="font-size:22px;font-weight:700;color:var(--text)">
+              <a href="#" id="nw-fetch-btn" onclick="fetchTranslation();return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;display:inline-block">🔍 Fetch Translation</a>
+              <span id="nw-fetch-status" style="font-size:12px;color:var(--text-muted);margin-left:8px"></span>
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="flex:0 0 auto">
+                <label class="form-label">Is Verb?</label>
+                <label class="form-checkbox-row" style="margin-top:9px"><input type="checkbox" id="nw-isverb" ${word.IsVerb === 'Y' ? 'checked' : ''}> Verb</label>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Gender</label>
+                <select class="form-select" id="nw-gender">
+                  <option value="" ${!word.Gender ? 'selected' : ''}>N/A</option>
+                  <option value="M" ${word.Gender === 'M' ? 'selected' : ''}>Masculine</option>
+                  <option value="F" ${word.Gender === 'F' ? 'selected' : ''}>Feminine</option>
+                  <option value="N" ${word.Gender === 'N' ? 'selected' : ''}>Neutral</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Translation(s)</label>
+          <textarea class="form-textarea" id="nw-translation">${word.WordsTranslation || ''}</textarea>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:16px">
+          <button class="btn-primary" onclick="saveEditWord(${wordID})">Save Changes</button>
+          <button class="btn-secondary" onclick="showScreen('mywords-${currentLangID}')">Cancel</button>
+        </div>
+      </div>`;
+    showScreen(`newword-${currentLangID}`);
+  }
+
+  async function saveEditWord(wordID) {
+    const wordsName = document.getElementById('nw-word')?.value.trim();
+    if (!wordsName) { alert('Word is required.'); return; }
+    const wordsTranslation = document.getElementById('nw-translation')?.value.trim();
+    const isVerb = document.getElementById('nw-isverb')?.checked;
+    const gender = document.getElementById('nw-gender')?.value || null;
+    await apiPost('SaveUserLanguageWord', { action:'update', userID:USER_ID, wordID, wordsName, wordsTranslation, isVerb, gender, wordsImage:newWordImage });
+    await showMyWords(currentLangID, currentLangName);
+  }
+
   async function deleteWord(wordID) {
     if (!confirm('Delete this word?')) return;
     await apiPost('SaveUserLanguageWord', { action:'delete', userID:USER_ID, wordID });
@@ -751,24 +818,24 @@
   async function showNewWord(langID, langName) {
     currentLangID = langID; currentLangName = langName; newWordImage = null;
     const screenEl = document.getElementById(`screen-newword-${langID}`);
-    screenEl.innerHTML = `
+screenEl.innerHTML = `
       <button class="settings-back" onclick="showScreen('mywords-${langID}')">← Back to My Words</button>
       <div class="date-strip"><div class="date-main">New ${langName} Word</div></div>
       <div class="newword-form">
         <div style="display:flex;gap:20px;align-items:flex-start;margin-bottom:16px">
           <div>
             <div class="form-label">Image</div>
-            <div class="newword-image-area" id="nw-img-area" onclick="document.getElementById('nw-img-input').click()" title="Click or paste an image">
+            <div class="newword-image-area" id="nw-img-area">
               <div class="newword-image-placeholder">🖼️</div>
             </div>
             <input type="file" id="nw-img-input" accept="image/*" style="display:none" onchange="handleNewWordImage(event)">
-            <div style="font-size:10px;color:var(--text-muted);margin-top:4px;text-align:center">Click or paste</div>
+            <a href="#" onclick="document.getElementById('nw-img-input').click();return false;" style="font-size:10px;color:var(--sky-deep);display:block;margin-top:4px;text-align:center">Browse</a>
           </div>
           <div style="flex:1">
             <div class="form-group">
               <label class="form-label">${langName} Word or Phrase</label>
-              <input class="form-input" id="nw-word" placeholder="e.g. la bicicleta">
-              <a href="#" onclick="fetchTranslation();return false;" id="nw-fetch-btn" style="font-size:12px;color:var(--sky-deep);margin-top:5px;display:inline-block">🔍 Fetch Translation</a>
+              <input class="form-input" id="nw-word" placeholder="e.g. la bicicleta" style="font-size:22px;font-weight:700;color:var(--text)">
+              <a href="#" id="nw-fetch-btn" onclick="fetchTranslation();return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;display:inline-block">🔍 Fetch Translation</a>
               <span id="nw-fetch-status" style="font-size:12px;color:var(--text-muted);margin-left:8px"></span>
             </div>
             <div class="form-row">
@@ -779,10 +846,8 @@
               <div class="form-group">
                 <label class="form-label">Gender</label>
                 <select class="form-select" id="nw-gender">
-                  <option value="">N/A</option>
-                  <option value="M">Masculine</option>
-                  <option value="F">Feminine</option>
-                  <option value="N">Neutral</option>
+                  <option value="">N/A</option><option value="M">Masculine</option>
+                  <option value="F">Feminine</option><option value="N">Neutral</option>
                 </select>
               </div>
             </div>
@@ -793,7 +858,8 @@
           <textarea class="form-textarea" id="nw-translation" placeholder="Enter one or more translations, one per line"></textarea>
         </div>
         <div style="display:flex;gap:10px;margin-top:16px">
-          <button class="btn-primary" onclick="saveNewWord()">Save Word</button>
+          <button class="btn-primary" onclick="saveNewWord(false)">Save Word</button>
+          <button class="btn-primary" style="background:#22c55e" onclick="saveNewWord(true)">Save & Add Another</button>
           <button class="btn-secondary" onclick="showScreen('mywords-${langID}')">Cancel</button>
         </div>
       </div>`;
@@ -830,6 +896,13 @@
     reader.readAsDataURL(file);
   }
 
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && document.activeElement?.id === 'nw-fetch-btn') {
+      e.preventDefault();
+      fetchTranslation();
+    }
+  });
+
   async function fetchTranslation() {
     const word = document.getElementById('nw-word')?.value.trim();
     if (!word) { alert('Enter a word first.'); return; }
@@ -851,14 +924,18 @@
     btn.style.pointerEvents = ''; btn.textContent = '🔍 Fetch Translation';
   }
 
-  async function saveNewWord() {
+async function saveNewWord(addAnother = false) {
     const wordsName = document.getElementById('nw-word')?.value.trim();
     if (!wordsName) { alert('Word is required.'); return; }
     const wordsTranslation = document.getElementById('nw-translation')?.value.trim();
     const isVerb = document.getElementById('nw-isverb')?.checked;
     const gender = document.getElementById('nw-gender')?.value || null;
     await apiPost('SaveUserLanguageWord', { action:'add', userID:USER_ID, languageID:currentLangID, wordsName, wordsTranslation, isVerb, gender, wordsImage:newWordImage });
-    await showMyWords(currentLangID, currentLangName);
+    if (addAnother) {
+      await showNewWord(currentLangID, currentLangName);
+    } else {
+      await showMyWords(currentLangID, currentLangName);
+    }
   }
 
   // ── FLASHCARDS ──
@@ -908,9 +985,15 @@
     const nextDis = flashcardIndex >= total - 1 ? 'disabled' : '';
     screenEl.innerHTML = `
       <button class="settings-back" onclick="showScreen('lang-${langID}')">← Back to ${langName}</button>
-      <div class="date-strip">
-        <img src="${lang?.FlagImage || ''}" style="height:28px;border-radius:3px;margin-right:8px" alt="">
-        <div class="date-main">Flashcards</div>
+      <div class="date-strip" style="justify-content:space-between">
+        <div style="display:flex;align-items:baseline;gap:12px">
+          <img src="${lang?.FlagImage || ''}" style="height:28px;border-radius:3px;margin-right:4px" alt="">
+          <div class="date-main">Flashcards</div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-soft);cursor:pointer;background:white;border:1px solid var(--border);border-radius:100px;padding:5px 14px">
+          🔊 <span>Auto Pronounce</span>
+          <input type="checkbox" id="fc-auto-pronounce" checked style="accent-color:var(--sky-deep)">
+        </label>
       </div>
       <div class="flashcard-container">
         <div class="flashcard-filter-bar">
@@ -935,6 +1018,14 @@
   function toggleFlashcardTranslation() {
     flashcardShowTranslation = !flashcardShowTranslation;
     renderFlashcardsScreen(currentLangID, currentLangName);
+    if (flashcardShowTranslation) {
+      const autoPronounce = document.getElementById('fc-auto-pronounce')?.checked;
+      if (autoPronounce) {
+        const filtered = getFilteredFlashcards();
+        const card = filtered[flashcardIndex];
+        if (card) speakWord(card.WordsName, currentLangName);
+      }
+    }
   }
 
   function moveFlashcard(delta) {
