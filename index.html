@@ -442,33 +442,30 @@ function setGreeting() {
       document.getElementById('recency-val').textContent = recencyDays_value === 1 ? '1 day' : `${recencyDays_value} days`;
     }
 
-    renderCategoryTiles();
+    renderCategoryTiles(null);
     await loadHeadlines();
   }
 
   async function loadHeadlines() {
     try {
-      // headline-count removed from UI
       const recency = recencyDays_value;
-      let params = `&recencyDays=${recency}`;
-      if (currentFilter !== 'all' && currentFilter !== 'Other') {
-        const catID = getCategoryID(currentFilter);
-        if (catID) params += `&categoryID=${catID}`;
-      }
-      const res = await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}${params}`);
-      let data = await res.json();
-      if (!Array.isArray(data)) data = [];
+      const res = await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recency}`);
+      let allData = await res.json();
+      if (!Array.isArray(allData)) allData = [];
+
       if (currentFilter === 'Other') {
-        headlines = data.filter(h => !h.CategoryID);
+        headlines = allData.filter(h => !h.CategoryID);
       } else if (currentFilter === 'all') {
-        headlines = data;
+        headlines = allData;
       } else {
         const catID = getCategoryID(currentFilter);
-        headlines = catID ? data.filter(h => h.CategoryID === catID) : data;
+        headlines = catID ? allData.filter(h => h.CategoryID === catID) : allData;
       }
+
+      renderCategoryTiles(allData);
       renderHeadlines();
     } catch(e) {
-      document.getElementById('headline-count').textContent = 'Error loading headlines';
+      console.error('Error loading headlines:', e);
     }
   }
 
@@ -513,20 +510,24 @@ function setGreeting() {
     return `${Math.floor(hrs/24)}d`;
   }
 
-  function renderCategoryTiles() {
+  function renderCategoryTiles(allHeadlines) {
     const headlineCategories = categories.filter(c => c.Headlines === 'Y' && c.IsActive === 'Y');
     headlineCategories.sort((a, b) => (a.Sequence || 999) - (b.Sequence || 999));
     const row = document.getElementById('cat-row');
     const catTiles = headlineCategories.map(c => {
       const style = catColors[c.Name] || {dot:'#888'};
       const active = currentFilter === c.Name ? 'active' : '';
-      return `<div class="cat-tile ${active}" onclick="filterCat('${c.Name}',this)"><div class="cat-dot" style="background:${style.dot}"></div>${c.Name}</div>`;
+      const count = allHeadlines ? allHeadlines.filter(h => h.CategoryID === c.CategoryID).length : null;
+      const label = count !== null ? `${c.Name} (${count})` : c.Name;
+      return `<div class="cat-tile ${active}" onclick="filterCat('${c.Name}',this)"><div class="cat-dot" style="background:${style.dot}"></div>${label}</div>`;
     }).join('');
+    const otherCount = allHeadlines ? allHeadlines.filter(h => !h.CategoryID).length : null;
+    const allCount = allHeadlines ? allHeadlines.length : null;
     const otherActive = currentFilter === 'Other' ? 'active' : '';
     const allActive = currentFilter === 'all' ? 'active' : '';
     row.innerHTML = catTiles +
-      `<div class="cat-tile ${otherActive}" onclick="filterCat('Other',this)"><div class="cat-dot" style="background:#888"></div>Other</div>` +
-      `<div class="cat-tile ${allActive}" onclick="filterCat('all',this)"><div class="cat-dot" style="background:#2b7fd4"></div>All</div>`;
+      `<div class="cat-tile ${otherActive}" onclick="filterCat('Other',this)"><div class="cat-dot" style="background:#888"></div>Other${otherCount !== null ? ` (${otherCount})` : ''}</div>` +
+      `<div class="cat-tile ${allActive}" onclick="filterCat('all',this)"><div class="cat-dot" style="background:#2b7fd4"></div>All${allCount !== null ? ` (${allCount})` : ''}</div>`;
   }
 
   function renderHeadlines() {
