@@ -186,6 +186,27 @@
     .fc-flag:hover { border-color:var(--gold); background:rgba(232,160,32,0.08); }
     .fc-flag-active { border-color:var(--gold); background:rgba(232,160,32,0.08); }
     .coming-soon { display:inline-block; font-size:9px; font-weight:700; background:#fff0d6; color:#b07000; border-radius:4px; padding:2px 6px; text-transform:uppercase; letter-spacing:0.5px; }
+    .verb-filter-group { display:flex; align-items:center; gap:10px; margin-left:32px; padding-left:32px; border-left:2px solid var(--border); }
+    .verb-filter-label { font-size:12px; font-weight:600; color:var(--text-soft); }
+    .verb-radio-row { display:flex; align-items:center; gap:14px; }
+    .verb-radio-row label { display:flex; align-items:center; gap:5px; font-size:12px; font-weight:600; color:var(--text-soft); cursor:pointer; }
+    .verb-radio-row input[type=radio] { accent-color:var(--sky-deep); width:14px; height:14px; cursor:pointer; }
+    .conjugate-link { font-size:11px; color:var(--sky-deep); text-decoration:none; font-weight:600; border-bottom:1px dashed var(--sky-deep); margin-left:8px; cursor:pointer; white-space:nowrap; }
+    .conjugate-link:hover { color:#1a5fa8; }
+    .conj-screen { max-width:640px; }
+    .conj-header { background:white; border:1.5px solid var(--border); border-radius:12px; padding:16px 20px; margin-bottom:16px; box-shadow:var(--shadow); display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+    .conj-verb { font-family:'Playfair Display',serif; font-size:24px; color:var(--text); }
+    .conj-selects { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .conj-table { width:100%; border-collapse:collapse; background:white; border:1.5px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:var(--shadow); }
+    .conj-table th { background:#f5f9ff; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-soft); padding:8px 16px; text-align:left; border-bottom:1.5px solid var(--border); }
+    .conj-table td { padding:10px 16px; font-size:14px; border-bottom:1px solid #eef5fc; vertical-align:middle; }
+    .conj-table tr:last-child td { border-bottom:none; }
+    .conj-table tr:hover td { background:#f8fbff; }
+    .conj-pronoun { color:var(--text-soft); font-size:13px; }
+    .conj-pronoun-eng { font-size:11px; color:var(--text-muted); margin-top:2px; }
+    .conj-form { font-weight:600; color:var(--text); font-size:15px; }
+    .conj-status { font-size:13px; color:var(--text-muted); font-style:italic; margin:12px 0; }
+    .conj-cached-badge { display:inline-block; font-size:10px; font-weight:700; background:#e6f1ff; color:var(--sky-deep); border-radius:100px; padding:2px 10px; margin-left:8px; }
     @media (max-width:700px) { .settings-deck-grid { grid-template-columns:1fr; } .header { padding:14px 16px; } .main { padding:16px; } .app-title { font-size:20px; } .nav-btn { padding:8px 14px; min-width:60px; } .headline-thumb { width:72px; height:45px; } }
   </style>
 </head>
@@ -324,7 +345,7 @@
   let allLanguages=[],userLanguages=[];
   let currentFilter='Local',currentSettingsSection=null;
   let currentLangID=null,currentLangName=null;
-  let myWords=[],myWordsFilter='active',showImages=true;
+  let myWords=[],myWordsFilter='active',showImages=true,verbFilter='all';
   let flashcards=[],flashcardIndex=0,flashcardShowTranslation=false,flashcardFilter='all',flashcardAutoPronounce=true;
   let newWordImage=null,newWordImageChanged=false;
   let editingWordID=null;
@@ -414,11 +435,13 @@
           </div>
           <div id="lang-feature-${lang.LanguageID}" class="lang-feature-panel"></div>
         </div>
-        <div class="screen" id="screen-newword-${lang.LanguageID}"></div>`;
+        <div class="screen" id="screen-newword-${lang.LanguageID}"></div>
+        <div class="screen" id="screen-conjugation-${lang.LanguageID}"></div>`;
     }).join('');
   }
 
   async function showLangFeature(langID,feature,langName){
+    if(langID!==currentLangID){conjMoods=[];conjTenses=[];conjPronouns=[];}
     currentLangID=langID;currentLangName=langName;
     document.querySelectorAll('[id^="langtab-"]').forEach(t=>t.classList.remove('lang-tab-active'));
     const tabEl=document.getElementById(feature==='flashcards'?`langtab-fc-${langID}`:`langtab-mw-${langID}`);
@@ -430,8 +453,8 @@
       flashcards=Array.isArray(data)?data:[];
       panel.innerHTML=renderFlashcardsHTML(langID,langName);
     }else if(feature==='mywords'){
-      myWordsFilter='active';showImages=true;
-      const data=await apiGet('GetUserLanguageWords',`&languageID=${langID}&filter=active`);
+      myWordsFilter='active';verbFilter='all';showImages=true;
+      const data=await apiGet('GetUserLanguageWords',`&languageID=${langID}&filter=all`);
       myWords=Array.isArray(data)?data:[];
       panel.innerHTML=renderMyWordsHTML(langID,langName);
     }
@@ -471,23 +494,35 @@
     const data=await apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=${myWordsFilter}`);
     myWords=Array.isArray(data)?data:[];renderMyWords();
   }
+function renderMyWordsHTML(langID,langName){
+    // Apply verb filter on top of myWordsFilter
+    const verbFiltered = verbFilter === 'verbs' ? myWords.filter(w=>w.IsVerb==='Y')
+      : verbFilter === 'nouns' ? myWords.filter(w=>w.IsVerb!=='Y')
+      : myWords;
 
-  function renderMyWordsHTML(langID,langName){
-    const activeCount=myWords.filter(w=>!w.DateMastered).length;
-    const flaggedCount=myWords.filter(w=>w.Flag).length;
-    const masteredCount=myWords.filter(w=>w.DateMastered).length;
+    const activeCount=verbFiltered.filter(w=>!w.DateMastered).length;
+    const flaggedCount=verbFiltered.filter(w=>w.Flag).length;
+    const masteredCount=verbFiltered.filter(w=>w.DateMastered).length;
     const filters=[
       {key:'active',label:`Active (${activeCount})`},{key:'flagged',label:`Flagged (${flaggedCount})`},
-      {key:'mastered',label:`Mastered (${masteredCount})`},{key:'all',label:`All (${myWords.length})`}
+      {key:'mastered',label:`Mastered (${masteredCount})`},{key:'all',label:`All (${verbFiltered.length})`}
     ];
-    const wordRows=myWords.map(w=>{
+
+    // Apply left filter to verb-filtered list
+    const displayWords = myWordsFilter === 'active' ? verbFiltered.filter(w=>!w.DateMastered)
+      : myWordsFilter === 'flagged' ? verbFiltered.filter(w=>w.Flag)
+      : myWordsFilter === 'mastered' ? verbFiltered.filter(w=>w.DateMastered)
+      : verbFiltered;
+
+    const wordRows=displayWords.map(w=>{
       const genderLabel=w.Gender==='M'?'<span class="word-gender">♂</span>':w.Gender==='F'?'<span class="word-gender">♀</span>':'';
       const verbLabel=w.IsVerb==='Y'?'<span style="font-size:10px;color:var(--text-muted);margin-left:4px">verb</span>':'';
+      const conjugateLink=w.IsVerb==='Y'?`<a class="conjugate-link" onclick="showConjugation(${w.UserLanguageWordsID});return false;">conjugate</a>`:'';
       const imgEl=showImages?(w.WordsImage?`<img src="${w.WordsImage}" class="word-img" alt="">`:`<div class="word-img-placeholder">📖</div>`):'';
       return `<div class="word-row">
         ${imgEl}
         <div class="word-body">
-          <div class="word-name"><a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;" style="color:var(--text);text-decoration:none;border-bottom:1px dashed var(--border)">${w.WordsName}</a>${genderLabel}${verbLabel}</div>
+          <div class="word-name"><a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;" style="color:var(--text);text-decoration:none;border-bottom:1px dashed var(--border)">${w.WordsName}</a>${genderLabel}${verbLabel}${conjugateLink}</div>
           <div class="word-translation">${w.WordsTranslation||''}</div>
         </div>
         <div class="word-actions">
@@ -499,17 +534,30 @@
           <button class="word-btn del" onclick="deleteWord(${w.UserLanguageWordsID})" title="Delete">✕</button>
         </div>
       </div>`;
-    }).join('')||'<div class="empty-state">No words yet. Add your first word!</div>';
+    }).join('')||'<div class="empty-state">No words found.</div>';
+
     return `
-      <div class="mywords-filter-bar" style="margin-top:12px">
-        ${filters.map(f=>`<button class="filter-btn ${myWordsFilter===f.key?'active':''}" onclick="setWordsFilter('${f.key}')">${f.label}</button>`).join('')}
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:12px;margin-bottom:16px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${filters.map(f=>`<button class="filter-btn ${myWordsFilter===f.key?'active':''}" onclick="setWordsFilter('${f.key}')">${f.label}</button>`).join('')}
+        </div>
+        <div class="verb-filter-group">
+          <span class="verb-filter-label">Type:</span>
+          <div class="verb-radio-row">
+            <label><input type="radio" name="verbfilter-${langID}" value="all" ${verbFilter==='all'?'checked':''} onchange="setVerbFilter('all')"> All</label>
+            <label><input type="radio" name="verbfilter-${langID}" value="nouns" ${verbFilter==='nouns'?'checked':''} onchange="setVerbFilter('nouns')"> Nouns</label>
+            <label><input type="radio" name="verbfilter-${langID}" value="verbs" ${verbFilter==='verbs'?'checked':''} onchange="setVerbFilter('verbs')"> Verbs</label>
+          </div>
+        </div>
         <button class="btn-primary" style="margin-left:auto;padding:6px 14px;font-size:12px" onclick="showNewWord()">+ New Word</button>
         <label class="images-toggle"><input type="checkbox" ${showImages?'checked':''} onchange="showImages=this.checked;renderMyWords()"> Images</label>
       </div>
-      <div class="word-grid" style="margin-top:10px">${wordRows}</div>`;
+      <div class="word-grid">${wordRows}</div>`;
   }
+ 
 
-  function setWordsFilter(filter){myWordsFilter=filter;loadMyWords();}
+  function setWordsFilter(filter){myWordsFilter=filter;renderMyWords();}
+  function setVerbFilter(filter){verbFilter=filter;renderMyWords();}
 
   function speakWordByID(wordID){
     const w=myWords.find(w=>w.UserLanguageWordsID===wordID);
@@ -543,13 +591,14 @@
 
   function wordFormHTML(isEdit,word){
     const imgSrc=newWordImage?`<img src="${newWordImage}" style="width:100%;height:100%;object-fit:cover">`:'<div class="newword-image-placeholder">🖼️</div>';
+    const conjugateBtn=isEdit&&word?.IsVerb==='Y'?`<a class="conjugate-link" style="margin-left:16px;font-size:13px" onclick="showConjugation(${word?.UserLanguageWordsID})">conjugate</a>`:'';
     const title=isEdit?`Edit ${currentLangName} Word`:`New ${currentLangName} Word`;
     const saveBtn=isEdit
       ?`<button class="btn-primary" onclick="saveWordForm()">Save Changes</button>`
       :`<button class="btn-primary" onclick="saveWordForm(false)">Save Word</button>
         <button class="btn-primary" style="background:#22c55e" onclick="saveWordForm(true)">Save &amp; Add Another</button>`;
     return `
-      <div class="date-strip"><div class="date-main">${title}</div></div>
+      <div class="date-strip"><div class="date-main">${title}</div>${conjugateBtn}</div>
       <div class="newword-form">
         <div style="display:flex;gap:20px;align-items:flex-start;margin-bottom:16px">
           <div>
@@ -703,9 +752,11 @@
       const genderLabel=card.Gender==='M'?' <span style="font-size:18px;color:var(--text-soft);font-weight:700">♂</span>':card.Gender==='F'?' <span style="font-size:18px;color:var(--text-soft);font-weight:700">♀</span>':'';
       const imgEl=card.WordsImage?`<img src="${card.WordsImage}" class="flashcard-image" alt="">`:'';
       const transEl=flashcardShowTranslation?`<div class="flashcard-translation">${card.WordsTranslation||'—'}</div>`:`<div class="flashcard-hint">Tap card to reveal translation</div>`;
+      const fcConjugateLink=card.IsVerb==='Y'?`<a class="conjugate-link" style="position:absolute;top:12px;right:12px;font-size:11px" onclick="event.stopPropagation();showConjugation(${card.UserLanguageWordsID})">conjugate</a>`:'';
       cardHTML=`
         <div class="flashcard" onclick="toggleFlashcardTranslation()">
           ${imgEl}
+          ${fcConjugateLink}
           <div class="flashcard-word">${card.WordsName}${genderLabel}</div>
           ${transEl}
           <button class="fc-speaker" onclick="event.stopPropagation();speakWordFC(${card.UserLanguageWordsID})">🔊</button>
@@ -786,6 +837,89 @@
     const newFlag=!card.Flag;
     await apiPost('SaveUserLanguageWord',{action:'flag',userID:USER_ID,wordID,flag:newFlag});
     card.Flag=newFlag;btn.textContent=newFlag?'★':'☆';btn.classList.toggle('fc-flag-active',newFlag);
+  }
+
+  // ── CONJUGATION ──
+
+  let conjMoods=[], conjTenses=[], conjPronouns=[];
+
+  async function showConjugation(wordID){
+    const word=myWords.find(w=>w.UserLanguageWordsID===wordID);
+    if(!word)return;
+    const screenEl=document.getElementById(`screen-conjugation-${currentLangID}`);
+    if(!screenEl)return;
+
+    // Load moods/tenses/pronouns if not already loaded for this language
+    if(!conjMoods.length){
+      const res=await apiGet('GetLanguageMoodsTenses',`&languageID=${currentLangID}`);
+      conjMoods=res.moods||[];conjTenses=res.tenses||[];conjPronouns=res.pronouns||[];
+    }
+
+    renderConjugationScreen(wordID,word,null);
+    showScreen(`conjugation-${currentLangID}`);
+  }
+
+  function renderConjugationScreen(wordID,word,result){
+    const screenEl=document.getElementById(`screen-conjugation-${currentLangID}`);
+    if(!screenEl)return;
+    const moodOptions=conjMoods.map(m=>`<option value="${m.LanguageMoodID}">${m.LanguageMoodName} — ${m.LanguageMoodEng}</option>`).join('');
+    const tenseOptions=conjTenses.map(t=>`<option value="${t.LanguageTenseID}">${t.LanguageTenseName} — ${t.LanguageTenseEng}</option>`).join('');
+
+    let tableHTML='';
+    if(result){
+      const cached=result.fromCache?`<span class="conj-cached-badge">cached</span>`:'';
+      tableHTML=`
+        <div class="conj-status">${result.mood} · ${result.tense}${cached}
+          <a class="conjugate-link" style="margin-left:12px" onclick="generateConjugation(${wordID},true)">↺ Regenerate</a>
+        </div>
+        <table class="conj-table">
+          <thead><tr><th>Pronoun</th><th>Form</th><th></th></tr></thead>
+          <tbody>
+            ${result.forms.map(f=>`
+              <tr>
+                <td><div class="conj-pronoun">${f.PronounName}</div><div class="conj-pronoun-eng">${f.PronounEng}</div></td>
+                <td><span class="conj-form">${f.ConjugatedForm}</span></td>
+                <td><button class="word-btn" onclick="speakWord('${f.ConjugatedForm.replace(/'/g,"\\'")}','${currentLangName}')" title="Pronounce">🔊</button></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    screenEl.innerHTML=`
+      <button class="settings-back" onclick="showScreen('lang-${currentLangID}');showLangFeature(${currentLangID},'mywords','${currentLangName}')">← Back to My Words</button>
+      <div class="conj-screen">
+        <div class="conj-header">
+          <div class="conj-verb">${word.WordsName}</div>
+          <div class="conj-selects">
+            <select class="form-select" id="conj-mood" style="width:200px">${moodOptions}</select>
+            <select class="form-select" id="conj-tense" style="width:220px">${tenseOptions}</select>
+            <button class="btn-primary" onclick="generateConjugation(${wordID},false)">Conjugate</button>
+          </div>
+        </div>
+        ${tableHTML||'<div class="conj-status">Select a mood and tense, then click Conjugate.</div>'}
+      </div>`;
+  }
+
+  async function generateConjugation(wordID,regenerate){
+    const word=myWords.find(w=>w.UserLanguageWordsID===wordID);
+    if(!word)return;
+    const moodID=parseInt(document.getElementById('conj-mood')?.value);
+    const tenseID=parseInt(document.getElementById('conj-tense')?.value);
+    if(!moodID||!tenseID){alert('Select a mood and tense.');return;}
+
+    const btn=document.querySelector('.conj-header .btn-primary');
+    if(btn){btn.textContent='⏳ Working...';btn.disabled=true;}
+
+    try{
+      const result=await apiPost('GetConjugation',{
+        userID:USER_ID,userLanguageWordsID:wordID,
+        languageMoodID:moodID,languageTenseID:tenseID,regenerate
+      });
+      renderConjugationScreen(wordID,word,result);
+    }catch(e){
+      const status=document.querySelector('.conj-status');
+      if(status)status.textContent='Error generating conjugation.';
+    }
   }
 
   // ── KEYBOARD ──
