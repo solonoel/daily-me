@@ -275,7 +275,7 @@
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
       <div class="settings-section-title">🔍 Keywords <span style="font-size:13px;font-weight:400;color:var(--text-soft);font-family:'DM Sans',sans-serif"> — exact match</span></div>
       <table class="settings-table">
-        <thead><tr><th>Keyword</th><th>Category</th><th>Active</th><th></th></tr></thead>
+        <thead><tr><th>Seq</th><th>Keyword</th><th>Category</th><th>Active</th><th></th></tr></thead>
         <tbody id="tbl-keywords"></tbody>
       </table>
       <button class="btn-add" onclick="openModal('keyword')">+ Add Keyword</button>
@@ -285,7 +285,7 @@
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
       <div class="settings-section-title">💡 Topics <span style="font-size:13px;font-weight:400;color:var(--text-soft);font-family:'DM Sans',sans-serif"> — fuzzy match</span></div>
       <table class="settings-table">
-        <thead><tr><th>Topic</th><th>Category</th><th>Active</th><th></th></tr></thead>
+        <thead><tr><th>Seq</th><th>Topic</th><th>Category</th><th>Active</th><th></th></tr></thead>
         <tbody id="tbl-topics"></tbody>
       </table>
       <button class="btn-add" onclick="openModal('topic')">+ Add Topic</button>
@@ -716,6 +716,7 @@ function renderSettingsSection(section) {
   function renderSettingsKeywords() {
     document.getElementById('tbl-keywords').innerHTML = keywords.map(k => `
       <tr>
+        <td style="width:40px">${k.Sequence || 99}</td>
         <td>${k.Keyword}</td>
         <td>${k.CategoryName || '—'}</td>
         <td><button class="toggle ${k.IsActive === 'Y' ? 'on' : ''}" onclick="toggleKeyword(${k.KeywordID},this)"></button></td>
@@ -729,6 +730,7 @@ function renderSettingsSection(section) {
   function renderSettingsTopics() {
     document.getElementById('tbl-topics').innerHTML = topics.map(t => `
       <tr>
+        <td style="width:40px">${t.Sequence || 99}</td>
         <td>${t.Topic}</td>
         <td>${t.CategoryName || '—'}</td>
         <td><button class="toggle ${t.IsActive === 'Y' ? 'on' : ''}" onclick="toggleTopic(${t.TopicID},this)"></button></td>
@@ -928,7 +930,10 @@ function renderSettingsSection(section) {
       const kw = id ? keywords.find(k => k.KeywordID === id) : null;
       title = id ? 'Edit Keyword' : 'Add Keyword';
       body = `
-        <div class="form-group"><label class="form-label">Keyword (exact match)</label><input class="form-input" id="m-keyword" value="${kw?.Keyword || ''}"></div>
+        <div class="form-row">
+          <div class="form-group" style="flex:0 0 80px"><label class="form-label">Sequence</label><input class="form-input" id="m-seq" type="number" value="${kw?.Sequence || 99}"></div>
+          <div class="form-group"><label class="form-label">Keyword (exact match)</label><input class="form-input" id="m-keyword" value="${kw?.Keyword || ''}"></div>
+        </div>
         <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>`;
       if (kw?.CategoryID) setTimeout(() => document.getElementById('m-cat').value = kw.CategoryID, 0);
 
@@ -936,7 +941,10 @@ function renderSettingsSection(section) {
       const tp = id ? topics.find(t => t.TopicID === id) : null;
       title = id ? 'Edit Topic' : 'Add Topic';
       body = `
-        <div class="form-group"><label class="form-label">Topic (fuzzy match)</label><input class="form-input" id="m-topic" value="${tp?.Topic || ''}"></div>
+        <div class="form-row">
+          <div class="form-group" style="flex:0 0 80px"><label class="form-label">Sequence</label><input class="form-input" id="m-seq" type="number" value="${tp?.Sequence || 99}"></div>
+          <div class="form-group"><label class="form-label">Topic (fuzzy match)</label><input class="form-input" id="m-topic" value="${tp?.Topic || ''}"></div>
+        </div>
         <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>`;
       if (tp?.CategoryID) setTimeout(() => document.getElementById('m-cat').value = tp.CategoryID, 0);
     }
@@ -1002,28 +1010,30 @@ function renderSettingsSection(section) {
     } else if (modalType === 'keyword') {
       const keyword = document.getElementById('m-keyword').value.trim();
       const categoryID = document.getElementById('m-cat').value || null;
+      const sequence = parseInt(document.getElementById('m-seq').value) || 99;
       if (!keyword) return alert('Keyword is required');
       if (modalID) {
-        await apiPost('SaveKeyword', { action:'update', keywordID:modalID, keyword, categoryID, isActive:true, userID:USER_ID });
+        await apiPost('SaveKeyword', { action:'update', keywordID:modalID, keyword, categoryID, sequence, isActive:true, userID:USER_ID });
         const kw = keywords.find(k => k.KeywordID === modalID);
-        if (kw) { kw.Keyword=keyword; kw.CategoryID=categoryID; kw.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||''; }
+        if (kw) { kw.Keyword=keyword; kw.CategoryID=categoryID; kw.Sequence=sequence; kw.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||''; }
       } else {
-        const result = await apiPost('SaveKeyword', { action:'add', keyword, categoryID, userID:USER_ID });
-        keywords.push({ KeywordID:result.keywordID, Keyword:keyword, CategoryID:categoryID, CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'', IsActive:'Y' });
+        const result = await apiPost('SaveKeyword', { action:'add', keyword, categoryID, sequence, userID:USER_ID });
+        keywords.push({ KeywordID:result.keywordID, Keyword:keyword, CategoryID:categoryID, Sequence:sequence, CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'', IsActive:'Y' });
       }
       renderSettingsKeywords();
 
     } else if (modalType === 'topic') {
       const topic = document.getElementById('m-topic').value.trim();
       const categoryID = document.getElementById('m-cat').value || null;
+      const sequence = parseInt(document.getElementById('m-seq').value) || 99;
       if (!topic) return alert('Topic is required');
       if (modalID) {
-        await apiPost('SaveTopic', { action:'update', topicID:modalID, topic, categoryID, isActive:true, userID:USER_ID });
+        await apiPost('SaveTopic', { action:'update', topicID:modalID, topic, categoryID, sequence, isActive:true, userID:USER_ID });
         const tp = topics.find(t => t.TopicID === modalID);
-        if (tp) { tp.Topic=topic; tp.CategoryID=categoryID; tp.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||''; }
+        if (tp) { tp.Topic=topic; tp.CategoryID=categoryID; tp.Sequence=sequence; tp.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||''; }
       } else {
-        const result = await apiPost('SaveTopic', { action:'add', topic, categoryID, userID:USER_ID });
-        topics.push({ TopicID:result.topicID, Topic:topic, CategoryID:categoryID, CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'', IsActive:'Y' });
+        const result = await apiPost('SaveTopic', { action:'add', topic, categoryID, sequence, userID:USER_ID });
+        topics.push({ TopicID:result.topicID, Topic:topic, CategoryID:categoryID, Sequence:sequence, CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'', IsActive:'Y' });
       }
       renderSettingsTopics();
     }
