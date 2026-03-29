@@ -302,7 +302,11 @@
           </tr>
           <tr>
             <td>Max Headlines</td>
-            <td><input type="number" id="us-maxheadlines" class="form-input" style="width:80px" min="10" max="200"></td>
+            <td><input type="number" id="us-maxheadlines" class="form-input" style="width:80px" min="10" max="200" oninput="updateOtherLimit()"></td>
+          </tr>
+          <tr>
+            <td>YouTube Results Per Keyword</td>
+            <td><input type="number" id="us-youtubemaxresults" class="form-input" style="width:80px" min="1" max="20"></td>
           </tr>
         </tbody>
       </table>
@@ -740,6 +744,7 @@ function renderSettingsSection(section) {
       const data = await apiGet('GetUserSettings');
       document.getElementById('us-recency').value = data.headlineSetting?.RecencyDays || 7;
       document.getElementById('us-maxheadlines').value = data.headlineSetting?.MaxHeadlines || 50;
+      document.getElementById('us-youtubemaxresults').value = data.headlineSetting?.YouTubeMaxResults || 3;
 
       const catRows = categories.filter(c => c.IsActive === 'Y').map(c => {
         const existing = data.categorySettings?.find(cs => cs.CategoryID === c.CategoryID);
@@ -777,6 +782,7 @@ function renderSettingsSection(section) {
   async function saveUserSettings() {
     const recencyDays = parseInt(document.getElementById('us-recency').value);
     let maxHeadlines = parseInt(document.getElementById('us-maxheadlines').value);
+    const youTubeMaxResults = parseInt(document.getElementById('us-youtubemaxresults').value) || 3;
     const categorySettings = categories.filter(c => c.IsActive === 'Y').map(c => ({
       categoryID: c.CategoryID,
       maxItems: parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value || 20)
@@ -791,7 +797,7 @@ function renderSettingsSection(section) {
       updateOtherLimit();
     }
 
-    const result = await apiPost('SaveUserSettings', { userID: USER_ID, recencyDays, maxHeadlines, categorySettings });
+    const result = await apiPost('SaveUserSettings', { userID: USER_ID, recencyDays, maxHeadlines, youTubeMaxResults, categorySettings });
     const adjustedNote = document.getElementById('us-maxheadlines-adjusted');
     if (autoAdjusted) {
       if (!adjustedNote) {
