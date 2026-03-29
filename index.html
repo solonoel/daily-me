@@ -746,27 +746,54 @@ function renderSettingsSection(section) {
         return `<tr>
           <td>${c.Name}</td>
           <td><input type="number" class="form-input" style="width:80px" min="1" max="100"
-            id="cs-${c.CategoryID}" value="${existing?.MaxItems || 20}"></td>
+            id="cs-${c.CategoryID}" value="${existing?.MaxItems || 20}"
+            oninput="updateOtherLimit()"></td>
         </tr>`;
       }).join('');
-      document.getElementById('tbl-catsettings').innerHTML = catRows;
+      document.getElementById('tbl-catsettings').innerHTML = catRows +
+        `<tr id="other-limit-row">
+          <td>Other</td>
+          <td><input type="number" class="form-input" id="cs-other" readonly tabindex="-1"
+            style="width:80px;background:#f5f9ff;color:var(--text-muted)"></td>
+        </tr>`;
+
+      updateOtherLimit();
+      document.getElementById('us-maxheadlines').addEventListener('input', updateOtherLimit);
     } catch(e) {
       console.error('Failed to load user settings:', e);
     }
   }
 
+  function updateOtherLimit() {
+    const maxHeadlines = parseInt(document.getElementById('us-maxheadlines')?.value) || 0;
+    const catSum = categories.filter(c => c.IsActive === 'Y').reduce((sum, c) => {
+      return sum + (parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value) || 0);
+    }, 0);
+    const otherLimit = Math.max(0, maxHeadlines - catSum);
+    const otherInput = document.getElementById('cs-other');
+    if (otherInput) otherInput.value = otherLimit;
+  }
+
   async function saveUserSettings() {
     const recencyDays = parseInt(document.getElementById('us-recency').value);
-    const maxHeadlines = parseInt(document.getElementById('us-maxheadlines').value);
+    let maxHeadlines = parseInt(document.getElementById('us-maxheadlines').value);
     const categorySettings = categories.filter(c => c.IsActive === 'Y').map(c => ({
       categoryID: c.CategoryID,
       maxItems: parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value || 20)
     }));
 
+    const catSum = categorySettings.reduce((sum, cs) => sum + cs.maxItems, 0);
+    let autoAdjusted = false;
+    if (maxHeadlines < catSum) {
+      maxHeadlines = catSum;
+      autoAdjusted = true;
+      document.getElementById('us-maxheadlines').value = maxHeadlines;
+      updateOtherLimit();
+    }
+
     const result = await apiPost('SaveUserSettings', { userID: USER_ID, recencyDays, maxHeadlines, categorySettings });
-    if (result.maxAdjusted) {
-      alert(`Settings saved! Note: Max Headlines was automatically adjusted to ${result.newMaxHeadlines} to match your category limits.`);
-      document.getElementById('us-maxheadlines').value = result.newMaxHeadlines;
+    if (autoAdjusted) {
+      alert(`Settings saved! Max Headlines was automatically adjusted to ${maxHeadlines} to match your category limits.`);
     } else {
       alert('Settings saved!');
     }
