@@ -1,0 +1,27 @@
+$projectPath = "C:\_NoSync\OneDrive_Brunsusa Projects\daily-me"
+
+New-Item -ItemType Directory -Path "$projectPath\api\GetConjugation" -Force
+
+$functionJson = @'
+{
+  "bindings": [
+    {
+      "authLevel": "function",
+      "type": "httpTrigger",
+      "direction": "in",
+      "name": "req",
+      "methods": ["post"]
+    },
+    {
+      "type": "http",
+      "direction": "out",
+      "name": "res"
+    }
+  ]
+}
+'@
+
+Set-Content -Path "$projectPath\api\GetConjugation\function.json" -Value $functionJson -Encoding UTF8
+
+Write-Host "GetConjugation folder and function.json created."
+Write-Host "Now paste the contents of GetConjugation.js into: $projectPath\api\GetConjugation\index.js"
