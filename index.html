@@ -32,13 +32,14 @@
     .weather-desc { font-size:10px; color:rgba(255,255,255,0.8); margin-top:3px; text-transform:uppercase; letter-spacing:0.8px; }
     .weather-detail { font-size:10px; color:rgba(255,255,255,0.7); margin-top:2px; }
     .weather-loading { color:rgba(255,255,255,0.7); font-size:13px; }
-    .nav { background:white; border-bottom:2px solid var(--border); display:flex; align-items:stretch; padding:0 24px; box-shadow:0 2px 8px rgba(43,127,212,0.06); position:sticky; top:0; z-index:100; }
-    .nav-btn { padding:10px 22px; font-family:'DM Sans',sans-serif; background:none; border:none; border-bottom:3px solid transparent; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px; min-width:80px; transition:all 0.2s; }
+    .nav { background:white; border-bottom:2px solid var(--border); display:flex; align-items:stretch; padding:0 24px; box-shadow:0 2px 8px rgba(43,127,212,0.06); position:sticky; top:0; z-index:100; overflow-x:auto; }
+    .nav-btn { padding:10px 22px; font-family:'DM Sans',sans-serif; background:none; border:none; border-bottom:3px solid transparent; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px; min-width:80px; transition:all 0.2s; white-space:nowrap; flex-shrink:0; }
     .nav-btn:hover { background:#f0f7ff; }
     .nav-btn.active { border-bottom-color:var(--sky-deep); background:#f5faff; }
     .nav-icon { font-size:18px; line-height:1; }
     .nav-label { font-size:11px; font-weight:600; letter-spacing:0.4px; color:#2a4a6a; }
     .nav-btn.active .nav-label { color:var(--sky-deep); }
+    .nav-flag { height:14px; width:auto; border-radius:2px; }
     .main { padding:24px 32px; max-width:1100px; margin:0 auto; }
     .screen { display:none; animation:fadeIn 0.2s ease; }
     .screen.active { display:block; }
@@ -53,12 +54,8 @@
     .cat-tile:hover { border-color:var(--sky-deep); color:var(--sky-deep); background:#f0f7ff; }
     .cat-tile.active { background:var(--sky-deep); color:white; border-color:var(--sky-deep); }
     .cat-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
-    .recency-pill { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-soft); background:white; border:1px solid var(--border); border-radius:100px; padding:5px 12px; white-space:nowrap; flex-shrink:0; cursor:pointer; user-select:none; transition:all 0.2s; }
-    .recency-pill:hover { border-color:var(--sky-deep); color:var(--sky-deep); }
+    .recency-pill { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-soft); background:white; border:1px solid var(--border); border-radius:100px; padding:5px 12px; white-space:nowrap; flex-shrink:0; }
     .recency-pill-value { font-weight:700; color:var(--sky-deep); font-size:11px; }
-    .recency-pill-arrow { font-size:9px; color:var(--text-muted); }
-    .headline-toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
-    .headline-count { font-size:12px; font-weight:600; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.8px; }
     .refresh-btn { font-size:11px; font-weight:600; color:var(--sky-deep); background:white; border:1px solid var(--border); border-radius:100px; padding:5px 12px; cursor:pointer; transition:all 0.2s; }
     .refresh-btn:hover { background:#f0f7ff; border-color:var(--sky-deep); }
     .cat-group { margin-bottom:18px; border:1.5px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:var(--shadow); }
@@ -77,36 +74,34 @@
     .headline-channel { font-size:10px; color:#e05050; font-weight:600; text-decoration:none; white-space:nowrap; }
     .headline-channel:hover { text-decoration:underline; }
     .headline-row-age { font-size:11px; color:var(--text-soft); }
-    .retain-btn {
-      width:26px; height:26px;
-      border-radius:6px;
-      border:1.5px solid var(--border);
-      background:transparent;
-      cursor:pointer;
-      display:flex; align-items:center; justify-content:center;
-      font-size:14px;
-      transition:all 0.15s;
-      flex-shrink:0;
-      margin-top:2px;
-      color:var(--text-muted);
-    }
+    .retain-btn { width:26px; height:26px; border-radius:6px; border:1.5px solid var(--border); background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; transition:all 0.15s; flex-shrink:0; margin-top:2px; color:var(--text-muted); }
     .retain-btn::before { content:'☆'; }
     .retain-btn.active::before { content:'★'; color:var(--gold); }
     .retain-btn:hover { border-color:var(--gold); }
     .retain-btn.active { border-color:var(--gold); background:rgba(232,160,32,0.08); }
 
     /* SETTINGS */
-    .settings-menu { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; }
-    .settings-menu-card { background:white; border:1.5px solid var(--border); border-radius:14px; padding:24px 20px; cursor:pointer; transition:all 0.2s; box-shadow:var(--shadow); display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
-    .settings-menu-card:hover { border-color:var(--sky-deep); box-shadow:0 4px 20px rgba(43,127,212,0.15); transform:translateY(-2px); }
-    .settings-menu-icon { font-size:28px; }
-    .settings-menu-title { font-family:'Playfair Display',serif; font-size:16px; color:var(--text); }
-    .settings-menu-sub { font-size:12px; color:var(--text-soft); }
+    .settings-deck-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; }
+    .settings-deck { background:white; border:1.5px solid var(--border); border-radius:16px; padding:20px; box-shadow:var(--shadow); }
+    .settings-deck-title { font-family:'Playfair Display',serif; font-size:16px; color:var(--text); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+    .settings-row { display:flex; align-items:center; gap:16px; margin-bottom:12px; flex-wrap:wrap; }
+    .settings-row label { font-size:12px; font-weight:600; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.4px; }
+    .settings-btn-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+    .settings-nav-btn { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:8px; border:1.5px solid var(--border); background:#f5f9ff; color:var(--sky-deep); font-size:12px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; }
+    .settings-nav-btn:hover { background:#e8f4ff; border-color:var(--sky-deep); }
+    .lang-check-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #eef5fc; }
+    .lang-check-row:last-child { border-bottom:none; }
+    .lang-flag { height:18px; width:auto; border-radius:2px; }
+    .lang-name { font-size:13px; font-weight:600; color:var(--text); flex:1; }
+    .lang-native { font-size:12px; color:var(--text-soft); }
+    .lang-checkbox { width:18px; height:18px; cursor:pointer; accent-color:var(--sky-deep); }
+    .lang-max-note { font-size:11px; color:var(--text-muted); margin-top:8px; font-style:italic; }
+
+    /* Settings sections */
     .settings-back { display:flex; align-items:center; gap:8px; color:var(--sky-deep); font-size:13px; font-weight:600; cursor:pointer; margin-bottom:20px; background:none; border:none; font-family:'DM Sans',sans-serif; padding:0; }
     .settings-back:hover { text-decoration:underline; }
     .settings-section-title { font-family:'Playfair Display',serif; font-size:20px; color:var(--text); margin-bottom:16px; }
     .settings-table { width:100%; border-collapse:collapse; background:white; border:1.5px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:var(--shadow); }
-    .settings-table th { background:#f5f9ff; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-soft); padding:6px 14px; text-align:left; border-bottom:1.5px solid var(--border); }
     .settings-table th { background:#f5f9ff; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-soft); padding:6px 14px; text-align:left; border-bottom:1.5px solid var(--border); }
     .settings-table td { padding:6px 14px; font-size:12px; color:var(--text); border-bottom:1px solid #eef5fc; vertical-align:middle; }
     .settings-table tr:last-child td { border-bottom:none; }
@@ -121,6 +116,12 @@
     .btn-add { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; border:1.5px dashed var(--border); background:none; color:var(--sky-deep); font-size:13px; font-weight:500; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; margin-top:12px; }
     .btn-add:hover { background:#f0f7ff; border-color:var(--sky-deep); }
     .badge { display:inline-block; padding:2px 8px; border-radius:100px; font-size:10px; font-weight:700; background:#e6f1ff; color:var(--sky-deep); }
+
+    /* Per-category limits in settings */
+    .catlimits-section { margin-top:16px; }
+    .catlimits-title { font-size:13px; font-weight:700; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px; }
+
+    /* MODAL */
     .modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.4); z-index:1000; display:flex; align-items:center; justify-content:center; }
     .modal { background:white; border-radius:16px; padding:28px; width:460px; max-width:90vw; box-shadow:0 8px 40px rgba(0,0,0,0.2); }
     .modal-title { font-family:'Playfair Display',serif; font-size:18px; color:var(--text); margin-bottom:20px; }
@@ -138,19 +139,30 @@
     .btn-primary:hover { opacity:0.9; }
     .btn-secondary { padding:9px 20px; border-radius:8px; border:1.5px solid var(--border); background:white; color:var(--text-soft); font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; }
     .btn-secondary:hover { border-color:var(--sky-deep); color:var(--sky-deep); }
-    .mywords-placeholder { background:white; border:1.5px solid var(--border); border-radius:16px; padding:48px; text-align:center; box-shadow:var(--shadow); }
-    .placeholder-icon { font-size:48px; margin-bottom:16px; }
-    .placeholder-title { font-family:'Playfair Display',serif; font-size:20px; margin-bottom:8px; color:var(--text); }
-    .placeholder-sub { font-size:14px; color:var(--text-soft); line-height:1.6; }
     .empty-state { text-align:center; padding:40px; color:var(--text-muted); font-size:14px; }
     .dragging { opacity:0.4; background:#e8f4ff !important; }
     .drag-over { border-top:2px solid var(--sky-deep); }
     tr[draggable] { cursor:grab; }
     tr[draggable]:active { cursor:grabbing; }
-    @media (max-width:600px) {
+
+    /* LANGUAGE SCREEN */
+    .lang-screen-header { display:flex; align-items:center; gap:20px; margin-bottom:28px; background:white; border:1.5px solid var(--border); border-radius:16px; padding:24px; box-shadow:var(--shadow); }
+    .lang-screen-flag { height:48px; width:auto; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.15); }
+    .lang-screen-name { font-family:'Playfair Display',serif; font-size:28px; color:var(--text); }
+    .lang-screen-native { font-size:16px; color:var(--text-soft); margin-top:2px; }
+    .lang-greeting { font-size:15px; color:var(--sky-deep); font-style:italic; margin-top:6px; }
+    .lang-btn-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; }
+    .lang-feature-btn { background:white; border:1.5px solid var(--border); border-radius:14px; padding:24px 20px; cursor:pointer; transition:all 0.2s; box-shadow:var(--shadow); display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+    .lang-feature-btn:hover { border-color:var(--sky-deep); box-shadow:0 4px 20px rgba(43,127,212,0.15); transform:translateY(-2px); }
+    .lang-feature-icon { font-size:28px; }
+    .lang-feature-title { font-family:'Playfair Display',serif; font-size:15px; color:var(--text); }
+    .lang-feature-sub { font-size:11px; color:var(--text-soft); }
+    .coming-soon { display:inline-block; font-size:9px; font-weight:700; background:#fff0d6; color:#b07000; border-radius:4px; padding:2px 6px; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px; }
+
+    @media (max-width:700px) {
+      .settings-deck-grid { grid-template-columns:1fr; }
       .header { padding:14px 16px; }
       .main { padding:16px; }
-      .header-logo { height:40px; width:40px; }
       .app-title { font-size:20px; }
       .nav-btn { padding:8px 14px; min-width:60px; }
       .headline-thumb { width:72px; height:45px; }
@@ -173,15 +185,12 @@
   </div>
 </header>
 
-<nav class="nav">
+<nav class="nav" id="main-nav">
   <button class="nav-btn active" onclick="showScreen('headlines')" id="nav-headlines">
     <span class="nav-icon">📰</span>
     <span class="nav-label">Headlines</span>
   </button>
-  <button class="nav-btn" onclick="showScreen('mywords')" id="nav-mywords">
-    <span class="nav-icon">🗣️</span>
-    <span class="nav-label">My Words</span>
-  </button>
+  <!-- Language nav buttons injected here -->
   <button class="nav-btn" onclick="showScreen('settings')" id="nav-settings">
     <span class="nav-icon">⚙️</span>
     <span class="nav-label">Settings</span>
@@ -190,6 +199,7 @@
 
 <main class="main">
 
+  <!-- HEADLINES SCREEN -->
   <div class="screen active" id="screen-headlines">
     <div class="date-strip">
       <div class="date-main" id="date-main"></div>
@@ -198,7 +208,7 @@
     <div class="section-label">Categories</div>
     <div class="category-bar">
       <div class="category-row" id="cat-row"></div>
-      <div class="recency-pill" title="Change recency in Settings > My Settings">
+      <div class="recency-pill" title="Change recency in Settings">
         <span>Recency</span>
         <span class="recency-pill-value" id="recency-val">7 days</span>
       </div>
@@ -208,53 +218,71 @@
     <div id="headlines-grouped"></div>
   </div>
 
-  <div class="screen" id="screen-mywords">
-    <div class="date-strip">
-      <div class="date-main">My Words</div>
-      <div class="date-sub">Spanish vocabulary practice</div>
-    </div>
-    <div class="mywords-placeholder">
-      <div class="placeholder-icon">🗣️</div>
-      <div class="placeholder-title">Spanish Practice</div>
-      <div class="placeholder-sub">Your daily Spanish vocabulary and practice sessions will appear here.<br>Coming in the next module.</div>
-    </div>
-  </div>
+  <!-- LANGUAGE SCREENS (one per active language, injected dynamically) -->
+  <div id="language-screens"></div>
 
+  <!-- SETTINGS SCREEN -->
   <div class="screen" id="screen-settings">
+
+    <!-- SETTINGS MAIN VIEW -->
     <div id="settings-menu-view">
       <div class="date-strip">
         <div class="date-main">Settings</div>
         <div class="date-sub">Manage your Daily Me preferences</div>
       </div>
-      <div class="settings-menu">
-        <div class="settings-menu-card" onclick="showSettingsSection('categories')">
-          <div class="settings-menu-icon">📁</div>
-          <div class="settings-menu-title">Categories</div>
-          <div class="settings-menu-sub">Add, edit, reorder categories</div>
+
+      <div class="settings-deck-grid">
+
+        <!-- HEADLINES DECK -->
+        <div class="settings-deck">
+          <div class="settings-deck-title">📰 Headlines</div>
+
+          <div class="settings-row">
+            <label>Recency Days</label>
+            <input type="number" id="us-recency" class="form-input" style="width:70px" min="1" max="30">
+            <label style="margin-left:12px">Max Headlines</label>
+            <input type="number" id="us-maxheadlines" class="form-input" style="width:70px" min="10" max="200" oninput="updateOtherLimit()">
+            <span id="us-maxheadlines-adjusted" style="display:none;font-size:11px;color:var(--sky-deep);font-weight:600">(adjusted)</span>
+          </div>
+
+          <div class="settings-row">
+            <label>YouTube Results/Keyword</label>
+            <input type="number" id="us-youtubemaxresults" class="form-input" style="width:70px" min="1" max="20">
+          </div>
+
+          <div class="settings-btn-row">
+            <button class="settings-nav-btn" onclick="showSettingsSection('sources')">🌐 Sources</button>
+            <button class="settings-nav-btn" onclick="showSettingsSection('categories')">📁 Categories</button>
+            <button class="settings-nav-btn" onclick="showSettingsSection('topics')">💡 Topics</button>
+            <button class="settings-nav-btn" onclick="showSettingsSection('keywords')">🔍 Keywords</button>
+          </div>
+
+          <div class="catlimits-section">
+            <div class="catlimits-title">Per-Category Limits</div>
+            <table class="settings-table">
+              <thead><tr><th>Category</th><th>Max Items</th></tr></thead>
+              <tbody id="tbl-catsettings"></tbody>
+            </table>
+          </div>
+
+          <div style="margin-top:16px">
+            <button class="btn-primary" onclick="saveUserSettings()">Save Settings</button>
+          </div>
         </div>
-        <div class="settings-menu-card" onclick="showSettingsSection('sources')">
-          <div class="settings-menu-icon">🌐</div>
-          <div class="settings-menu-title">Headline Sources</div>
-          <div class="settings-menu-sub">Manage news sources and feeds</div>
+
+        <!-- LANGUAGE DECK -->
+        <div class="settings-deck">
+          <div class="settings-deck-title">🌍 Languages</div>
+          <div class="lang-max-note" style="margin-bottom:12px">Select up to 2 languages. Your word data is retained when a language is deactivated.</div>
+          <div id="lang-check-list">
+            <div style="font-size:12px;color:var(--text-muted)">Loading languages...</div>
+          </div>
         </div>
-        <div class="settings-menu-card" onclick="showSettingsSection('keywords')">
-          <div class="settings-menu-icon">🔍</div>
-          <div class="settings-menu-title">Keywords</div>
-          <div class="settings-menu-sub">Exact match search terms</div>
-        </div>
-        <div class="settings-menu-card" onclick="showSettingsSection('topics')">
-          <div class="settings-menu-icon">💡</div>
-          <div class="settings-menu-title">Topics</div>
-          <div class="settings-menu-sub">Fuzzy match search phrases</div>
-        </div>
-        <div class="settings-menu-card" onclick="showSettingsSection('usersettings')">
-          <div class="settings-menu-icon">👤</div>
-          <div class="settings-menu-title">My Settings</div>
-          <div class="settings-menu-sub">Recency, limits, preferences</div>
-        </div>
+
       </div>
     </div>
 
+    <!-- SETTINGS SUBSECTIONS -->
     <div id="settings-section-categories" style="display:none">
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
       <div class="settings-section-title">📁 Categories</div>
@@ -282,7 +310,7 @@
         📺 Keywords are searched on YouTube. Drag to reorder — higher items are prioritized in headline sorting.
       </div>
       <table class="settings-table">
-        <thead><tr><th>Seq</th><th>Keyword</th><th>Category</th><th>Active</th><th></th></tr></thead>
+        <thead><tr><th>⠿</th><th>Keyword</th><th>Category</th><th>Active</th><th></th></tr></thead>
         <tbody id="tbl-keywords"></tbody>
       </table>
       <button class="btn-add" onclick="openModal('keyword')">+ Add Keyword</button>
@@ -295,42 +323,17 @@
         📰 Topics are used for news categorization only — they are not searched on YouTube. Drag to reorder — higher items are prioritized in headline sorting.
       </div>
       <table class="settings-table">
-        <thead><tr><th>Seq</th><th>Topic</th><th>Category</th><th>Active</th><th></th></tr></thead>
+        <thead><tr><th>⠿</th><th>Topic</th><th>Category</th><th>Active</th><th></th></tr></thead>
         <tbody id="tbl-topics"></tbody>
       </table>
       <button class="btn-add" onclick="openModal('topic')">+ Add Topic</button>
     </div>
-    <div id="settings-section-usersettings" style="display:none">
-      <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
-      <div class="settings-section-title">👤 My Settings</div>
-      <table class="settings-table" style="margin-bottom:20px">
-        <thead><tr><th>Setting</th><th>Value</th></tr></thead>
-        <tbody>
-          <tr>
-            <td>Recency Days</td>
-            <td><input type="number" id="us-recency" class="form-input" style="width:80px" min="1" max="30"></td>
-          </tr>
-          <tr>
-            <td>Max Headlines</td>
-            <td><input type="number" id="us-maxheadlines" class="form-input" style="width:80px" min="10" max="200" oninput="updateOtherLimit()"></td>
-          </tr>
-          <tr>
-            <td>YouTube Results Per Keyword</td>
-            <td><input type="number" id="us-youtubemaxresults" class="form-input" style="width:80px" min="1" max="20"></td>
-          </tr>
-        </tbody>
-      </table>
-      <div class="settings-section-title" style="font-size:16px;margin-bottom:12px">Per-Category Limits</div>
-      <table class="settings-table" style="margin-bottom:20px">
-        <thead><tr><th>Category</th><th>Max Items</th></tr></thead>
-        <tbody id="tbl-catsettings"></tbody>
-      </table>
-      <button class="btn-primary" onclick="saveUserSettings()">Save Settings</button>
-    </div>
+
   </div>
 
 </main>
 
+<!-- MODAL -->
 <div class="modal-overlay" id="modal" style="display:none" onclick="closeModalOverlay(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title" id="modal-title">Add Item</div>
@@ -348,8 +351,33 @@
   const storedUser = JSON.parse(localStorage.getItem('dailyme_user') || 'null');
   if (!storedUser) window.location.href = 'login.html';
   const USER_ID = storedUser?.userID || 1;
-  
-function setGreeting() {
+
+  const catColors = {
+    'World':      {icon:'🌍', color:'#7a3e00', bg:'#fff0d6', dot:'#e8a020'},
+    'Technology': {icon:'💻', color:'#0a5c4e', bg:'#d6f5ef', dot:'#2abfaa'},
+    'Tech':       {icon:'💻', color:'#0a5c4e', bg:'#d6f5ef', dot:'#2abfaa'},
+    'Sports':     {icon:'⚾', color:'#8a1010', bg:'#fde0e0', dot:'#e05050'},
+    'Local':      {icon:'📍', color:'#3d1580', bg:'#ede6ff', dot:'#8b5cf6'},
+    'Spanish':    {icon:'🗣️', color:'#1a5fa8', bg:'#e6f1ff', dot:'#2b7fd4'},
+    'Health':     {icon:'❤️', color:'#8a1010', bg:'#fde0e0', dot:'#e05050'},
+    'Other':      {icon:'📰', color:'#444',    bg:'#f5f5f5', dot:'#888'},
+  };
+
+  const langGreetings = {
+    'Spanish':    '¡Hola! ¿Cómo estás hoy?',
+    'French':     'Bonjour! Comment allez-vous aujourd\'hui?',
+    'Italian':    'Ciao! Come stai oggi?',
+    'Portuguese': 'Olá! Como você está hoje?',
+    'Romanian':   'Bună ziua! Cum ești astăzi?'
+  };
+
+  const greetings = {
+    morning: ["Good morning, Noel — let's make it a great one.", "Good morning, Noel. Oregon's finest day awaits.", "Rise and shine, Noel. The news won't read itself.", "Good morning, Noel. Coffee first, headlines second."],
+    afternoon: ["Good afternoon, Noel. How's the day treating you?", "Afternoon, Noel. Time for a mid-day check-in.", "Good afternoon, Noel. Stay curious."],
+    evening: ["Good evening, Noel. Wind down with the day's news.", "Evening, Noel. Let's see what the world was up to.", "Good evening, Noel. Almost time to rest."]
+  };
+
+  function setGreeting() {
     const h = new Date().getHours();
     const p = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
     const firstName = storedUser?.name?.split(' ')[0] || 'Noel';
@@ -359,28 +387,6 @@ function setGreeting() {
       evening: [`Good evening, ${firstName}. Wind down with the day's news.`, `Evening, ${firstName}. Let's see what the world was up to.`, `Good evening, ${firstName}. Almost time to rest.`]
     };
     document.getElementById('greeting').textContent = msgs[p][Math.floor(Math.random() * msgs[p].length)];
-  }
-
-  const catColors = {
-    'World':      {icon:'🌍', color:'#7a3e00', bg:'#fff0d6', dot:'#e8a020'},
-    'Technology': {icon:'💻', color:'#0a5c4e', bg:'#d6f5ef', dot:'#2abfaa'},
-    'Sports':     {icon:'⚾', color:'#8a1010', bg:'#fde0e0', dot:'#e05050'},
-    'Local':      {icon:'📍', color:'#3d1580', bg:'#ede6ff', dot:'#8b5cf6'},
-    'Spanish':    {icon:'🗣️', color:'#1a5fa8', bg:'#e6f1ff', dot:'#2b7fd4'},
-    'Other':      {icon:'📰', color:'#444',    bg:'#f5f5f5', dot:'#888'},
-  };
-
-  const greetings = {
-    morning: ["Good morning, Noel — let's make it a great one.","Good morning, Noel. Oregon's finest day awaits.","Rise and shine, Noel. The news won't read itself.","Good morning, Noel. Coffee first, headlines second."],
-    afternoon: ["Good afternoon, Noel. How's the day treating you?","Afternoon, Noel. Time for a mid-day check-in.","Good afternoon, Noel. Stay curious."],
-    evening: ["Good evening, Noel. Wind down with the day's news.","Evening, Noel. Let's see what the world was up to.","Good evening, Noel. Almost time to rest."]
-  };
-
-  function setGreeting() {
-    const h = new Date().getHours();
-    const p = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
-    const arr = greetings[p];
-    document.getElementById('greeting').textContent = arr[Math.floor(Math.random() * arr.length)];
   }
 
   function setDate() {
@@ -411,17 +417,10 @@ function setGreeting() {
   let sources = [];
   let keywords = [];
   let topics = [];
+  let allLanguages = [];
+  let userLanguages = [];
   let currentFilter = 'Local';
   let currentSettingsSection = null;
-
-  const recencyOptions = ['1 day','3 days','7 days','14 days','30 days'];
-  let recencyIdx = 2;
-
-  function cycleRecency() {
-    recencyIdx = (recencyIdx + 1) % recencyOptions.length;
-    document.getElementById('recency-val').textContent = recencyOptions[recencyIdx];
-    loadHeadlines();
-  }
 
   async function apiPost(endpoint, body) {
     const res = await fetch(`${API_BASE}/${endpoint}?code=${API_KEY}`, {
@@ -438,27 +437,152 @@ function setGreeting() {
   }
 
   async function loadAll() {
-    const [cats, srcs, kwds, tpcs, userSettings] = await Promise.all([
+    const [cats, srcs, kwds, tpcs, userSettings, langs, ulangs] = await Promise.all([
       apiGet('GetCategories'),
       apiGet('GetHeadlineSources'),
       apiGet('GetHeadlineKeywords'),
       apiGet('GetHeadlineTopics'),
-      apiGet('GetUserSettings')
+      apiGet('GetUserSettings'),
+      apiGet('GetLanguages'),
+      apiGet('GetUserLanguages')
     ]);
     categories = Array.isArray(cats) ? cats : [];
     sources = Array.isArray(srcs) ? srcs : [];
     keywords = Array.isArray(kwds) ? kwds : [];
     topics = Array.isArray(tpcs) ? tpcs : [];
+    allLanguages = Array.isArray(langs) ? langs : [];
+    userLanguages = Array.isArray(ulangs) ? ulangs : [];
 
-    // Apply saved recency setting
     if (userSettings?.headlineSetting?.RecencyDays) {
       recencyDays_value = userSettings.headlineSetting.RecencyDays;
       document.getElementById('recency-val').textContent = recencyDays_value === 1 ? '1 day' : `${recencyDays_value} days`;
     }
 
+    // Populate headline settings fields
+    if (document.getElementById('us-recency')) {
+      document.getElementById('us-recency').value = userSettings?.headlineSetting?.RecencyDays || 7;
+      document.getElementById('us-maxheadlines').value = userSettings?.headlineSetting?.MaxHeadlines || 50;
+      document.getElementById('us-youtubemaxresults').value = userSettings?.headlineSetting?.YouTubeMaxResults || 3;
+    }
+
+    renderLanguageNav();
+    renderLanguageScreens();
+    renderLanguageCheckList();
+    renderCatSettingsTable(userSettings);
     renderCategoryTiles(null);
     await loadHeadlines();
   }
+
+  // ── LANGUAGE NAV & SCREENS ──
+
+  function renderLanguageNav() {
+    // Remove existing language nav buttons
+    document.querySelectorAll('.nav-btn-lang').forEach(b => b.remove());
+    const settingsBtn = document.getElementById('nav-settings');
+    const activeUserLangs = userLanguages.filter(ul => ul.IsActive === 'Y');
+    activeUserLangs.forEach(ul => {
+      const lang = allLanguages.find(l => l.LanguageID === ul.LanguageID);
+      if (!lang) return;
+      const btn = document.createElement('button');
+      btn.className = 'nav-btn nav-btn-lang';
+      btn.id = `nav-lang-${lang.LanguageID}`;
+      btn.onclick = () => showScreen(`lang-${lang.LanguageID}`);
+      btn.innerHTML = `<img src="images/${lang.FlagImage}" class="nav-flag" alt="${lang.LanguageNameEng}"><span class="nav-label">${lang.LanguageNameEng}</span>`;
+      settingsBtn.parentNode.insertBefore(btn, settingsBtn);
+    });
+  }
+
+  function renderLanguageScreens() {
+    const container = document.getElementById('language-screens');
+    const activeUserLangs = userLanguages.filter(ul => ul.IsActive === 'Y');
+    container.innerHTML = activeUserLangs.map(ul => {
+      const lang = allLanguages.find(l => l.LanguageID === ul.LanguageID);
+      if (!lang) return '';
+      const greeting = langGreetings[lang.LanguageNameEng] || '';
+      return `
+        <div class="screen" id="screen-lang-${lang.LanguageID}">
+          <div class="lang-screen-header">
+            <img src="images/${lang.FlagImage}" class="lang-screen-flag" alt="${lang.LanguageNameEng}">
+            <div>
+              <div class="lang-screen-name">${lang.LanguageNameEng}</div>
+              <div class="lang-screen-native">${lang.LanguageName}</div>
+              <div class="lang-greeting">${greeting}</div>
+            </div>
+          </div>
+          <div class="lang-btn-grid">
+            <div class="lang-feature-btn" onclick="alert('Coming soon!')">
+              <div class="lang-feature-icon">🃏</div>
+              <div class="lang-feature-title">Flashcards</div>
+              <div class="lang-feature-sub">Study your vocabulary</div>
+              <span class="coming-soon">Coming soon</span>
+            </div>
+            <div class="lang-feature-btn" onclick="alert('Coming soon!')">
+              <div class="lang-feature-icon">🔤</div>
+              <div class="lang-feature-title">Conjugation</div>
+              <div class="lang-feature-sub">Verb practice</div>
+              <span class="coming-soon">Coming soon</span>
+            </div>
+            <div class="lang-feature-btn" onclick="alert('Coming soon!')">
+              <div class="lang-feature-icon">💬</div>
+              <div class="lang-feature-title">Conversation</div>
+              <div class="lang-feature-sub">Practice dialogue</div>
+              <span class="coming-soon">Coming soon</span>
+            </div>
+            <div class="lang-feature-btn" onclick="alert('Coming soon!')">
+              <div class="lang-feature-icon">📝</div>
+              <div class="lang-feature-title">My Words</div>
+              <div class="lang-feature-sub">Your vocabulary list</div>
+              <span class="coming-soon">Coming soon</span>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderLanguageCheckList() {
+    const container = document.getElementById('lang-check-list');
+    if (!allLanguages.length) { container.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">No languages available.</div>'; return; }
+    const activeCount = userLanguages.filter(ul => ul.IsActive === 'Y').length;
+    container.innerHTML = allLanguages.map(lang => {
+      const ul = userLanguages.find(u => u.LanguageID === lang.LanguageID);
+      const isActive = ul?.IsActive === 'Y';
+      return `
+        <div class="lang-check-row">
+          <img src="images/${lang.FlagImage}" class="lang-flag" alt="${lang.LanguageNameEng}">
+          <span class="lang-name">${lang.LanguageNameEng}</span>
+          <span class="lang-native">${lang.LanguageName}</span>
+          <input type="checkbox" class="lang-checkbox" data-langid="${lang.LanguageID}"
+            ${isActive ? 'checked' : ''}
+            onchange="toggleUserLanguage(${lang.LanguageID}, this)">
+        </div>`;
+    }).join('');
+    container.innerHTML += `<div class="lang-max-note">Max 2 languages active at a time.</div>`;
+  }
+
+  async function toggleUserLanguage(languageID, checkbox) {
+    const isActive = checkbox.checked;
+    if (isActive) {
+      const activeCount = userLanguages.filter(ul => ul.IsActive === 'Y').length;
+      if (activeCount >= 2) {
+        checkbox.checked = false;
+        alert('You can only have 2 active languages at a time. Please deactivate one first.');
+        return;
+      }
+    }
+    await apiPost('SaveUserLanguage', { userID: USER_ID, languageID, isActive });
+    // Update local state
+    const existing = userLanguages.find(ul => ul.LanguageID === languageID);
+    if (existing) {
+      existing.IsActive = isActive ? 'Y' : 'N';
+    } else {
+      userLanguages.push({ LanguageID: languageID, IsActive: 'Y' });
+    }
+    renderLanguageNav();
+    renderLanguageScreens();
+    renderLanguageCheckList();
+  }
+
+  // ── HEADLINES ──
 
   async function loadHeadlines() {
     try {
@@ -466,7 +590,6 @@ function setGreeting() {
       const res = await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recency}`);
       let allData = await res.json();
       if (!Array.isArray(allData)) allData = [];
-
       if (currentFilter === 'Other') {
         headlines = allData.filter(h => !h.CategoryID);
       } else if (currentFilter === 'all') {
@@ -475,7 +598,6 @@ function setGreeting() {
         const catID = getCategoryID(currentFilter);
         headlines = catID ? allData.filter(h => h.CategoryID === catID) : allData;
       }
-
       renderCategoryTiles(allData);
       renderHeadlines();
     } catch(e) {
@@ -496,30 +618,22 @@ function setGreeting() {
       btn.textContent = '⏳ Refreshing...';
       btn.disabled = true;
       status.style.display = 'none';
-
-      // Reload user settings to pick up any changes made since last refresh
       const userSettings = await apiGet('GetUserSettings');
       if (userSettings?.headlineSetting?.RecencyDays) {
         recencyDays_value = userSettings.headlineSetting.RecencyDays;
         document.getElementById('recency-val').textContent = recencyDays_value === 1 ? '1 day' : `${recencyDays_value} days`;
       }
-
-      const cleanData = await apiPost('CleanHeadlines', { userID: USER_ID });
+      await apiPost('CleanHeadlines', { userID: USER_ID });
       const fetchData = await apiPost('FetchHeadlines', { userID: USER_ID });
-
       btn.textContent = '↻ Refresh';
       btn.disabled = false;
       status.textContent = `✓ Updated — ${fetchData.inserted} new headlines fetched`;
       status.style.display = 'block';
-
       await loadHeadlines();
-
-      // Clear status on next user interaction
       document.addEventListener('click', () => { status.style.display = 'none'; }, { once: true });
     } catch(e) {
-      const btn = document.getElementById('refresh-btn');
-      btn.textContent = '↻ Refresh';
-      btn.disabled = false;
+      document.getElementById('refresh-btn').textContent = '↻ Refresh';
+      document.getElementById('refresh-btn').disabled = false;
     }
   }
 
@@ -552,23 +666,19 @@ function setGreeting() {
   }
 
   function renderHeadlines() {
-    console.log('renderHeadlines called, headlines:', headlines.length, 'filter:', currentFilter);
     if (headlines.length === 0 && currentFilter !== 'all' && currentFilter !== 'Other') {
-      // Auto-select first category with headlines
-      const allHeadlinesRes = fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`)
+      fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`)
         .then(r => r.json())
         .then(all => {
           if (!Array.isArray(all) || all.length === 0) {
             document.getElementById('headlines-grouped').innerHTML = '<div class="empty-state">No headlines found. Click ↻ Refresh to fetch latest headlines.</div>';
             return;
           }
-          // Find first category with headlines ordered by sequence
           const orderedCats = [...categories].filter(c => c.IsActive === 'Y' && c.Headlines === 'Y').sort((a,b) => (a.Sequence||999)-(b.Sequence||999));
           for (const cat of orderedCats) {
-            const hasHeadlines = all.some(h => h.CategoryID === cat.CategoryID);
-            if (hasHeadlines) {
+            if (all.some(h => h.CategoryID === cat.CategoryID)) {
               currentFilter = cat.Name;
-              renderCategoryTiles();
+              renderCategoryTiles(all);
               headlines = all.filter(h => h.CategoryID === cat.CategoryID);
               renderHeadlines();
               return;
@@ -578,12 +688,10 @@ function setGreeting() {
         });
       return;
     }
-
     if (headlines.length === 0) {
       document.getElementById('headlines-grouped').innerHTML = '<div class="empty-state">No headlines found. Click ↻ Refresh to fetch latest headlines.</div>';
       return;
     }
-
     const groups = {};
     headlines.forEach(h => {
       const key = h.CategoryName || 'Other';
@@ -595,7 +703,6 @@ function setGreeting() {
       ...(groups['Other'] ? ['Other'] : [])
     ];
     Object.keys(groups).forEach(k => { if (!orderedKeys.includes(k)) orderedKeys.push(k); });
-
     document.getElementById('headlines-grouped').innerHTML = orderedKeys.map(catName => {
       const items = groups[catName] || [];
       const c = catColors[catName] || catColors['Other'];
@@ -613,7 +720,6 @@ function setGreeting() {
           </div>
           <button class="retain-btn ${h.Retain === 'Y' ? 'active' : ''}" onclick="toggleRetain(${h.HeadlineID},event)" title="${h.Retain === 'Y' ? 'Remove bookmark' : 'Bookmark'}"></button>
         </div>`).join('');
-
       return `<div class="cat-group">
         <div class="cat-group-header" style="background:${c.bg};color:${c.color};border-bottom:1.5px solid ${c.color}44">
           <span class="cat-group-icon">${c.icon}</span>
@@ -643,17 +749,75 @@ function setGreeting() {
     loadHeadlines();
   }
 
-  // ── SCREEN NAVIGATION WITH BROWSER HISTORY ──
-  function logout() {
-    localStorage.removeItem('dailyme_user');
-    window.location.href = 'login.html';
+  // ── SETTINGS ──
+
+  function renderCatSettingsTable(userSettings) {
+    const catRows = categories.filter(c => c.IsActive === 'Y').map(c => {
+      const existing = userSettings?.categorySettings?.find(cs => cs.CategoryID === c.CategoryID);
+      return `<tr>
+        <td>${c.Name}</td>
+        <td><input type="number" class="form-input" style="width:70px" min="1" max="100"
+          id="cs-${c.CategoryID}" value="${existing?.MaxItems || 20}"
+          oninput="updateOtherLimit()"></td>
+      </tr>`;
+    }).join('');
+    document.getElementById('tbl-catsettings').innerHTML = catRows +
+      `<tr id="other-limit-row">
+        <td>Other</td>
+        <td><input type="number" class="form-input" id="cs-other" readonly tabindex="-1"
+          style="width:70px;background:#f5f9ff;color:var(--text-muted)"></td>
+      </tr>`;
+    updateOtherLimit();
+    document.getElementById('us-maxheadlines').addEventListener('input', updateOtherLimit);
   }
-  
+
+  function updateOtherLimit() {
+    const maxHeadlines = parseInt(document.getElementById('us-maxheadlines')?.value) || 0;
+    const catSum = categories.filter(c => c.IsActive === 'Y').reduce((sum, c) => {
+      return sum + (parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value) || 0);
+    }, 0);
+    const otherInput = document.getElementById('cs-other');
+    if (otherInput) otherInput.value = Math.max(0, maxHeadlines - catSum);
+  }
+
+  async function saveUserSettings() {
+    const recencyDays = parseInt(document.getElementById('us-recency').value);
+    let maxHeadlines = parseInt(document.getElementById('us-maxheadlines').value);
+    const youTubeMaxResults = parseInt(document.getElementById('us-youtubemaxresults').value) || 3;
+    const categorySettings = categories.filter(c => c.IsActive === 'Y').map(c => ({
+      categoryID: c.CategoryID,
+      maxItems: parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value || 20)
+    }));
+    const catSum = categorySettings.reduce((sum, cs) => sum + cs.maxItems, 0);
+    let autoAdjusted = false;
+    if (maxHeadlines < catSum) {
+      maxHeadlines = catSum;
+      autoAdjusted = true;
+      document.getElementById('us-maxheadlines').value = maxHeadlines;
+      updateOtherLimit();
+    }
+    await apiPost('SaveUserSettings', { userID: USER_ID, recencyDays, maxHeadlines, youTubeMaxResults, categorySettings });
+    const adjustedNote = document.getElementById('us-maxheadlines-adjusted');
+    if (autoAdjusted) {
+      adjustedNote.style.display = 'inline';
+      alert('Settings saved! Max Headlines was automatically adjusted to match your category limits.');
+    } else {
+      adjustedNote.style.display = 'none';
+      alert('Settings saved!');
+    }
+    recencyDays_value = recencyDays;
+    document.getElementById('recency-val').textContent = recencyDays === 1 ? '1 day' : `${recencyDays} days`;
+  }
+
+  // ── SCREEN NAVIGATION ──
+
   function showScreen(name, pushState = true) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('screen-' + name).classList.add('active');
-    document.getElementById('nav-' + name).classList.add('active');
+    const screenEl = document.getElementById('screen-' + name);
+    const navEl = document.getElementById('nav-' + name);
+    if (screenEl) screenEl.classList.add('active');
+    if (navEl) navEl.classList.add('active');
     if (name === 'settings') showSettingsMenu(false);
     if (pushState) history.pushState({ screen: name, section: null }, '', '');
   }
@@ -661,16 +825,16 @@ function setGreeting() {
   function showSettingsMenu(pushState = true) {
     currentSettingsSection = null;
     document.getElementById('settings-menu-view').style.display = 'block';
-    ['categories','sources','keywords','topics','usersettings'].forEach(s =>
+    ['categories','sources','keywords','topics'].forEach(s =>
       document.getElementById(`settings-section-${s}`).style.display = 'none'
     );
     if (pushState) history.pushState({ screen: 'settings', section: null }, '', '');
   }
 
-function showSettingsSection(section, pushState = true) {
+  function showSettingsSection(section, pushState = true) {
     currentSettingsSection = section;
     document.getElementById('settings-menu-view').style.display = 'none';
-    ['categories','sources','keywords','topics','usersettings'].forEach(s =>
+    ['categories','sources','keywords','topics'].forEach(s =>
       document.getElementById(`settings-section-${s}`).style.display = 'none'
     );
     document.getElementById(`settings-section-${section}`).style.display = 'block';
@@ -690,7 +854,7 @@ function showSettingsSection(section, pushState = true) {
     }
   });
 
-async function renderSettingsSection(section) {
+  async function renderSettingsSection(section) {
     if (section === 'categories') {
       categories = await apiGet('GetCategories');
       renderSettingsCategories();
@@ -708,7 +872,6 @@ async function renderSettingsSection(section) {
       topics = await apiGet('GetHeadlineTopics');
       renderSettingsTopics();
     }
-    if (section === 'usersettings') renderSettingsUserSettings();
   }
 
   function renderSettingsCategories() {
@@ -739,7 +902,7 @@ async function renderSettingsSection(section) {
           ${USER_ID === 1 ? `<button class="btn-icon danger" onclick="deleteSource(${s.SourceID})">🗑️</button>` : ''}
         </td>
       </tr>`).join('');
-          if (document.getElementById('btn-add-source')) 
+    if (document.getElementById('btn-add-source'))
       document.getElementById('btn-add-source').style.display = 'inline-flex';
   }
 
@@ -747,7 +910,7 @@ async function renderSettingsSection(section) {
     const tbody = document.getElementById('tbl-keywords');
     tbody.innerHTML = keywords.map(k => `
       <tr draggable="true" data-id="${k.KeywordID}" data-type="keyword">
-        <td style="width:40px;color:var(--text-muted);font-size:13px">⠿</td>
+        <td style="width:30px;color:var(--text-muted);font-size:13px">⠿</td>
         <td>${k.Keyword}</td>
         <td>${k.CategoryName || '—'}</td>
         <td><button class="toggle ${k.IsActive === 'Y' ? 'on' : ''}" onclick="toggleKeyword(${k.KeywordID},this)"></button></td>
@@ -763,7 +926,7 @@ async function renderSettingsSection(section) {
     const tbody = document.getElementById('tbl-topics');
     tbody.innerHTML = topics.map(t => `
       <tr draggable="true" data-id="${t.TopicID}" data-type="topic">
-        <td style="width:40px;color:var(--text-muted);font-size:13px">⠿</td>
+        <td style="width:30px;color:var(--text-muted);font-size:13px">⠿</td>
         <td>${t.Topic}</td>
         <td>${t.CategoryName || '—'}</td>
         <td><button class="toggle ${t.IsActive === 'Y' ? 'on' : ''}" onclick="toggleTopic(${t.TopicID},this)"></button></td>
@@ -773,82 +936,6 @@ async function renderSettingsSection(section) {
         </td>
       </tr>`).join('');
     initDragDrop(tbody, 'topic');
-  }
-
-  async function renderSettingsUserSettings() {
-    try {
-      const data = await apiGet('GetUserSettings');
-      document.getElementById('us-recency').value = data.headlineSetting?.RecencyDays || 7;
-      document.getElementById('us-maxheadlines').value = data.headlineSetting?.MaxHeadlines || 50;
-      document.getElementById('us-youtubemaxresults').value = data.headlineSetting?.YouTubeMaxResults || 3;
-
-      const catRows = categories.filter(c => c.IsActive === 'Y').map(c => {
-        const existing = data.categorySettings?.find(cs => cs.CategoryID === c.CategoryID);
-        return `<tr>
-          <td>${c.Name}</td>
-          <td><input type="number" class="form-input" style="width:80px" min="1" max="100"
-            id="cs-${c.CategoryID}" value="${existing?.MaxItems || 20}"
-            oninput="updateOtherLimit()"></td>
-        </tr>`;
-      }).join('');
-      document.getElementById('tbl-catsettings').innerHTML = catRows +
-        `<tr id="other-limit-row">
-          <td>Other</td>
-          <td><input type="number" class="form-input" id="cs-other" readonly tabindex="-1"
-            style="width:80px;background:#f5f9ff;color:var(--text-muted)"></td>
-        </tr>`;
-
-      updateOtherLimit();
-      document.getElementById('us-maxheadlines').addEventListener('input', updateOtherLimit);
-    } catch(e) {
-      console.error('Failed to load user settings:', e);
-    }
-  }
-
-  function updateOtherLimit() {
-    const maxHeadlines = parseInt(document.getElementById('us-maxheadlines')?.value) || 0;
-    const catSum = categories.filter(c => c.IsActive === 'Y').reduce((sum, c) => {
-      return sum + (parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value) || 0);
-    }, 0);
-    const otherLimit = Math.max(0, maxHeadlines - catSum);
-    const otherInput = document.getElementById('cs-other');
-    if (otherInput) otherInput.value = otherLimit;
-  }
-
-  async function saveUserSettings() {
-    const recencyDays = parseInt(document.getElementById('us-recency').value);
-    let maxHeadlines = parseInt(document.getElementById('us-maxheadlines').value);
-    const youTubeMaxResults = parseInt(document.getElementById('us-youtubemaxresults').value) || 3;
-    const categorySettings = categories.filter(c => c.IsActive === 'Y').map(c => ({
-      categoryID: c.CategoryID,
-      maxItems: parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value || 20)
-    }));
-
-    const catSum = categorySettings.reduce((sum, cs) => sum + cs.maxItems, 0);
-    let autoAdjusted = false;
-    if (maxHeadlines < catSum) {
-      maxHeadlines = catSum;
-      autoAdjusted = true;
-      document.getElementById('us-maxheadlines').value = maxHeadlines;
-      updateOtherLimit();
-    }
-
-    const result = await apiPost('SaveUserSettings', { userID: USER_ID, recencyDays, maxHeadlines, youTubeMaxResults, categorySettings });
-    const adjustedNote = document.getElementById('us-maxheadlines-adjusted');
-    if (autoAdjusted) {
-      if (!adjustedNote) {
-        const input = document.getElementById('us-maxheadlines');
-        const note = document.createElement('span');
-        note.id = 'us-maxheadlines-adjusted';
-        note.style.cssText = 'font-size:11px;color:var(--sky-deep);font-weight:600;margin-left:8px';
-        note.textContent = '(adjusted)';
-        input.parentNode.appendChild(note);
-      }
-      alert('Settings saved! Max Headlines was automatically adjusted to match your category limits.');
-    } else {
-      if (adjustedNote) adjustedNote.remove();
-      alert('Settings saved!');
-    }
   }
 
   async function toggleCategory(categoryID, btn) {
@@ -895,7 +982,7 @@ async function renderSettingsSection(section) {
     await apiPost('SaveCategory', { action:'delete', categoryID, userID:USER_ID });
     categories = categories.filter(c => c.CategoryID !== categoryID);
     renderSettingsCategories();
-    renderCategoryTiles();
+    renderCategoryTiles(null);
   }
 
   async function deleteKeyword(keywordID) {
@@ -911,6 +998,8 @@ async function renderSettingsSection(section) {
     topics = topics.filter(t => t.TopicID !== topicID);
     renderSettingsTopics();
   }
+
+  // ── MODAL ──
 
   let modalType = null;
   let modalID = null;
@@ -1013,9 +1102,9 @@ async function renderSettingsSection(section) {
         categories.push({ CategoryID:result.categoryID, Name:name, Sequence:sequence, Headlines:headlines?'Y':'N', MyWords:myWords?'Y':'N', IsActive:'Y' });
       }
       renderSettingsCategories();
-      renderCategoryTiles();
+      renderCategoryTiles(null);
 
-        } else if (modalType === 'source') {
+    } else if (modalType === 'source') {
       if (!modalID && USER_ID !== 1) {
         const sourceID = parseInt(document.getElementById('m-source-pick').value);
         await apiPost('SaveSource', { action:'add', sourceID, userID:USER_ID });
@@ -1038,7 +1127,6 @@ async function renderSettingsSection(section) {
           sources.push({ SourceID:result.sourceID, Name:name, URL:url, SourceType:sourceType, CategoryID:sourceCategoryID, IsActive:'Y' });
         }
       }
-
       renderSettingsSources();
 
     } else if (modalType === 'keyword') {
@@ -1074,6 +1162,8 @@ async function renderSettingsSection(section) {
     closeModal();
   }
 
+  // ── DRAG/DROP ──
+
   function initDragDrop(tbody, type) {
     let dragSrc = null;
     tbody.querySelectorAll('tr[draggable]').forEach(row => {
@@ -1084,25 +1174,20 @@ async function renderSettingsSection(section) {
       });
       row.addEventListener('dragend', () => {
         tbody.querySelectorAll('tr').forEach(r => r.classList.remove('dragging', 'drag-over'));
-        // Save new order
-        const rows = [...tbody.querySelectorAll('tr[draggable]')];
-        const sequences = rows.map((r, i) => ({
-          [type === 'keyword' ? 'keywordID' : 'topicID']: parseInt(r.dataset.id),
-          sequence: i + 1
-        }));
-        if (type === 'keyword') {
-          apiPost('SaveKeyword', { action: 'reorder', sequences, userID: USER_ID });
-          keywords.forEach(k => {
-            const s = sequences.find(s => s.keywordID === k.KeywordID);
-            if (s) k.Sequence = s.sequence;
-          });
-        } else {
-          apiPost('SaveTopic', { action: 'reorder', sequences, userID: USER_ID });
-          topics.forEach(t => {
-            const s = sequences.find(s => s.topicID === t.TopicID);
-            if (s) t.Sequence = s.sequence;
-          });
-        }
+        setTimeout(() => {
+          const rows = [...tbody.querySelectorAll('tr[draggable]')];
+          const sequences = rows.map((r, i) => ({
+            [type === 'keyword' ? 'keywordID' : 'topicID']: parseInt(r.dataset.id),
+            sequence: i + 1
+          }));
+          if (type === 'keyword') {
+            apiPost('SaveKeyword', { action: 'reorder', sequences, userID: USER_ID });
+            keywords.forEach(k => { const s = sequences.find(s => s.keywordID === k.KeywordID); if (s) k.Sequence = s.sequence; });
+          } else {
+            apiPost('SaveTopic', { action: 'reorder', sequences, userID: USER_ID });
+            topics.forEach(t => { const s = sequences.find(s => s.topicID === t.TopicID); if (s) t.Sequence = s.sequence; });
+          }
+        }, 50);
       });
       row.addEventListener('dragover', e => {
         e.preventDefault();
@@ -1122,7 +1207,7 @@ async function renderSettingsSection(section) {
     });
   }
 
-  // Init
+  // ── INIT ──
   history.replaceState({ screen: 'headlines', section: null }, '', '');
   setGreeting();
   setDate();
