@@ -143,6 +143,10 @@
     .placeholder-title { font-family:'Playfair Display',serif; font-size:20px; margin-bottom:8px; color:var(--text); }
     .placeholder-sub { font-size:14px; color:var(--text-soft); line-height:1.6; }
     .empty-state { text-align:center; padding:40px; color:var(--text-muted); font-size:14px; }
+    .dragging { opacity:0.4; background:#e8f4ff !important; }
+    .drag-over { border-top:2px solid var(--sky-deep); }
+    tr[draggable] { cursor:grab; }
+    tr[draggable]:active { cursor:grabbing; }
     @media (max-width:600px) {
       .header { padding:14px 16px; }
       .main { padding:16px; }
@@ -714,9 +718,10 @@ function renderSettingsSection(section) {
   }
 
   function renderSettingsKeywords() {
-    document.getElementById('tbl-keywords').innerHTML = keywords.map(k => `
-      <tr>
-        <td style="width:40px">${k.Sequence || 99}</td>
+    const tbody = document.getElementById('tbl-keywords');
+    tbody.innerHTML = keywords.map(k => `
+      <tr draggable="true" data-id="${k.KeywordID}" data-type="keyword">
+        <td style="width:40px;color:var(--text-muted);font-size:13px">⠿</td>
         <td>${k.Keyword}</td>
         <td>${k.CategoryName || '—'}</td>
         <td><button class="toggle ${k.IsActive === 'Y' ? 'on' : ''}" onclick="toggleKeyword(${k.KeywordID},this)"></button></td>
@@ -725,12 +730,14 @@ function renderSettingsSection(section) {
           <button class="btn-icon danger" onclick="deleteKeyword(${k.KeywordID})">🗑️</button>
         </td>
       </tr>`).join('');
+    initDragDrop(tbody, 'keyword');
   }
 
   function renderSettingsTopics() {
-    document.getElementById('tbl-topics').innerHTML = topics.map(t => `
-      <tr>
-        <td style="width:40px">${t.Sequence || 99}</td>
+    const tbody = document.getElementById('tbl-topics');
+    tbody.innerHTML = topics.map(t => `
+      <tr draggable="true" data-id="${t.TopicID}" data-type="topic">
+        <td style="width:40px;color:var(--text-muted);font-size:13px">⠿</td>
         <td>${t.Topic}</td>
         <td>${t.CategoryName || '—'}</td>
         <td><button class="toggle ${t.IsActive === 'Y' ? 'on' : ''}" onclick="toggleTopic(${t.TopicID},this)"></button></td>
@@ -739,6 +746,7 @@ function renderSettingsSection(section) {
           <button class="btn-icon danger" onclick="deleteTopic(${t.TopicID})">🗑️</button>
         </td>
       </tr>`).join('');
+    initDragDrop(tbody, 'topic');
   }
 
   async function renderSettingsUserSettings() {
@@ -1038,6 +1046,54 @@ function renderSettingsSection(section) {
       renderSettingsTopics();
     }
     closeModal();
+  }
+
+  function initDragDrop(tbody, type) {
+    let dragSrc = null;
+    tbody.querySelectorAll('tr[draggable]').forEach(row => {
+      row.addEventListener('dragstart', e => {
+        dragSrc = row;
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      row.addEventListener('dragend', () => {
+        tbody.querySelectorAll('tr').forEach(r => r.classList.remove('dragging', 'drag-over'));
+        // Save new order
+        const rows = [...tbody.querySelectorAll('tr[draggable]')];
+        const sequences = rows.map((r, i) => ({
+          [type === 'keyword' ? 'keywordID' : 'topicID']: parseInt(r.dataset.id),
+          sequence: i + 1
+        }));
+        if (type === 'keyword') {
+          apiPost('SaveKeyword', { action: 'reorder', sequences, userID: USER_ID });
+          keywords.forEach(k => {
+            const s = sequences.find(s => s.keywordID === k.KeywordID);
+            if (s) k.Sequence = s.sequence;
+          });
+        } else {
+          apiPost('SaveTopic', { action: 'reorder', sequences, userID: USER_ID });
+          topics.forEach(t => {
+            const s = sequences.find(s => s.topicID === t.TopicID);
+            if (s) t.Sequence = s.sequence;
+          });
+        }
+      });
+      row.addEventListener('dragover', e => {
+        e.preventDefault();
+        tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+        if (row !== dragSrc) row.classList.add('drag-over');
+      });
+      row.addEventListener('drop', e => {
+        e.preventDefault();
+        if (dragSrc && dragSrc !== row) {
+          const rows = [...tbody.querySelectorAll('tr')];
+          const srcIdx = rows.indexOf(dragSrc);
+          const tgtIdx = rows.indexOf(row);
+          if (srcIdx < tgtIdx) row.after(dragSrc);
+          else row.before(dragSrc);
+        }
+      });
+    });
   }
 
   // Init
