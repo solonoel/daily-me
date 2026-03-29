@@ -21,21 +21,26 @@ module.exports = async function(context, req) {
     const recencyDays = parseInt(req.query.recencyDays || '7');
 
     let query = `
-      SELECT h.HeadlineID, h.UserID, h.CategoryID, h.HeadlineName,
+SELECT h.HeadlineID, h.UserID, h.CategoryID, h.HeadlineName,
              h.Link, h.Summary, h.CreatedDate, h.LastViewedDate, h.Retain,
              h.KeywordID, h.TopicID, h.ThumbnailURL, h.ChannelName, h.ChannelURL,
-             c.Name AS CategoryName,
-             k.Keyword, t.Topic
+             c.Name AS CategoryName, k.Keyword, k.Sequence AS KeywordSequence,
+             t.Topic, t.Sequence AS TopicSequence,
+             hs.Name AS SourceName
       FROM [Headline] h
       LEFT JOIN [Category] c ON h.CategoryID = c.CategoryID
       LEFT JOIN [HeadlineKeyword] k ON h.KeywordID = k.KeywordID
       LEFT JOIN [HeadlineTopic] t ON h.TopicID = t.TopicID
+      LEFT JOIN [HeadlineSource] hs ON h.SourceID = hs.SourceID
       WHERE h.UserID = @UserID
       AND h.CreatedDate >= DATEADD(day, -@RecencyDays, GETDATE())
     `;
 
     if (categoryID) query += ` AND h.CategoryID = @CategoryID`;
-    query += ` ORDER BY h.CreatedDate DESC`;
+    query += ` ORDER BY h.CategoryID,
+                COALESCE(k.Sequence, t.Sequence, 999),
+                CASE WHEN h.KeywordID IS NOT NULL THEN 0 ELSE 1 END,
+                h.CreatedDate DESC`;
 
     const request = pool.request()
       .input('UserID', sql.Int, userID)

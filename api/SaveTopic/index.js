@@ -16,16 +16,17 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { action, topicID, topic, categoryID, isActive, userID = 1 } = req.body;
+    const { action, topicID, topic, categoryID, isActive, sequence, userID = 1 } = req.body;
 
     if (action === 'add') {
       const result = await pool.request()
         .input('UserID', sql.Int, userID)
         .input('CategoryID', sql.Int, categoryID || null)
         .input('Topic', sql.NVarChar(500), topic)
+        .input('Sequence', sql.Int, sequence || 99)
         .query(`
-          INSERT INTO [HeadlineTopic] (UserID, CategoryID, Topic, IsActive, CreatedDate)
-          VALUES (@UserID, @CategoryID, @Topic, 'Y', GETDATE());
+          INSERT INTO [HeadlineTopic] (UserID, CategoryID, Topic, IsActive, Sequence, CreatedDate)
+          VALUES (@UserID, @CategoryID, @Topic, 'Y', @Sequence, GETDATE());
           SELECT SCOPE_IDENTITY() AS TopicID;
         `);
       context.res = {
@@ -40,10 +41,11 @@ module.exports = async function(context, req) {
         .input('CategoryID', sql.Int, categoryID || null)
         .input('Topic', sql.NVarChar(500), topic)
         .input('IsActive', sql.Char(1), isActive ? 'Y' : 'N')
+        .input('Sequence', sql.Int, sequence || 99)
         .input('UserID', sql.Int, userID)
         .query(`
           UPDATE [HeadlineTopic]
-          SET Topic = @Topic, CategoryID = @CategoryID, IsActive = @IsActive
+          SET Topic = @Topic, CategoryID = @CategoryID, IsActive = @IsActive, Sequence = @Sequence
           WHERE TopicID = @TopicID AND UserID = @UserID
         `);
       context.res = {

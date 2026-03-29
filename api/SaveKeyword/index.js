@@ -16,16 +16,17 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { action, keywordID, keyword, categoryID, isActive, userID = 1 } = req.body;
+    const { action, keywordID, keyword, categoryID, isActive, sequence, userID = 1 } = req.body;
 
     if (action === 'add') {
       const result = await pool.request()
         .input('UserID', sql.Int, userID)
         .input('CategoryID', sql.Int, categoryID || null)
         .input('Keyword', sql.NVarChar(200), keyword)
+        .input('Sequence', sql.Int, sequence || 99)
         .query(`
-          INSERT INTO [HeadlineKeyword] (UserID, CategoryID, Keyword, IsActive, CreatedDate)
-          VALUES (@UserID, @CategoryID, @Keyword, 'Y', GETDATE());
+          INSERT INTO [HeadlineKeyword] (UserID, CategoryID, Keyword, IsActive, Sequence, CreatedDate)
+          VALUES (@UserID, @CategoryID, @Keyword, 'Y', @Sequence, GETDATE());
           SELECT SCOPE_IDENTITY() AS KeywordID;
         `);
       context.res = {
@@ -40,10 +41,11 @@ module.exports = async function(context, req) {
         .input('CategoryID', sql.Int, categoryID || null)
         .input('Keyword', sql.NVarChar(200), keyword)
         .input('IsActive', sql.Char(1), isActive ? 'Y' : 'N')
+        .input('Sequence', sql.Int, sequence || 99)
         .input('UserID', sql.Int, userID)
         .query(`
           UPDATE [HeadlineKeyword]
-          SET Keyword = @Keyword, CategoryID = @CategoryID, IsActive = @IsActive
+          SET Keyword = @Keyword, CategoryID = @CategoryID, IsActive = @IsActive, Sequence = @Sequence
           WHERE KeywordID = @KeywordID AND UserID = @UserID
         `);
       context.res = {

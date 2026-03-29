@@ -331,14 +331,14 @@ module.exports = async function(context, req) {
         .input('ThumbnailURL', sql.NVarChar(500), a.thumbnailURL || null)
         .input('ChannelName', sql.NVarChar(200), a.channelName || null)
         .input('ChannelURL', sql.NVarChar(500), a.channelURL || null)
-        .input('SourceName', sql.NVarChar(200), a.sourceName || null)
+        .input('SourceID', sql.Int, a.sourceID || null)
         .query(`
           INSERT INTO [Headline]
             (UserID, CategoryID, HeadlineName, Link, Summary, CreatedDate, Retain,
-             KeywordID, TopicID, ThumbnailURL, ChannelName, ChannelURL, SourceName)
+             KeywordID, TopicID, ThumbnailURL, ChannelName, ChannelURL, SourceID)
           VALUES
             (@UserID, @CategoryID, @HeadlineName, @Link, @Summary, GETDATE(), 'N',
-@KeywordID, @TopicID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID)
+             @KeywordID, @TopicID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID)
         `);
       totalInserted++;
       } catch(insertErr) {
