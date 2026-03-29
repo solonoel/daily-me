@@ -487,7 +487,7 @@
       btn.className = 'nav-btn nav-btn-lang';
       btn.id = `nav-lang-${lang.LanguageID}`;
       btn.onclick = () => showScreen(`lang-${lang.LanguageID}`);
-      btn.innerHTML = `<img src="images/${lang.FlagImage}" class="nav-flag" alt="${lang.LanguageNameEng}"><span class="nav-label">${lang.LanguageNameEng}</span>`;
+      btn.innerHTML = `<img src="${lang.FlagImage}" class="nav-flag" alt="${lang.LanguageNameEng}"><span class="nav-label">${lang.LanguageNameEng}</span>`;
       settingsBtn.parentNode.insertBefore(btn, settingsBtn);
     });
   }
@@ -502,7 +502,7 @@
       return `
         <div class="screen" id="screen-lang-${lang.LanguageID}">
           <div class="lang-screen-header">
-            <img src="images/${lang.FlagImage}" class="lang-screen-flag" alt="${lang.LanguageNameEng}">
+            <img src="${lang.FlagImage}" class="lang-screen-flag" alt="${lang.LanguageNameEng}">
             <div>
               <div class="lang-screen-name">${lang.LanguageNameEng}</div>
               <div class="lang-screen-native">${lang.LanguageName}</div>
@@ -548,7 +548,7 @@
       const isActive = ul?.IsActive === 'Y';
       return `
         <div class="lang-check-row">
-          <img src="images/${lang.FlagImage}" class="lang-flag" alt="${lang.LanguageNameEng}">
+          <img src="${lang.FlagImage}" class="lang-flag" alt="${lang.LanguageNameEng}">
           <span class="lang-name">${lang.LanguageNameEng}</span>
           <span class="lang-native">${lang.LanguageName}</span>
           <input type="checkbox" class="lang-checkbox" data-langid="${lang.LanguageID}"
