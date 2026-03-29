@@ -16,7 +16,7 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { action, topicID, topic, categoryID, isActive, sequence, userID = 1 } = req.body;
+    const { action, topicID, topic, categoryID, isActive, sequence, sequences, userID = 1 } = req.body;
 
     if (action === 'add') {
       const result = await pool.request()
@@ -54,7 +54,17 @@ module.exports = async function(context, req) {
         body: JSON.stringify({ success: true })
       };
 
-} else if (action === 'delete') {
+} else if (action === 'reorder') {
+      for (const s of sequences) {
+        await pool.request()
+          .input('TopicID', sql.Int, s.topicID)
+          .input('Sequence', sql.Int, s.sequence)
+          .input('UserID', sql.Int, userID)
+          .query(`UPDATE [HeadlineTopic] SET Sequence = @Sequence WHERE TopicID = @TopicID AND UserID = @UserID`);
+      }
+      context.res = { status:200, headers:{'Content-Type':'application/json'}, body: JSON.stringify({ success: true }) };
+
+    } else if (action === 'delete') {
       await pool.request()
         .input('TopicID', sql.Int, topicID)
         .query(`UPDATE [Headline] SET TopicID = NULL WHERE TopicID = @TopicID`);

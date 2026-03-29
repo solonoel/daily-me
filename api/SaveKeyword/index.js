@@ -16,7 +16,7 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { action, keywordID, keyword, categoryID, isActive, sequence, userID = 1 } = req.body;
+    const { action, keywordID, keyword, categoryID, isActive, sequence, sequences, userID = 1 } = req.body;
 
     if (action === 'add') {
       const result = await pool.request()
@@ -54,7 +54,18 @@ module.exports = async function(context, req) {
         body: JSON.stringify({ success: true })
       };
 
-} else if (action === 'delete') {
+} else if (action === 'reorder') {
+      // sequences = [{keywordID, sequence}, ...]
+      for (const s of sequences) {
+        await pool.request()
+          .input('KeywordID', sql.Int, s.keywordID)
+          .input('Sequence', sql.Int, s.sequence)
+          .input('UserID', sql.Int, userID)
+          .query(`UPDATE [HeadlineKeyword] SET Sequence = @Sequence WHERE KeywordID = @KeywordID AND UserID = @UserID`);
+      }
+      context.res = { status:200, headers:{'Content-Type':'application/json'}, body: JSON.stringify({ success: true }) };
+
+    } else if (action === 'delete') {
       await pool.request()
         .input('KeywordID', sql.Int, keywordID)
         .query(`UPDATE [Headline] SET KeywordID = NULL WHERE KeywordID = @KeywordID`);
