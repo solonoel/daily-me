@@ -792,9 +792,19 @@ function renderSettingsSection(section) {
     }
 
     const result = await apiPost('SaveUserSettings', { userID: USER_ID, recencyDays, maxHeadlines, categorySettings });
+    const adjustedNote = document.getElementById('us-maxheadlines-adjusted');
     if (autoAdjusted) {
-      alert(`Settings saved! Max Headlines was automatically adjusted to ${maxHeadlines} to match your category limits.`);
+      if (!adjustedNote) {
+        const input = document.getElementById('us-maxheadlines');
+        const note = document.createElement('span');
+        note.id = 'us-maxheadlines-adjusted';
+        note.style.cssText = 'font-size:11px;color:var(--sky-deep);font-weight:600;margin-left:8px';
+        note.textContent = '(adjusted)';
+        input.parentNode.appendChild(note);
+      }
+      alert('Settings saved! Max Headlines was automatically adjusted to match your category limits.');
     } else {
+      if (adjustedNote) adjustedNote.remove();
       alert('Settings saved!');
     }
   }
