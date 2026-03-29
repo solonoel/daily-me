@@ -589,7 +589,7 @@ function setGreeting() {
             <div class="headline-row-title">${h.HeadlineName}</div>
             ${h.Summary ? `<div class="headline-row-summary">${h.Summary}</div>` : ''}
             <div class="headline-row-meta">
-              <span class="headline-row-source">${h.Keyword || h.Topic || ''}</span>
+              <span class="headline-row-source">${[h.Keyword || h.Topic || '', h.SourceName || ''].filter(Boolean).join(' · ')}</span>
               ${h.ChannelName ? `<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>` : ''}
               <span class="headline-row-age">${formatAge(h.CreatedDate)}</span>
             </div>
