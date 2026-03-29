@@ -37,6 +37,7 @@ module.exports = async function(context, req) {
       };
 
     } else if (action === 'update') {
+      const { mastered } = req.body;
       await pool.request()
         .input('WordID', sql.Int, wordID)
         .input('UserID', sql.Int, userID)
@@ -46,10 +47,13 @@ module.exports = async function(context, req) {
         .input('WordsImage', sql.NVarChar(sql.MAX), wordsImage || null)
         .input('IsVerb', sql.Char(1), isVerb ? 'Y' : 'N')
         .input('Gender', sql.Char(1), gender || null)
+        .input('DateMastered', sql.DateTime, mastered ? new Date() : null)
         .query(`UPDATE [UserLanguageWords]
                 SET WordsName=@WordsName, WordsTranslation=@WordsTranslation,
                     WordsTranslationAudio=@WordsTranslationAudio, WordsImage=@WordsImage,
-                    IsVerb=@IsVerb, Gender=@Gender
+                    IsVerb=@IsVerb, Gender=@Gender,
+                    DateMastered=CASE WHEN @DateMastered IS NOT NULL THEN @DateMastered
+                                      ELSE NULL END
                 WHERE UserLanguageWordsID=@WordID AND UserID=@UserID`);
       context.res = {
         status: 200,
