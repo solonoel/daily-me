@@ -169,14 +169,14 @@
     .filter-btn.active { background:var(--sky-deep); color:white; border-color:var(--sky-deep); }
     .images-toggle { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-soft); margin-left:auto; cursor:pointer; }
     .word-grid { display:flex; flex-direction:column; border:1.5px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:var(--shadow); background:white; }
-    .word-row { display:flex; align-items:center; gap:12px; padding:10px 14px; border-bottom:1px solid #eef5fc; transition:background 0.15s; }
+    .word-row { display:flex; align-items:center; gap:12px; padding:5px 14px; border-bottom:1px solid #eef5fc; transition:background 0.15s; }
     .word-row:last-child { border-bottom:none; }
     .word-row:hover { background:#f8fbff; }
     .word-img { width:52px; height:52px; object-fit:cover; border-radius:8px; flex-shrink:0; }
     .word-img-placeholder { width:52px; height:52px; border-radius:8px; background:#f0f7ff; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--text-muted); }
     .word-body { flex:1; min-width:0; }
     .word-name { font-size:15px; font-weight:600; color:var(--text); }
-    .word-gender { font-size:11px; color:var(--text-muted); margin-left:4px; }
+    .word-gender { font-size:15px; color:var(--text-muted); margin-left:12px; }
     .word-translation { font-size:12px; color:var(--text-soft); margin-top:3px; white-space:pre-line; line-height:1.4; }
     .word-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
     .word-btn { width:30px; height:30px; border-radius:6px; border:1.5px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:15px; transition:all 0.15s; }
@@ -213,6 +213,9 @@
     .fc-speaker:hover { border-color:var(--sky-deep); background:#f0f7ff; }
     .fc-gotit { padding:10px 24px; border-radius:100px; border:none; background:#22c55e; color:white; font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; }
     .fc-gotit:hover { opacity:0.85; }
+    .fc-flag { width:36px; height:36px; border-radius:50%; border:2px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:18px; transition:all 0.15s; }
+    .fc-flag:hover { border-color:var(--gold); background:rgba(232,160,32,0.08); }
+    .fc-flag-active { border-color:var(--gold); background:rgba(232,160,32,0.08); }
 
     @media (max-width:700px) {
       .settings-deck-grid { grid-template-columns:1fr; }
@@ -765,6 +768,8 @@
             <div class="form-group">
               <label class="form-label">${langName} Word or Phrase</label>
               <input class="form-input" id="nw-word" placeholder="e.g. la bicicleta">
+              <a href="#" onclick="fetchTranslation();return false;" id="nw-fetch-btn" style="font-size:12px;color:var(--sky-deep);margin-top:5px;display:inline-block">🔍 Fetch Translation</a>
+              <span id="nw-fetch-status" style="font-size:12px;color:var(--text-muted);margin-left:8px"></span>
             </div>
             <div class="form-row">
               <div class="form-group" style="flex:0 0 auto">
@@ -786,15 +791,12 @@
         <div class="form-group">
           <label class="form-label">Translation(s)</label>
           <textarea class="form-textarea" id="nw-translation" placeholder="Enter one or more translations, one per line"></textarea>
-          <button class="btn-secondary" style="margin-top:8px;font-size:12px" onclick="fetchTranslation()" id="nw-fetch-btn">🔍 Fetch Translation</button>
-          <span id="nw-fetch-status" style="font-size:12px;color:var(--text-muted);margin-left:10px"></span>
         </div>
         <div style="display:flex;gap:10px;margin-top:16px">
           <button class="btn-primary" onclick="saveNewWord()">Save Word</button>
           <button class="btn-secondary" onclick="showScreen('mywords-${langID}')">Cancel</button>
         </div>
       </div>`;
-    document.addEventListener('paste', handlePasteImage);
     showScreen(`newword-${langID}`);
   }
 
@@ -803,7 +805,7 @@
   }
 
   function handlePasteImage(event) {
-    if (!document.getElementById(`screen-newword-${currentLangID}`)?.classList.contains('active')) return;
+    if (!currentLangID || !document.getElementById(`screen-newword-${currentLangID}`)?.classList.contains('active')) return;
     const items = event.clipboardData?.items; if (!items) return;
     for (const item of items) { if (item.type.startsWith('image/')) { resizeAndStoreImage(item.getAsFile()); break; } }
   }
@@ -832,13 +834,21 @@
     const word = document.getElementById('nw-word')?.value.trim();
     if (!word) { alert('Enter a word first.'); return; }
     const btn = document.getElementById('nw-fetch-btn'), status = document.getElementById('nw-fetch-status');
-    btn.disabled = true; btn.textContent = '⏳ Fetching...'; status.textContent = '';
+    btn.style.pointerEvents = 'none'; btn.textContent = '⏳ Fetching...'; status.textContent = '';
     try {
       const result = await apiPost('GetWordTranslation', { word, languageCode: currentLangName });
-      if (result.translation) { document.getElementById('nw-translation').value = result.translation; status.textContent = '✓ Translation fetched'; }
-      else status.textContent = 'No translation found';
-    } catch(e) { status.textContent = 'Error fetching translation'; }
-    btn.disabled = false; btn.textContent = '🔍 Fetch Translation';
+      if (result.translation) {
+        document.getElementById('nw-translation').value = result.translation;
+        if (result.isVerb === true || result.isVerb === 'true') {
+          const cb = document.getElementById('nw-isverb'); if (cb) cb.checked = true;
+        }
+        if (result.gender) {
+          const sel = document.getElementById('nw-gender'); if (sel) sel.value = result.gender;
+        }
+        status.textContent = '✓ Done';
+      } else status.textContent = 'No translation found';
+    } catch(e) { status.textContent = 'Error'; }
+    btn.style.pointerEvents = ''; btn.textContent = '🔍 Fetch Translation';
   }
 
   async function saveNewWord() {
@@ -848,7 +858,6 @@
     const isVerb = document.getElementById('nw-isverb')?.checked;
     const gender = document.getElementById('nw-gender')?.value || null;
     await apiPost('SaveUserLanguageWord', { action:'add', userID:USER_ID, languageID:currentLangID, wordsName, wordsTranslation, isVerb, gender, wordsImage:newWordImage });
-    document.removeEventListener('paste', handlePasteImage);
     await showMyWords(currentLangID, currentLangName);
   }
 
@@ -882,14 +891,16 @@
       const translationEl = flashcardShowTranslation
         ? `<div class="flashcard-translation">${card.WordsTranslation || '—'}</div>`
         : `<div class="flashcard-hint">Tap card to reveal translation</div>`;
+      const isFlagged = card.Flag;
       cardHTML = `
-        <div class="flashcard" onclick="toggleFlashcardTranslation()">
+        <div class="flashcard" onclick="toggleFlashcardTranslation()" style="position:relative">
           ${imgEl}
           <div class="flashcard-word">${card.WordsName}${genderLabel}</div>
           ${translationEl}
+          <button class="fc-speaker" onclick="event.stopPropagation();speakWord('${card.WordsName.replace(/'/g,"\\'")}','${langName}')" style="position:absolute;bottom:14px;left:14px">🔊</button>
+          <button class="fc-flag ${isFlagged ? 'fc-flag-active' : ''}" onclick="event.stopPropagation();flashcardToggleFlag(${card.UserLanguageWordsID},this)" style="position:absolute;bottom:14px;right:14px" title="Flag word">${isFlagged ? '★' : '☆'}</button>
         </div>
         <div class="flashcard-actions">
-          <button class="fc-speaker" onclick="speakWord('${card.WordsName.replace(/'/g,"\\'")}','${langName}')">🔊</button>
           <button class="fc-gotit" onclick="flashcardGotIt(${card.UserLanguageWordsID})">✓ Got it</button>
         </div>`;
     }
@@ -947,6 +958,15 @@
     if (flashcardIndex >= total) flashcardIndex = Math.max(0, total - 1);
     flashcardShowTranslation = false;
     renderFlashcardsScreen(currentLangID, currentLangName);
+  }
+
+  async function flashcardToggleFlag(wordID, btn) {
+    const card = flashcards.find(w => w.UserLanguageWordsID === wordID); if (!card) return;
+    const newFlag = !card.Flag;
+    await apiPost('SaveUserLanguageWord', { action:'flag', userID:USER_ID, wordID, flag:newFlag });
+    card.Flag = newFlag;
+    btn.textContent = newFlag ? '★' : '☆';
+    btn.classList.toggle('fc-flag-active', newFlag);
   }
 
   // ── HEADLINES ──
@@ -1575,8 +1595,9 @@
   }
 
   // ── INIT ──
-  history.replaceState({ screen: 'headlines', section: null }, '', '');
-  setGreeting();
+document.addEventListener('paste', handlePasteImage);
+  history.replaceState({screen:'headlines',section:null},'','');
+  setGreeting(); setDate(); loadWeather(); loadAll();
   setDate();
   loadWeather();
   loadAll();
