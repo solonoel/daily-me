@@ -159,6 +159,61 @@
     .lang-feature-sub { font-size:11px; color:var(--text-soft); }
     .coming-soon { display:inline-block; font-size:9px; font-weight:700; background:#fff0d6; color:#b07000; border-radius:4px; padding:2px 6px; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px; }
 
+    /* MY WORDS */
+    .mywords-header { display:flex; align-items:center; gap:16px; margin-bottom:20px; background:white; border:1.5px solid var(--border); border-radius:14px; padding:16px 20px; box-shadow:var(--shadow); }
+    .mywords-flag { height:32px; width:auto; border-radius:3px; }
+    .mywords-title { font-family:'Playfair Display',serif; font-size:20px; color:var(--text); flex:1; }
+    .mywords-filter-bar { display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+    .filter-btn { padding:6px 14px; border-radius:100px; border:1.5px solid var(--border); background:white; font-size:12px; font-weight:600; color:var(--text-soft); cursor:pointer; transition:all 0.2s; white-space:nowrap; }
+    .filter-btn:hover { border-color:var(--sky-deep); color:var(--sky-deep); }
+    .filter-btn.active { background:var(--sky-deep); color:white; border-color:var(--sky-deep); }
+    .images-toggle { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-soft); margin-left:auto; cursor:pointer; }
+    .word-grid { display:flex; flex-direction:column; border:1.5px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:var(--shadow); background:white; }
+    .word-row { display:flex; align-items:center; gap:12px; padding:10px 14px; border-bottom:1px solid #eef5fc; transition:background 0.15s; }
+    .word-row:last-child { border-bottom:none; }
+    .word-row:hover { background:#f8fbff; }
+    .word-img { width:52px; height:52px; object-fit:cover; border-radius:8px; flex-shrink:0; }
+    .word-img-placeholder { width:52px; height:52px; border-radius:8px; background:#f0f7ff; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--text-muted); }
+    .word-body { flex:1; min-width:0; }
+    .word-name { font-size:15px; font-weight:600; color:var(--text); }
+    .word-gender { font-size:11px; color:var(--text-muted); margin-left:4px; }
+    .word-translation { font-size:12px; color:var(--text-soft); margin-top:3px; white-space:pre-line; line-height:1.4; }
+    .word-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+    .word-btn { width:30px; height:30px; border-radius:6px; border:1.5px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:15px; transition:all 0.15s; }
+    .word-btn:hover { border-color:var(--sky-deep); background:#f0f7ff; }
+    .word-btn.flag-active { border-color:var(--gold); background:rgba(232,160,32,0.08); }
+    .word-btn.gotit:hover { background:#f0fdf4; border-color:#16a34a; }
+    .word-btn.del:hover { border-color:#e05050; background:#fef0f0; }
+
+    /* NEW WORD */
+    .newword-form { background:white; border:1.5px solid var(--border); border-radius:14px; padding:24px; box-shadow:var(--shadow); max-width:600px; }
+    .form-textarea { width:100%; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:13px; font-family:'DM Sans',sans-serif; color:var(--text); resize:vertical; min-height:80px; }
+    .form-textarea:focus { outline:none; border-color:var(--sky-deep); }
+    .newword-image-area { width:100px; height:100px; border:2px dashed var(--border); border-radius:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; flex-shrink:0; background:#f8fbff; transition:border-color 0.2s; }
+    .newword-image-area:hover { border-color:var(--sky-deep); }
+    .newword-image-area img { width:100%; height:100%; object-fit:cover; }
+    .newword-image-placeholder { font-size:28px; color:var(--text-muted); }
+
+    /* FLASHCARDS */
+    .flashcard-container { max-width:560px; margin:0 auto; }
+    .flashcard-filter-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+    .flashcard-nav { display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:20px; font-size:14px; color:var(--text-soft); }
+    .flashcard-nav a { color:var(--sky-deep); cursor:pointer; font-size:18px; font-weight:700; text-decoration:none; padding:4px 8px; border-radius:6px; transition:background 0.15s; }
+    .flashcard-nav a:hover { background:#f0f7ff; }
+    .flashcard-nav a.disabled { color:var(--border); cursor:default; pointer-events:none; }
+    .flashcard-nav-pos { font-weight:700; color:var(--text); }
+    .flashcard { background:white; border:1.5px solid var(--border); border-radius:20px; padding:36px 28px; text-align:center; box-shadow:0 4px 24px rgba(43,127,212,0.1); cursor:pointer; min-height:260px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; transition:box-shadow 0.2s; }
+    .flashcard:hover { box-shadow:0 6px 32px rgba(43,127,212,0.15); }
+    .flashcard-word { font-family:'Playfair Display',serif; font-size:36px; color:var(--text); line-height:1.2; }
+    .flashcard-image { width:100px; height:100px; object-fit:cover; border-radius:12px; }
+    .flashcard-translation { font-size:18px; color:var(--sky-deep); font-weight:500; white-space:pre-line; line-height:1.5; }
+    .flashcard-hint { font-size:12px; color:var(--text-muted); margin-top:8px; }
+    .flashcard-actions { display:flex; justify-content:center; gap:12px; margin-top:20px; }
+    .fc-speaker { width:44px; height:44px; border-radius:50%; border:2px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:20px; transition:all 0.15s; }
+    .fc-speaker:hover { border-color:var(--sky-deep); background:#f0f7ff; }
+    .fc-gotit { padding:10px 24px; border-radius:100px; border:none; background:#22c55e; color:white; font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .fc-gotit:hover { opacity:0.85; }
+
     @media (max-width:700px) {
       .settings-deck-grid { grid-template-columns:1fr; }
       .header { padding:14px 16px; }
@@ -510,11 +565,10 @@
             </div>
           </div>
           <div class="lang-btn-grid">
-            <div class="lang-feature-btn" onclick="alert('Coming soon!')">
+            <div class="lang-feature-btn" onclick="showFlashcards(${lang.LanguageID},'${lang.LanguageNameEng}')">
               <div class="lang-feature-icon">🃏</div>
               <div class="lang-feature-title">Flashcards</div>
               <div class="lang-feature-sub">Study your vocabulary</div>
-              <span class="coming-soon">Coming soon</span>
             </div>
             <div class="lang-feature-btn" onclick="alert('Coming soon!')">
               <div class="lang-feature-icon">🔤</div>
@@ -528,14 +582,16 @@
               <div class="lang-feature-sub">Practice dialogue</div>
               <span class="coming-soon">Coming soon</span>
             </div>
-            <div class="lang-feature-btn" onclick="alert('Coming soon!')">
+            <div class="lang-feature-btn" onclick="showMyWords(${lang.LanguageID},'${lang.LanguageNameEng}')">
               <div class="lang-feature-icon">📝</div>
               <div class="lang-feature-title">My Words</div>
               <div class="lang-feature-sub">Your vocabulary list</div>
-              <span class="coming-soon">Coming soon</span>
             </div>
           </div>
-        </div>`;
+        </div>
+        <div class="screen" id="screen-mywords-${lang.LanguageID}"></div>
+        <div class="screen" id="screen-newword-${lang.LanguageID}"></div>
+        <div class="screen" id="screen-flashcards-${lang.LanguageID}"></div>`;
     }).join('');
   }
 
@@ -580,6 +636,317 @@
     renderLanguageNav();
     renderLanguageScreens();
     renderLanguageCheckList();
+  }
+
+  // ── LANGUAGE STATE ──
+
+  const langCodes = {
+    'Spanish':'es-ES','French':'fr-FR','Italian':'it-IT','Portuguese':'pt-PT','Romanian':'ro-RO'
+  };
+
+  let currentLangID = null, currentLangName = null;
+  let myWords = [], myWordsFilter = 'active', showImages = true;
+  let flashcards = [], flashcardIndex = 0, flashcardShowTranslation = false, flashcardFilter = 'all';
+
+  // ── MY WORDS ──
+
+  async function showMyWords(langID, langName) {
+    currentLangID = langID; currentLangName = langName;
+    myWordsFilter = 'active'; showImages = true;
+    await loadMyWords();
+    showScreen(`mywords-${langID}`);
+  }
+
+  async function loadMyWords() {
+    const data = await apiGet('GetUserLanguageWords', `&languageID=${currentLangID}&filter=${myWordsFilter}`);
+    myWords = Array.isArray(data) ? data : [];
+    renderMyWords();
+  }
+
+  function renderMyWords() {
+    const lang = allLanguages.find(l => l.LanguageID === currentLangID);
+    const screenEl = document.getElementById(`screen-mywords-${currentLangID}`);
+    const activeCount = myWords.filter(w => !w.DateMastered).length;
+    const flaggedCount = myWords.filter(w => w.Flag).length;
+    const masteredCount = myWords.filter(w => w.DateMastered).length;
+    const filters = [
+      { key:'active',   label:`Active (${activeCount})`   },
+      { key:'flagged',  label:`Flagged (${flaggedCount})`  },
+      { key:'mastered', label:`Mastered (${masteredCount})` },
+      { key:'all',      label:`All (${myWords.length})`    }
+    ];
+    const wordRows = myWords.map(w => {
+      const genderLabel = w.Gender === 'M' ? '<span class="word-gender">♂</span>' : w.Gender === 'F' ? '<span class="word-gender">♀</span>' : '';
+      const verbLabel = w.IsVerb === 'Y' ? '<span style="font-size:10px;color:var(--text-muted);margin-left:4px">verb</span>' : '';
+      const imgEl = showImages && w.WordsImage
+        ? `<img src="${w.WordsImage}" class="word-img" alt="">`
+        : showImages ? `<div class="word-img-placeholder">📖</div>` : '';
+      return `<div class="word-row">
+        ${imgEl}
+        <div class="word-body">
+          <div class="word-name">${w.WordsName}${genderLabel}${verbLabel}</div>
+          <div class="word-translation">${w.WordsTranslation || ''}</div>
+        </div>
+        <div class="word-actions">
+          <button class="word-btn" onclick="speakWord('${w.WordsName.replace(/'/g,"\\'")}','${currentLangName}')" title="Pronounce">🔊</button>
+          <button class="word-btn ${w.Flag ? 'flag-active' : ''}" onclick="toggleWordFlag(${w.UserLanguageWordsID},this)">${w.Flag ? '★' : '☆'}</button>
+          <button class="word-btn gotit" onclick="markWordMastered(${w.UserLanguageWordsID},this)" title="Got it">✓</button>
+          <button class="word-btn del" onclick="deleteWord(${w.UserLanguageWordsID})" title="Delete">✕</button>
+        </div>
+      </div>`;
+    }).join('') || '<div class="empty-state">No words yet. Add your first word!</div>';
+
+    screenEl.innerHTML = `
+      <button class="settings-back" onclick="showScreen('lang-${currentLangID}')">← Back to ${currentLangName}</button>
+      <div class="mywords-header">
+        <img src="${lang?.FlagImage || ''}" class="mywords-flag" alt="${currentLangName}">
+        <div class="mywords-title">My ${currentLangName} Words</div>
+        <button class="btn-primary" onclick="showNewWord(${currentLangID},'${currentLangName}')">+ New Word</button>
+      </div>
+      <div class="mywords-filter-bar">
+        ${filters.map(f => `<button class="filter-btn ${myWordsFilter === f.key ? 'active' : ''}" onclick="setWordsFilter('${f.key}')">${f.label}</button>`).join('')}
+        <label class="images-toggle"><input type="checkbox" ${showImages ? 'checked' : ''} onchange="showImages=this.checked;renderMyWords()"> Images</label>
+      </div>
+      <div class="word-grid">${wordRows}</div>`;
+  }
+
+  function setWordsFilter(filter) { myWordsFilter = filter; loadMyWords(); }
+
+  function speakWord(word, langName) {
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.lang = langCodes[langName] || 'es-ES';
+    utterance.rate = 0.85;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  }
+
+  async function toggleWordFlag(wordID, btn) {
+    const word = myWords.find(w => w.UserLanguageWordsID === wordID); if (!word) return;
+    const newFlag = !word.Flag;
+    await apiPost('SaveUserLanguageWord', { action:'flag', userID:USER_ID, wordID, flag:newFlag });
+    word.Flag = newFlag; btn.textContent = newFlag ? '★' : '☆';
+    btn.classList.toggle('flag-active', newFlag);
+  }
+
+  async function markWordMastered(wordID, btn) {
+    await apiPost('SaveUserLanguageWord', { action:'mastered', userID:USER_ID, wordID });
+    btn.closest('.word-row').style.opacity = '0.3';
+    setTimeout(() => loadMyWords(), 500);
+  }
+
+  async function deleteWord(wordID) {
+    if (!confirm('Delete this word?')) return;
+    await apiPost('SaveUserLanguageWord', { action:'delete', userID:USER_ID, wordID });
+    myWords = myWords.filter(w => w.UserLanguageWordsID !== wordID);
+    renderMyWords();
+  }
+
+  // ── NEW WORD ──
+
+  let newWordImage = null;
+
+  async function showNewWord(langID, langName) {
+    currentLangID = langID; currentLangName = langName; newWordImage = null;
+    const screenEl = document.getElementById(`screen-newword-${langID}`);
+    screenEl.innerHTML = `
+      <button class="settings-back" onclick="showScreen('mywords-${langID}')">← Back to My Words</button>
+      <div class="date-strip"><div class="date-main">New ${langName} Word</div></div>
+      <div class="newword-form">
+        <div style="display:flex;gap:20px;align-items:flex-start;margin-bottom:16px">
+          <div>
+            <div class="form-label">Image</div>
+            <div class="newword-image-area" id="nw-img-area" onclick="document.getElementById('nw-img-input').click()" title="Click or paste an image">
+              <div class="newword-image-placeholder">🖼️</div>
+            </div>
+            <input type="file" id="nw-img-input" accept="image/*" style="display:none" onchange="handleNewWordImage(event)">
+            <div style="font-size:10px;color:var(--text-muted);margin-top:4px;text-align:center">Click or paste</div>
+          </div>
+          <div style="flex:1">
+            <div class="form-group">
+              <label class="form-label">${langName} Word or Phrase</label>
+              <input class="form-input" id="nw-word" placeholder="e.g. la bicicleta">
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="flex:0 0 auto">
+                <label class="form-label">Is Verb?</label>
+                <label class="form-checkbox-row" style="margin-top:9px"><input type="checkbox" id="nw-isverb"> Verb</label>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Gender</label>
+                <select class="form-select" id="nw-gender">
+                  <option value="">N/A</option>
+                  <option value="M">Masculine</option>
+                  <option value="F">Feminine</option>
+                  <option value="N">Neutral</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Translation(s)</label>
+          <textarea class="form-textarea" id="nw-translation" placeholder="Enter one or more translations, one per line"></textarea>
+          <button class="btn-secondary" style="margin-top:8px;font-size:12px" onclick="fetchTranslation()" id="nw-fetch-btn">🔍 Fetch Translation</button>
+          <span id="nw-fetch-status" style="font-size:12px;color:var(--text-muted);margin-left:10px"></span>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:16px">
+          <button class="btn-primary" onclick="saveNewWord()">Save Word</button>
+          <button class="btn-secondary" onclick="showScreen('mywords-${langID}')">Cancel</button>
+        </div>
+      </div>`;
+    document.addEventListener('paste', handlePasteImage);
+    showScreen(`newword-${langID}`);
+  }
+
+  function handleNewWordImage(event) {
+    const file = event.target.files[0]; if (file) resizeAndStoreImage(file);
+  }
+
+  function handlePasteImage(event) {
+    if (!document.getElementById(`screen-newword-${currentLangID}`)?.classList.contains('active')) return;
+    const items = event.clipboardData?.items; if (!items) return;
+    for (const item of items) { if (item.type.startsWith('image/')) { resizeAndStoreImage(item.getAsFile()); break; } }
+  }
+
+  function resizeAndStoreImage(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas'), size = 96;
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const scale = Math.max(size / img.width, size / img.height);
+        const w = img.width * scale, h = img.height * scale;
+        ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+        newWordImage = canvas.toDataURL('image/jpeg', 0.8);
+        const area = document.getElementById('nw-img-area');
+        if (area) area.innerHTML = `<img src="${newWordImage}">`;
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function fetchTranslation() {
+    const word = document.getElementById('nw-word')?.value.trim();
+    if (!word) { alert('Enter a word first.'); return; }
+    const btn = document.getElementById('nw-fetch-btn'), status = document.getElementById('nw-fetch-status');
+    btn.disabled = true; btn.textContent = '⏳ Fetching...'; status.textContent = '';
+    try {
+      const result = await apiPost('GetWordTranslation', { word, languageCode: currentLangName });
+      if (result.translation) { document.getElementById('nw-translation').value = result.translation; status.textContent = '✓ Translation fetched'; }
+      else status.textContent = 'No translation found';
+    } catch(e) { status.textContent = 'Error fetching translation'; }
+    btn.disabled = false; btn.textContent = '🔍 Fetch Translation';
+  }
+
+  async function saveNewWord() {
+    const wordsName = document.getElementById('nw-word')?.value.trim();
+    if (!wordsName) { alert('Word is required.'); return; }
+    const wordsTranslation = document.getElementById('nw-translation')?.value.trim();
+    const isVerb = document.getElementById('nw-isverb')?.checked;
+    const gender = document.getElementById('nw-gender')?.value || null;
+    await apiPost('SaveUserLanguageWord', { action:'add', userID:USER_ID, languageID:currentLangID, wordsName, wordsTranslation, isVerb, gender, wordsImage:newWordImage });
+    document.removeEventListener('paste', handlePasteImage);
+    await showMyWords(currentLangID, currentLangName);
+  }
+
+  // ── FLASHCARDS ──
+
+  async function showFlashcards(langID, langName) {
+    currentLangID = langID; currentLangName = langName;
+    flashcardFilter = 'all'; flashcardIndex = 0; flashcardShowTranslation = false;
+    const data = await apiGet('GetUserLanguageWords', `&languageID=${langID}&filter=active`);
+    flashcards = Array.isArray(data) ? data : [];
+    renderFlashcardsScreen(langID, langName);
+    showScreen(`flashcards-${langID}`);
+  }
+
+  function renderFlashcardsScreen(langID, langName) {
+    const lang = allLanguages.find(l => l.LanguageID === langID);
+    const screenEl = document.getElementById(`screen-flashcards-${langID}`);
+    const filtered = getFilteredFlashcards();
+    const total = filtered.length;
+    const card = filtered[flashcardIndex];
+    const filters = [
+      { key:'all',     label:`All (${flashcards.filter(w=>!w.DateMastered).length})` },
+      { key:'flagged', label:`Flagged (${flashcards.filter(w=>w.Flag).length})`       }
+    ];
+    let cardHTML = '';
+    if (!card) {
+      cardHTML = `<div class="flashcard"><div class="flashcard-word">No words to study!</div><div class="flashcard-hint">Add words in My Words.</div></div>`;
+    } else {
+      const genderLabel = card.Gender === 'M' ? ' <span style="font-size:16px;color:var(--text-muted)">♂</span>' : card.Gender === 'F' ? ' <span style="font-size:16px;color:var(--text-muted)">♀</span>' : '';
+      const imgEl = card.WordsImage ? `<img src="${card.WordsImage}" class="flashcard-image" alt="">` : '';
+      const translationEl = flashcardShowTranslation
+        ? `<div class="flashcard-translation">${card.WordsTranslation || '—'}</div>`
+        : `<div class="flashcard-hint">Tap card to reveal translation</div>`;
+      cardHTML = `
+        <div class="flashcard" onclick="toggleFlashcardTranslation()">
+          ${imgEl}
+          <div class="flashcard-word">${card.WordsName}${genderLabel}</div>
+          ${translationEl}
+        </div>
+        <div class="flashcard-actions">
+          <button class="fc-speaker" onclick="speakWord('${card.WordsName.replace(/'/g,"\\'")}','${langName}')">🔊</button>
+          <button class="fc-gotit" onclick="flashcardGotIt(${card.UserLanguageWordsID})">✓ Got it</button>
+        </div>`;
+    }
+    const prevDis = flashcardIndex === 0 ? 'disabled' : '';
+    const nextDis = flashcardIndex >= total - 1 ? 'disabled' : '';
+    screenEl.innerHTML = `
+      <button class="settings-back" onclick="showScreen('lang-${langID}')">← Back to ${langName}</button>
+      <div class="date-strip">
+        <img src="${lang?.FlagImage || ''}" style="height:28px;border-radius:3px;margin-right:8px" alt="">
+        <div class="date-main">Flashcards</div>
+      </div>
+      <div class="flashcard-container">
+        <div class="flashcard-filter-bar">
+          ${filters.map(f => `<button class="filter-btn ${flashcardFilter === f.key ? 'active' : ''}" onclick="setFlashcardFilter('${f.key}')">${f.label}</button>`).join('')}
+        </div>
+        <div class="flashcard-nav">
+          <a class="${prevDis}" onclick="moveFlashcard(-Infinity)">⟪</a>
+          <a class="${prevDis}" onclick="moveFlashcard(-1)">‹</a>
+          <span class="flashcard-nav-pos">${total > 0 ? `${flashcardIndex + 1} of ${total}` : '0 of 0'}</span>
+          <a class="${nextDis}" onclick="moveFlashcard(1)">›</a>
+          <a class="${nextDis}" onclick="moveFlashcard(Infinity)">⟫</a>
+        </div>
+        ${cardHTML}
+      </div>`;
+  }
+
+  function getFilteredFlashcards() {
+    if (flashcardFilter === 'flagged') return flashcards.filter(w => w.Flag && !w.DateMastered);
+    return flashcards.filter(w => !w.DateMastered);
+  }
+
+  function toggleFlashcardTranslation() {
+    flashcardShowTranslation = !flashcardShowTranslation;
+    renderFlashcardsScreen(currentLangID, currentLangName);
+  }
+
+  function moveFlashcard(delta) {
+    const total = getFilteredFlashcards().length;
+    if (delta === -Infinity) flashcardIndex = 0;
+    else if (delta === Infinity) flashcardIndex = total - 1;
+    else flashcardIndex = Math.max(0, Math.min(total - 1, flashcardIndex + delta));
+    flashcardShowTranslation = false;
+    renderFlashcardsScreen(currentLangID, currentLangName);
+  }
+
+  function setFlashcardFilter(filter) {
+    flashcardFilter = filter; flashcardIndex = 0; flashcardShowTranslation = false;
+    renderFlashcardsScreen(currentLangID, currentLangName);
+  }
+
+  async function flashcardGotIt(wordID) {
+    await apiPost('SaveUserLanguageWord', { action:'mastered', userID:USER_ID, wordID });
+    flashcards = flashcards.filter(w => w.UserLanguageWordsID !== wordID);
+    const total = getFilteredFlashcards().length;
+    if (flashcardIndex >= total) flashcardIndex = Math.max(0, total - 1);
+    flashcardShowTranslation = false;
+    renderFlashcardsScreen(currentLangID, currentLangName);
   }
 
   // ── HEADLINES ──
