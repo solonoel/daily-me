@@ -22,7 +22,12 @@ module.exports = async function(context, req) {
       .input('UserID', sql.Int, userID)
       .query(`
         DELETE FROM [Headline]
-        WHERE UserID = @UserID AND Retain = 'N';
+        WHERE UserID = @UserID
+          AND Retain = 'N'
+          AND NOT (
+            SourceID IN (SELECT SourceID FROM HeadlineSource WHERE SourceType = 'YouTube')
+            AND CAST(CreatedDate AS DATE) = CAST(GETDATE() AS DATE)
+          );
 
         SELECT @@ROWCOUNT AS DeletedCount;
       `);

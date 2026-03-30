@@ -18,6 +18,12 @@ module.exports = async function(context, req) {
     const pool = await sql.connect(config);
     const { action, topicID, topic, categoryID, isActive, sequence, sequences, userID = 1 } = req.body;
 
+    const resetYouTube = async () => {
+      await pool.request()
+        .input('UserID', sql.Int, userID)
+        .query(`UPDATE [HeadlineSetting] SET LastYouTubeFetch = NULL WHERE UserID = @UserID`);
+    };
+
     if (action === 'add') {
       const result = await pool.request()
         .input('UserID', sql.Int, userID)
@@ -29,6 +35,7 @@ module.exports = async function(context, req) {
           VALUES (@UserID, @CategoryID, @Topic, 'Y', @Sequence, GETDATE());
           SELECT SCOPE_IDENTITY() AS TopicID;
         `);
+      await resetYouTube();
       context.res = {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -48,13 +55,14 @@ module.exports = async function(context, req) {
           SET Topic = @Topic, CategoryID = @CategoryID, IsActive = @IsActive, Sequence = @Sequence
           WHERE TopicID = @TopicID AND UserID = @UserID
         `);
+      await resetYouTube();
       context.res = {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ success: true })
       };
 
-} else if (action === 'reorder') {
+    } else if (action === 'reorder') {
       for (const s of sequences) {
         await pool.request()
           .input('TopicID', sql.Int, s.topicID)
@@ -62,7 +70,8 @@ module.exports = async function(context, req) {
           .input('UserID', sql.Int, userID)
           .query(`UPDATE [HeadlineTopic] SET Sequence = @Sequence WHERE TopicID = @TopicID AND UserID = @UserID`);
       }
-      context.res = { status:200, headers:{'Content-Type':'application/json'}, body: JSON.stringify({ success: true }) };
+      await resetYouTube();
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) };
 
     } else if (action === 'delete') {
       await pool.request()
@@ -72,7 +81,7 @@ module.exports = async function(context, req) {
         .input('TopicID', sql.Int, topicID)
         .input('UserID', sql.Int, userID)
         .query(`DELETE FROM [HeadlineTopic] WHERE TopicID = @TopicID AND UserID = @UserID`);
-      context.res = { status:200, headers:{'Content-Type':'application/json'}, body: JSON.stringify({ success: true }) };
+      await resetYouTube();
       context.res = {
         status: 200,
         headers: { 'Content-Type': 'application/json' },

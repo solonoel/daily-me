@@ -15,6 +15,34 @@ const config = {
   }
 };
 
+// Language code mappings
+const langCodeMap = {
+  'Spanish': 'es', 'French': 'fr', 'Italian': 'it',
+  'Portuguese': 'pt', 'Romanian': 'ro', 'English': 'en'
+};
+
+// franc language detection - loaded dynamically to handle ESM module
+let francDetect = null;
+async function detectLang(text) {
+  try {
+    if (!francDetect) {
+      const francModule = await import('franc');
+      francDetect = francModule.franc;
+    }
+    return francDetect(text, { minLength: 20 });
+  } catch(e) {
+    return 'und'; // undetermined
+  }
+}
+
+function isAllowedLanguage(text, allowedCodes) {
+  if (!text || text.length < 20) return true; // too short to detect, allow
+  // Quick ASCII check - if mostly ASCII it's likely English
+  const asciiRatio = (text.match(/[\x00-\x7F]/g) || []).length / text.length;
+  if (asciiRatio > 0.95 && allowedCodes.includes('en')) return true;
+  return true; // Will do async filtering after fetch for now
+}
+
 function fetchUrl(url) {
   return new Promise((resolve, reject) => {
     const client = url.startsWith('https') ? https : http;
@@ -48,23 +76,21 @@ function parseRSS(xml) {
   return articles;
 }
 
-async function fetchGuardian(source, keywords, topics, fromDate) {
+async function fetchGuardian(source, keywords, topics, fromDate, langCodes) {
   const apiKey = process.env.GUARDIAN_API_KEY;
   const articles = [];
   const terms = [...keywords, ...topics];
+  const langParam = langCodes.includes('en') ? '' : `&lang=${langCodes[0]}`;
   for (const term of terms) {
-    const url = `https://content.guardianapis.com/search?q=${encodeURIComponent(term.text)}&from-date=${fromDate}&show-fields=trailText&order-by=newest&page-size=10&api-key=${apiKey}`;
+    const url = `https://content.guardianapis.com/search?q=${encodeURIComponent(term.text)}&from-date=${fromDate}&show-fields=trailText&order-by=newest&page-size=10${langParam}&api-key=${apiKey}`;
     const data = JSON.parse(await fetchUrl(url));
     if (data.response?.results) {
       for (const a of data.response.results) {
         articles.push({
-          title: a.webTitle,
-          link: a.webUrl,
+          title: a.webTitle, link: a.webUrl,
           summary: a.fields?.trailText?.replace(/<[^>]+>/g,'') || '',
-          categoryID: term.categoryID,
-          keywordID: term.keywordID || null,
-          topicID: term.topicID || null,
-          pubDate: new Date(a.webPublicationDate)
+          categoryID: term.categoryID, keywordID: term.keywordID || null,
+          topicID: term.topicID || null, pubDate: new Date(a.webPublicationDate)
         });
       }
     }
@@ -77,22 +103,19 @@ async function fetchNYT(source) {
   const url = `https://api.nytimes.com/svc/topstories/v2/home.json?api-key=${apiKey}`;
   const data = JSON.parse(await fetchUrl(url));
   return (data.results || []).map(a => ({
-    title: a.title,
-    link: a.url,
-    summary: a.abstract || '',
-    pubDate: new Date(a.published_date)
+    title: a.title, link: a.url,
+    summary: a.abstract || '', pubDate: new Date(a.published_date)
   }));
 }
 
-async function fetchGNews(source) {
+async function fetchGNews(source, langCodes) {
   const apiKey = process.env.GNEWS_API_KEY;
-  const url = `https://gnews.io/api/v4/top-headlines?lang=en&max=20&apikey=${apiKey}`;
+  const lang = langCodes.includes('en') ? 'en' : langCodes[0] || 'en';
+  const url = `https://gnews.io/api/v4/top-headlines?lang=${lang}&max=20&apikey=${apiKey}`;
   const data = JSON.parse(await fetchUrl(url));
   return (data.articles || []).map(a => ({
-    title: a.title,
-    link: a.url,
-    summary: a.description || '',
-    pubDate: new Date(a.publishedAt)
+    title: a.title, link: a.url,
+    summary: a.description || '', pubDate: new Date(a.publishedAt)
   }));
 }
 
@@ -101,10 +124,8 @@ async function fetchCurrents(source) {
   const url = `https://api.currentsapi.services/v1/latest-news?language=en&apiKey=${apiKey}`;
   const data = JSON.parse(await fetchUrl(url));
   return (data.news || []).map(a => ({
-    title: a.title,
-    link: a.url,
-    summary: a.description || '',
-    pubDate: new Date(a.published)
+    title: a.title, link: a.url,
+    summary: a.description || '', pubDate: new Date(a.published)
   }));
 }
 
@@ -113,22 +134,19 @@ async function fetchMediaStack(source) {
   const url = `http://api.mediastack.com/v1/news?access_key=${apiKey}&languages=en&limit=20`;
   const data = JSON.parse(await fetchUrl(url));
   return (data.data || []).map(a => ({
-    title: a.title,
-    link: a.url,
-    summary: a.description || '',
-    pubDate: new Date(a.published_at)
+    title: a.title, link: a.url,
+    summary: a.description || '', pubDate: new Date(a.published_at)
   }));
 }
 
-async function fetchNewsAPI(source) {
+async function fetchNewsAPI(source, langCodes) {
   const apiKey = process.env.NEWSAPI_KEY;
-  const url = `https://newsapi.org/v2/top-headlines?language=en&pageSize=20&apiKey=${apiKey}`;
+  const lang = langCodes.includes('en') ? 'en' : langCodes[0] || 'en';
+  const url = `https://newsapi.org/v2/top-headlines?language=${lang}&pageSize=20&apiKey=${apiKey}`;
   const data = JSON.parse(await fetchUrl(url));
   return (data.articles || []).map(a => ({
-    title: a.title,
-    link: a.url,
-    summary: a.description || '',
-    pubDate: new Date(a.publishedAt)
+    title: a.title, link: a.url,
+    summary: a.description || '', pubDate: new Date(a.publishedAt)
   }));
 }
 
@@ -137,14 +155,14 @@ async function fetchRSS(source) {
   return parseRSS(xml);
 }
 
-async function fetchYouTube(source, keywords, topics, maxResults, context) {
+async function fetchYouTube(source, keywords, maxResults, langCodes, context) {
   const apiKey = process.env.YOUTUBE_API_KEY;
   const articles = [];
-  const terms = [...keywords, ...topics];
-  context.log(`YouTube: ${terms.length} terms, maxResults: ${maxResults}`);
-  for (const term of terms) {
+  const relevanceLang = langCodes.includes('en') ? 'en' : langCodes[0] || 'en';
+  context.log(`YouTube: ${keywords.length} keywords, maxResults: ${maxResults}, lang: ${relevanceLang}`);
+  for (const term of keywords) {
     try {
-      const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(term.text)}&type=video&order=date&maxResults=${maxResults}&key=${apiKey}`;
+      const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(term.text)}&type=video&order=date&maxResults=${maxResults}&relevanceLanguage=${relevanceLang}&key=${apiKey}`;
       const searchData = JSON.parse(await fetchUrl(searchUrl));
       context.log(`YouTube term "${term.text}": ${searchData.items?.length || 0} results, error: ${JSON.stringify(searchData.error || null)}`);
       for (const item of (searchData.items || [])) {
@@ -157,10 +175,8 @@ async function fetchYouTube(source, keywords, topics, maxResults, context) {
           thumbnailURL: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || null,
           channelName: item.snippet.channelTitle,
           channelURL: `https://www.youtube.com/channel/${item.snippet.channelId}`,
-          categoryID: term.categoryID,
-          keywordID: term.keywordID || null,
-          topicID: term.topicID || null,
-          pubDate: new Date(item.snippet.publishedAt)
+          categoryID: term.categoryID, keywordID: term.keywordID || null,
+          topicID: term.topicID || null, pubDate: new Date(item.snippet.publishedAt)
         });
       }
     } catch(e) {
@@ -170,29 +186,59 @@ async function fetchYouTube(source, keywords, topics, maxResults, context) {
   return articles;
 }
 
+async function filterByLanguage(articles, allowedCodes) {
+  const filtered = [];
+  for (const a of articles) {
+    const text = `${a.title || ''} ${a.summary || ''}`.trim();
+    if (text.length < 20) { filtered.push(a); continue; }
+    const detected = await detectLang(text);
+    // franc returns ISO 639-3 codes, map common ones
+    const iso3to2 = { 'eng':'en','spa':'es','fra':'fr','ita':'it','por':'pt','ron':'ro','und':'en' };
+    const detected2 = iso3to2[detected] || detected.substring(0,2);
+    if (allowedCodes.includes(detected2) || detected === 'und') {
+      filtered.push(a);
+    }
+  }
+  return filtered;
+}
+
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
     const userID = req.body?.userID || req.query?.userID || 1;
 
+    // Get settings including LastYouTubeFetch
     const settingResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT RecencyDays, MaxHeadlines, YouTubeMaxResults FROM [HeadlineSetting] WHERE UserID = @UserID`);
+      .query(`SELECT RecencyDays, MaxHeadlines, YouTubeMaxResults, LastYouTubeFetch FROM [HeadlineSetting] WHERE UserID = @UserID`);
     const recencyDays = settingResult.recordset[0]?.RecencyDays || 7;
     const maxHeadlines = settingResult.recordset[0]?.MaxHeadlines || 50;
     const youTubeMaxResults = settingResult.recordset[0]?.YouTubeMaxResults || 3;
+    const lastYouTubeFetch = settingResult.recordset[0]?.LastYouTubeFetch;
+
+    // Check if YouTube was already fetched today
+    const today = new Date().toISOString().split('T')[0];
+    const lastFetchDate = lastYouTubeFetch ? new Date(lastYouTubeFetch).toISOString().split('T')[0] : null;
+    const youtubeAlreadyFetched = lastFetchDate === today;
 
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - recencyDays);
     const fromDateStr = fromDate.toISOString().split('T')[0];
 
+    // Get user's active languages
+    const langResult = await pool.request()
+      .input('UserID', sql.Int, userID)
+      .query(`SELECT l.LanguageNameEng FROM UserLanguage ul
+              JOIN Language l ON l.LanguageID = ul.LanguageID
+              WHERE ul.UserID = @UserID AND ul.IsActive = 'Y'`);
+    const userLangCodes = ['en', ...langResult.recordset.map(r => langCodeMap[r.LanguageNameEng] || 'en')];
+    const uniqueLangCodes = [...new Set(userLangCodes)];
+
     const sourcesResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`
-        SELECT h.* FROM [HeadlineSource] h
-        INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
-        WHERE uhs.UserID = @UserID AND h.IsActive = 'Y'
-      `);
+      .query(`SELECT h.* FROM [HeadlineSource] h
+              INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
+              WHERE uhs.UserID = @UserID AND h.IsActive = 'Y'`);
     const sources = sourcesResult.recordset;
 
     const kwResult = await pool.request()
@@ -211,19 +257,34 @@ module.exports = async function(context, req) {
     const existingLinks = new Set(existingResult.recordset.map(r => r.Link));
 
     let allArticles = [];
+    let youtubeFetched = false;
+
     for (const source of sources) {
       try {
         let articles = [];
         switch(source.SourceType) {
-          case 'Guardian':   articles = await fetchGuardian(source, keywords, topics, fromDateStr); break;
+          case 'Guardian':   articles = await fetchGuardian(source, keywords, topics, fromDateStr, uniqueLangCodes); break;
           case 'NYT':        articles = await fetchNYT(source); break;
-          case 'GNews':      articles = await fetchGNews(source); break;
+          case 'GNews':      articles = await fetchGNews(source, uniqueLangCodes); break;
           case 'Currents':   articles = await fetchCurrents(source); break;
           case 'MediaStack': articles = await fetchMediaStack(source); break;
-          case 'NewsAPI':    articles = await fetchNewsAPI(source); break;
+          case 'NewsAPI':    articles = await fetchNewsAPI(source, uniqueLangCodes); break;
           case 'RSS':        articles = await fetchRSS(source); break;
-          case 'YouTube':    articles = await fetchYouTube(source, keywords, [], youTubeMaxResults, context); break;
+          case 'YouTube':
+            if (youtubeAlreadyFetched) {
+              context.log(`YouTube skipped — already fetched today`);
+              continue;
+            }
+            articles = await fetchYouTube(source, keywords, youTubeMaxResults, uniqueLangCodes, context);
+            youtubeFetched = true;
+            break;
         }
+
+        // Post-filter by language for RSS sources
+        if (source.SourceType === 'RSS') {
+          articles = await filterByLanguage(articles, uniqueLangCodes);
+        }
+
         articles.forEach(a => {
           a.sourceName = source.Name;
           a.sourceID = source.SourceID;
@@ -240,6 +301,13 @@ module.exports = async function(context, req) {
       }
     }
 
+    // Update LastYouTubeFetch if YouTube was fetched
+    if (youtubeFetched) {
+      await pool.request()
+        .input('UserID', sql.Int, userID)
+        .query(`UPDATE [HeadlineSetting] SET LastYouTubeFetch = GETDATE() WHERE UserID = @UserID`);
+    }
+
     const seen = new Set();
     const unique = allArticles.filter(a => {
       if (!a.link || seen.has(a.link) || existingLinks.has(a.link)) return false;
@@ -250,49 +318,32 @@ module.exports = async function(context, req) {
     const catNamesResult = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`SELECT CategoryID, Name FROM [Category] WHERE UserID = @UserID AND IsActive = 'Y' AND Headlines = 'Y'`);
-    const categoryNames = catNamesResult.recordset.map(c => c.Name);
-
-    const vocabulary = new Set();
-    [...kwResult.recordset, ...tpResult.recordset].forEach(t => {
-      t.text.toLowerCase().split(' ')
-        .filter(w => w.length > 4)
-        .forEach(w => vocabulary.add(w));
-    });
 
     for (const a of unique) {
       if (a.categoryID) continue;
       const text = `${a.title} ${a.summary}`.toLowerCase();
       let matched = false;
-
-      // Exact whole-word keyword match
       for (const kw of kwResult.recordset) {
         const escaped = kw.text.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const regex = new RegExp(`\\b${escaped}\\b`, 'i');
         if (regex.test(text)) {
-          a.categoryID = kw.CategoryID;
-          a.keywordID = kw.KeywordID;
-          matched = true;
-          break;
+          a.categoryID = kw.CategoryID; a.keywordID = kw.KeywordID;
+          matched = true; break;
         }
       }
       if (matched) continue;
-
-      // Fuzzy topic match
       for (const tp of tpResult.recordset) {
         const words = tp.text.toLowerCase().split(' ').filter(w => w.length > 3);
         const matchCount = words.filter(w => text.includes(w)).length;
         if (matchCount >= Math.ceil(words.length * 0.5)) {
-          a.categoryID = tp.CategoryID;
-          a.topicID = tp.TopicID;
-          matched = true;
-          break;
+          a.categoryID = tp.CategoryID; a.topicID = tp.TopicID;
+          matched = true; break;
         }
       }
     }
 
     unique.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
 
-    // Get per-category limits for this user
     const catLimitsResult = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`SELECT CategoryID, MaxItems FROM [UserCategorySetting] WHERE UserID = @UserID`);
@@ -303,7 +354,6 @@ module.exports = async function(context, req) {
 
     const selected = [];
     const catCounts = {};
-
     for (const a of unique) {
       const cat = a.categoryID !== null && a.categoryID !== undefined ? a.categoryID : 'none';
       if (!(cat in catCounts)) catCounts[cat] = 0;
@@ -311,10 +361,7 @@ module.exports = async function(context, req) {
         selected.push(a);
       } else {
         const limit = catLimits[cat] || defaultPerCat;
-        if (catCounts[cat] < limit) {
-          selected.push(a);
-          catCounts[cat]++;
-        }
+        if (catCounts[cat] < limit) { selected.push(a); catCounts[cat]++; }
       }
     }
 
@@ -322,27 +369,25 @@ module.exports = async function(context, req) {
     let totalInserted = 0;
     for (const a of selected) {
       try {
-      await pool.request()
-        .input('UserID', sql.Int, userID)
-        .input('CategoryID', sql.Int, a.categoryID || null)
-        .input('HeadlineName', sql.NVarChar(500), (a.title || '').substring(0, 500))
-        .input('Link', sql.NVarChar(500), (a.link || '').substring(0, 500))
-        .input('Summary', sql.NVarChar(1000), (a.summary || '').substring(0, 1000))
-        .input('KeywordID', sql.Int, a.keywordID || null)
-        .input('TopicID', sql.Int, a.topicID || null)
-        .input('ThumbnailURL', sql.NVarChar(500), a.thumbnailURL || null)
-        .input('ChannelName', sql.NVarChar(200), a.channelName || null)
-        .input('ChannelURL', sql.NVarChar(500), a.channelURL || null)
-        .input('SourceID', sql.Int, a.sourceID || null)
-        .query(`
-          INSERT INTO [Headline]
-            (UserID, CategoryID, HeadlineName, Link, Summary, CreatedDate, Retain,
-             KeywordID, TopicID, ThumbnailURL, ChannelName, ChannelURL, SourceID)
-          VALUES
-            (@UserID, @CategoryID, @HeadlineName, @Link, @Summary, GETDATE(), 'N',
-             @KeywordID, @TopicID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID)
-        `);
-      totalInserted++;
+        await pool.request()
+          .input('UserID', sql.Int, userID)
+          .input('CategoryID', sql.Int, a.categoryID || null)
+          .input('HeadlineName', sql.NVarChar(500), (a.title || '').substring(0, 500))
+          .input('Link', sql.NVarChar(500), (a.link || '').substring(0, 500))
+          .input('Summary', sql.NVarChar(1000), (a.summary || '').substring(0, 1000))
+          .input('KeywordID', sql.Int, a.keywordID || null)
+          .input('TopicID', sql.Int, a.topicID || null)
+          .input('ThumbnailURL', sql.NVarChar(500), a.thumbnailURL || null)
+          .input('ChannelName', sql.NVarChar(200), a.channelName || null)
+          .input('ChannelURL', sql.NVarChar(500), a.channelURL || null)
+          .input('SourceID', sql.Int, a.sourceID || null)
+          .query(`INSERT INTO [Headline]
+                    (UserID, CategoryID, HeadlineName, Link, Summary, CreatedDate, Retain,
+                     KeywordID, TopicID, ThumbnailURL, ChannelName, ChannelURL, SourceID)
+                  VALUES
+                    (@UserID, @CategoryID, @HeadlineName, @Link, @Summary, GETDATE(), 'N',
+                     @KeywordID, @TopicID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID)`);
+        totalInserted++;
       } catch(insertErr) {
         context.log(`Insert error: ${insertErr.message} | title: ${a.title?.substring(0,50)}`);
       }
@@ -352,10 +397,10 @@ module.exports = async function(context, req) {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        success: true,
-        inserted: totalInserted,
+        success: true, inserted: totalInserted,
         duplicates: allArticles.length - unique.length,
-        sourcesProcessed: sources.length
+        sourcesProcessed: sources.length,
+        youtubeSkipped: youtubeAlreadyFetched
       })
     };
   } catch(err) {
