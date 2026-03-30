@@ -276,6 +276,7 @@ module.exports = async function(context, req) {
               continue;
             }
             articles = await fetchYouTube(source, keywords, youTubeMaxResults, uniqueLangCodes, context);
+            articles = await filterByLanguage(articles, uniqueLangCodes);
             youtubeFetched = true;
             break;
         }
