@@ -196,13 +196,17 @@
 .conj-mood:last-child { border-radius:0 0 10px 10px; }
 .conj-mood-header { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; cursor:pointer; font-size:13px; font-weight:700; color:var(--text); background:#f5f9ff; border-bottom:1px solid var(--border); }
 .conj-mood-header.expanded { background:#eef5fc; }
-.conj-tense { padding:10px 14px; border-bottom:1px solid #eef5fc; }
-.conj-tense:last-child { border-bottom:none; }
-.conj-tense-name { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--sky-deep); margin-bottom:8px; }
-.conj-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 24px; }
-.conj-cell { display:grid; grid-template-columns:90px 1fr; font-size:13px; padding:2px 0; }
-.conj-pronoun { color:var(--text-soft); }
-.conj-form { font-weight:600; color:var(--text); }
+.conj-tenses-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.conj-tense-box { border:1.5px solid var(--border); border-radius:8px; overflow:hidden; }
+.conj-tense-header { background:#f8fbff; padding:5px 10px; font-size:10px; font-weight:700; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.6px; border-bottom:1px solid var(--border); }
+.conj-grid { display:grid; grid-template-columns:1fr 1fr; }
+.conj-cell { display:flex; align-items:center; gap:6px; padding:4px 8px; border-bottom:1px solid #eef5fc; border-right:1px solid #eef5fc; }
+.conj-cell:nth-child(2n) { border-right:none; }
+.conj-cell:nth-last-child(-n+2) { border-bottom:none; }
+.conj-pronoun-block { min-width:36px; }
+.conj-pronoun { font-size:11px; color:var(--text-soft); font-weight:600; white-space:nowrap; }
+.conj-pronoun-eng { font-size:9px; color:var(--text-muted); }
+.conj-form { font-size:13px; font-weight:600; color:var(--text); flex:1; }
     @media (max-width:700px) { .settings-deck-grid { grid-template-columns:1fr; } .header { padding:14px 16px; } .main { padding:16px; } .app-title { font-size:20px; } .nav-btn { padding:8px 14px; min-width:60px; } .headline-thumb { width:72px; height:45px; } }
   </style>
 </head>
@@ -564,7 +568,7 @@
     const wordRows=displayWords.map(w=>{
       const genderLabel=w.Gender==='M'?'<span class="word-gender">♂</span>':w.Gender==='F'?'<span class="word-gender">♀</span>':'';
       const verbLabel=w.IsVerb==='Y'?'<span style="font-size:10px;color:var(--text-muted);margin-left:4px">verb</span>':'';
-      const conjugateLink=w.IsVerb==='Y'?`<span class="conjugate-link" onclick="showConjugation(${w.UserLanguageWordsID})" style="font-weight:400;margin-left:10px;font-size:11px">conjugate</span>`:'';
+      const conjugateLink=w.IsVerb==='Y'?`<span class="conjugate-link" onclick="showConjugation(${w.UserLanguageWordsID},()=>showLangFeature(currentLangID,'mywords',currentLangName))" style="font-weight:400;margin-left:10px;font-size:11px">conjugate</span>`:'';
       const imgEl=showImages?(w.WordsImage?`<img src="${w.WordsImage}" class="word-img" alt="">`:`<div class="word-img-placeholder">📖</div>`):'';
       return `<div class="word-row" data-wordid="${w.UserLanguageWordsID}">
         ${imgEl}
@@ -800,7 +804,7 @@
       cardHTML=`<div class="flashcard"><div class="flashcard-word">No words to study!</div><div class="flashcard-hint">Add words in My Words.</div></div>`;
     }else{
       const genderLabel=card.Gender==='M'?' <span style="font-size:18px;color:var(--text-soft);font-weight:700">♂</span>':card.Gender==='F'?' <span style="font-size:18px;color:var(--text-soft);font-weight:700">♀</span>':'';
-      const fcConjugateLink=card.IsVerb==='Y'?`<div style="margin-top:8px"><span class="conjugate-link" onclick="event.stopPropagation();showConjugation(${card.UserLanguageWordsID})">conjugate</span></div>`:'';
+      const fcConjugateLink=card.IsVerb==='Y'?`<div style="margin-top:8px"><span class="conjugate-link" onclick="event.stopPropagation();showConjugation(${card.UserLanguageWordsID},()=>showLangFeature(currentLangID,'flashcards',currentLangName))">conjugate</span></div>`:'';
       const imgEl=card.WordsImage?`<img src="${card.WordsImage}" class="flashcard-image" alt="">`:'';
       const transEl=flashcardShowTranslation?`<div class="flashcard-translation">${card.WordsTranslation||'—'}</div>`:`<div class="flashcard-hint">Tap card to reveal translation</div>`;
       cardHTML=`
@@ -910,15 +914,15 @@ async function loadConjugation(wordID,langName){
       let html=`<div class="conj-verb-header"><div class="conj-verb-name">${data.verb||''}</div><div class="conj-verb-meaning">${data.language||''}</div></div>`;
       data.moods.forEach((mood,mi)=>{
         const expanded=mi===0;
-        html+=`<div class="conj-mood"><div class="conj-mood-header ${expanded?'expanded':''}" onclick="toggleConjMood(this)">${mood.moodName}<span>${expanded?'▲':'▼'}</span></div><div style="display:${expanded?'block':'none'}">`;
+        html+=`<div class="conj-mood"><div class="conj-mood-header ${expanded?'expanded':''}" onclick="toggleConjMood(this)"><div class="conj-mood-title">${mood.moodEng} <span style="font-size:12px;color:var(--text-muted);font-family:sans-serif">(${mood.moodName})</span></div><span>${expanded?'▲':'▼'}</span></div><div style="display:${expanded?'block':'none'}"><div class="conj-tenses-grid">`;
         mood.tenses.forEach(tense=>{
-          html+=`<div class="conj-tense"><div class="conj-tense-name">${tense.tenseName}</div><div class="conj-grid">`;
+          html+=`<div class="conj-tense-box"><div class="conj-tense-header">${tense.tenseEng} <span style="font-weight:400;opacity:0.7">(${tense.tenseName})</span></div><div class="conj-grid">`;
           tense.forms.forEach(f=>{
-            html+=`<div class="conj-cell"><span class="conj-pronoun">${f.pronounName}</span><span class="conj-form">${f.form}</span></div>`;
+            html+=`<div class="conj-cell"><div class="conj-pronoun-block"><span class="conj-pronoun">${f.pronounName}</span><div class="conj-pronoun-eng">${f.pronounEng||''}</div></div><span class="conj-form">${f.form}</span></div>`;
           });
           html+=`</div></div>`;
         });
-        html+=`</div></div>`;
+        html+=`</div></div></div>`;
       });
       out.innerHTML=html;
     }catch(e){out.innerHTML='<div class="empty-state">Error: '+e.message+'</div>';}
@@ -932,7 +936,14 @@ async function loadConjugation(wordID,langName){
     header.querySelector('span').textContent=open?'▼':'▲';
   }
 
-async function showConjugation(wordID){
+  let conjReturnFn = null;
+  function cancelConjugation(){
+    if(conjReturnFn) { conjReturnFn(); conjReturnFn=null; }
+    else { showScreen(`lang-${currentLangID}`); showLangFeature(currentLangID,'mywords',currentLangName); }
+  }
+
+  async function showConjugation(wordID, returnFn){
+    conjReturnFn = returnFn || null;
     await showLangFeature(currentLangID,'conjugation',currentLangName,wordID);
   }
 
@@ -948,6 +959,11 @@ async function showConjugation(wordID){
     if(e.code==='ArrowLeft'){e.preventDefault();moveFlashcard(-1);}
   });
   document.addEventListener('paste',handlePasteImage);
+  document.addEventListener('keydown', function(e){
+    if(e.key==='Escape' && currentLangID && document.getElementById(`screen-conjugation-${currentLangID}`)?.classList.contains('active')){
+      cancelConjugation();
+    }
+  });
 
   // ── HEADLINES ──
 
