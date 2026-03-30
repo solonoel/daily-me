@@ -303,7 +303,7 @@
         </div>
         <div class="settings-deck">
           <div class="settings-deck-title">🌍 Languages</div>
-          <div class="lang-max-note" style="margin-bottom:12px">Select up to 2 languages. Your word data is retained when a language is deactivated.</div>
+          <div class="lang-max-note" style="margin-bottom:12px">Your word data is retained when a language is deactivated.</div>
           <div id="lang-check-list"><div style="font-size:12px;color:var(--text-muted)">Loading languages...</div></div>
         </div>
       </div>
@@ -549,7 +549,7 @@
         <span class="lang-native">${lang.LanguageName}</span>
         <input type="checkbox" class="lang-checkbox" ${ul?.IsActive==='Y'?'checked':''} onchange="toggleUserLanguage(${lang.LanguageID},this)">
       </div>`;
-    }).join('')+`<div class="lang-max-note">Max 2 languages active at a time.</div>`;
+    }).join('');
   }
 
   async function toggleUserLanguage(languageID,checkbox){
@@ -693,7 +693,7 @@
           <div style="flex:1">
             <div class="form-group">
               <label class="form-label">${currentLangName} Word or Phrase</label>
-              <input class="form-input" id="nw-word" value="${word?word.WordsName:''}" placeholder="e.g. la bicicleta" style="font-size:22px;font-weight:700;color:var(--text)">
+              <input class="form-input" id="nw-word" value="${word?word.WordsName:''}" placeholder="" style="font-size:22px;font-weight:700;color:var(--text)">
               <a href="#" id="nw-fetch-btn" onclick="fetchTranslation();return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;display:inline-block">🔍 Fetch Translation</a>
               <a href="#" onclick="window.open('https://translate.google.com/#auto/en/'+encodeURIComponent(document.getElementById('nw-word').value),'_blank');return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:inline-block">🌐 Translate</a>
               ${isEdit&&word?.IsVerb==='Y'?`<a href="#" onclick="showConjugation(${word.UserLanguageWordsID},()=>editWord(${word.UserLanguageWordsID}));return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:inline-block">🔤 Conjugate</a>`:''}
@@ -748,21 +748,26 @@
     showScreen(`newword-${currentLangID}`);
   }
 
+  let _wordFormSaving=false;
   async function saveWordForm(addAnother){
-    const wordsName=document.getElementById('nw-word')?.value.trim();
-    if(!wordsName){alert('Word is required.');return;}
-    const wordsTranslation=document.getElementById('nw-translation')?.value.trim();
-    const isVerb=document.getElementById('nw-isverb')?.checked;
-    const gender=document.getElementById('nw-gender')?.value||null;
-    if(editingWordID){
-      const mastered=document.getElementById('nw-mastered')?.checked;
-      await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:editingWordID,wordsName,wordsTranslation,isVerb,gender,mastered,wordsImage:newWordImage});
-    }else{
-      await apiPost('SaveUserLanguageWord',{action:'add',userID:USER_ID,languageID:currentLangID,wordsName,wordsTranslation,isVerb,gender,wordsImage:newWordImage});
-    }
-    newWordImageChanged=false;editingWordID=null;
-    if(addAnother){newWordImage=null;showNewWord();}
-    else{showScreen(`lang-${currentLangID}`);await showLangFeature(currentLangID,'mywords',currentLangName);}
+    if(_wordFormSaving)return;
+    _wordFormSaving=true;
+    try{
+      const wordsName=document.getElementById('nw-word')?.value.trim();
+      if(!wordsName){alert('Word is required.');return;}
+      const wordsTranslation=document.getElementById('nw-translation')?.value.trim();
+      const isVerb=document.getElementById('nw-isverb')?.checked;
+      const gender=document.getElementById('nw-gender')?.value||null;
+      if(editingWordID){
+        const mastered=document.getElementById('nw-mastered')?.checked;
+        await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:editingWordID,wordsName,wordsTranslation,isVerb,gender,mastered,wordsImage:newWordImage});
+      }else{
+        await apiPost('SaveUserLanguageWord',{action:'add',userID:USER_ID,languageID:currentLangID,wordsName,wordsTranslation,isVerb,gender,wordsImage:newWordImage});
+      }
+      newWordImageChanged=false;editingWordID=null;
+      if(addAnother){newWordImage=null;showNewWord();}
+      else{showScreen(`lang-${currentLangID}`);await showLangFeature(currentLangID,'mywords',currentLangName);}
+    }finally{_wordFormSaving=false;}
   }
 
   function cancelWordForm(){
@@ -929,20 +934,22 @@
 function renderConjugationHTML(langID,langName,verbs,autoLoadWordID=null){
     if(!verbs.length)return`<div class="empty-state">No verbs found. Add verbs in My Words.</div>`;
     conjVerbs=verbs; conjLangName=langName;
-    const loadVerb=verbs.find(v=>v.UserLanguageWordsID==autoLoadWordID)||verbs[0];
+    const loadVerb=autoLoadWordID?verbs.find(v=>v.UserLanguageWordsID==autoLoadWordID)||null:null;
     const optItems=verbs.map(v=>`<div class="conj-verb-opt" onclick="selectConjVerb(${v.UserLanguageWordsID})"><span class="conj-verb-opt-word">${v.WordsName}</span><span class="conj-verb-opt-trans">${v.WordsTranslation||''}</span></div>`).join('');
-    setTimeout(()=>loadConjugation(loadVerb.UserLanguageWordsID,langName),0);
+    if(loadVerb)setTimeout(()=>loadConjugation(loadVerb.UserLanguageWordsID,langName),0);
+    const pickerWord=loadVerb?loadVerb.WordsName:'Select a verb...';
+    const pickerTrans=loadVerb?loadVerb.WordsTranslation||'':'';
     return`<div class="conj-panel">
       <div style="display:flex;align-items:center;gap:10px;margin:12px 0">
         <button onclick="cancelConjugation()" style="padding:5px 12px;font-size:12px;font-weight:600;color:var(--sky-deep);background:white;border:1.5px solid var(--sky-deep);border-radius:6px;cursor:pointer;flex-shrink:0">← Back</button>
         <div class="conj-verb-picker" id="conj-verb-picker" onclick="toggleVerbPicker(event)">
-          <span class="conj-pick-word" id="conj-pick-word">${loadVerb.WordsName}</span>
-          <span class="conj-pick-trans" id="conj-pick-trans">${loadVerb.WordsTranslation||''}</span>
+          <span class="conj-pick-word" id="conj-pick-word" style="${loadVerb?'':'color:var(--text-muted);font-size:14px;font-weight:400'}">${pickerWord}</span>
+          <span class="conj-pick-trans" id="conj-pick-trans">${pickerTrans}</span>
           <span style="font-size:11px;color:var(--text-muted)">▾</span>
-          <div class="conj-verb-dropdown" id="conj-verb-dropdown" style="display:none" onclick="event.stopPropagation()">${optItems}</div>
+          <div class="conj-verb-dropdown" id="conj-verb-dropdown" style="display:${loadVerb?'none':'block'}" onclick="event.stopPropagation()">${optItems}</div>
         </div>
       </div>
-      <div id="conj-output"></div>
+      <div id="conj-output">${loadVerb?'':'<div style="padding:20px;font-size:13px;color:var(--text-muted);text-align:center">Select a verb above to view conjugations.</div>'}</div>
     </div>`;
   }
 
@@ -1076,7 +1083,7 @@ async function loadConjugation(wordID,langName){
   }
 
   function renderCategoryTiles(allHeadlines){
-    const cats=categories.filter(c=>c.Headlines==='Y'&&c.IsActive==='Y').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999));
+    const cats=categories.filter(c=>c.Headlines==='Y'&&c.IsActive==='Y'&&c.Name.toLowerCase()!=='health').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999));
     const row=document.getElementById('cat-row');
     row.innerHTML=cats.map(c=>{
       const style=catColors[c.Name]||{dot:'#888'};
@@ -1260,7 +1267,7 @@ async function loadConjugation(wordID,langName){
   }
 
   function renderSettingsCategories(){
-    document.getElementById('tbl-categories').innerHTML=[...categories].sort((a,b)=>(a.Sequence||999)-(b.Sequence||999)).map(c=>`
+    document.getElementById('tbl-categories').innerHTML=[...categories].filter(c=>c.Name.toLowerCase()!=='health').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999)).map(c=>`
       <tr><td style="width:50px">${c.Sequence||'—'}</td><td><strong>${c.Name}</strong></td><td>${c.Headlines==='Y'?'✓':'—'}</td><td>${c.MyWords==='Y'?'✓':'—'}</td>
       <td><button class="toggle ${c.IsActive==='Y'?'on':''}" onclick="toggleCategory(${c.CategoryID},this)"></button></td>
       <td style="display:flex;gap:6px"><button class="btn-icon" onclick="openModal('category',${c.CategoryID})">✏️</button><button class="btn-icon danger" onclick="deleteCategory(${c.CategoryID})">🗑️</button></td></tr>`).join('');
@@ -1361,6 +1368,7 @@ async function loadConjugation(wordID,langName){
       const name=document.getElementById('m-name').value.trim(),sequence=parseInt(document.getElementById('m-seq').value)||99;
       const headlines=document.getElementById('m-headlines').checked,myWords=document.getElementById('m-mywords').checked;
       if(!name)return alert('Name is required');
+      if(!modalID&&name.toLowerCase()==='health')return alert('A "Health" category already exists and is managed separately.');
       if(modalID){await apiPost('SaveCategory',{action:'update',categoryID:modalID,name,sequence,headlines,myWords,isActive:true,userID:USER_ID});const cat=categories.find(c=>c.CategoryID===modalID);if(cat){cat.Name=name;cat.Sequence=sequence;cat.Headlines=headlines?'Y':'N';cat.MyWords=myWords?'Y':'N';}}
       else{const result=await apiPost('SaveCategory',{action:'add',name,sequence,headlines,myWords,userID:USER_ID});categories.push({CategoryID:result.categoryID,Name:name,Sequence:sequence,Headlines:headlines?'Y':'N',MyWords:myWords?'Y':'N',IsActive:'Y'});}
       renderSettingsCategories();renderCategoryTiles(null);
