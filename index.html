@@ -517,22 +517,37 @@
     myWords=Array.isArray(data)?data:[];renderMyWords();
   }
 
+  let verbFilter='all';
+
   function renderMyWordsHTML(langID,langName){
-    const activeCount=myWords.filter(w=>!w.DateMastered).length;
-    const flaggedCount=myWords.filter(w=>w.Flag).length;
-    const masteredCount=myWords.filter(w=>w.DateMastered).length;
+    // Apply verb filter first
+    const verbFiltered = verbFilter==='verbs' ? myWords.filter(w=>w.IsVerb==='Y')
+      : verbFilter==='nouns' ? myWords.filter(w=>w.IsVerb!=='Y')
+      : myWords;
+
+    // Then apply status filter
+    const displayWords = myWordsFilter==='active' ? verbFiltered.filter(w=>!w.DateMastered)
+      : myWordsFilter==='flagged' ? verbFiltered.filter(w=>w.Flag)
+      : myWordsFilter==='mastered' ? verbFiltered.filter(w=>w.DateMastered)
+      : verbFiltered;
+
+    const activeCount=verbFiltered.filter(w=>!w.DateMastered).length;
+    const flaggedCount=verbFiltered.filter(w=>w.Flag).length;
+    const masteredCount=verbFiltered.filter(w=>w.DateMastered).length;
     const filters=[
       {key:'active',label:`Active (${activeCount})`},{key:'flagged',label:`Flagged (${flaggedCount})`},
-      {key:'mastered',label:`Mastered (${masteredCount})`},{key:'all',label:`All (${myWords.length})`}
+      {key:'mastered',label:`Mastered (${masteredCount})`},{key:'all',label:`All (${verbFiltered.length})`}
     ];
-    const wordRows=myWords.map(w=>{
+
+    const wordRows=displayWords.map(w=>{
       const genderLabel=w.Gender==='M'?'<span class="word-gender">♂</span>':w.Gender==='F'?'<span class="word-gender">♀</span>':'';
       const verbLabel=w.IsVerb==='Y'?'<span style="font-size:10px;color:var(--text-muted);margin-left:4px">verb</span>':'';
+      const conjugateLink=w.IsVerb==='Y'?`<a class="conjugate-link" onclick="showConjugation(${w.UserLanguageWordsID});return false;">conjugate</a>`:'';
       const imgEl=showImages?(w.WordsImage?`<img src="${w.WordsImage}" class="word-img" alt="">`:`<div class="word-img-placeholder">📖</div>`):'';
-      return `<div class="word-row">
+      return `<div class="word-row" data-wordid="${w.UserLanguageWordsID}">
         ${imgEl}
         <div class="word-body">
-          <div class="word-name"><a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;" style="color:var(--text);text-decoration:none;border-bottom:1px dashed var(--border)">${w.WordsName}</a>${genderLabel}${verbLabel}</div>
+          <div class="word-name"><a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;" style="color:var(--text);text-decoration:none;border-bottom:1px dashed var(--border)">${w.WordsName}</a>${genderLabel}${verbLabel}${conjugateLink}</div>
           <div class="word-translation">${w.WordsTranslation||''}</div>
         </div>
         <div class="word-actions">
@@ -544,15 +559,28 @@
           <button class="word-btn del" onclick="deleteWord(${w.UserLanguageWordsID})" title="Delete">✕</button>
         </div>
       </div>`;
-    }).join('')||'<div class="empty-state">No words yet. Add your first word!</div>';
+    }).join('')||'<div class="empty-state">No words found.</div>';
+
     return `
-      <div class="mywords-filter-bar" style="margin-top:12px">
-        ${filters.map(f=>`<button class="filter-btn ${myWordsFilter===f.key?'active':''}" onclick="setWordsFilter('${f.key}')">${f.label}</button>`).join('')}
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px;margin-bottom:12px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${filters.map(f=>`<button class="filter-btn ${myWordsFilter===f.key?'active':''}" onclick="setWordsFilter('${f.key}')">${f.label}</button>`).join('')}
+        </div>
+        <div style="width:1px;height:20px;background:var(--border);margin:0 10px"></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:12px;font-weight:600;color:var(--text-soft)">Type:</span>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="vf-${langID}" value="all" ${verbFilter==='all'?'checked':''} onchange="setVerbFilter('all')" style="accent-color:var(--sky-deep)"> All</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="vf-${langID}" value="nouns" ${verbFilter==='nouns'?'checked':''} onchange="setVerbFilter('nouns')" style="accent-color:var(--sky-deep)"> Nouns</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="vf-${langID}" value="verbs" ${verbFilter==='verbs'?'checked':''} onchange="setVerbFilter('verbs')" style="accent-color:var(--sky-deep)"> Verbs</label>
+        </div>
         <button class="btn-primary" style="margin-left:auto;padding:6px 14px;font-size:12px" onclick="showNewWord()">+ New Word</button>
         <label class="images-toggle"><input type="checkbox" ${showImages?'checked':''} onchange="showImages=this.checked;renderMyWords()"> Images</label>
       </div>
-      <div class="word-grid" style="margin-top:10px">${wordRows}</div>`;
+      <div class="word-grid">${wordRows}</div>`;
   }
+
+  function setWordsFilter(filter){myWordsFilter=filter;renderMyWords();}
+  function setVerbFilter(filter){verbFilter=filter;renderMyWords();}
 
   function setWordsFilter(filter){myWordsFilter=filter;loadMyWords();}
 
@@ -570,18 +598,22 @@
     const word=myWords.find(w=>w.UserLanguageWordsID===wordID);if(!word)return;
     const newFlag=!word.Flag;
     await apiPost('SaveUserLanguageWord',{action:'flag',userID:USER_ID,wordID,flag:newFlag});
-    word.Flag=newFlag;btn.textContent=newFlag?'★':'☆';btn.classList.toggle('flag-active',newFlag);
+    word.Flag=newFlag;
+    renderMyWords();
   }
 
   async function markWordMastered(wordID,btn){
     await apiPost('SaveUserLanguageWord',{action:'mastered',userID:USER_ID,wordID});
-    btn.closest('.word-row').style.opacity='0.3';setTimeout(()=>loadMyWords(),500);
+    const word=myWords.find(w=>w.UserLanguageWordsID===wordID);
+    if(word)word.DateMastered=new Date().toISOString();
+    renderMyWords();
   }
 
   async function deleteWord(wordID){
     if(!confirm('Delete this word?'))return;
     await apiPost('SaveUserLanguageWord',{action:'delete',userID:USER_ID,wordID});
-    myWords=myWords.filter(w=>w.UserLanguageWordsID!==wordID);renderMyWords();
+    myWords=myWords.filter(w=>w.UserLanguageWordsID!==wordID);
+    renderMyWords();
   }
 
   // ── WORD FORM (new & edit) ──
