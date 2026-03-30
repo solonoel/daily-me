@@ -480,7 +480,7 @@
     }).join('');
   }
 
-  async function showLangFeature(langID,feature,langName){
+  async function showLangFeature(langID,feature,langName,autoLoadWordID=null){
     currentLangID=langID;currentLangName=langName;
     document.querySelectorAll('[id^="langtab-"]').forEach(t=>t.classList.remove('lang-tab-active'));
     const tabEl=document.getElementById(feature==='flashcards'?`langtab-fc-${langID}`:feature==='conjugation'?`langtab-conj-${langID}`:`langtab-mw-${langID}`);
@@ -495,7 +495,7 @@
       flashcardFilter='all';flashcardIndex=0;
       const data=await apiGet('GetUserLanguageWords',`&languageID=${langID}&filter=active`);
       const verbs=Array.isArray(data)?data.filter(w=>w.IsVerb==='Y'):[];
-      panel.innerHTML=renderConjugationHTML(langID,langName,verbs);
+      panel.innerHTML=renderConjugationHTML(langID,langName,verbs,autoLoadWordID||null);
     }else if(feature==='mywords'){
       myWordsFilter='active';showImages=true;
       const data=await apiGet('GetUserLanguageWords',`&languageID=${langID}&filter=active`);
@@ -800,6 +800,7 @@
       cardHTML=`<div class="flashcard"><div class="flashcard-word">No words to study!</div><div class="flashcard-hint">Add words in My Words.</div></div>`;
     }else{
       const genderLabel=card.Gender==='M'?' <span style="font-size:18px;color:var(--text-soft);font-weight:700">♂</span>':card.Gender==='F'?' <span style="font-size:18px;color:var(--text-soft);font-weight:700">♀</span>':'';
+      const fcConjugateLink=card.IsVerb==='Y'?`<div style="margin-top:8px"><span class="conjugate-link" onclick="event.stopPropagation();showConjugation(${card.UserLanguageWordsID})">conjugate</span></div>`:'';
       const imgEl=card.WordsImage?`<img src="${card.WordsImage}" class="flashcard-image" alt="">`:'';
       const transEl=flashcardShowTranslation?`<div class="flashcard-translation">${card.WordsTranslation||'—'}</div>`:`<div class="flashcard-hint">Tap card to reveal translation</div>`;
       cardHTML=`
@@ -807,6 +808,7 @@
           ${imgEl}
           <div class="flashcard-word">${card.WordsName}${genderLabel}</div>
           ${transEl}
+          ${fcConjugateLink}
           <button class="fc-speaker" onclick="event.stopPropagation();speakWordFC(${card.UserLanguageWordsID})">🔊</button>
           <button class="fc-flag ${card.Flag?'fc-flag-active':''}" onclick="event.stopPropagation();flashcardToggleFlag(${card.UserLanguageWordsID},this)">${card.Flag?'★':'☆'}</button>
         </div>
@@ -887,38 +889,39 @@
     card.Flag=newFlag;btn.textContent=newFlag?'★':'☆';btn.classList.toggle('fc-flag-active',newFlag);
   }
 
-  function renderConjugationHTML(langID,langName,verbs){
+function renderConjugationHTML(langID,langName,verbs,autoLoadWordID=null){
     const selectOptions=verbs.map(v=>`<option value="${v.UserLanguageWordsID}">${v.WordsName} — ${v.WordsTranslation||''}</option>`).join('');
     if(!verbs.length)return`<div class="empty-state">No verbs found. Add verbs in My Words.</div>`;
+    const loadID=autoLoadWordID||verbs[0].UserLanguageWordsID;
+    setTimeout(()=>loadConjugation(loadID,langName),0);
     return`<div class="conj-panel">
       <div style="margin:12px 0"><select class="form-select" id="conj-verb-select" onchange="loadConjugation(this.value,'${langName}')">${selectOptions}</select></div>
       <div id="conj-output"></div>
     </div>`;
   }
 
-  async function loadConjugation(wordID,langName){
+async function loadConjugation(wordID,langName){
     const out=document.getElementById('conj-output');
     if(!out)return;
-    out.innerHTML='<div style="padding:12px;font-size:13px;color:var(--text-muted)">Loading...</div>';
+    out.innerHTML='<div style="padding:12px;font-size:13px;color:var(--text-muted)">Loading conjugations...</div>';
     try{
-      const data=await apiGet('GetConjugation',`&wordID=${wordID}`);
-      if(!data||!data.moods){out.innerHTML='<div class="empty-state">No conjugation data found.</div>';return;}
-      const word=data.wordName||'';const meaning=data.meaning||'';
-      let html=`<div class="conj-verb-header"><div class="conj-verb-name">${word}</div><div class="conj-verb-meaning">${meaning}</div></div>`;
+      const data=await apiPost('GetConjugation',{userID:USER_ID,userLanguageWordsID:parseInt(wordID)});
+      if(!data||!data.moods||!data.moods.length){out.innerHTML='<div class="empty-state">No conjugation data found.</div>';return;}
+      let html=`<div class="conj-verb-header"><div class="conj-verb-name">${data.verb||''}</div><div class="conj-verb-meaning">${data.language||''}</div></div>`;
       data.moods.forEach((mood,mi)=>{
         const expanded=mi===0;
         html+=`<div class="conj-mood"><div class="conj-mood-header ${expanded?'expanded':''}" onclick="toggleConjMood(this)">${mood.moodName}<span>${expanded?'▲':'▼'}</span></div><div style="display:${expanded?'block':'none'}">`;
         mood.tenses.forEach(tense=>{
           html+=`<div class="conj-tense"><div class="conj-tense-name">${tense.tenseName}</div><div class="conj-grid">`;
           tense.forms.forEach(f=>{
-            html+=`<div class="conj-cell"><span class="conj-pronoun">${f.pronoun}</span><span class="conj-form">${f.form}</span></div>`;
+            html+=`<div class="conj-cell"><span class="conj-pronoun">${f.pronounName}</span><span class="conj-form">${f.form}</span></div>`;
           });
           html+=`</div></div>`;
         });
         html+=`</div></div>`;
       });
       out.innerHTML=html;
-    }catch(e){out.innerHTML='<div class="empty-state">Error loading conjugation.</div>';}
+    }catch(e){out.innerHTML='<div class="empty-state">Error: '+e.message+'</div>';}
   }
 
   function toggleConjMood(header){
@@ -930,9 +933,7 @@
   }
 
 async function showConjugation(wordID){
-    await showLangFeature(currentLangID,'conjugation',currentLangName);
-    const sel=document.getElementById('conj-verb-select');
-    if(sel){sel.value=wordID;loadConjugation(wordID,currentLangName);}
+    await showLangFeature(currentLangID,'conjugation',currentLangName,wordID);
   }
 
   // ── KEYBOARD ──
