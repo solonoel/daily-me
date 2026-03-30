@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    :root { --sky-deep: #2b7fd4; --text: #0f1e2e; --text-soft: #3a5a7a; --text-muted: #5a7a9a; --gold: #e8a020; --border: #c4dcf0; --shadow: 0 2px 12px rgba(43,127,212,0.08); }
+    :root { --sky-deep: #2b7fd4; --text: #0f1e2e; --text-soft: #3a5a7a; --text-muted: #5a7a9a; --gold: #e8a020; --border: #8ab8d8; --shadow: 0 2px 12px rgba(43,127,212,0.12); }
     body { font-family:'DM Sans',sans-serif; background:linear-gradient(160deg,#e8f4ff 0%,#f5f9ff 60%,#eef7f0 100%); min-height:100vh; color:var(--text); }
     .header { background:linear-gradient(135deg,#2b7fd4 0%,#1a9fd4 100%); padding:16px 32px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 4px 24px rgba(43,127,212,0.25); position:relative; overflow:hidden; }
     .header::before { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,0.07); }
@@ -194,8 +194,8 @@
 .conj-verb-meaning { font-size:0.82rem; color:rgba(255,255,255,0.75); }
 .conj-mood { background:white; border:1.5px solid var(--border); border-top:none; overflow:hidden; }
 .conj-mood:last-child { border-radius:0 0 10px 10px; }
-.conj-mood-header { display:flex; align-items:center; justify-content:space-between; padding:9px 14px; cursor:pointer; font-size:13px; font-weight:700; color:white; background:#4a8fc4; border-bottom:1px solid #3a7ab0; }
-.conj-mood-header.expanded { background:#3d7db5; }
+.conj-mood-header { display:flex; align-items:center; justify-content:space-between; padding:9px 14px; cursor:pointer; font-size:13px; font-weight:700; color:white; background:#5fa8d8; border-bottom:1px solid #4a90c4; }
+.conj-mood-header.expanded { background:#4e9acc; }
 .conj-tenses-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:10px 14px; }
 .conj-tense-box { border:1.5px solid var(--border); border-radius:8px; overflow:hidden; }
 .conj-tense-header { background:#cce5ff; padding:5px 10px; font-size:10px; font-weight:700; color:#1a5a90; text-transform:uppercase; letter-spacing:0.6px; border-bottom:1px solid #a8d0f0; }
@@ -205,6 +205,16 @@
 .conj-cell:nth-last-child(-n+2) { border-bottom:none; }
 .conj-pronoun { font-size:11px; color:#1a5a90; font-weight:700; white-space:nowrap; min-width:28px; }
 .conj-form { font-size:13px; font-weight:600; color:var(--text); }
+.conj-verb-picker { position:relative; flex:1; cursor:pointer; background:white; border:1.5px solid var(--border); border-radius:8px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; gap:8px; user-select:none; }
+.conj-verb-picker:hover { border-color:var(--sky-deep); }
+.conj-pick-word { font-size:18px; font-weight:700; color:var(--text); flex:1; }
+.conj-pick-trans { font-size:11px; color:var(--text-muted); flex:1; text-align:right; }
+.conj-verb-dropdown { position:absolute; top:calc(100% + 4px); left:0; right:0; background:white; border:1.5px solid var(--border); border-radius:8px; z-index:200; max-height:220px; overflow-y:auto; box-shadow:0 6px 20px rgba(43,127,212,0.15); }
+.conj-verb-opt { padding:8px 12px; cursor:pointer; border-bottom:1px solid #eef5fc; display:flex; align-items:baseline; gap:10px; }
+.conj-verb-opt:last-child { border-bottom:none; }
+.conj-verb-opt:hover { background:#f0f7ff; }
+.conj-verb-opt-word { font-size:16px; font-weight:700; color:var(--text); }
+.conj-verb-opt-trans { font-size:11px; color:var(--text-muted); }
     @media (max-width:700px) { .settings-deck-grid { grid-template-columns:1fr; } .header { padding:14px 16px; } .main { padding:16px; } .app-title { font-size:20px; } .nav-btn { padding:8px 14px; min-width:60px; } .headline-thumb { width:72px; height:45px; } }
   </style>
 </head>
@@ -365,6 +375,7 @@
   let flashcards=[],flashcardIndex=0,flashcardShowTranslation=false,flashcardFilter='all',flashcardAutoPronounce=true;
   let newWordImage=null,newWordImageChanged=false;
   let editingWordID=null;
+  let conjVerbs=[],conjLangName='';
 
   function setGreeting(){
     const h=new Date().getHours(),p=h<12?'morning':h<17?'afternoon':'evening';
@@ -664,6 +675,7 @@
               <label class="form-label">${currentLangName} Word or Phrase</label>
               <input class="form-input" id="nw-word" value="${word?word.WordsName:''}" placeholder="e.g. la bicicleta" style="font-size:22px;font-weight:700;color:var(--text)">
               <a href="#" id="nw-fetch-btn" onclick="fetchTranslation();return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;display:inline-block">🔍 Fetch Translation</a>
+              <a href="#" onclick="window.open('https://translate.google.com/#auto/en/'+encodeURIComponent(document.getElementById('nw-word').value),'_blank');return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:inline-block">🌐 Translate</a>
               <span id="nw-fetch-status" style="font-size:12px;color:var(--text-muted);margin-left:8px"></span>
             </div>
             <div class="form-row">
@@ -892,17 +904,37 @@
   }
 
 function renderConjugationHTML(langID,langName,verbs,autoLoadWordID=null){
-    const selectOptions=verbs.map(v=>`<option value="${v.UserLanguageWordsID}">${v.WordsName} — ${v.WordsTranslation||''}</option>`).join('');
     if(!verbs.length)return`<div class="empty-state">No verbs found. Add verbs in My Words.</div>`;
-    const loadID=autoLoadWordID||verbs[0].UserLanguageWordsID;
-    setTimeout(()=>{const sel=document.getElementById('conj-verb-select');if(sel)sel.value=loadID;loadConjugation(loadID,langName);},0);
+    conjVerbs=verbs; conjLangName=langName;
+    const loadVerb=verbs.find(v=>v.UserLanguageWordsID==autoLoadWordID)||verbs[0];
+    const optItems=verbs.map(v=>`<div class="conj-verb-opt" onclick="selectConjVerb(${v.UserLanguageWordsID})"><span class="conj-verb-opt-word">${v.WordsName}</span><span class="conj-verb-opt-trans">${v.WordsTranslation||''}</span></div>`).join('');
+    setTimeout(()=>loadConjugation(loadVerb.UserLanguageWordsID,langName),0);
     return`<div class="conj-panel">
       <div style="display:flex;align-items:center;gap:10px;margin:12px 0">
-        <button onclick="cancelConjugation()" style="padding:5px 12px;font-size:12px;font-weight:600;color:var(--sky-deep);background:white;border:1.5px solid var(--sky-deep);border-radius:6px;cursor:pointer">← Back</button>
-        <select class="form-select" id="conj-verb-select" onchange="loadConjugation(this.value,'${langName}')" style="flex:1">${selectOptions}</select>
+        <button onclick="cancelConjugation()" style="padding:5px 12px;font-size:12px;font-weight:600;color:var(--sky-deep);background:white;border:1.5px solid var(--sky-deep);border-radius:6px;cursor:pointer;flex-shrink:0">← Back</button>
+        <div class="conj-verb-picker" id="conj-verb-picker" onclick="toggleVerbPicker(event)">
+          <span class="conj-pick-word" id="conj-pick-word">${loadVerb.WordsName}</span>
+          <span class="conj-pick-trans" id="conj-pick-trans">${loadVerb.WordsTranslation||''}</span>
+          <span style="font-size:11px;color:var(--text-muted)">▾</span>
+          <div class="conj-verb-dropdown" id="conj-verb-dropdown" style="display:none" onclick="event.stopPropagation()">${optItems}</div>
+        </div>
       </div>
       <div id="conj-output"></div>
     </div>`;
+  }
+
+  function toggleVerbPicker(e){
+    const dd=document.getElementById('conj-verb-dropdown');
+    if(!dd)return;
+    dd.style.display=dd.style.display==='none'?'block':'none';
+  }
+
+  function selectConjVerb(wordID){
+    const v=conjVerbs.find(v=>v.UserLanguageWordsID===wordID);if(!v)return;
+    document.getElementById('conj-pick-word').textContent=v.WordsName;
+    document.getElementById('conj-pick-trans').textContent=v.WordsTranslation||'';
+    document.getElementById('conj-verb-dropdown').style.display='none';
+    loadConjugation(wordID,conjLangName);
   }
 
 async function loadConjugation(wordID,langName){
@@ -912,8 +944,9 @@ async function loadConjugation(wordID,langName){
     try{
       const data=await apiPost('GetConjugation',{userID:USER_ID,userLanguageWordsID:parseInt(wordID)});
       if(!data||!data.moods||!data.moods.length){out.innerHTML='<div class="empty-state">No conjugation data found.</div>';return;}
-      let html=`<div class="conj-verb-header"><div class="conj-verb-name">${data.verb||''}</div><div class="conj-verb-meaning">${data.language||''}</div></div>`;
-      data.moods.forEach((mood,mi)=>{
+      const filteredMoods=data.moods.filter(m=>!m.moodEng?.toLowerCase().includes('infinitiv'));
+      let html=`<div class="conj-verb-header"><button onclick="speakWord('${(data.verb||'').replace(/'/g,"\\'")}','${data.language||''}')" style="background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);border-radius:6px;cursor:pointer;padding:4px 8px;font-size:16px;color:white;flex-shrink:0">🔊</button><div class="conj-verb-name">${data.verb||''}</div><div class="conj-verb-meaning">${data.language||''}</div></div>`;
+      filteredMoods.forEach((mood,mi)=>{
         const expanded=mi===0;
         html+=`<div class="conj-mood"><div class="conj-mood-header ${expanded?'expanded':''}" onclick="toggleConjMood(this)"><div class="conj-mood-title">${mood.moodEng} <span style="font-size:12px;opacity:0.75;font-weight:400">(${mood.moodName})</span></div><span class="conj-mood-arrow">${expanded?'▲':'▼'}</span></div><div style="display:${expanded?'block':'none'}"><div class="conj-tenses-grid">`;
         mood.tenses.forEach(tense=>{
@@ -946,8 +979,11 @@ async function loadConjugation(wordID,langName){
 
   async function showConjugation(wordID, returnFn){
     conjReturnFn = returnFn || null;
+    history.pushState({view:'conjugation'}, '');
     await showLangFeature(currentLangID,'conjugation',currentLangName,wordID);
   }
+
+  window.addEventListener('popstate', ()=>{ if(conjReturnFn){ cancelConjugation(); } });
 
   // ── KEYBOARD ──
   document.addEventListener('keydown',(e)=>{
@@ -961,6 +997,7 @@ async function loadConjugation(wordID,langName){
     if(e.code==='ArrowLeft'){e.preventDefault();moveFlashcard(-1);}
   });
   document.addEventListener('paste',handlePasteImage);
+  document.addEventListener('click',e=>{ const dd=document.getElementById('conj-verb-dropdown'); if(dd&&!document.getElementById('conj-verb-picker')?.contains(e.target)) dd.style.display='none'; });
   document.addEventListener('keydown', function(e){
     if(e.key==='Escape' && currentLangID && document.getElementById(`screen-conjugation-${currentLangID}`)?.classList.contains('active')){
       cancelConjugation();
