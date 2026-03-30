@@ -186,6 +186,8 @@
     .fc-flag:hover { border-color:var(--gold); background:rgba(232,160,32,0.08); }
     .fc-flag-active { border-color:var(--gold); background:rgba(232,160,32,0.08); }
     .coming-soon { display:inline-block; font-size:9px; font-weight:700; background:#fff0d6; color:#b07000; border-radius:4px; padding:2px 6px; text-transform:uppercase; letter-spacing:0.5px; }
+    .conjugate-link { font-size:11px; color:var(--sky-deep); text-decoration:none; font-weight:400; border-bottom:1px dashed var(--sky-deep); cursor:pointer; white-space:nowrap; }
+    .conjugate-link:hover { color:#1a5fa8; }
     @media (max-width:700px) { .settings-deck-grid { grid-template-columns:1fr; } .header { padding:14px 16px; } .main { padding:16px; } .app-title { font-size:20px; } .nav-btn { padding:8px 14px; min-width:60px; } .headline-thumb { width:72px; height:45px; } }
   </style>
 </head>
@@ -542,7 +544,7 @@
     const wordRows=displayWords.map(w=>{
       const genderLabel=w.Gender==='M'?'<span class="word-gender">♂</span>':w.Gender==='F'?'<span class="word-gender">♀</span>':'';
       const verbLabel=w.IsVerb==='Y'?'<span style="font-size:10px;color:var(--text-muted);margin-left:4px">verb</span>':'';
-      const conjugateLink=w.IsVerb==='Y'?`<a class="conjugate-link" onclick="showConjugation(${w.UserLanguageWordsID});return false;">conjugate</a>`:'';
+      const conjugateLink=w.IsVerb==='Y'?`<a href="#" class="conjugate-link" onclick="showConjugation(${w.UserLanguageWordsID});return false;" style="font-weight:400;margin-left:10px;font-size:11px">conjugate</a>`:'';
       const imgEl=showImages?(w.WordsImage?`<img src="${w.WordsImage}" class="word-img" alt="">`:`<div class="word-img-placeholder">📖</div>`):'';
       return `<div class="word-row" data-wordid="${w.UserLanguageWordsID}">
         ${imgEl}

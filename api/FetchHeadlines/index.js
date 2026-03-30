@@ -186,16 +186,42 @@ async function fetchYouTube(source, keywords, maxResults, langCodes, context) {
   return articles;
 }
 
+function containsCJK(text) {
+  // Detect Chinese, Japanese, Korean characters
+  return /[\u3000-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF]/.test(text);
+}
+
+function containsArabicOrHebrew(text) {
+  return /[\u0600-\u06FF\u0590-\u05FF]/.test(text);
+}
+
+function containsCyrillic(text) {
+  return /[\u0400-\u04FF]/.test(text);
+}
+
 async function filterByLanguage(articles, allowedCodes) {
   const filtered = [];
   for (const a of articles) {
     const text = `${a.title || ''} ${a.summary || ''}`.trim();
+
+    // Hard block CJK unless user has a CJK language (none currently supported)
+    if (containsCJK(text)) continue;
+
+    // Hard block Arabic/Hebrew unless user has those languages
+    if (containsArabicOrHebrew(text)) continue;
+
+    // Hard block Cyrillic unless user explicitly has Russian etc.
+    if (containsCyrillic(text) && !allowedCodes.includes('ru') && !allowedCodes.includes('uk')) continue;
+
     if (text.length < 20) { filtered.push(a); continue; }
+
     const detected = await detectLang(text);
-    // franc returns ISO 639-3 codes, map common ones
-    const iso3to2 = { 'eng':'en','spa':'es','fra':'fr','ita':'it','por':'pt','ron':'ro','und':'en' };
+    const iso3to2 = { 'eng':'en','spa':'es','fra':'fr','ita':'it','por':'pt','ron':'ro','und':'en','zho':'zh','jpn':'ja','kor':'ko' };
     const detected2 = iso3to2[detected] || detected.substring(0,2);
-    if (allowedCodes.includes(detected2) || detected === 'und') {
+
+    // If franc detects a language not in user's list, block it
+    // But allow 'und' (undetermined) through since it's usually short English text
+    if (detected === 'und' || allowedCodes.includes(detected2)) {
       filtered.push(a);
     }
   }
