@@ -893,7 +893,7 @@ function renderConjugationHTML(langID,langName,verbs,autoLoadWordID=null){
     const selectOptions=verbs.map(v=>`<option value="${v.UserLanguageWordsID}">${v.WordsName} — ${v.WordsTranslation||''}</option>`).join('');
     if(!verbs.length)return`<div class="empty-state">No verbs found. Add verbs in My Words.</div>`;
     const loadID=autoLoadWordID||verbs[0].UserLanguageWordsID;
-    setTimeout(()=>loadConjugation(loadID,langName),0);
+    setTimeout(()=>{const sel=document.getElementById('conj-verb-select');if(sel)sel.value=loadID;loadConjugation(loadID,langName);},0);
     return`<div class="conj-panel">
       <div style="margin:12px 0"><select class="form-select" id="conj-verb-select" onchange="loadConjugation(this.value,'${langName}')">${selectOptions}</select></div>
       <div id="conj-output"></div>
