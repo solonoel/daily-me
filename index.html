@@ -173,18 +173,24 @@
     .flashcard-nav a:hover { background:#f0f7ff; }
     .flashcard-nav a.disabled { color:var(--border); cursor:default; pointer-events:none; }
     .flashcard-nav-pos { font-weight:700; color:var(--text); }
-    .flashcard { background:white; border:1.5px solid var(--border); border-radius:20px; padding:36px 28px 60px 28px; text-align:center; box-shadow:0 4px 24px rgba(43,127,212,0.1); cursor:pointer; min-height:260px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; transition:box-shadow 0.2s; position:relative; }
+    .flashcard { background:white; border:1.5px solid var(--border); border-radius:20px; padding:36px 28px 28px 28px; text-align:center; box-shadow:0 4px 24px rgba(43,127,212,0.1); cursor:pointer; min-height:220px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; transition:box-shadow 0.2s; }
     .flashcard:hover { box-shadow:0 6px 32px rgba(43,127,212,0.15); }
     .flashcard-word { font-family:'Playfair Display',serif; font-size:36px; color:var(--text); line-height:1.2; }
     .flashcard-image { width:100px; height:100px; object-fit:cover; border-radius:12px; }
     .flashcard-translation { font-size:18px; color:var(--sky-deep); font-weight:500; white-space:pre-line; line-height:1.5; }
     .flashcard-hint { font-size:12px; color:var(--text-muted); margin-top:8px; }
     .flashcard-actions { display:flex; align-items:center; justify-content:center; gap:16px; margin-top:20px; }
-    .fc-speaker { width:40px; height:40px; border-radius:50%; border:2px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:18px; transition:all 0.15s; position:absolute; bottom:14px; left:14px; }
-    .fc-speaker:hover { border-color:var(--sky-deep); background:#f0f7ff; }
-    .fc-flag { width:36px; height:36px; border-radius:50%; border:2px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px; transition:all 0.15s; position:absolute; bottom:14px; right:14px; }
-    .fc-flag:hover { border-color:var(--gold); background:rgba(232,160,32,0.08); }
+    .fc-actions-bar { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:14px; }
+    .fc-btn { width:38px; height:38px; border-radius:50%; border:2px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:17px; transition:all 0.15s; flex-shrink:0; }
+    .fc-btn:hover { border-color:var(--sky-deep); background:#f0f7ff; }
+    .fc-speaker { }
+    .fc-mastered:hover { border-color:#22c55e; background:#f0fdf4; color:#16a34a; }
+    .fc-flag-btn { }
+    .fc-flag-btn:hover { border-color:var(--gold); background:rgba(232,160,32,0.08); }
     .fc-flag-active { border-color:var(--gold); background:rgba(232,160,32,0.08); }
+    .fc-nav-btn { width:34px; height:34px; border-radius:8px; border:1.5px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:700; color:var(--sky-deep); transition:all 0.15s; flex-shrink:0; line-height:1; }
+    .fc-nav-btn:hover { background:#f0f7ff; border-color:var(--sky-deep); }
+    .fc-nav-btn.disabled { color:var(--border); cursor:default; pointer-events:none; }
     .coming-soon { display:inline-block; font-size:9px; font-weight:700; background:#fff0d6; color:#b07000; border-radius:4px; padding:2px 6px; text-transform:uppercase; letter-spacing:0.5px; }
     .conjugate-link { font-size:11px; color:var(--sky-deep); text-decoration:none; font-weight:400; border-bottom:1px dashed var(--sky-deep); cursor:pointer; white-space:nowrap; }
     .conjugate-link:hover { color:#1a5fa8; }
@@ -234,6 +240,12 @@
   <button class="nav-btn active" onclick="showScreen('headlines')" id="nav-headlines">
     <span class="nav-icon">📰</span><span class="nav-label">Headlines</span>
   </button>
+  <button class="nav-btn" onclick="showScreen('teams')" id="nav-teams">
+    <span class="nav-icon">👥</span><span class="nav-label">Teams</span>
+  </button>
+  <button class="nav-btn" onclick="showHealthScreen()" id="nav-health">
+    <span class="nav-icon">🏥</span><span class="nav-label">Health</span>
+  </button>
   <button class="nav-btn" onclick="showScreen('settings')" id="nav-settings">
     <span class="nav-icon">⚙️</span><span class="nav-label">Settings</span>
   </button>
@@ -249,6 +261,15 @@
     </div>
     <div id="refresh-status" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep);margin-bottom:12px;padding:8px 14px;background:#f0f7ff;border-radius:8px;border:1px solid var(--border)"></div>
     <div id="headlines-grouped"></div>
+  </div>
+  <div class="screen" id="screen-teams">
+    <div class="date-strip"><div class="date-main">Teams</div><div class="date-sub">Coming soon</div></div>
+    <div class="empty-state" style="padding:60px">Teams feature is coming soon.</div>
+  </div>
+  <div class="screen" id="screen-health">
+    <div class="section-label" style="margin-top:8px">Health Headlines</div>
+    <div id="refresh-status-health" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep);margin-bottom:12px;padding:8px 14px;background:#f0f7ff;border-radius:8px;border:1px solid var(--border)"></div>
+    <div id="health-headlines-grouped"></div>
   </div>
   <div id="language-screens"></div>
   <div class="screen" id="screen-settings">
@@ -533,7 +554,6 @@
 
   async function toggleUserLanguage(languageID,checkbox){
     const isActive=checkbox.checked;
-    if(isActive&&userLanguages.filter(ul=>ul.IsActive==='Y').length>=2){checkbox.checked=false;alert('You can only have 2 active languages at a time.');return;}
     await apiPost('SaveUserLanguage',{userID:USER_ID,languageID,isActive});
     const existing=userLanguages.find(ul=>ul.LanguageID===languageID);
     if(existing)existing.IsActive=isActive?'Y':'N';else userLanguages.push({LanguageID:languageID,IsActive:'Y'});
@@ -676,6 +696,7 @@
               <input class="form-input" id="nw-word" value="${word?word.WordsName:''}" placeholder="e.g. la bicicleta" style="font-size:22px;font-weight:700;color:var(--text)">
               <a href="#" id="nw-fetch-btn" onclick="fetchTranslation();return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;display:inline-block">🔍 Fetch Translation</a>
               <a href="#" onclick="window.open('https://translate.google.com/#auto/en/'+encodeURIComponent(document.getElementById('nw-word').value),'_blank');return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:inline-block">🌐 Translate</a>
+              ${isEdit&&word?.IsVerb==='Y'?`<a href="#" onclick="showConjugation(${word.UserLanguageWordsID},()=>editWord(${word.UserLanguageWordsID}));return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:inline-block">🔤 Conjugate</a>`:''}
               <span id="nw-fetch-status" style="font-size:12px;color:var(--text-muted);margin-left:8px"></span>
             </div>
             <div class="form-row">
@@ -814,22 +835,24 @@
       cardHTML=`<div class="flashcard"><div class="flashcard-word">No words to study!</div><div class="flashcard-hint">Add words in My Words.</div></div>`;
     }else{
       const genderLabel=card.Gender==='M'?' <span style="font-size:18px;color:var(--text-soft);font-weight:700">♂</span>':card.Gender==='F'?' <span style="font-size:18px;color:var(--text-soft);font-weight:700">♀</span>':'';
-      const fcConjugateLink=card.IsVerb==='Y'?`<div style="margin-top:8px"><span class="conjugate-link" onclick="event.stopPropagation();showConjugation(${card.UserLanguageWordsID},()=>showLangFeature(currentLangID,'flashcards',currentLangName))">conjugate</span></div>`:'';
+      const fcConjugateLink=card.IsVerb==='Y'?`<div style="margin-top:8px"><span class="conjugate-link" onclick="event.stopPropagation();showConjugationFromFlashcard(${card.UserLanguageWordsID})">conjugate</span></div>`:'';
       const imgEl=card.WordsImage?`<img src="${card.WordsImage}" class="flashcard-image" alt="">`:'';
       const transEl=flashcardShowTranslation?`<div class="flashcard-translation">${card.WordsTranslation||'—'}</div>`:`<div class="flashcard-hint">Tap card to reveal translation</div>`;
+      const prevDis2=flashcardIndex===0?'disabled':'',nextDis2=flashcardIndex>=total-1?'disabled':'';
       cardHTML=`
         <div class="flashcard" onclick="toggleFlashcardTranslation()">
           ${imgEl}
           <div class="flashcard-word">${card.WordsName}${genderLabel}</div>
           ${transEl}
           ${fcConjugateLink}
-          <button class="fc-speaker" onclick="event.stopPropagation();speakWordFC(${card.UserLanguageWordsID})">🔊</button>
-          <button class="fc-flag ${card.Flag?'fc-flag-active':''}" onclick="event.stopPropagation();flashcardToggleFlag(${card.UserLanguageWordsID},this)">${card.Flag?'★':'☆'}</button>
         </div>
-        <div class="flashcard-actions">
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-soft);cursor:pointer">
-            <input type="checkbox" onchange="if(this.checked)flashcardGotIt(${card.UserLanguageWordsID})" style="accent-color:#22c55e;width:18px;height:18px"> Mastered
-          </label>
+        <div class="fc-actions-bar">
+          <button class="fc-btn fc-speaker" onclick="speakWordFC(${card.UserLanguageWordsID})" title="Pronounce">🔊</button>
+          <button class="fc-btn fc-mastered" onclick="flashcardGotIt(${card.UserLanguageWordsID})" title="Mastered">✓</button>
+          <button class="fc-btn fc-flag-btn ${card.Flag?'fc-flag-active':''}" onclick="flashcardToggleFlag(${card.UserLanguageWordsID},this)" title="Flag">${card.Flag?'★':'☆'}</button>
+          <div style="width:1px;height:24px;background:var(--border);margin:0 4px"></div>
+          <button class="fc-nav-btn ${prevDis2}" onclick="moveFlashcard(-1)" title="Previous">‹</button>
+          <button class="fc-nav-btn ${nextDis2}" onclick="moveFlashcard(1)" title="Next">›</button>
         </div>`;
     }
     const prevDis=flashcardIndex===0?'disabled':'',nextDis=flashcardIndex>=total-1?'disabled':'';
@@ -845,9 +868,7 @@
         </div>
         <div class="flashcard-nav">
           <a class="${prevDis}" onclick="moveFlashcard(-Infinity)">⟪</a>
-          <a class="${prevDis}" onclick="moveFlashcard(-1)">‹</a>
           <span class="flashcard-nav-pos">${total>0?`${flashcardIndex+1} of ${total}`:'0 of 0'}</span>
-          <a class="${nextDis}" onclick="moveFlashcard(1)">›</a>
           <a class="${nextDis}" onclick="moveFlashcard(Infinity)">⟫</a>
         </div>
         ${cardHTML}
@@ -890,9 +911,11 @@
 
   async function flashcardGotIt(wordID){
     await apiPost('SaveUserLanguageWord',{action:'mastered',userID:USER_ID,wordID});
+    const wasLast=flashcardIndex>=getFilteredFlashcards().length-1;
     flashcards=flashcards.filter(w=>w.UserLanguageWordsID!==wordID);
     const total=getFilteredFlashcards().length;
-    if(flashcardIndex>=total)flashcardIndex=Math.max(0,total-1);
+    if(wasLast||flashcardIndex>=total)flashcardIndex=total>0?0:-1;
+    if(flashcardIndex<0)flashcardIndex=0;
     flashcardShowTranslation=false;renderFlashcardsScreen();
   }
 
@@ -923,6 +946,15 @@ function renderConjugationHTML(langID,langName,verbs,autoLoadWordID=null){
     </div>`;
   }
 
+  function showConjugationFromFlashcard(wordID){
+    const savedIdx=flashcardIndex;
+    showConjugation(wordID, async()=>{
+      await showLangFeature(currentLangID,'flashcards',currentLangName);
+      flashcardIndex=savedIdx;
+      renderFlashcardsScreen();
+    });
+  }
+
   function toggleVerbPicker(e){
     const dd=document.getElementById('conj-verb-dropdown');
     if(!dd)return;
@@ -945,7 +977,9 @@ async function loadConjugation(wordID,langName){
       const data=await apiPost('GetConjugation',{userID:USER_ID,userLanguageWordsID:parseInt(wordID)});
       if(!data||!data.moods||!data.moods.length){out.innerHTML='<div class="empty-state">No conjugation data found.</div>';return;}
       const filteredMoods=data.moods.filter(m=>!m.moodEng?.toLowerCase().includes('infinitiv'));
-      let html=`<div class="conj-verb-header"><button onclick="speakWord('${(data.verb||'').replace(/'/g,"\\'")}','${data.language||''}')" style="background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);border-radius:6px;cursor:pointer;padding:4px 8px;font-size:16px;color:white;flex-shrink:0">🔊</button><div class="conj-verb-name">${data.verb||''}</div><div class="conj-verb-meaning">${data.language||''}</div></div>`;
+      const verbTrans=conjVerbs.find(v=>v.UserLanguageWordsID===parseInt(wordID))?.WordsTranslation||'';
+      const verbTransDisp=verbTrans?` <span style="font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:400;opacity:0.85">(${verbTrans})</span>`:'';
+      let html=`<div class="conj-verb-header"><button onclick="speakWord('${(data.verb||'').replace(/'/g,"\\'")}','${data.language||''}')" style="background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);border-radius:6px;cursor:pointer;padding:4px 8px;font-size:16px;color:white;flex-shrink:0">🔊</button><div class="conj-verb-name">${data.verb||''}${verbTransDisp}</div><div class="conj-verb-meaning">${data.language||''}</div></div>`;
       filteredMoods.forEach((mood,mi)=>{
         const expanded=mi===0;
         html+=`<div class="conj-mood"><div class="conj-mood-header ${expanded?'expanded':''}" onclick="toggleConjMood(this)"><div class="conj-mood-title">${mood.moodEng} <span style="font-size:12px;opacity:0.75;font-weight:400">(${mood.moodName})</span></div><span class="conj-mood-arrow">${expanded?'▲':'▼'}</span></div><div style="display:${expanded?'block':'none'}"><div class="conj-tenses-grid">`;
@@ -983,7 +1017,6 @@ async function loadConjugation(wordID,langName){
     await showLangFeature(currentLangID,'conjugation',currentLangName,wordID);
   }
 
-  window.addEventListener('popstate', ()=>{ if(conjReturnFn){ cancelConjugation(); } });
 
   // ── KEYBOARD ──
   document.addEventListener('keydown',(e)=>{
@@ -1050,8 +1083,7 @@ async function loadConjugation(wordID,langName){
       const count=allHeadlines?allHeadlines.filter(h=>h.CategoryID===c.CategoryID).length:null;
       return `<div class="cat-tile ${currentFilter===c.Name?'active':''}" onclick="filterCat('${c.Name}',this)"><div class="cat-dot" style="background:${style.dot}"></div>${c.Name}${count!==null?` (${count})`:''}</div>`;
     }).join('')+
-    `<div class="cat-tile ${currentFilter==='Other'?'active':''}" onclick="filterCat('Other',this)"><div class="cat-dot" style="background:#888"></div>Other${allHeadlines!==null?` (${allHeadlines?allHeadlines.filter(h=>!h.CategoryID).length:0})`:''}</div>`+
-    `<div class="cat-tile ${currentFilter==='all'?'active':''}" onclick="filterCat('all',this)"><div class="cat-dot" style="background:#2b7fd4"></div>All${allHeadlines?` (${allHeadlines.length})`:''}</div>`;
+    `<div class="cat-tile ${currentFilter==='Other'?'active':''}" onclick="filterCat('Other',this)"><div class="cat-dot" style="background:#888"></div>Other${allHeadlines!==null?` (${allHeadlines?allHeadlines.filter(h=>!h.CategoryID).length:0})`:''}</div>`;
   }
 
   function renderHeadlines(){
@@ -1137,6 +1169,54 @@ async function loadConjugation(wordID,langName){
     document.getElementById('recency-val').textContent=recencyDays===1?'1 day':`${recencyDays} days`;
   }
 
+  // ── HEALTH SCREEN ──
+
+  let healthHeadlines=[];
+
+  async function showHealthScreen(){
+    showScreen('health');
+    await loadHealthHeadlines();
+  }
+
+  async function loadHealthHeadlines(){
+    try{
+      const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`);
+      let allData=await res.json();if(!Array.isArray(allData))allData=[];
+      const healthCat=categories.find(c=>c.Name.toLowerCase()==='health');
+      healthHeadlines=healthCat?allData.filter(h=>h.CategoryID===healthCat.CategoryID):allData.filter(h=>h.CategoryName?.toLowerCase()==='health');
+      renderHealthHeadlines();
+    }catch(e){console.error('Error loading health headlines:',e);}
+  }
+
+  function renderHealthHeadlines(){
+    const el=document.getElementById('health-headlines-grouped');if(!el)return;
+    if(!healthHeadlines.length){el.innerHTML='<div class="empty-state">No health headlines found.</div>';return;}
+    const rows=healthHeadlines.map(h=>`
+      <div class="headline-row ${h.Retain==='Y'?'retained':''}" onclick="openHeadline('${h.Link}')">
+        ${h.ThumbnailURL?`<img src="${h.ThumbnailURL}" alt="" class="headline-thumb">`:''}
+        <div class="headline-body">
+          <div class="headline-row-title">${h.HeadlineName}</div>
+          ${h.Summary?`<div class="headline-row-summary">${h.Summary}</div>`:''}
+          <div class="headline-row-meta">
+            <span class="headline-row-source">${[h.Keyword||h.Topic||'',h.SourceName||''].filter(Boolean).join(' · ')}</span>
+            ${h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:''}
+            <span class="headline-row-age">${formatAge(h.CreatedDate)}</span>
+          </div>
+        </div>
+        <button class="retain-btn ${h.Retain==='Y'?'active':''}" onclick="toggleRetainHealth(${h.HeadlineID},event)"></button>
+      </div>`).join('');
+    const c=catColors['Health']||catColors['Other'];
+    el.innerHTML=`<div class="cat-group"><div class="cat-group-header" style="background:${c.bg};color:${c.color};border-bottom:1.5px solid ${c.color}44"><span>${c.icon||'🏥'}</span><span>Health <span style="opacity:0.6;font-weight:500">(${healthHeadlines.length})</span></span></div>${rows}</div>`;
+  }
+
+  async function toggleRetainHealth(headlineID,e){
+    e.stopPropagation();
+    const h=healthHeadlines.find(h=>h.HeadlineID===headlineID);if(!h)return;
+    const newRetain=h.Retain!=='Y';
+    await apiPost('SaveRetain',{headlineID,retain:newRetain});
+    h.Retain=newRetain?'Y':'N';renderHealthHeadlines();
+  }
+
   // ── SCREEN NAVIGATION ──
 
   function showScreen(name,pushState=true){
@@ -1166,9 +1246,10 @@ async function loadConjugation(wordID,langName){
   }
 
   window.addEventListener('popstate',(e)=>{
+    if(conjReturnFn){cancelConjugation();return;}
     const state=e.state;if(!state){showScreen('headlines',false);return;}
     if(state.screen==='settings'){showScreen('settings',false);if(state.section)showSettingsSection(state.section,false);else showSettingsMenu(false);}
-    else showScreen(state.screen,false);
+    else if(state.screen)showScreen(state.screen,false);
   });
 
   async function renderSettingsSection(section){
@@ -1220,7 +1301,7 @@ async function loadConjugation(wordID,langName){
   async function toggleKeyword(keywordID,btn){const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const kw=keywords.find(k=>k.KeywordID===keywordID);await apiPost('SaveKeyword',{action:'update',keywordID,isActive,keyword:kw?.Keyword,categoryID:kw?.CategoryID,userID:USER_ID});if(kw)kw.IsActive=isActive?'Y':'N';}
   async function toggleTopic(topicID,btn){const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const tp=topics.find(t=>t.TopicID===topicID);await apiPost('SaveTopic',{action:'update',topicID,isActive,topic:tp?.Topic,categoryID:tp?.CategoryID,userID:USER_ID});if(tp)tp.IsActive=isActive?'Y':'N';}
   async function deleteSource(sourceID){if(!confirm('Remove this source?'))return;await apiPost('SaveSource',{action:'delete',sourceID,userID:USER_ID});sources=sources.filter(s=>s.SourceID!==sourceID);renderSettingsSources();}
-  async function deleteCategory(categoryID){if(!confirm('Remove this category?'))return;await apiPost('SaveCategory',{action:'delete',categoryID,userID:USER_ID});categories=categories.filter(c=>c.CategoryID!==categoryID);renderSettingsCategories();renderCategoryTiles(null);}
+  async function deleteCategory(categoryID){const cat=categories.find(c=>c.CategoryID===categoryID);if(cat&&cat.Name.toLowerCase()==='health'){alert('The Health category cannot be removed.');return;}if(!confirm('Remove this category?'))return;await apiPost('SaveCategory',{action:'delete',categoryID,userID:USER_ID});categories=categories.filter(c=>c.CategoryID!==categoryID);renderSettingsCategories();renderCategoryTiles(null);}
   async function deleteKeyword(keywordID){if(!confirm('Delete this keyword?'))return;await apiPost('SaveKeyword',{action:'delete',keywordID,userID:USER_ID});keywords=keywords.filter(k=>k.KeywordID!==keywordID);renderSettingsKeywords();}
   async function deleteTopic(topicID){if(!confirm('Delete this topic?'))return;await apiPost('SaveTopic',{action:'delete',topicID,userID:USER_ID});topics=topics.filter(t=>t.TopicID!==topicID);renderSettingsTopics();}
 
