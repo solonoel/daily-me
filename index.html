@@ -356,8 +356,8 @@
   function setDate(){
     const now=new Date(),days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],months=['January','February','March','April','May','June','July','August','September','October','November','December'];
     const dateStr=`${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
-    document.getElementById('date-main').textContent=`${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`;
-    document.getElementById('date-sub').textContent=`${now.getFullYear()}`;
+    if(document.getElementById('date-main'))document.getElementById('date-main').textContent=`${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`;
+    if(document.getElementById('date-sub'))document.getElementById('date-sub').textContent=`${now.getFullYear()}`;
     document.getElementById('header-date').textContent=dateStr;
     const navDate=document.getElementById('nav-date');
     if(navDate)navDate.textContent=dateStr;
