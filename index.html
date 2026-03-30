@@ -194,19 +194,17 @@
 .conj-verb-meaning { font-size:0.82rem; color:rgba(255,255,255,0.75); }
 .conj-mood { background:white; border:1.5px solid var(--border); border-top:none; overflow:hidden; }
 .conj-mood:last-child { border-radius:0 0 10px 10px; }
-.conj-mood-header { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; cursor:pointer; font-size:13px; font-weight:700; color:var(--text); background:#f5f9ff; border-bottom:1px solid var(--border); }
-.conj-mood-header.expanded { background:#eef5fc; }
-.conj-tenses-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.conj-mood-header { display:flex; align-items:center; justify-content:space-between; padding:9px 14px; cursor:pointer; font-size:13px; font-weight:700; color:white; background:#4a8fc4; border-bottom:1px solid #3a7ab0; }
+.conj-mood-header.expanded { background:#3d7db5; }
+.conj-tenses-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:10px 14px; }
 .conj-tense-box { border:1.5px solid var(--border); border-radius:8px; overflow:hidden; }
-.conj-tense-header { background:#f8fbff; padding:5px 10px; font-size:10px; font-weight:700; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.6px; border-bottom:1px solid var(--border); }
-.conj-grid { display:grid; grid-template-columns:1fr 1fr; }
-.conj-cell { display:flex; align-items:center; gap:6px; padding:4px 8px; border-bottom:1px solid #eef5fc; border-right:1px solid #eef5fc; }
+.conj-tense-header { background:#cce5ff; padding:5px 10px; font-size:10px; font-weight:700; color:#1a5a90; text-transform:uppercase; letter-spacing:0.6px; border-bottom:1px solid #a8d0f0; }
+.conj-grid { display:grid; grid-template-columns:1fr 1fr; grid-auto-flow:column; }
+.conj-cell { display:flex; align-items:center; gap:5px; padding:4px 8px; border-bottom:1px solid #eef5fc; border-right:1px solid #eef5fc; white-space:nowrap; }
 .conj-cell:nth-child(2n) { border-right:none; }
 .conj-cell:nth-last-child(-n+2) { border-bottom:none; }
-.conj-pronoun-block { min-width:36px; }
-.conj-pronoun { font-size:11px; color:var(--text-soft); font-weight:600; white-space:nowrap; }
-.conj-pronoun-eng { font-size:9px; color:var(--text-muted); }
-.conj-form { font-size:13px; font-weight:600; color:var(--text); flex:1; }
+.conj-pronoun { font-size:11px; color:#1a5a90; font-weight:700; white-space:nowrap; min-width:28px; }
+.conj-form { font-size:13px; font-weight:600; color:var(--text); }
     @media (max-width:700px) { .settings-deck-grid { grid-template-columns:1fr; } .header { padding:14px 16px; } .main { padding:16px; } .app-title { font-size:20px; } .nav-btn { padding:8px 14px; min-width:60px; } .headline-thumb { width:72px; height:45px; } }
   </style>
 </head>
@@ -899,7 +897,10 @@ function renderConjugationHTML(langID,langName,verbs,autoLoadWordID=null){
     const loadID=autoLoadWordID||verbs[0].UserLanguageWordsID;
     setTimeout(()=>{const sel=document.getElementById('conj-verb-select');if(sel)sel.value=loadID;loadConjugation(loadID,langName);},0);
     return`<div class="conj-panel">
-      <div style="margin:12px 0"><select class="form-select" id="conj-verb-select" onchange="loadConjugation(this.value,'${langName}')">${selectOptions}</select></div>
+      <div style="display:flex;align-items:center;gap:10px;margin:12px 0">
+        <button onclick="cancelConjugation()" style="padding:5px 12px;font-size:12px;font-weight:600;color:var(--sky-deep);background:white;border:1.5px solid var(--sky-deep);border-radius:6px;cursor:pointer">← Back</button>
+        <select class="form-select" id="conj-verb-select" onchange="loadConjugation(this.value,'${langName}')" style="flex:1">${selectOptions}</select>
+      </div>
       <div id="conj-output"></div>
     </div>`;
   }
@@ -914,11 +915,12 @@ async function loadConjugation(wordID,langName){
       let html=`<div class="conj-verb-header"><div class="conj-verb-name">${data.verb||''}</div><div class="conj-verb-meaning">${data.language||''}</div></div>`;
       data.moods.forEach((mood,mi)=>{
         const expanded=mi===0;
-        html+=`<div class="conj-mood"><div class="conj-mood-header ${expanded?'expanded':''}" onclick="toggleConjMood(this)"><div class="conj-mood-title">${mood.moodEng} <span style="font-size:12px;color:var(--text-muted);font-family:sans-serif">(${mood.moodName})</span></div><span>${expanded?'▲':'▼'}</span></div><div style="display:${expanded?'block':'none'}"><div class="conj-tenses-grid">`;
+        html+=`<div class="conj-mood"><div class="conj-mood-header ${expanded?'expanded':''}" onclick="toggleConjMood(this)"><div class="conj-mood-title">${mood.moodEng} <span style="font-size:12px;opacity:0.75;font-weight:400">(${mood.moodName})</span></div><span class="conj-mood-arrow">${expanded?'▲':'▼'}</span></div><div style="display:${expanded?'block':'none'}"><div class="conj-tenses-grid">`;
         mood.tenses.forEach(tense=>{
-          html+=`<div class="conj-tense-box"><div class="conj-tense-header">${tense.tenseEng} <span style="font-weight:400;opacity:0.7">(${tense.tenseName})</span></div><div class="conj-grid">`;
+          const rows=Math.ceil(tense.forms.length/2);
+          html+=`<div class="conj-tense-box"><div class="conj-tense-header">${tense.tenseEng} <span style="font-weight:400;opacity:0.7">(${tense.tenseName})</span></div><div class="conj-grid" style="grid-template-rows:repeat(${rows},auto)">`;
           tense.forms.forEach(f=>{
-            html+=`<div class="conj-cell"><div class="conj-pronoun-block"><span class="conj-pronoun">${f.pronounName}</span><div class="conj-pronoun-eng">${f.pronounEng||''}</div></div><span class="conj-form">${f.form}</span></div>`;
+            html+=`<div class="conj-cell"><span class="conj-pronoun">${f.pronounName}</span><span class="conj-form">${f.form}</span></div>`;
           });
           html+=`</div></div>`;
         });
@@ -933,7 +935,7 @@ async function loadConjugation(wordID,langName){
     const open=body.style.display!=='none';
     body.style.display=open?'none':'block';
     header.classList.toggle('expanded',!open);
-    header.querySelector('span').textContent=open?'▼':'▲';
+    header.querySelector('.conj-mood-arrow').textContent=open?'▼':'▲';
   }
 
   let conjReturnFn = null;
