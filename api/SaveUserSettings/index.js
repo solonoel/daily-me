@@ -21,7 +21,8 @@ module.exports = async function(context, req) {
         .input('YouTubeMaxResults', sql.Int, youTubeMaxResults || 3)
         .query(`
           UPDATE [HeadlineSetting]
-          SET RecencyDays = @RecencyDays, MaxHeadlines = @MaxHeadlines, YouTubeMaxResults = @YouTubeMaxResults
+          SET RecencyDays = @RecencyDays, MaxHeadlines = @MaxHeadlines, YouTubeMaxResults = @YouTubeMaxResults,
+              LastYouTubeFetch = NULL
           WHERE UserID = @UserID
         `);
     }
