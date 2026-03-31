@@ -958,7 +958,7 @@
       cardHTML=`<div class="flashcard"><div class="flashcard-word">No words to study!</div><div class="flashcard-hint">Add words in My Words.</div></div>`;
     }else{
       const genderLabel=card.Gender==='M'?' <span style="font-size:18px;color:var(--text-soft);font-weight:700">♂</span>':card.Gender==='F'?' <span style="font-size:18px;color:var(--text-soft);font-weight:700">♀</span>':'';
-      const fcConjugateLink=card.IsVerb==='Y'?`<div style="margin-top:8px"><span class="conjugate-link" onclick="event.stopPropagation();showConjugationFromFlashcard(${card.UserLanguageWordsID})">conjugate</span></div>`:'';
+      const fcConjugateLink=card.IsVerb==='Y'?`<span class="conjugate-link" style="position:absolute;top:10px;right:12px;font-size:11px" onclick="event.stopPropagation();showConjugationFromFlashcard(${card.UserLanguageWordsID})">conjugate</span>`:'';
       const imgEl=card.WordsImage?`<img src="${card.WordsImage}" class="flashcard-image" alt="">`:'';
       const displayTranslation=getDisplayTranslation(card);
       const sentencesHTML=flashcardShowTranslation?renderSentencesHTML(card.UserLanguageWordsID):'';
@@ -973,16 +973,13 @@
           cardContent=`<div class="flashcard-translation">${displayTranslation}</div><div class="flashcard-hint">Tap to reveal</div>`;
         }
       }else{
-        // Back side — show the other side + image + conjugate + sentences
-        if(flashcardLeadWith==='language'){
-          cardContent=`<div class="flashcard-translation">${displayTranslation}</div>${imgEl}${fcConjugateLink}${sentencesHTML}`;
-        }else{
-          cardContent=`<div class="flashcard-word">${card.WordsName}${genderLabel}</div>${imgEl}${fcConjugateLink}${sentencesHTML}`;
-        }
+        // Back side — always: language word (top, large) + image + English translation + sentences
+        // Conjugate link pinned to upper-right corner via absolute positioning
+        cardContent=`${fcConjugateLink}<div class="flashcard-word">${card.WordsName}${genderLabel}</div>${imgEl}<div class="flashcard-translation">${displayTranslation}</div>${sentencesHTML}`;
       }
 
       cardHTML=`
-        <div class="flashcard" onclick="toggleFlashcardTranslation()">
+        <div class="flashcard" style="position:relative" onclick="toggleFlashcardTranslation()">
           ${cardContent}
         </div>
         <div class="fc-actions-bar">
@@ -996,15 +993,17 @@
     }
     const prevDis=flashcardIndex===0?'disabled':'',nextDis=flashcardIndex>=total-1?'disabled':'';
     return `
-      <div style="display:flex;align-items:center;gap:16px;margin-top:12px;margin-bottom:8px;flex-wrap:wrap">
-        <span style="font-size:12px;font-weight:600;color:var(--text-soft)">Lead with:</span>
-        <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
-          <input type="radio" name="fc-lead-${langID}" value="language" ${flashcardLeadWith==='language'?'checked':''} onchange="setFlashcardLeadWith('language')"> ${langName}
-        </label>
-        <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
-          <input type="radio" name="fc-lead-${langID}" value="english" ${flashcardLeadWith==='english'?'checked':''} onchange="setFlashcardLeadWith('english')"> English
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-soft);cursor:pointer;background:white;border:1px solid var(--border);border-radius:100px;padding:5px 14px;margin-left:auto">
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:12px;margin-bottom:8px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-soft);background:white;border:1px solid var(--border);border-radius:100px;padding:5px 14px">
+          <span style="font-weight:600">Lead with:</span>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="fc-lead-${langID}" value="language" ${flashcardLeadWith==='language'?'checked':''} onchange="setFlashcardLeadWith('language')" style="accent-color:var(--sky-deep)"> ${langName}
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="fc-lead-${langID}" value="english" ${flashcardLeadWith==='english'?'checked':''} onchange="setFlashcardLeadWith('english')" style="accent-color:var(--sky-deep)"> English
+          </label>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-soft);cursor:pointer;background:white;border:1px solid var(--border);border-radius:100px;padding:5px 14px">
           🔊 Auto Pronounce <input type="checkbox" id="fc-auto-pronounce" ${flashcardAutoPronounce?'checked':''} onchange="flashcardAutoPronounce=this.checked" style="accent-color:var(--sky-deep)">
         </label>
       </div>
