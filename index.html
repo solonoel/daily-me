@@ -450,7 +450,8 @@
   let currentFilter='Local',currentSettingsSection=null;
   let currentLangID=null,currentLangName=null;
   let myWords=[],myWordsFilter='active',showImages=true;
-  let flashcards=[],flashcardIndex=0,flashcardShowTranslation=false,flashcardFilter='all',flashcardAutoPronounce=true;
+  let flashcards=[],flashcardIndex=0,flashcardShowTranslation=false,flashcardFilter='all',flashcardAutoPronounce=true,flashcardLeadWith='language';
+  let sentencesCache={};
   let newWordImage=null,newWordImageChanged=false;
   let editingWordID=null;
   let conjVerbs=[],conjLangName='';
@@ -609,7 +610,7 @@
     if(tabEl)tabEl.classList.add('lang-tab-active');
     const panel=document.getElementById(`lang-feature-${langID}`);if(!panel)return;
     if(feature==='flashcards'){
-      flashcardFilter='all';flashcardIndex=0;flashcardShowTranslation=false;flashcardAutoPronounce=true;
+      flashcardFilter='all';flashcardIndex=0;flashcardShowTranslation=false;flashcardAutoPronounce=true;flashcardLeadWith='language';sentencesCache={};
       const data=await apiGet('GetUserLanguageWords',`&languageID=${langID}&filter=active`);
       flashcards=Array.isArray(data)?data:[];
       panel.innerHTML=renderFlashcardsHTML(langID,langName);
@@ -917,6 +918,35 @@
 
   // ── FLASHCARDS ──
 
+  function getDisplayTranslation(card){
+    let t=card.WordsTranslation||'—';
+    if(card.IsVerb==='Y'&&t!=='—'){
+      t=t.split(',').map(s=>{s=s.trim();return s.toLowerCase().startsWith('to ')?s:'to '+s;}).join(', ');
+    }
+    return t;
+  }
+
+  function renderSentencesHTML(wordID){
+    const cached=sentencesCache[wordID];
+    if(cached===undefined||cached===null)return cached===null?`<div style="font-size:11px;color:var(--text-muted);margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">Loading sentences…</div>`:'';
+    if(!cached.length)return'';
+    return`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${cached.map(s=>`<div style="margin-bottom:5px"><span style="font-size:11px;font-weight:700;color:var(--sky-deep)">${s.pronoun}:</span> <span style="font-size:12px;color:var(--text)">${s.sentence}</span><br><span style="font-size:11px;color:var(--text-muted);padding-left:4px">${s.translation}</span></div>`).join('')}</div>`;
+  }
+
+  function setFlashcardLeadWith(val){flashcardLeadWith=val;flashcardShowTranslation=false;renderFlashcardsScreen();}
+
+  async function loadSentencesForCard(card){
+    const id=card.UserLanguageWordsID;
+    if(sentencesCache[id]!==undefined)return;
+    sentencesCache[id]=null;
+    if(flashcardShowTranslation)renderFlashcardsScreen();
+    try{
+      const result=await apiPost('GetWordSentences',{word:card.WordsName,langName:currentLangName});
+      sentencesCache[id]=Array.isArray(result.sentences)?result.sentences:[];
+    }catch(e){sentencesCache[id]=[];}
+    if(flashcardShowTranslation)renderFlashcardsScreen();
+  }
+
   function renderFlashcardsHTML(langID,langName){
     const filtered=getFilteredFlashcards(),total=filtered.length,card=filtered[flashcardIndex];
     const filters=[
@@ -930,14 +960,30 @@
       const genderLabel=card.Gender==='M'?' <span style="font-size:18px;color:var(--text-soft);font-weight:700">♂</span>':card.Gender==='F'?' <span style="font-size:18px;color:var(--text-soft);font-weight:700">♀</span>':'';
       const fcConjugateLink=card.IsVerb==='Y'?`<div style="margin-top:8px"><span class="conjugate-link" onclick="event.stopPropagation();showConjugationFromFlashcard(${card.UserLanguageWordsID})">conjugate</span></div>`:'';
       const imgEl=card.WordsImage?`<img src="${card.WordsImage}" class="flashcard-image" alt="">`:'';
-      const transEl=flashcardShowTranslation?`<div class="flashcard-translation">${card.WordsTranslation||'—'}</div>`:`<div class="flashcard-hint">Tap card to reveal translation</div>`;
+      const displayTranslation=getDisplayTranslation(card);
+      const sentencesHTML=flashcardShowTranslation?renderSentencesHTML(card.UserLanguageWordsID):'';
       const prevDis2=flashcardIndex===0?'disabled':'',nextDis2=flashcardIndex>=total-1?'disabled':'';
+
+      let cardContent;
+      if(!flashcardShowTranslation){
+        // Front side — show only the leading word
+        if(flashcardLeadWith==='language'){
+          cardContent=`<div class="flashcard-word">${card.WordsName}${genderLabel}</div><div class="flashcard-hint">Tap to reveal</div>`;
+        }else{
+          cardContent=`<div class="flashcard-translation">${displayTranslation}</div><div class="flashcard-hint">Tap to reveal</div>`;
+        }
+      }else{
+        // Back side — show the other side + image + conjugate + sentences
+        if(flashcardLeadWith==='language'){
+          cardContent=`<div class="flashcard-translation">${displayTranslation}</div>${imgEl}${fcConjugateLink}${sentencesHTML}`;
+        }else{
+          cardContent=`<div class="flashcard-word">${card.WordsName}${genderLabel}</div>${imgEl}${fcConjugateLink}${sentencesHTML}`;
+        }
+      }
+
       cardHTML=`
         <div class="flashcard" onclick="toggleFlashcardTranslation()">
-          ${imgEl}
-          <div class="flashcard-word">${card.WordsName}${genderLabel}</div>
-          ${transEl}
-          ${fcConjugateLink}
+          ${cardContent}
         </div>
         <div class="fc-actions-bar">
           <button class="fc-btn fc-speaker" onclick="speakWordFC(${card.UserLanguageWordsID})" title="Pronounce">🔊</button>
@@ -950,8 +996,15 @@
     }
     const prevDis=flashcardIndex===0?'disabled':'',nextDis=flashcardIndex>=total-1?'disabled':'';
     return `
-      <div style="display:flex;align-items:center;justify-content:flex-end;margin-top:12px;margin-bottom:8px">
-        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-soft);cursor:pointer;background:white;border:1px solid var(--border);border-radius:100px;padding:5px 14px">
+      <div style="display:flex;align-items:center;gap:16px;margin-top:12px;margin-bottom:8px;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:600;color:var(--text-soft)">Lead with:</span>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
+          <input type="radio" name="fc-lead-${langID}" value="language" ${flashcardLeadWith==='language'?'checked':''} onchange="setFlashcardLeadWith('language')"> ${langName}
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
+          <input type="radio" name="fc-lead-${langID}" value="english" ${flashcardLeadWith==='english'?'checked':''} onchange="setFlashcardLeadWith('english')"> English
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-soft);cursor:pointer;background:white;border:1px solid var(--border);border-radius:100px;padding:5px 14px;margin-left:auto">
           🔊 Auto Pronounce <input type="checkbox" id="fc-auto-pronounce" ${flashcardAutoPronounce?'checked':''} onchange="flashcardAutoPronounce=this.checked" style="accent-color:var(--sky-deep)">
         </label>
       </div>
@@ -986,9 +1039,12 @@
   function toggleFlashcardTranslation(){
     flashcardShowTranslation=!flashcardShowTranslation;
     renderFlashcardsScreen();
-    if(flashcardShowTranslation&&flashcardAutoPronounce){
+    if(flashcardShowTranslation){
       const card=getFilteredFlashcards()[flashcardIndex];
-      if(card)speakWord(card.WordsName,currentLangName);
+      if(card){
+        if(flashcardAutoPronounce)speakWord(card.WordsName,currentLangName);
+        loadSentencesForCard(card);
+      }
     }
   }
 

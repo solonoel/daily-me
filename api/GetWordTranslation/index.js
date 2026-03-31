@@ -56,9 +56,10 @@ module.exports = async function(context, req) {
         max_tokens: 100,
         messages: [{
           role: 'user',
-          content: `For the ${languageCode} word or phrase "${word}", respond with JSON only, no other text:
-{"isVerb": true/false, "gender": "M" or "F" or "N" or null}
-gender: M=masculine, F=feminine, N=neuter, null=not applicable (verbs, plurals, proper nouns).`
+          content: `For the ${languageCode} word or phrase "${word}", respond with JSON only, no markdown:
+{"isVerb": true|false, "gender": "M"|"F"|"N"|null, "synonyms": ["word1","word2"]}
+- gender: M=masculine, F=feminine, N=neuter, null=not applicable (verbs, plurals, proper nouns)
+- synonyms: 2-3 additional English translations/synonyms most relevant to this word. Do NOT include "to" prefix. Empty array if none.`
         }]
       });
       const anthropicOptions = {
@@ -78,8 +79,22 @@ gender: M=masculine, F=feminine, N=neuter, null=not applicable (verbs, plurals, 
       const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
       gender = parsed.gender || null;
       isVerb = !!parsed.isVerb;
+      const synonyms = Array.isArray(parsed.synonyms) ? parsed.synonyms : [];
+      // Build combined translation: DeepL base + Claude synonyms, deduped
+      const seen = new Set();
+      const parts = [translation, ...synonyms].map(t => t.trim()).filter(t => {
+        const key = t.toLowerCase().replace(/^to\s+/, '');
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      if (isVerb) {
+        translation = parts.map(t => t.toLowerCase().startsWith('to ') ? t : 'to ' + t).join(', ');
+      } else {
+        translation = parts.join(', ');
+      }
     } catch(e) {
-      // Claude call failed — return translation only
+      // Claude call failed — return DeepL translation only
     }
 
     context.res = {
