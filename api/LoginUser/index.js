@@ -33,25 +33,25 @@ module.exports = async function(context, req) {
       `);
 
     if (result.recordset.length === 0) {
-      context.res = { status: 401, body: 'Invalid email or password' };
+      context.res = { status: 401, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: false, message: 'Invalid email or password' }) };
       return;
     }
 
     const user = result.recordset[0];
 
     if (user.IsActive !== 'Y') {
-      context.res = { status: 401, body: 'Account is inactive' };
+      context.res = { status: 401, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: false, message: 'Account is inactive' }) };
       return;
     }
 
     if (user.EmailVerified !== 'Y') {
-      context.res = { status: 401, body: 'Please verify your email before logging in' };
+      context.res = { status: 401, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: false, message: 'Please verify your email before logging in' }) };
       return;
     }
 
     const hash = hashPassword(password, user.Salt);
     if (hash !== user.PasswordHash) {
-      context.res = { status: 401, body: 'Invalid email or password' };
+      context.res = { status: 401, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: false, message: 'Invalid email or password' }) };
       return;
     }
 
@@ -75,6 +75,6 @@ module.exports = async function(context, req) {
       })
     };
   } catch(err) {
-    context.res = { status: 500, body: 'Error: ' + err.message };
+    context.res = { status: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: false, message: 'Server error. Please try again.' }) };
   }
 };

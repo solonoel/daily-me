@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Me — Reset Password</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'DM Sans',sans-serif; background:linear-gradient(160deg,#e8f4ff 0%,#f5f9ff 60%,#eef7f0 100%); min-height:100vh; display:flex; align-items:center; justify-content:center; }
+    .card { background:white; border-radius:20px; padding:40px; max-width:420px; width:90%; box-shadow:0 8px 40px rgba(43,127,212,0.12); }
+    .header { text-align:center; margin-bottom:32px; }
+    .logo { width:56px; height:56px; border-radius:50%; object-fit:cover; margin-bottom:12px; }
+    .title { font-family:'Playfair Display',serif; font-size:24px; color:#0f1e2e; }
+    .subtitle { font-size:13px; color:#3a5a7a; margin-top:4px; }
+    .form-group { margin-bottom:16px; }
+    .form-label { font-size:12px; font-weight:600; color:#3a5a7a; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:6px; }
+    .form-input { width:100%; padding:10px 12px; border:1.5px solid #c4dcf0; border-radius:8px; font-size:13px; font-family:'DM Sans',sans-serif; color:#0f1e2e; transition:border-color 0.2s; }
+    .form-input:focus { outline:none; border-color:#2b7fd4; }
+    .password-wrap { position:relative; }
+    .password-wrap .form-input { padding-right:70px; }
+    .show-pw { position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:11px; font-weight:600; color:#2b7fd4; cursor:pointer; background:none; border:none; font-family:'DM Sans',sans-serif; padding:2px 4px; }
+    .show-pw:hover { text-decoration:underline; }
+    .btn-primary { width:100%; padding:11px; border-radius:8px; border:none; background:#2b7fd4; color:white; font-size:14px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; margin-top:8px; transition:opacity 0.2s; }
+    .btn-primary:hover { opacity:0.9; }
+    .message { margin-top:14px; padding:10px 14px; border-radius:8px; font-size:13px; display:none; }
+    .message.error { background:#fef0f0; color:#e05050; display:block; }
+    .message.success { background:#edfaf7; color:#0a5c4e; display:block; }
+    .hint { font-size:11px; color:#5a7a9a; margin-top:4px; }
+    .back-link { display:block; text-align:center; margin-top:16px; font-size:12px; color:#2b7fd4; cursor:pointer; background:none; border:none; font-family:'DM Sans',sans-serif; }
+    .back-link:hover { text-decoration:underline; }
+    .invalid-state { text-align:center; padding:20px 0; }
+    .invalid-icon { font-size:40px; margin-bottom:12px; }
+    .invalid-msg { font-size:14px; color:#3a5a7a; margin-bottom:20px; line-height:1.5; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <img src="logo.png" alt="Daily Me" class="logo">
+    <div class="title">Daily Me</div>
+    <div class="subtitle">Set your new password</div>
+  </div>
+  <div id="form-area">
+    <div class="form-group">
+      <label class="form-label">New Password</label>
+      <div class="password-wrap">
+        <input class="form-input" type="password" id="new-password" placeholder="••••••••">
+        <button class="show-pw" type="button" onclick="togglePw()">Show</button>
+      </div>
+      <div class="hint">Minimum 8 characters</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Confirm Password</label>
+      <div class="password-wrap">
+        <input class="form-input" type="password" id="confirm-password" placeholder="••••••••">
+      </div>
+    </div>
+    <button class="btn-primary" onclick="resetPassword()">Set New Password</button>
+    <div class="message" id="reset-message"></div>
+    <button class="back-link" onclick="window.location.href='login.html'">← Back to Sign In</button>
+  </div>
+  <div id="invalid-area" style="display:none" class="invalid-state">
+    <div class="invalid-icon">🔗</div>
+    <div class="invalid-msg">This reset link is invalid or has expired.<br>Please request a new one.</div>
+    <button class="btn-primary" onclick="window.location.href='login.html'">Back to Sign In</button>
+  </div>
+</div>
+<script>
+  const API_BASE = 'https://dailyme-functions-ewhcg5akbxhhcugr.centralus-01.azurewebsites.net/api';
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+
+  if (!token) {
+    document.getElementById('form-area').style.display = 'none';
+    document.getElementById('invalid-area').style.display = 'block';
+  }
+
+  function togglePw() {
+    const input = document.getElementById('new-password');
+    const btn = document.querySelector('.show-pw');
+    const showing = input.type === 'text';
+    input.type = showing ? 'password' : 'text';
+    btn.textContent = showing ? 'Show' : 'Hide';
+  }
+
+  function showMessage(text, type) {
+    const el = document.getElementById('reset-message');
+    el.textContent = text;
+    el.className = `message ${type}`;
+  }
+
+  async function resetPassword() {
+    const password = document.getElementById('new-password').value;
+    const confirm = document.getElementById('confirm-password').value;
+    if (!password || password.length < 8) return showMessage('Password must be at least 8 characters', 'error');
+    if (password !== confirm) return showMessage('Passwords do not match', 'error');
+    try {
+      const res = await fetch(`${API_BASE}/ResetPassword`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showMessage(data.message, 'success');
+        document.querySelector('.btn-primary').disabled = true;
+        setTimeout(() => window.location.href = 'login.html', 2500);
+      } else {
+        showMessage(data.message || 'Reset failed. Please try again.', 'error');
+        if (data.message?.includes('expired') || data.message?.includes('Invalid')) {
+          document.getElementById('form-area').style.display = 'none';
+          document.getElementById('invalid-area').style.display = 'block';
+        }
+      }
+    } catch(e) {
+      showMessage('Connection error. Please try again.', 'error');
+    }
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') resetPassword(); });
+</script>
+</body>
+</html>

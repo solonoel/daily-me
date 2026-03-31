@@ -28,6 +28,12 @@
     .form-panel { display:none; }
     .form-panel.active { display:block; }
     .hint { font-size:11px; color:#5a7a9a; margin-top:4px; }
+    .password-wrap { position:relative; }
+    .password-wrap .form-input { padding-right:70px; }
+    .show-pw { position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:11px; font-weight:600; color:#2b7fd4; cursor:pointer; background:none; border:none; font-family:'DM Sans',sans-serif; padding:2px 4px; }
+    .show-pw:hover { text-decoration:underline; }
+    .forgot-link { font-size:12px; color:#2b7fd4; cursor:pointer; text-align:right; display:block; margin-top:6px; background:none; border:none; font-family:'DM Sans',sans-serif; padding:0; }
+    .forgot-link:hover { text-decoration:underline; }
   </style>
 </head>
 <body>
@@ -38,7 +44,7 @@
     <div class="subtitle">Your personal daily briefing</div>
   </div>
 
-  <div class="tabs">
+  <div class="tabs" id="main-tabs">
     <div class="tab active" onclick="switchTab('login')">Sign In</div>
     <div class="tab" onclick="switchTab('register')">Register</div>
   </div>
@@ -50,7 +56,11 @@
     </div>
     <div class="form-group">
       <label class="form-label">Password</label>
-      <input class="form-input" type="password" id="login-password" placeholder="••••••••">
+      <div class="password-wrap">
+        <input class="form-input" type="password" id="login-password" placeholder="••••••••">
+        <button class="show-pw" type="button" onclick="togglePw('login-password',this)">Show</button>
+      </div>
+      <button class="forgot-link" type="button" onclick="switchTab('reset')">Forgot password?</button>
     </div>
     <button class="btn-primary" onclick="login()">Sign In</button>
     <div class="message" id="login-message"></div>
@@ -67,11 +77,24 @@
     </div>
     <div class="form-group">
       <label class="form-label">Password</label>
-      <input class="form-input" type="password" id="reg-password" placeholder="••••••••">
+      <div class="password-wrap">
+        <input class="form-input" type="password" id="reg-password" placeholder="••••••••">
+        <button class="show-pw" type="button" onclick="togglePw('reg-password',this)">Show</button>
+      </div>
       <div class="hint">Minimum 8 characters</div>
     </div>
     <button class="btn-primary" onclick="register()">Create Account</button>
     <div class="message" id="reg-message"></div>
+  </div>
+
+  <div class="form-panel" id="panel-reset">
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-input" type="email" id="reset-email" placeholder="your@email.com">
+    </div>
+    <button class="btn-primary" onclick="requestReset()">Send Reset Link</button>
+    <div class="message" id="reset-message"></div>
+    <button class="forgot-link" type="button" onclick="switchTab('login')" style="margin-top:12px;text-align:center;width:100%">← Back to Sign In</button>
   </div>
 </div>
 
@@ -81,8 +104,17 @@
   function switchTab(tab) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
-    document.querySelector(`.tab:${tab === 'login' ? 'first-child' : 'last-child'}`).classList.add('active');
     document.getElementById(`panel-${tab}`).classList.add('active');
+    const tabs = document.querySelectorAll('#main-tabs .tab');
+    if (tab === 'login') tabs[0].classList.add('active');
+    else if (tab === 'register') tabs[1].classList.add('active');
+  }
+
+  function togglePw(id, btn) {
+    const input = document.getElementById(id);
+    const showing = input.type === 'text';
+    input.type = showing ? 'password' : 'text';
+    btn.textContent = showing ? 'Show' : 'Hide';
   }
 
   function showMessage(id, text, type) {
@@ -139,6 +171,23 @@
     }
   }
 
+  async function requestReset() {
+    const email = document.getElementById('reset-email').value.trim();
+    if (!email) return showMessage('reset-message', 'Please enter your email address', 'error');
+    try {
+      const res = await fetch(`${API_BASE}/RequestPasswordReset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      showMessage('reset-message', data.message || 'If that email exists, a reset link has been sent.', 'success');
+      document.getElementById('reset-email').value = '';
+    } catch(e) {
+      showMessage('reset-message', 'Connection error. Please try again.', 'error');
+    }
+  }
+
   // Check if already logged in
   const user = localStorage.getItem('dailyme_user');
   if (user) window.location.href = 'index.html';
@@ -148,7 +197,8 @@
     if (e.key === 'Enter') {
       const activePanel = document.querySelector('.form-panel.active').id;
       if (activePanel === 'panel-login') login();
-      else register();
+      else if (activePanel === 'panel-register') register();
+      else if (activePanel === 'panel-reset') requestReset();
     }
   });
 </script>
