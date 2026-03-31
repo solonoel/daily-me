@@ -155,17 +155,20 @@ async function fetchRSS(source) {
   return parseRSS(xml);
 }
 
-async function fetchYouTube(source, keywords, maxResults, langCodes, context) {
+async function fetchYouTube(source, keywords, maxResults, langCodes, context, fromDateStr) {
   const apiKey = process.env.YOUTUBE_API_KEY;
   const articles = [];
   const relevanceLang = langCodes.includes('en') ? 'en' : langCodes[0] || 'en';
-  context.log(`YouTube: ${keywords.length} keywords, maxResults: ${maxResults}, lang: ${relevanceLang}`);
+  const channelId = source.URL?.match(/youtube\.com\/channel\/(UC[A-Za-z0-9_-]+)/)?.[1] || null;
+  const publishedAfterParam = fromDateStr ? `&publishedAfter=${fromDateStr}T00:00:00Z` : '';
+  const channelParam = channelId ? `&channelId=${channelId}` : '';
+  context.log(`YouTube: ${keywords.length} keywords, maxResults: ${maxResults}, lang: ${relevanceLang}, channel: ${channelId||'any'}`);
   for (const term of keywords) {
     try {
-      const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(term.text)}&type=video&order=date&maxResults=${maxResults}&relevanceLanguage=${relevanceLang}&key=${apiKey}`;
+      const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(term.text)}&type=video&order=date&maxResults=${maxResults}${channelParam}${publishedAfterParam}&relevanceLanguage=${relevanceLang}&key=${apiKey}`;
       const searchData = JSON.parse(await fetchUrl(searchUrl));
       context.log(`YouTube term "${term.text}": ${searchData.items?.length || 0} results, error: ${JSON.stringify(searchData.error || null)}`);
-      for (const item of (searchData.items || [])) {
+      for (const item of (searchData.items || []).slice(0, maxResults)) {
         const videoID = item.id?.videoId;
         if (!videoID) continue;
         articles.push({
@@ -303,7 +306,7 @@ module.exports = async function(context, req) {
               context.log(`YouTube skipped — ${disableYoutube ? 'disabled by user' : 'already fetched today'}`);
               continue;
             }
-            articles = await fetchYouTube(source, keywords, youTubeMaxResults, uniqueLangCodes, context);
+            articles = await fetchYouTube(source, keywords, youTubeMaxResults, uniqueLangCodes, context, fromDateStr);
             articles = await filterByLanguage(articles, uniqueLangCodes);
             youtubeFetched = true;
             break;
@@ -330,8 +333,8 @@ module.exports = async function(context, req) {
       }
     }
 
-    // Update LastYouTubeFetch if YouTube was fetched
-    if (youtubeFetched) {
+    // Update LastYouTubeFetch if YouTube was fetched, or if user disabled it (prevents re-running today)
+    if (youtubeFetched || disableYoutube) {
       await pool.request()
         .input('UserID', sql.Int, userID)
         .query(`UPDATE [HeadlineSetting] SET LastYouTubeFetch = GETDATE() WHERE UserID = @UserID`);

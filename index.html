@@ -306,17 +306,17 @@
           <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px">
             <div>
               <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Recency Days</div>
-              <input type="number" id="us-recency" class="form-input" style="width:48px;font-size:12px" min="1" max="14">
+              <input type="number" id="us-recency" class="form-input" style="width:52px;font-size:12px;padding:3px 5px" min="1" max="14">
               <div style="font-size:10px;color:var(--text-muted);margin-top:2px">max 14</div>
             </div>
             <div>
               <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Max Headlines</div>
-              <input type="number" id="us-maxheadlines" class="form-input" style="width:52px;font-size:12px" min="10" max="200" oninput="updateOtherLimit()">
+              <input type="number" id="us-maxheadlines" class="form-input" style="width:58px;font-size:12px;padding:3px 5px" min="10" max="200" oninput="updateOtherLimit()">
               <span id="us-maxheadlines-adjusted" style="display:none;font-size:10px;color:var(--sky-deep);font-weight:600">(adj)</span>
             </div>
             <div>
               <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">YouTube Headlines/Keyword</div>
-              <input type="number" id="us-youtubemaxresults" class="form-input" style="width:48px;font-size:12px" min="1" max="20">
+              <input type="number" id="us-youtubemaxresults" class="form-input" style="width:52px;font-size:12px;padding:3px 5px" min="1" max="20">
             </div>
           </div>
           <div class="catlimits-section" style="margin-top:8px">
@@ -1257,8 +1257,13 @@ async function loadConjugation(wordID,langName){
 
   function saveYtDisableFlag(){
     const checked=document.getElementById('us-disable-yt')?.checked;
-    if(checked)localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
-    else localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
+    if(checked){
+      localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
+      // Persist server-side: mark YouTube as "fetched today" so no future fetches run today
+      apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:true});
+    } else {
+      localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
+    }
   }
 
   async function saveUserSettings(){

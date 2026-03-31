@@ -11,7 +11,15 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, categorySettings } = req.body;
+    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, categorySettings, disableYoutubeToday } = req.body;
+
+    if (disableYoutubeToday === true) {
+      await pool.request()
+        .input('UserID', sql.Int, userID)
+        .query(`UPDATE [HeadlineSetting] SET LastYouTubeFetch = GETDATE() WHERE UserID = @UserID`);
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) };
+      return;
+    }
 
     if (recencyDays || maxHeadlines) {
       await pool.request()
