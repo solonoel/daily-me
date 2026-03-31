@@ -23,20 +23,9 @@ jobs:
         working-directory: api
         run: npm install --production
 
-      - name: Deploy via zip deploy
-        env:
-          PUBLISH_PROFILE: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
-        run: |
-          USERNAME=$(echo "$PUBLISH_PROFILE" | grep -o 'userName="[^"]*"' | head -1 | cut -d'"' -f2)
-          PASSWORD=$(echo "$PUBLISH_PROFILE" | grep -o 'userPWD="[^"]*"' | head -1 | cut -d'"' -f2)
-
-          cd api
-          zip -r ../deploy.zip . --exclude "*.git*" --exclude "local.settings.json"
-          cd ..
-
-          curl -X POST \
-            "https://dailyme-functions-ewhcg5akbxhhcugr.scm.centralus-01.azurewebsites.net/api/zipdeploy" \
-            -u "$USERNAME:$PASSWORD" \
-            -H "Content-Type: application/zip" \
-            --data-binary @deploy.zip \
-            -w "\nHTTP Status: %{http_code}\n"
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: dailyme-functions
+          package: api
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
