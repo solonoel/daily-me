@@ -9,7 +9,7 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,30 +23,20 @@ jobs:
         working-directory: api
         run: npm install --production
 
-      - name: Deploy files via Kudu VFS
+      - name: Deploy via zip deploy
         env:
           PUBLISH_PROFILE: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
         run: |
           USERNAME=$(echo "$PUBLISH_PROFILE" | grep -o 'userName="[^"]*"' | head -1 | cut -d'"' -f2)
           PASSWORD=$(echo "$PUBLISH_PROFILE" | grep -o 'userPWD="[^"]*"' | head -1 | cut -d'"' -f2)
-          
-          for file in api/*/index.js api/*/function.json; do
-            FUNCPATH=${file#api/}
-            echo "Uploading $file to $FUNCPATH"
-            curl -X PUT \
-              "https://dailyme-functions-ewhcg5akbxhhcugr.scm.centralus-01.azurewebsites.net/api/vfs/site/wwwroot/$FUNCPATH" \
-              -u "$USERNAME:$PASSWORD" \
-              -H "Content-Type: application/octet-stream" \
-              -H "If-Match: *" \
-              --data-binary @$file \
-              -w "\nHTTP Status: %{http_code}\n"
-          done
 
-          echo "Uploading package.json"
-          curl -X PUT \
-            "https://dailyme-functions-ewhcg5akbxhhcugr.scm.centralus-01.azurewebsites.net/api/vfs/site/wwwroot/package.json" \
+          cd api
+          zip -r ../deploy.zip . --exclude "*.git*" --exclude "local.settings.json"
+          cd ..
+
+          curl -X POST \
+            "https://dailyme-functions-ewhcg5akbxhhcugr.scm.centralus-01.azurewebsites.net/api/zipdeploy" \
             -u "$USERNAME:$PASSWORD" \
-            -H "Content-Type: application/octet-stream" \
-            -H "If-Match: *" \
-            --data-binary @api/package.json \
+            -H "Content-Type: application/zip" \
+            --data-binary @deploy.zip \
             -w "\nHTTP Status: %{http_code}\n"
