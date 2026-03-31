@@ -11,7 +11,7 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { action, sourceID, name, url, sourceType, categoryID, isActive, userID = 1 } = req.body;
+    const { action, sourceID, name, url, sourceType, categoryID, isActive, sequences, userID = 1 } = req.body;
 
     if (action === 'add') {
       // For admin (userID=1): insert new global source then add to UserHeadlineSource
@@ -74,6 +74,18 @@ module.exports = async function(context, req) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ success: true })
       };
+
+    } else if (action === 'reorder') {
+      if (Array.isArray(sequences)) {
+        for (const s of sequences) {
+          await pool.request()
+            .input('UserID', sql.Int, userID)
+            .input('SourceID', sql.Int, s.sourceID)
+            .input('Sequence', sql.Int, s.sequence)
+            .query(`UPDATE [UserHeadlineSource] SET Sequence = @Sequence WHERE UserID = @UserID AND SourceID = @SourceID`);
+        }
+      }
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) };
 
     } else if (action === 'delete') {
       // All users — remove from UserHeadlineSource

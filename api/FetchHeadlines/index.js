@@ -232,6 +232,7 @@ module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
     const userID = req.body?.userID || req.query?.userID || 1;
+    const disableYoutube = req.body?.disableYoutube === true;
 
     // Get settings including LastYouTubeFetch
     const settingResult = await pool.request()
@@ -262,9 +263,10 @@ module.exports = async function(context, req) {
 
     const sourcesResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT h.* FROM [HeadlineSource] h
+      .query(`SELECT h.*, ISNULL(uhs.Sequence, 999) AS UserSequence FROM [HeadlineSource] h
               INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
-              WHERE uhs.UserID = @UserID AND h.IsActive = 'Y'`);
+              WHERE uhs.UserID = @UserID AND h.IsActive = 'Y'
+              ORDER BY ISNULL(uhs.Sequence, 999), h.SourceID`);
     const sources = sourcesResult.recordset;
 
     const kwResult = await pool.request()
@@ -297,8 +299,8 @@ module.exports = async function(context, req) {
           case 'NewsAPI':    articles = await fetchNewsAPI(source, uniqueLangCodes); break;
           case 'RSS':        articles = await fetchRSS(source); break;
           case 'YouTube':
-            if (youtubeAlreadyFetched) {
-              context.log(`YouTube skipped — already fetched today`);
+            if (youtubeAlreadyFetched || disableYoutube) {
+              context.log(`YouTube skipped — ${disableYoutube ? 'disabled by user' : 'already fetched today'}`);
               continue;
             }
             articles = await fetchYouTube(source, keywords, youTubeMaxResults, uniqueLangCodes, context);

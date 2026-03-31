@@ -20,15 +20,16 @@ module.exports = async function(context, req) {
       result = await pool.request()
         .query(`SELECT SourceID, Name, URL, SourceType, CategoryID, IsActive, UserID FROM [HeadlineSource] WHERE IsActive = 'Y' ORDER BY Name`);
     } else {
-      // Return only sources assigned to this user
+      // Return only sources assigned to this user, ordered by user-defined sequence
       result = await pool.request()
         .input('UserID', sql.Int, userID)
         .query(`
-          SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.CategoryID, h.IsActive, h.UserID
+          SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.CategoryID, h.IsActive, h.UserID,
+                 ISNULL(uhs.Sequence, 999) AS Sequence
           FROM [HeadlineSource] h
           INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
           WHERE uhs.UserID = @UserID
-          ORDER BY h.Name
+          ORDER BY ISNULL(uhs.Sequence, 999), h.Name
         `);
     }
 

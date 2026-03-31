@@ -294,28 +294,36 @@
       <div class="settings-deck-grid">
         <div class="settings-deck">
           <div class="settings-deck-title">📰 Headlines</div>
-          <div class="settings-row">
-            <label>Recency Days</label>
-            <input type="number" id="us-recency" class="form-input" style="width:70px" min="1" max="30">
-            <label style="margin-left:12px">Max Headlines</label>
-            <input type="number" id="us-maxheadlines" class="form-input" style="width:70px" min="10" max="200" oninput="updateOtherLimit()">
-            <span id="us-maxheadlines-adjusted" style="display:none;font-size:11px;color:var(--sky-deep);font-weight:600">(adjusted)</span>
-          </div>
-          <div class="settings-row">
-            <label>YouTube Results/Keyword</label>
-            <input type="number" id="us-youtubemaxresults" class="form-input" style="width:70px" min="1" max="20">
-          </div>
           <div class="settings-btn-row">
             <button class="settings-nav-btn" onclick="showSettingsSection('categories')">📁 Categories</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('sources')">🌐 Sources</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('keywords')">🔍 Keywords</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('topics')">💡 Topics</button>
           </div>
-          <div class="catlimits-section">
-            <div class="catlimits-title">Per-Category Limits</div>
-            <table class="settings-table"><thead><tr><th>Category</th><th>Max Items</th></tr></thead><tbody id="tbl-catsettings"></tbody></table>
+          <div class="settings-row" style="margin-bottom:6px;margin-top:8px">
+            <label class="form-checkbox-row" style="font-size:12px;text-transform:none;letter-spacing:normal;font-weight:600"><input type="checkbox" id="us-disable-yt" onchange="saveYtDisableFlag()"> Disable YouTube Searches Today</label>
           </div>
-          <div style="margin-top:16px"><button class="btn-primary" onclick="saveUserSettings()">Save Settings</button></div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px">
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Recency Days</div>
+              <input type="number" id="us-recency" class="form-input" style="width:48px;font-size:12px" min="1" max="14">
+              <div style="font-size:10px;color:var(--text-muted);margin-top:2px">max 14</div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Max Headlines</div>
+              <input type="number" id="us-maxheadlines" class="form-input" style="width:52px;font-size:12px" min="10" max="200" oninput="updateOtherLimit()">
+              <span id="us-maxheadlines-adjusted" style="display:none;font-size:10px;color:var(--sky-deep);font-weight:600">(adj)</span>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">YouTube Headlines/Keyword</div>
+              <input type="number" id="us-youtubemaxresults" class="form-input" style="width:48px;font-size:12px" min="1" max="20">
+            </div>
+          </div>
+          <div class="catlimits-section" style="margin-top:8px">
+            <div class="catlimits-title">Per-Category Limits <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none;letter-spacing:normal">(max 30)</span></div>
+            <table class="settings-table"><thead><tr><th>Category</th><th>Max</th></tr></thead><tbody id="tbl-catsettings"></tbody></table>
+          </div>
+          <div style="margin-top:10px"><button class="btn-primary" onclick="saveUserSettings()">Save Settings</button></div>
         </div>
         <div class="settings-deck">
           <div class="settings-deck-title">🌍 Languages</div>
@@ -333,7 +341,7 @@
     <div id="settings-section-sources" style="display:none">
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
       <div class="settings-section-title">🌐 Headline Sources</div>
-      <table class="settings-table"><thead><tr><th>Name</th><th>URL</th><th>Type</th><th>Active</th><th></th></tr></thead><tbody id="tbl-sources"></tbody></table>
+      <table class="settings-table"><thead><tr><th></th><th>Name</th><th>URL</th><th>Type</th><th>Active</th><th></th></tr></thead><tbody id="tbl-sources"></tbody></table>
       <button class="btn-add" id="btn-add-source" onclick="openModal('source')">+ Add Source</button>
     </div>
     <div id="settings-section-keywords" style="display:none">
@@ -496,6 +504,8 @@
     document.getElementById('us-recency').value=userSettings?.headlineSetting?.RecencyDays||7;
     document.getElementById('us-maxheadlines').value=userSettings?.headlineSetting?.MaxHeadlines||50;
     document.getElementById('us-youtubemaxresults').value=userSettings?.headlineSetting?.YouTubeMaxResults||3;
+    const ytCb=document.getElementById('us-disable-yt');
+    if(ytCb)ytCb.checked=localStorage.getItem(`dailyme_yt_disabled_${USER_ID}`)==='1';
     renderLanguageNav();renderLanguageScreens();renderLanguageCheckList();
     renderCatSettingsTable(userSettings);renderCategoryTiles(null);
     const isFirstLogin=!localStorage.getItem(`dailyme_onboarded_${USER_ID}`);
@@ -516,11 +526,14 @@
   async function autoFetchHeadlinesIfNewDay(){
     const today=new Date().toDateString();
     if(localStorage.getItem('dailyme_last_fetch')===today)return;
+    // New day — reset YouTube disable flag
+    localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
+    const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=false;
     try{
       const status=document.getElementById('refresh-status');
       if(status){status.style.display='block';status.textContent='📰 Gathering today\'s headlines...';}
       await apiPost('CleanHeadlines',{userID:USER_ID});
-      await apiPost('FetchHeadlines',{userID:USER_ID});
+      await apiPost('FetchHeadlines',{userID:USER_ID,disableYoutube:false});
       localStorage.setItem('dailyme_last_fetch',today);
       if(status){status.style.display='none';}
     }catch(e){console.error('Auto-fetch failed:',e);}
@@ -1143,8 +1156,9 @@ async function loadConjugation(wordID,langName){
       btn.textContent='⏳ Refreshing...';btn.disabled=true;status.style.display='none';
       const userSettings=await apiGet('GetUserSettings');
       if(userSettings?.headlineSetting?.RecencyDays){recencyDays_value=userSettings.headlineSetting.RecencyDays;document.getElementById('recency-val').textContent=recencyDays_value===1?'1 day':`${recencyDays_value} days`;}
+      const disableYoutube=localStorage.getItem(`dailyme_yt_disabled_${USER_ID}`)==='1';
       await apiPost('CleanHeadlines',{userID:USER_ID});
-      const fetchData=await apiPost('FetchHeadlines',{userID:USER_ID});
+      const fetchData=await apiPost('FetchHeadlines',{userID:USER_ID,disableYoutube});
       btn.textContent='↻ Refresh';btn.disabled=false;
       status.textContent=`✓ Updated — ${fetchData.inserted} new headlines fetched`;status.style.display='block';
       await loadHeadlines();
@@ -1155,6 +1169,11 @@ async function loadConjugation(wordID,langName){
   function formatAge(dateStr){
     const diff=Date.now()-new Date(dateStr).getTime(),hrs=Math.floor(diff/3600000);
     if(hrs<1)return'<1h';if(hrs<24)return`${hrs}h`;return`${Math.floor(hrs/24)}d`;
+  }
+  function formatDate(dateStr){
+    if(!dateStr)return'—';
+    const d=new Date(dateStr);
+    return`${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
   }
 
   function renderCategoryTiles(allHeadlines){
@@ -1191,9 +1210,10 @@ async function loadConjugation(wordID,langName){
             <div class="headline-row-title">${h.HeadlineName}</div>
             ${h.Summary?`<div class="headline-row-summary">${h.Summary}</div>`:''}
             <div class="headline-row-meta">
-              <span class="headline-row-source">${[h.Keyword||h.Topic||'',h.SourceName||''].filter(Boolean).join(' · ')}</span>
+              <span class="headline-row-source">date: ${formatDate(h.CreatedDate)}</span>
+              <span class="headline-row-source">source: ${h.SourceName||'—'}</span>
+              <span class="headline-row-source">keyword: ${h.Keyword||h.Topic||'—'}</span>
               ${h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:''}
-              <span class="headline-row-age">${formatAge(h.CreatedDate)}</span>
             </div>
           </div>
           <button class="retain-btn ${h.Retain==='Y'?'active':''}" onclick="toggleRetain(${h.HeadlineID},event)"></button>
@@ -1221,10 +1241,10 @@ async function loadConjugation(wordID,langName){
   function renderCatSettingsTable(userSettings){
     const catRows=categories.filter(c=>c.IsActive==='Y').map(c=>{
       const existing=userSettings?.categorySettings?.find(cs=>cs.CategoryID===c.CategoryID);
-      return `<tr><td>${c.Name}</td><td><input type="number" class="form-input" style="width:70px" min="1" max="100" id="cs-${c.CategoryID}" value="${existing?.MaxItems||20}" oninput="updateOtherLimit()"></td></tr>`;
+      return `<tr style="line-height:1.2"><td style="padding:3px 10px;font-size:12px">${c.Name}</td><td style="padding:3px 10px"><input type="number" class="form-input" style="width:40px;font-size:12px;padding:2px 4px" min="1" max="30" id="cs-${c.CategoryID}" value="${Math.min(existing?.MaxItems||20,30)}" oninput="updateOtherLimit()"></td></tr>`;
     }).join('');
     document.getElementById('tbl-catsettings').innerHTML=catRows+
-      `<tr><td>Other</td><td><input type="number" class="form-input" id="cs-other" readonly tabindex="-1" style="width:70px;background:#f5f9ff;color:var(--text-muted)"></td></tr>`;
+      `<tr style="line-height:1.2"><td style="padding:3px 10px;font-size:12px">Other</td><td style="padding:3px 10px"><input type="number" class="form-input" id="cs-other" readonly tabindex="-1" style="width:40px;font-size:12px;padding:2px 4px;background:#f5f9ff;color:var(--text-muted)"></td></tr>`;
     updateOtherLimit();
     document.getElementById('us-maxheadlines').addEventListener('input',updateOtherLimit);
   }
@@ -1235,11 +1255,17 @@ async function loadConjugation(wordID,langName){
     const oi=document.getElementById('cs-other');if(oi)oi.value=Math.max(0,max-catSum);
   }
 
+  function saveYtDisableFlag(){
+    const checked=document.getElementById('us-disable-yt')?.checked;
+    if(checked)localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
+    else localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
+  }
+
   async function saveUserSettings(){
-    const recencyDays=parseInt(document.getElementById('us-recency').value);
+    const recencyDays=Math.min(14,Math.max(1,parseInt(document.getElementById('us-recency').value)||7));
     let maxHeadlines=parseInt(document.getElementById('us-maxheadlines').value);
     const youTubeMaxResults=parseInt(document.getElementById('us-youtubemaxresults').value)||3;
-    const categorySettings=categories.filter(c=>c.IsActive==='Y').map(c=>({categoryID:c.CategoryID,maxItems:parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value||20)}));
+    const categorySettings=categories.filter(c=>c.IsActive==='Y').map(c=>({categoryID:c.CategoryID,maxItems:Math.min(30,Math.max(1,parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value||20)))}));
     const catSum=categorySettings.reduce((sum,cs)=>sum+cs.maxItems,0);
     let autoAdjusted=false;
     if(maxHeadlines<catSum){maxHeadlines=catSum;autoAdjusted=true;document.getElementById('us-maxheadlines').value=maxHeadlines;updateOtherLimit();}
@@ -1280,9 +1306,10 @@ async function loadConjugation(wordID,langName){
           <div class="headline-row-title">${h.HeadlineName}</div>
           ${h.Summary?`<div class="headline-row-summary">${h.Summary}</div>`:''}
           <div class="headline-row-meta">
-            <span class="headline-row-source">${[h.Keyword||h.Topic||'',h.SourceName||''].filter(Boolean).join(' · ')}</span>
+            <span class="headline-row-source">date: ${formatDate(h.CreatedDate)}</span>
+            <span class="headline-row-source">source: ${h.SourceName||'—'}</span>
+            <span class="headline-row-source">keyword: ${h.Keyword||h.Topic||'—'}</span>
             ${h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:''}
-            <span class="headline-row-age">${formatAge(h.CreatedDate)}</span>
           </div>
         </div>
         <button class="retain-btn ${h.Retain==='Y'?'active':''}" onclick="toggleRetainHealth(${h.HeadlineID},event)"></button>
@@ -1349,12 +1376,16 @@ async function loadConjugation(wordID,langName){
   }
 
   function renderSettingsSources(){
-    document.getElementById('tbl-sources').innerHTML=sources.map(s=>`
-      <tr><td>${s.Name||'—'}</td>
-      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)">${s.URL}</td>
-      <td><span class="badge">${s.SourceType||'RSS'}</span></td>
-      <td><button class="toggle ${s.IsActive==='Y'?'on':''}" onclick="toggleSource(${s.SourceID},this)"></button></td>
-      <td style="display:flex;gap:6px"><button class="btn-icon" onclick="openModal('source',${s.SourceID})">✏️</button>${USER_ID===1?`<button class="btn-icon danger" onclick="deleteSource(${s.SourceID})">🗑️</button>`:''}</td></tr>`).join('');
+    const tbody=document.getElementById('tbl-sources');
+    tbody.innerHTML=sources.map(s=>`
+      <tr draggable="true" data-id="${s.SourceID}" data-type="source">
+        <td style="width:30px;color:var(--text-muted)">⠿</td>
+        <td>${s.Name||'—'}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)">${s.URL}</td>
+        <td><span class="badge">${s.SourceType||'RSS'}</span></td>
+        <td><button class="toggle ${s.IsActive==='Y'?'on':''}" onclick="toggleSource(${s.SourceID},this)"></button></td>
+        <td style="display:flex;gap:6px"><button class="btn-icon" onclick="openModal('source',${s.SourceID})">✏️</button>${USER_ID===1?`<button class="btn-icon danger" onclick="deleteSource(${s.SourceID})">🗑️</button>`:''}</td></tr>`).join('');
+    initDragDrop(tbody,'source');
     if(document.getElementById('btn-add-source'))document.getElementById('btn-add-source').style.display='inline-flex';
   }
 
@@ -1487,8 +1518,10 @@ async function loadConjugation(wordID,langName){
         tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('dragging','drag-over'));
         setTimeout(()=>{
           const rows=[...tbody.querySelectorAll('tr[draggable]')];
-          const sequences=rows.map((r,i)=>({[type==='keyword'?'keywordID':'topicID']:parseInt(r.dataset.id),sequence:i+1}));
+          const idKey=type==='keyword'?'keywordID':type==='source'?'sourceID':'topicID';
+          const sequences=rows.map((r,i)=>({[idKey]:parseInt(r.dataset.id),sequence:i+1}));
           if(type==='keyword'){apiPost('SaveKeyword',{action:'reorder',sequences,userID:USER_ID});keywords.forEach(k=>{const s=sequences.find(s=>s.keywordID===k.KeywordID);if(s)k.Sequence=s.sequence;});}
+          else if(type==='source'){apiPost('SaveSource',{action:'reorder',sequences,userID:USER_ID});sources.forEach(src=>{const s=sequences.find(s=>s.sourceID===src.SourceID);if(s)src.Sequence=s.sequence;});}
           else{apiPost('SaveTopic',{action:'reorder',sequences,userID:USER_ID});topics.forEach(t=>{const s=sequences.find(s=>s.topicID===t.TopicID);if(s)t.Sequence=s.sequence;});}
         },50);
       });
