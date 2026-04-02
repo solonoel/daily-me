@@ -1,0 +1,82 @@
+const sql = require('mssql');
+
+const config = {
+  server: 'brunsusa-sql.database.windows.net',
+  database: 'DailyMeDB',
+  user: 'noeladmin',
+  password: process.env.DB_PASSWORD,
+  options: { encrypt: true, trustServerCertificate: false, connectTimeout: 60000, requestTimeout: 60000 }
+};
+
+module.exports = async function(context, req) {
+  try {
+    const pool = await sql.connect(config);
+    const { action, userID = 1, languageID, deckID, deckName, status } = req.body;
+
+    if (action === 'add') {
+      const result = await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('LanguageID', sql.Int, languageID)
+        .input('DeckName', sql.NVarChar(200), deckName)
+        .query(`
+          INSERT INTO [UserLanguageWordsDeck] (UserID, LanguageID, UserLanguageWordsDeckName, DateAdded, Status)
+          VALUES (@UserID, @LanguageID, @DeckName, GETDATE(), 'Active');
+          SELECT SCOPE_IDENTITY() AS DeckID;
+        `);
+      context.res = {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true, deckID: result.recordset[0].DeckID })
+      };
+
+    } else if (action === 'update') {
+      await pool.request()
+        .input('DeckID', sql.Int, deckID)
+        .input('UserID', sql.Int, userID)
+        .input('DeckName', sql.NVarChar(200), deckName)
+        .input('Status', sql.NVarChar(20), status)
+        .query(`
+          UPDATE [UserLanguageWordsDeck]
+          SET UserLanguageWordsDeckName = @DeckName, Status = @Status
+          WHERE UserLanguageWordsDeckID = @DeckID AND UserID = @UserID
+        `);
+      context.res = {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true })
+      };
+
+    } else if (action === 'delete') {
+      await pool.request()
+        .input('DeckID', sql.Int, deckID)
+        .input('UserID', sql.Int, userID)
+        .query(`
+          DELETE FROM [UserLanguageWordsDeckWords] WHERE UserLanguageWordsDeckID = @DeckID;
+          DELETE FROM [UserLanguageWordsDeck] WHERE UserLanguageWordsDeckID = @DeckID AND UserID = @UserID;
+        `);
+      context.res = {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true })
+      };
+
+    } else if (action === 'status') {
+      await pool.request()
+        .input('DeckID', sql.Int, deckID)
+        .input('UserID', sql.Int, userID)
+        .input('Status', sql.NVarChar(20), status)
+        .query(`
+          UPDATE [UserLanguageWordsDeck]
+          SET Status = @Status
+          WHERE UserLanguageWordsDeckID = @DeckID AND UserID = @UserID
+        `);
+      context.res = {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true })
+      };
+    }
+  } catch(err) {
+    context.res = { status: 500, body: 'Error: ' + err.message };
+  }
+};
