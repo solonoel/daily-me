@@ -263,7 +263,7 @@
     <span class="nav-icon">🏥</span><span class="nav-label">Health</span>
   </button>
   <div id="nav-date" style="margin-left:auto;padding:0 20px;display:flex;align-items:center;font-size:12px;color:var(--text-muted);white-space:nowrap;flex-shrink:0"></div>
-  <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:0 12px;border-left:1px solid var(--border);flex-shrink:0;gap:1px">
+  <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:0 12px;border-left:1px solid var(--border);flex-shrink:0;gap:3px">
     <div style="display:flex;align-items:center;gap:6px">
       <span style="font-size:12px;font-weight:600;color:var(--text-soft)" id="nav-username"></span>
       <button onclick="showScreen('settings')" title="Settings" style="width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px" id="nav-settings">⚙️</button>
@@ -459,6 +459,9 @@
   let newWordImage=null,newWordImageChanged=false;
   let editingWordID=null;
   let conjVerbs=[],conjLangName='';
+  let userDecks=[],deckStatusFilter='Active';
+  let deckSortCol='DateAdded',deckSortDir='desc';
+  let currentDeckID=null;
 
   function setGreeting(){
     const h=new Date().getHours(),p=h<12?'morning':h<17?'afternoon':'evening';
@@ -601,6 +604,7 @@
             <div class="lang-tab" id="langtab-mw-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'mywords','${lang.LanguageNameEng}')">📝 My Words</div>
             <div class="lang-tab" id="langtab-fc-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'flashcards','${lang.LanguageNameEng}')">🃏 Flashcards</div>
             <div class="lang-tab" id="langtab-conj-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'conjugation','${lang.LanguageNameEng}')">🔤 Conjugation</div>
+            <div class="lang-tab" id="langtab-decks-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'decks','${lang.LanguageNameEng}')">📚 My Decks</div>
             <div class="lang-tab lang-tab-disabled">💬 Conversation</div>
           </div>
           <div id="lang-feature-${lang.LanguageID}" class="lang-feature-panel"></div>
@@ -612,7 +616,7 @@
   async function showLangFeature(langID,feature,langName,autoLoadWordID=null){
     currentLangID=langID;currentLangName=langName;
     document.querySelectorAll('[id^="langtab-"]').forEach(t=>t.classList.remove('lang-tab-active'));
-    const tabEl=document.getElementById(feature==='flashcards'?`langtab-fc-${langID}`:feature==='conjugation'?`langtab-conj-${langID}`:`langtab-mw-${langID}`);
+    const tabEl=document.getElementById(feature==='flashcards'?`langtab-fc-${langID}`:feature==='conjugation'?`langtab-conj-${langID}`:feature==='decks'?`langtab-decks-${langID}`:`langtab-mw-${langID}`);
     if(tabEl)tabEl.classList.add('lang-tab-active');
     const panel=document.getElementById(`lang-feature-${langID}`);if(!panel)return;
     if(feature==='flashcards'){
@@ -625,6 +629,14 @@
       const data=await apiGet('GetUserLanguageWords',`&languageID=${langID}&filter=active`);
       const verbs=Array.isArray(data)?data.filter(w=>w.IsVerb==='Y'):[];
       panel.innerHTML=renderConjugationHTML(langID,langName,verbs,autoLoadWordID||null);
+}else if(feature==='decks'){
+      const data=await apiGet('GetUserDecks',`&languageID=${langID}&status=all`);
+      userDecks=Array.isArray(data)?data:[];
+      panel.innerHTML=renderDecksHTML(langID,langName);   
+}else if(feature==='decks'){
+      const data=await apiGet('GetUserDecks',`&languageID=${langID}&status=all`);
+      userDecks=Array.isArray(data)?data:[];
+      panel.innerHTML=renderDecksHTML(langID,langName);         
     }else if(feature==='mywords'){
       myWordsFilter='active';showImages=true;wordSearch='';
       const data=await apiGet('GetUserLanguageWords',`&languageID=${langID}&filter=active`);
@@ -1147,6 +1159,129 @@ function filterConjVerbs(query){
     dd.querySelectorAll('.conj-verb-opt').forEach(opt=>{
       opt.style.display=(!q||opt.dataset.word.includes(q))?'':'none';
     });
+  }
+
+function renderDecksHTML(langID,langName){
+    const statuses=['Pending','Active','Mastered','All'];
+    const filtered=deckStatusFilter==='All'?userDecks:userDecks.filter(d=>d.Status===deckStatusFilter);
+    const sorted=[...filtered].sort((a,b)=>{
+      let av=a[deckSortCol]||'',bv=b[deckSortCol]||'';
+      if(deckSortCol==='WordCount'){av=a.WordCount||0;bv=b.WordCount||0;}
+      if(deckSortDir==='asc')return av>bv?1:-1;return av<bv?1:-1;
+    });
+    const sortArrow=col=>deckSortCol===col?(deckSortDir==='asc'?'▲':'▼'):'';
+    const sortTh=(col,label)=>`<th style="cursor:pointer" onclick="sortDecks('${col}')">${label} ${sortArrow(col)}</th>`;
+    const rows=sorted.map(d=>`
+      <tr draggable="true" data-id="${d.UserLanguageWordsDeckID}">
+        <td style="width:30px;color:var(--text-muted)">⠿</td>
+        <td><strong>${d.UserLanguageWordsDeckName}</strong></td>
+        <td>${formatDate(d.DateAdded)}</td>
+        <td>
+          <select class="form-select" style="padding:2px 6px;font-size:11px;width:90px" onchange="changeDeckStatus(${d.UserLanguageWordsDeckID},this.value)">
+            ${['Pending','Active','Mastered'].map(s=>`<option value="${s}" ${d.Status===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </td>
+        <td style="text-align:center">${d.WordCount||0}</td>
+        <td><a href="#" onclick="reviewDeck(${d.UserLanguageWordsDeckID},'${d.UserLanguageWordsDeckName.replace(/'/g,"\\'")}');return false;" style="font-size:12px;color:var(--sky-deep);font-weight:600">Review</a></td>
+        <td><a href="#" onclick="studyDeck(${d.UserLanguageWordsDeckID},'${d.UserLanguageWordsDeckName.replace(/'/g,"\\'")}');return false;" style="font-size:12px;color:#22c55e;font-weight:600">Study</a></td>
+        <td style="display:flex;gap:4px">
+          <button class="btn-icon" onclick="editDeck(${d.UserLanguageWordsDeckID})">✏️</button>
+          <button class="btn-icon danger" onclick="deleteDeck(${d.UserLanguageWordsDeckID})">🗑️</button>
+        </td>
+      </tr>`).join('');
+
+    return `
+      <div style="display:flex;align-items:center;gap:8px;margin:12px 0;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:600;color:var(--text-soft)">Status:</span>
+        ${statuses.map(s=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="deck-status-${langID}" value="${s}" ${deckStatusFilter===s?'checked':''} onchange="setDeckStatusFilter('${s}')" style="accent-color:var(--sky-deep)"> ${s}</label>`).join('')}
+        <button class="btn-primary" style="margin-left:auto;padding:5px 14px;font-size:12px" onclick="addDeck()">+ New Deck</button>
+      </div>
+      <table class="settings-table">
+        <thead><tr>
+          <th style="width:30px"></th>
+          ${sortTh('UserLanguageWordsDeckName','Deck Name')}
+          ${sortTh('DateAdded','Date Added')}
+          ${sortTh('Status','Status')}
+          ${sortTh('WordCount','Words')}
+          <th>Review</th><th>Study</th><th></th>
+        </tr></thead>
+        <tbody id="tbl-decks-${langID}">${rows}</tbody>
+      </table>`;
+  }
+
+  function setDeckStatusFilter(status){
+    deckStatusFilter=status;
+    const panel=document.getElementById(`lang-feature-${currentLangID}`);
+    if(panel)panel.innerHTML=renderDecksHTML(currentLangID,currentLangName);
+  }
+
+  function sortDecks(col){
+    if(deckSortCol===col)deckSortDir=deckSortDir==='asc'?'desc':'asc';
+    else{deckSortCol=col;deckSortDir='asc';}
+    const panel=document.getElementById(`lang-feature-${currentLangID}`);
+    if(panel)panel.innerHTML=renderDecksHTML(currentLangID,currentLangName);
+  }
+
+  async function changeDeckStatus(deckID,status){
+    await apiPost('SaveUserDeck',{action:'status',userID:USER_ID,deckID,status});
+    const deck=userDecks.find(d=>d.UserLanguageWordsDeckID===deckID);
+    if(deck)deck.Status=status;
+  }
+
+  async function addDeck(){
+    const name=prompt('Deck name:');
+    if(!name?.trim())return;
+    const result=await apiPost('SaveUserDeck',{action:'add',userID:USER_ID,languageID:currentLangID,deckName:name.trim()});
+    userDecks.unshift({UserLanguageWordsDeckID:result.deckID,UserLanguageWordsDeckName:name.trim(),DateAdded:new Date().toISOString(),Status:'Active',WordCount:0});
+    const panel=document.getElementById(`lang-feature-${currentLangID}`);
+    if(panel)panel.innerHTML=renderDecksHTML(currentLangID,currentLangName);
+  }
+
+  async function editDeck(deckID){
+    const deck=userDecks.find(d=>d.UserLanguageWordsDeckID===deckID);if(!deck)return;
+    const name=prompt('Deck name:',deck.UserLanguageWordsDeckName);
+    if(!name?.trim())return;
+    await apiPost('SaveUserDeck',{action:'update',userID:USER_ID,deckID,deckName:name.trim(),status:deck.Status});
+    deck.UserLanguageWordsDeckName=name.trim();
+    const panel=document.getElementById(`lang-feature-${currentLangID}`);
+    if(panel)panel.innerHTML=renderDecksHTML(currentLangID,currentLangName);
+  }
+
+  async function deleteDeck(deckID){
+    if(!confirm('Delete this deck and all its words?'))return;
+    await apiPost('SaveUserDeck',{action:'delete',userID:USER_ID,deckID});
+    userDecks=userDecks.filter(d=>d.UserLanguageWordsDeckID!==deckID);
+    const panel=document.getElementById(`lang-feature-${currentLangID}`);
+    if(panel)panel.innerHTML=renderDecksHTML(currentLangID,currentLangName);
+  }
+
+  async function reviewDeck(deckID,deckName){
+    currentDeckID=deckID;
+    myWordsFilter='all';showImages=true;wordSearch='';
+    const data=await apiGet('GetDeckWords',`&deckID=${deckID}`);
+    myWords=Array.isArray(data)?data:[];
+    const panel=document.getElementById(`lang-feature-${currentLangID}`);
+    if(panel){
+      panel.innerHTML=renderMyWordsHTML(currentLangID,currentLangName);
+      // Mark My Words tab active
+      document.querySelectorAll('[id^="langtab-"]').forEach(t=>t.classList.remove('lang-tab-active'));
+      const mwTab=document.getElementById(`langtab-mw-${currentLangID}`);
+      if(mwTab)mwTab.classList.add('lang-tab-active');
+    }
+  }
+
+  async function studyDeck(deckID,deckName){
+    currentDeckID=deckID;
+    flashcardFilter='all';flashcardIndex=0;flashcardShowTranslation=false;sentencesCache={};
+    const data=await apiGet('GetDeckWords',`&deckID=${deckID}`);
+    flashcards=Array.isArray(data)?data:[];
+    const panel=document.getElementById(`lang-feature-${currentLangID}`);
+    if(panel){
+      panel.innerHTML=renderFlashcardsHTML(currentLangID,currentLangName);
+      document.querySelectorAll('[id^="langtab-"]').forEach(t=>t.classList.remove('lang-tab-active'));
+      const fcTab=document.getElementById(`langtab-fc-${currentLangID}`);
+      if(fcTab)fcTab.classList.add('lang-tab-active');
+    }
   }
 
   function selectConjVerb(wordID){
