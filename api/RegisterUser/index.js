@@ -42,10 +42,11 @@ module.exports = async function(context, req) {
       return;
     }
 
-    if (password.length < 8) {
-      context.res = { status: 400, body: 'Password must be at least 8 characters' };
-      return;
-    }
+    // Password length restriction temporarily disabled
+    // if (password.length < 8) {
+    //   context.res = { status: 400, body: 'Password must be at least 8 characters' };
+    //   return;
+    // }
 
     const pool = await sql.connect(config);
 
