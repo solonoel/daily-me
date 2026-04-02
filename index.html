@@ -269,7 +269,7 @@
   <div style="display:flex;align-items:center;gap:4px;padding:0 12px;border-left:1px solid var(--border);flex-shrink:0">
     <span style="font-size:12px;font-weight:600;color:var(--text-soft)" id="nav-username"></span>
     <button onclick="showScreen('settings')" title="Settings" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.2s" id="nav-settings">⚙️</button>
-    <button onclick="logout()" title="Sign out" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.2s">🚪</button>
+    <a onclick="logout()" style="font-size:11px;color:var(--text-muted);cursor:pointer;text-decoration:underline;white-space:nowrap">Sign out</a>
   </div>
 </nav>
 <main class="main">
@@ -551,14 +551,14 @@
 
   function renderLanguageNav(){
     document.querySelectorAll('.nav-btn-lang').forEach(b=>b.remove());
-    const settingsBtn=document.getElementById('nav-settings');
+    const navDate=document.getElementById('nav-date');
     userLanguages.filter(ul=>ul.IsActive==='Y').forEach(ul=>{
       const lang=allLanguages.find(l=>l.LanguageID===ul.LanguageID);if(!lang)return;
       const btn=document.createElement('button');
       btn.className='nav-btn nav-btn-lang';btn.id=`nav-lang-${lang.LanguageID}`;
       btn.onclick=()=>visitLanguage(lang.LanguageID,lang.LanguageNameEng);
       btn.innerHTML=`<img src="${lang.FlagImage}" class="nav-flag" alt="${lang.LanguageNameEng}"><span class="nav-label">${lang.LanguageNameEng}</span>`;
-      settingsBtn.parentNode.insertBefore(btn,settingsBtn);
+      navDate.parentNode.insertBefore(btn,navDate);
     });
   }
 
@@ -627,7 +627,7 @@
       const verbs=Array.isArray(data)?data.filter(w=>w.IsVerb==='Y'):[];
       panel.innerHTML=renderConjugationHTML(langID,langName,verbs,autoLoadWordID||null);
     }else if(feature==='mywords'){
-      myWordsFilter='active';showImages=true;
+      myWordsFilter='active';showImages=true;wordSearch='';
       const data=await apiGet('GetUserLanguageWords',`&languageID=${langID}&filter=active`);
       myWords=Array.isArray(data)?data:[];
       panel.innerHTML=renderMyWordsHTML(langID,langName);
@@ -669,6 +669,9 @@
   }
 
   let verbFilter='all';
+  let wordSearch='';
+
+  function setWordSearch(val){wordSearch=val.toLowerCase().trim();renderMyWords();}rbFilter='all';
 
   function renderMyWordsHTML(langID,langName){
     // Apply verb filter first
@@ -677,10 +680,13 @@
       : myWords;
 
     // Then apply status filter
-    const displayWords = myWordsFilter==='active' ? verbFiltered.filter(w=>!w.DateMastered)
+    const statusFiltered = myWordsFilter==='active' ? verbFiltered.filter(w=>!w.DateMastered)
       : myWordsFilter==='flagged' ? verbFiltered.filter(w=>w.Flag)
       : myWordsFilter==='mastered' ? verbFiltered.filter(w=>w.DateMastered)
       : verbFiltered;
+    const displayWords = wordSearch
+      ? statusFiltered.filter(w=>w.WordsName?.toLowerCase().includes(wordSearch)||w.WordsTranslation?.toLowerCase().includes(wordSearch))
+      : statusFiltered;
 
     const activeCount=verbFiltered.filter(w=>!w.DateMastered).length;
     const flaggedCount=verbFiltered.filter(w=>w.Flag).length;
@@ -723,6 +729,11 @@
           <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="vf-${langID}" value="all" ${verbFilter==='all'?'checked':''} onchange="setVerbFilter('all')" style="accent-color:var(--sky-deep)"> All</label>
           <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="vf-${langID}" value="nouns" ${verbFilter==='nouns'?'checked':''} onchange="setVerbFilter('nouns')" style="accent-color:var(--sky-deep)"> Nouns</label>
           <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="vf-${langID}" value="verbs" ${verbFilter==='verbs'?'checked':''} onchange="setVerbFilter('verbs')" style="accent-color:var(--sky-deep)"> Verbs</label>
+        </div>
+        <div style="width:1px;height:20px;background:var(--border);margin:0 10px"></div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:12px;font-weight:600;color:var(--text-soft)">Word:</span>
+          <input type="text" id="mw-search-${langID}" placeholder="Search..." style="padding:4px 10px;border:1.5px solid var(--border);border-radius:100px;font-size:12px;font-family:'DM Sans',sans-serif;width:140px;outline:none" oninput="setWordSearch(this.value)" onfocus="this.style.borderColor='var(--sky-deep)'" onblur="this.style.borderColor='var(--border)'">
         </div>
         <button class="btn-primary" style="margin-left:auto;padding:6px 14px;font-size:12px" onclick="showNewWord()">+ New Word</button>
         <label class="images-toggle"><input type="checkbox" ${showImages?'checked':''} onchange="showImages=this.checked;renderMyWords()"> Images</label>
