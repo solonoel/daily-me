@@ -106,6 +106,7 @@
       if (data.success) {
         showMessage(data.message, 'success');
         document.querySelector('.btn-primary').style.display = 'none';
+        document.querySelector('.back-link').style.display = 'none';
         document.getElementById('login-redirect').style.display = 'block';
       } else {
         showMessage(data.message || 'Reset failed. Please try again.', 'error');
