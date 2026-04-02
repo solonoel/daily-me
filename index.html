@@ -265,10 +265,12 @@
   <button class="nav-btn" onclick="showHealthScreen()" id="nav-health">
     <span class="nav-icon">🏥</span><span class="nav-label">Health</span>
   </button>
-  <button class="nav-btn" onclick="showScreen('settings')" id="nav-settings">
-    <span class="nav-icon">⚙️</span><span class="nav-label">Settings</span>
-  </button>
   <div id="nav-date" style="margin-left:auto;padding:0 20px;display:flex;align-items:center;font-size:12px;color:var(--text-muted);white-space:nowrap;flex-shrink:0"></div>
+  <div style="display:flex;align-items:center;gap:4px;padding:0 12px;border-left:1px solid var(--border);flex-shrink:0">
+    <span style="font-size:12px;font-weight:600;color:var(--text-soft)" id="nav-username"></span>
+    <button onclick="showScreen('settings')" title="Settings" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.2s" id="nav-settings">⚙️</button>
+    <button onclick="logout()" title="Sign out" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.2s">🚪</button>
+  </div>
 </nav>
 <main class="main">
   <div class="screen active" id="screen-headlines">
@@ -459,9 +461,7 @@
   let editingWordID=null;
   let conjVerbs=[],conjLangName='';
 
-  function setGreeting(){
-    const h=new Date().getHours(),p=h<12?'morning':h<17?'afternoon':'evening';
-    const n=storedUser?.name?.split(' ')[0]||'Noel';
+  const navUser=document.getElementById('nav-username');if(navUser)navUser.textContent=n;
     const m={morning:[`Good morning, ${n} — let's make it a great one.`,`Good morning, ${n}. Oregon's finest day awaits.`,`Rise and shine, ${n}. The news won't read itself.`],afternoon:[`Good afternoon, ${n}. How's the day treating you?`,`Afternoon, ${n}. Time for a mid-day check-in.`],evening:[`Good evening, ${n}. Wind down with the day's news.`,`Evening, ${n}. Let's see what the world was up to.`]};
     document.getElementById('greeting').textContent=m[p][Math.floor(Math.random()*m[p].length)];
   }
@@ -1081,17 +1081,17 @@ function renderConjugationHTML(langID,langName,verbs,autoLoadWordID=null){
     if(!verbs.length)return`<div class="empty-state">No verbs found. Add verbs in My Words.</div>`;
     conjVerbs=verbs; conjLangName=langName;
     const loadVerb=autoLoadWordID?verbs.find(v=>v.UserLanguageWordsID==autoLoadWordID)||null:null;
-    const optItems=verbs.map(v=>`<div class="conj-verb-opt" onclick="selectConjVerb(${v.UserLanguageWordsID})"><span class="conj-verb-opt-word">${v.WordsName}</span><span class="conj-verb-opt-trans">${v.WordsTranslation||''}</span></div>`).join('');
+    const sortedVerbs=[...verbs].sort((a,b)=>a.WordsName.localeCompare(b.WordsName));
+    const optItems=sortedVerbs.map(v=>`<div class="conj-verb-opt" onclick="selectConjVerb(${v.UserLanguageWordsID})" data-word="${v.WordsName.toLowerCase()}"><span class="conj-verb-opt-word">${v.WordsName}</span><span class="conj-verb-opt-trans">${v.WordsTranslation||''}</span></div>`).join('');
     if(loadVerb)setTimeout(()=>loadConjugation(loadVerb.UserLanguageWordsID,langName),0);
     const pickerWord=loadVerb?loadVerb.WordsName:'Select a verb...';
     const pickerTrans=loadVerb?loadVerb.WordsTranslation||'':'';
     return`<div class="conj-panel">
       <div style="display:flex;align-items:center;gap:10px;margin:12px 0">
         <button onclick="cancelConjugation()" style="padding:5px 12px;font-size:12px;font-weight:600;color:var(--sky-deep);background:white;border:1.5px solid var(--sky-deep);border-radius:6px;cursor:pointer;flex-shrink:0">← Back</button>
-        <div class="conj-verb-picker" id="conj-verb-picker" onclick="toggleVerbPicker(event)">
-          <span class="conj-pick-word" id="conj-pick-word" style="${loadVerb?'':'color:var(--text-muted);font-size:14px;font-weight:400'}">${pickerWord}</span>
-          <span class="conj-pick-trans" id="conj-pick-trans">${pickerTrans}</span>
-          <span style="font-size:11px;color:var(--text-muted)">▾</span>
+        <div class="conj-verb-picker" id="conj-verb-picker">
+          <input id="conj-verb-search" class="form-input" placeholder="Type to search verbs..." style="font-size:13px;padding:6px 10px;border:none;outline:none;flex:1;font-family:'DM Sans',sans-serif" oninput="filterConjVerbs(this.value)" onfocus="document.getElementById('conj-verb-dropdown').style.display='block'">
+          <span style="font-size:11px;color:var(--text-muted);padding-right:8px">▾</span>
           <div class="conj-verb-dropdown" id="conj-verb-dropdown" style="display:${loadVerb?'none':'block'}" onclick="event.stopPropagation()">${optItems}</div>
         </div>
       </div>
@@ -1114,10 +1114,20 @@ function renderConjugationHTML(langID,langName,verbs,autoLoadWordID=null){
     dd.style.display=dd.style.display==='none'?'block':'none';
   }
 
+function filterConjVerbs(query){
+    const dd=document.getElementById('conj-verb-dropdown');
+    if(!dd)return;
+    dd.style.display='block';
+    const q=query.toLowerCase().trim();
+    dd.querySelectorAll('.conj-verb-opt').forEach(opt=>{
+      opt.style.display=(!q||opt.dataset.word.includes(q))?'':'none';
+    });
+  }
+
   function selectConjVerb(wordID){
     const v=conjVerbs.find(v=>v.UserLanguageWordsID===wordID);if(!v)return;
-    document.getElementById('conj-pick-word').textContent=v.WordsName;
-    document.getElementById('conj-pick-trans').textContent=v.WordsTranslation||'';
+    const searchInput=document.getElementById('conj-verb-search');
+    if(searchInput)searchInput.value=v.WordsName;
     document.getElementById('conj-verb-dropdown').style.display='none';
     loadConjugation(wordID,conjLangName);
   }
