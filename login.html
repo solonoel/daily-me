@@ -81,7 +81,7 @@
         <input class="form-input" type="password" id="reg-password" placeholder="••••••••">
         <button class="show-pw" type="button" onclick="togglePw('reg-password',this)">Show</button>
       </div>
-      <div class="hint">Minimum 8 characters</div>
+      <div class="hint"></div>
     </div>
     <button class="btn-primary" onclick="register()">Create Account</button>
     <div class="message" id="reg-message"></div>
@@ -124,11 +124,6 @@
   }
 
   async function login() {
-    // TEMP: bypass login as user 17
-    localStorage.setItem('dailyme_user', JSON.stringify({ userID: 17, name: 'Dev', email: 'dev@test.com', token: 'bypass' }));
-    window.location.href = 'index.html';
-    return;
-
     const email = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
     if (!email || !password) return showMessage('login-message', 'Please enter your email and password', 'error');
@@ -155,7 +150,7 @@
     const email = document.getElementById('reg-email').value.trim();
     const password = document.getElementById('reg-password').value;
     if (!name || !email || !password) return showMessage('reg-message', 'All fields are required', 'error');
-    if (password.length < 8) return showMessage('reg-message', 'Password must be at least 8 characters', 'error');
+    // password length check temporarily disabled
     try {
       const res = await fetch(`${API_BASE}/RegisterUser`, {
         method: 'POST',

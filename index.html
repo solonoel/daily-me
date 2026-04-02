@@ -250,7 +250,10 @@
       <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px" id="header-date"></div>
     </div>
   </div>
-  <div class="weather-block" id="weather-block"><div class="weather-loading">Loading weather...</div></div>
+  <div style="position:relative;z-index:1;display:flex;align-items:center;gap:12px">
+    <div class="weather-block" id="weather-block"><div class="weather-loading">Loading weather...</div></div>
+    <button onclick="logout()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;font-size:11px;font-weight:600;padding:6px 14px;border-radius:100px;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap">Sign out</button>
+  </div>
 </header>
 <nav class="nav" id="main-nav">
   <button class="nav-btn active" onclick="showScreen('headlines')" id="nav-headlines">
@@ -1591,7 +1594,7 @@ async function loadConjugation(wordID,langName){
   }
 
   // ── INIT ──
-  history.replaceState({screen:'headlines',section:null},'','');
+  function logout(){localStorage.removeItem('dailyme_user');window.location.href='login.html';}
   setGreeting();setDate();loadWeather();loadAll();
 </script>
 </body>
