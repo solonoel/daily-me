@@ -250,10 +250,7 @@
       <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px" id="header-date"></div>
     </div>
   </div>
-  <div style="position:relative;z-index:1;display:flex;align-items:center;gap:12px">
-    <div class="weather-block" id="weather-block"><div class="weather-loading">Loading weather...</div></div>
-    <button onclick="logout()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;font-size:11px;font-weight:600;padding:6px 14px;border-radius:100px;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap">Sign out</button>
-  </div>
+  <div class="weather-block" id="weather-block"><div class="weather-loading">Loading weather...</div></div>
 </header>
 <nav class="nav" id="main-nav">
   <button class="nav-btn active" onclick="showScreen('headlines')" id="nav-headlines">
@@ -266,10 +263,12 @@
     <span class="nav-icon">🏥</span><span class="nav-label">Health</span>
   </button>
   <div id="nav-date" style="margin-left:auto;padding:0 20px;display:flex;align-items:center;font-size:12px;color:var(--text-muted);white-space:nowrap;flex-shrink:0"></div>
-  <div style="display:flex;align-items:center;gap:4px;padding:0 12px;border-left:1px solid var(--border);flex-shrink:0">
-    <span style="font-size:12px;font-weight:600;color:var(--text-soft)" id="nav-username"></span>
-    <button onclick="showScreen('settings')" title="Settings" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.2s" id="nav-settings">⚙️</button>
-    <a onclick="logout()" style="font-size:11px;color:var(--text-muted);cursor:pointer;text-decoration:underline;white-space:nowrap">Sign out</a>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:0 12px;border-left:1px solid var(--border);flex-shrink:0;gap:1px">
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:12px;font-weight:600;color:var(--text-soft)" id="nav-username"></span>
+      <button onclick="showScreen('settings')" title="Settings" style="width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px" id="nav-settings">⚙️</button>
+    </div>
+    <a onclick="logout()" style="font-size:10px;color:var(--text-muted);cursor:pointer;text-decoration:underline;white-space:nowrap;line-height:1">Sign out</a>
   </div>
 </nav>
 <main class="main">
@@ -660,7 +659,12 @@
 
   function renderMyWords(){
     const panel=document.getElementById(`lang-feature-${currentLangID}`);
-    if(panel)panel.innerHTML=renderMyWordsHTML(currentLangID,currentLangName);
+    if(panel){
+      panel.innerHTML=renderMyWordsHTML(currentLangID,currentLangName);
+      // Restore search value and re-apply filter
+      const searchEl=document.getElementById(`mw-search-${currentLangID}`);
+      if(searchEl&&wordSearch){searchEl.value=wordSearch;setWordSearch(wordSearch);}
+    }
   }
 
   async function loadMyWords(){
@@ -671,7 +675,16 @@
   let verbFilter='all';
   let wordSearch='';
 
-  function setWordSearch(val){wordSearch=val.toLowerCase().trim();renderMyWords();}rbFilter='all';
+  function setWordSearch(val){
+    wordSearch=val.toLowerCase().trim();
+    const rows=document.querySelectorAll('.word-grid .word-row');
+    rows.forEach(row=>{
+      if(!wordSearch){row.style.display='';return;}
+      const name=row.querySelector('.word-name')?.textContent?.toLowerCase()||'';
+      const trans=row.querySelector('.word-translation')?.textContent?.toLowerCase()||'';
+      row.style.display=(name.includes(wordSearch)||trans.includes(wordSearch))?'':'none';
+    });
+  }rbFilter='all';
 
   function renderMyWordsHTML(langID,langName){
     // Apply verb filter first
@@ -680,13 +693,10 @@
       : myWords;
 
     // Then apply status filter
-    const statusFiltered = myWordsFilter==='active' ? verbFiltered.filter(w=>!w.DateMastered)
+    const displayWords = myWordsFilter==='active' ? verbFiltered.filter(w=>!w.DateMastered)
       : myWordsFilter==='flagged' ? verbFiltered.filter(w=>w.Flag)
       : myWordsFilter==='mastered' ? verbFiltered.filter(w=>w.DateMastered)
       : verbFiltered;
-    const displayWords = wordSearch
-      ? statusFiltered.filter(w=>w.WordsName?.toLowerCase().includes(wordSearch)||w.WordsTranslation?.toLowerCase().includes(wordSearch))
-      : statusFiltered;
 
     const activeCount=verbFiltered.filter(w=>!w.DateMastered).length;
     const flaggedCount=verbFiltered.filter(w=>w.Flag).length;
