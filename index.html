@@ -461,10 +461,14 @@
   let editingWordID=null;
   let conjVerbs=[],conjLangName='';
 
-  const navUser=document.getElementById('nav-username');if(navUser)navUser.textContent=n;
+  function setGreeting(){
+    const h=new Date().getHours(),p=h<12?'morning':h<17?'afternoon':'evening';
+    const n=storedUser?.name?.split(' ')[0]||'Noel';
+    const navUser=document.getElementById('nav-username');if(navUser)navUser.textContent=n;
     const m={morning:[`Good morning, ${n} — let's make it a great one.`,`Good morning, ${n}. Oregon's finest day awaits.`,`Rise and shine, ${n}. The news won't read itself.`],afternoon:[`Good afternoon, ${n}. How's the day treating you?`,`Afternoon, ${n}. Time for a mid-day check-in.`],evening:[`Good evening, ${n}. Wind down with the day's news.`,`Evening, ${n}. Let's see what the world was up to.`]};
     document.getElementById('greeting').textContent=m[p][Math.floor(Math.random()*m[p].length)];
   }
+
   function setDate(){
     const now=new Date(),days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],months=['January','February','March','April','May','June','July','August','September','October','November','December'];
     const dateStr=`${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
