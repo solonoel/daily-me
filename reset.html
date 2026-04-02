@@ -93,7 +93,7 @@
   async function resetPassword() {
     const password = document.getElementById('new-password').value;
     const confirm = document.getElementById('confirm-password').value;
-    if (!password || password.length < 8) return showMessage('Password must be at least 8 characters', 'error');
+    if (!password) return showMessage('Password is required', 'error');
     if (password !== confirm) return showMessage('Passwords do not match', 'error');
     try {
       const res = await fetch(`${API_BASE}/ResetPassword`, {
