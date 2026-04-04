@@ -383,7 +383,7 @@
       </div>
       <table class="settings-table" id="tbl-global-sources">
         <thead><tr>
-          <th style="cursor:pointer;width:60px" onclick="sortGlobalSources('Sequence')">Seq <span id="gs-sort-Sequence">▲</span></th>
+          <th style="width:40px"></th>
           <th style="cursor:pointer" onclick="sortGlobalSources('Name')">Name <span id="gs-sort-Name"></span></th>
           <th style="cursor:pointer" onclick="sortGlobalSources('SourceType')">Type <span id="gs-sort-SourceType"></span></th>
           <th>URL</th>
@@ -462,17 +462,18 @@
     <div class="form-group">
       <label class="form-label">URL</label>
       <input class="form-input" id="gs-url">
-      <div id="gs-channel-lookup" style="display:none;margin-top:6px">
-        <button type="button" class="btn-secondary" style="font-size:12px;padding:5px 12px" onclick="lookupYoutubeChannel()">🔍 Lookup Channel ID</button>
-        <span id="gs-channel-status" style="font-size:12px;color:var(--text-muted);margin-left:8px"></span>
+      <div id="gs-channel-lookup" style="display:none;margin-top:4px">
+        <div style="font-size:11px;color:var(--text-muted)">Format: https://www.youtube.com/@ChannelName</div>
+        <div id="gs-channel-status" style="font-size:12px;margin-top:4px"></div>
       </div>
       <div id="gs-channelid-display" style="display:none;margin-top:6px;font-size:12px;color:var(--sky-deep);font-weight:600"></div>
     </div>
     <div id="gs-unfiltered-row" style="display:none" class="form-group">
-      <label class="form-checkbox-row"><input type="checkbox" id="gs-unfiltered-cb" style="accent-color:var(--sky-deep)"> Unfiltered (grab all videos from channel)</label>
+      <label class="form-checkbox-row"><input type="checkbox" id="gs-unfiltered-cb" style="accent-color:var(--sky-deep)"> Unfiltered (filters ignored for this channel)</label>
     </div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeGlobalSourceModal()">Cancel</button>
+      <button class="btn-primary" style="background:#22c55e" onclick="saveGlobalSource(true)">Save & New</button>
       <button class="btn-primary" onclick="saveGlobalSource()">Save</button>
     </div>
   </div>
@@ -674,7 +675,6 @@
           <div class="lang-tab-bar">
             <div class="lang-tab" id="langtab-mw-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'mywords','${lang.LanguageNameEng}')">📝 My Words</div>
             <div class="lang-tab" id="langtab-decks-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'decks','${lang.LanguageNameEng}')">📚 My Decks</div>
-            Select-String "langtab-fc" "index.html"
             <div class="lang-tab lang-tab-disabled">💬 Conversation</div>
             <div class="lang-tab" id="langtab-conj-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'conjugation','${lang.LanguageNameEng}')">🔤 Conjugation</div>
           </div>
@@ -1566,6 +1566,7 @@
       if(currentFilter==='Other')headlines=allData.filter(h=>!h.CategoryID);
       else if(currentFilter==='all')headlines=allData;
       else{const catID=getCategoryID(currentFilter);headlines=catID?allData.filter(h=>h.CategoryID===catID):allData;}
+      if(!categories.length)categories=await apiGet('GetCategories');
       renderCategoryTiles(allData);renderHeadlines();
     }catch(e){console.error('Error loading headlines:',e);}
   }
@@ -1662,7 +1663,8 @@
   }
 
   function filterCat(cat,el){
-    currentFilter=cat;document.querySelectorAll('.cat-tile').forEach(t=>t.classList.remove('active'));el.classList.add('active');loadHeadlines();
+    currentFilter=cat;document.querySelectorAll('.cat-tile').forEach(t=>t.classList.remove('active'));el.classList.add('active');
+    loadHeadlines();
   }
 
   // ── SETTINGS ──
@@ -1701,6 +1703,7 @@
   }
 
   async function saveUserSettings(){
+    if(!document.getElementById('us-recency'))return; // not on settings screen
     // Re-enable YouTube when settings change
     localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
     const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=false;
@@ -1770,7 +1773,9 @@
   function showScreen(name,pushState=true){
     // Auto-save settings when navigating away
     const wasOnSettings=document.getElementById('screen-settings')?.classList.contains('active');
-    if(wasOnSettings&&name!=='settings')saveUserSettings();
+    if(wasOnSettings&&name!=='settings'){
+      try{saveUserSettings();}catch(e){console.error('Auto-save failed:',e);}
+    }
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
     const screenEl=document.getElementById('screen-'+name);
@@ -1989,7 +1994,7 @@
   let gsResolvedChannelID=null;
 
   function openGlobalSources(){
-    document.getElementById('gs-password-input').value='';
+    setTimeout(()=>{document.getElementById('gs-password-input').value='';},50);
     document.getElementById('gs-password-error').style.display='none';
     document.getElementById('gs-password-modal').style.display='flex';
   }
@@ -2039,7 +2044,7 @@
         ?`<label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" ${s.YoutubeUnfiltered?'checked':''} onchange="saveGsUnfiltered(${s.SourceID},this)" style="accent-color:var(--sky-deep)"> Unfiltered</label>`
         :'—';
       return `<tr draggable="true" data-id="${s.SourceID}" data-seq="${s.Sequence||999}">
-        <td style="width:50px;text-align:center;font-size:12px;color:var(--text-muted)">${s.Sequence??'—'}</td>
+        <td style="width:30px;text-align:center;color:var(--text-muted)">⠿</td>
         <td><strong>${s.Name}</strong></td>
         <td><span class="badge">${s.SourceType||'—'}</span></td>
         <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)" title="${s.URL}">${s.URL}</td>
@@ -2153,7 +2158,22 @@
     if(!name)return alert('Name is required');
     if(!url)return alert('URL is required');
     if(sourceType==='Youtube'&&!gsResolvedChannelID&&!gsEditingID){
-      return alert('Please use "Lookup Channel ID" to validate the YouTube channel before saving.');
+      const status=document.getElementById('gs-channel-status');
+      if(status){status.textContent='Looking up channel...';status.style.color='var(--text-muted)';}
+      try{
+        const lookupResult=await apiPost('SaveSource',{action:'add',sourceType:'Youtube',url,name:'__lookup__',userID:USER_ID});
+        if(lookupResult.youtubeChannelID){
+          gsResolvedChannelID=lookupResult.youtubeChannelID;
+          if(lookupResult.sourceID)await apiPost('SaveSource',{action:'delete',sourceID:lookupResult.sourceID,globalDelete:true,userID:USER_ID});
+          if(status){status.textContent='✓ Channel found';status.style.color='#22c55e';}
+        }else{
+          if(status){status.textContent='Channel not found. Check URL format.';status.style.color='#e05050';}
+          return;
+        }
+      }catch(e){
+        alert('YouTube lookup failed: '+e.message);
+        return;
+      }
     }
     const gsUnfiltered=document.getElementById('gs-unfiltered-cb')?.checked||false;
     if(gsEditingID){
@@ -2162,15 +2182,26 @@
       const src=globalSources.find(s=>s.SourceID===gsEditingID);
       if(src){src.Name=name;src.URL=url;src.SourceType=sourceType;src.YoutubeUnfiltered=gsUnfiltered;}
     }else{
-      const result=await apiPost('SaveSource',{action:'add',name,url,sourceType,userID:USER_ID});
+      const nextSeq=(Math.max(...globalSources.map(s=>s.Sequence||0),0))+1;
+      const result=await apiPost('SaveSource',{action:'add',name,url,sourceType,sequence:nextSeq,userID:USER_ID});
       if(result.sourceID){
-        const nextSeq=(Math.max(...globalSources.map(s=>s.Sequence||0))||0)+1;
         globalSources.push({SourceID:result.sourceID,Name:name,URL:url,SourceType:sourceType,
           Sequence:nextSeq,DateAdded:new Date().toISOString().split('T')[0],
           YoutubeChannelID:result.youtubeChannelID||null,YoutubeUnfiltered:0});
       }
     }
-    closeGlobalSourceModal();
+    const addAnother=arguments[0]===true;
+    if(addAnother){
+      gsEditingID=null;gsResolvedChannelID=null;
+      document.getElementById('gs-name').value='';
+      document.getElementById('gs-url').value='';
+      document.getElementById('gs-channel-status').textContent='';
+      document.getElementById('gs-channelid-display').style.display='none';
+      document.querySelectorAll('input[name="gs-type"]').forEach(r=>r.checked=r.value==='API');
+      updateGsTypeFields();
+    } else {
+      closeGlobalSourceModal();
+    }
     renderGlobalSourcesTable();
   }
 
