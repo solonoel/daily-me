@@ -351,29 +351,37 @@
     </div>
     <div id="settings-section-categories" style="display:none">
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
-      <div class="settings-section-title">📁 Categories</div>
+      <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>📁 Categories</span>
+        <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openModal('category')">+ Add Category</button>
+      </div>
       <table class="settings-table"><thead><tr><th></th><th>Name</th><th>Headlines</th><th>My Words</th><th>Active</th><th></th></tr></thead><tbody id="tbl-categories"></tbody></table>
-      <button class="btn-add" onclick="openModal('category')">+ Add Category</button>
     </div>
     <div id="settings-section-sources" style="display:none">
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
-      <div class="settings-section-title">🌐 Headline Sources</div>
+      <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>🌐 Headline Sources</span>
+        <button class="btn-primary" style="padding:7px 18px;font-size:12px" id="btn-add-source" onclick="openModal('source')">+ Add Source</button>
+      </div>
       <table class="settings-table"><thead><tr><th></th><th>Name</th><th>URL</th><th>Type</th><th>Unfiltered</th><th></th></tr></thead><tbody id="tbl-sources"></tbody></table>
-      <button class="btn-add" id="btn-add-source" onclick="openModal('source')">+ Add Source</button>
     </div>
     <div id="settings-section-keywords" style="display:none">
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
-      <div class="settings-section-title">🔍 Keywords <span style="font-size:13px;font-weight:400;color:var(--text-soft);font-family:'DM Sans',sans-serif"> — exact match</span></div>
+      <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>🔍 Keywords <span style="font-size:13px;font-weight:400;color:var(--text-soft);font-family:'DM Sans',sans-serif"> — exact match</span></span>
+        <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openModal('keyword')">+ Add Keyword</button>
+      </div>
       <div style="font-size:12px;color:var(--sky-deep);background:#f0f7ff;border:1px solid var(--border);border-radius:8px;padding:8px 14px;margin-bottom:12px">📺 Keywords are searched on YouTube. Drag to reorder — higher items prioritized in headline sorting.</div>
       <table class="settings-table"><thead><tr><th>⠿</th><th>Keyword</th><th>Category</th><th>Active</th><th></th></tr></thead><tbody id="tbl-keywords"></tbody></table>
-      <button class="btn-add" onclick="openModal('keyword')">+ Add Keyword</button>
     </div>
     <div id="settings-section-topics" style="display:none">
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
-      <div class="settings-section-title">💡 Topics <span style="font-size:13px;font-weight:400;color:var(--text-soft);font-family:'DM Sans',sans-serif"> — fuzzy match</span></div>
+      <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>💡 Topics <span style="font-size:13px;font-weight:400;color:var(--text-soft);font-family:'DM Sans',sans-serif"> — fuzzy match</span></span>
+        <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openModal('topic')">+ Add Topic</button>
+      </div>
       <div style="font-size:12px;color:var(--text-soft);background:#f5f9ff;border:1px solid var(--border);border-radius:8px;padding:8px 14px;margin-bottom:12px">📰 Topics are used for news categorization only — not searched on YouTube. Drag to reorder.</div>
       <table class="settings-table"><thead><tr><th>⠿</th><th>Topic</th><th>Category</th><th>Active</th><th></th></tr></thead><tbody id="tbl-topics"></tbody></table>
-      <button class="btn-add" onclick="openModal('topic')">+ Add Topic</button>
     </div>
     <div id="settings-section-global-sources" style="display:none">
       <button class="settings-back" onclick="closeGlobalSources()">← Back to Settings</button>
@@ -1576,19 +1584,19 @@
     const cat=categories.find(c=>c.Name.toLowerCase()===catName.toLowerCase());return cat?cat.CategoryID:null;
   }
 
-  async function refreshHeadlines(){
+async function refreshHeadlines(){
     try{
       const btn=document.getElementById('refresh-btn'),status=document.getElementById('refresh-status');
-      btn.textContent='↻ Refresh';btn.style.color='';btn.style.background='';btn.style.borderColor='';btn.style.fontWeight='';btn.disabled=false;
+      btn.textContent='Refreshing...';btn.style.color='white';btn.style.background='#1a5fa8';btn.style.borderColor='#1a5fa8';btn.style.fontWeight='700';btn.disabled=true;
       status.style.display='none';
       const userSettings=await apiGet('GetUserSettings');
       if(userSettings?.headlineSetting?.RecencyDays){recencyDays_value=userSettings.headlineSetting.RecencyDays;document.getElementById('recency-val').textContent=recencyDays_value===1?'1 day':`${recencyDays_value} days`;}
       const disableYoutube=localStorage.getItem(`dailyme_yt_disabled_${USER_ID}`)==='1';
-      const fetchData=await apiPost('FetchHeadlines',{userID:USER_ID,disableYoutube});
+      await apiPost('FetchHeadlines',{userID:USER_ID,disableYoutube});
       localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
       const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=true;
       apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:true});
-      btn.textContent='↻ Refresh';btn.style.color='';btn.style.fontWeight='';btn.disabled=false;
+      btn.textContent='↻ Refresh';btn.style.color='';btn.style.background='';btn.style.borderColor='';btn.style.fontWeight='';btn.disabled=false;
       await loadHeadlines();
     }catch(e){
       const btn=document.getElementById('refresh-btn');
