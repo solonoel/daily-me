@@ -174,7 +174,7 @@
     .flashcard-nav a:hover { background:#f0f7ff; }
     .flashcard-nav a.disabled { color:var(--border); cursor:default; pointer-events:none; }
     .flashcard-nav-pos { font-weight:700; color:var(--text); }
-    .flashcard { background:white; border:1.5px solid var(--border); border-radius:20px; padding:36px 28px 28px 28px; text-align:center; box-shadow:0 4px 24px rgba(43,127,212,0.1); cursor:pointer; height:280px; overflow-y:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; transition:box-shadow 0.2s; }
+    .flashcard { background:white; border:1.5px solid var(--border); border-radius:20px; padding:24px 28px 20px 28px; text-align:center; box-shadow:0 4px 24px rgba(43,127,212,0.1); cursor:pointer; height:280px; overflow-y:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; transition:box-shadow 0.2s; }
     .flashcard:hover { box-shadow:0 6px 32px rgba(43,127,212,0.15); }
     .flashcard-word { font-family:'Playfair Display',serif; font-size:36px; color:var(--text); line-height:1.2; }
     .flashcard-image { width:100px; height:100px; object-fit:cover; border-radius:12px; }
@@ -331,18 +331,16 @@
           <div style="margin-top:8px;margin-bottom:4px">
             <div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">OTHER HEADLINES/KEYWORD-SOURCE</div>
             <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
-            <div>
-              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Other Headlines/Keyword</div>
-              <input type="number" id="us-otherperkey" class="form-input" style="width:52px;font-size:12px;padding:3px 5px" min="1" max="20">
-              <div style="font-size:10px;color:var(--text-muted);margin-top:2px">per keyword, per source</div>
+              <div>
+                <input type="number" id="us-otherperkey" class="form-input" style="width:52px;font-size:12px;padding:3px 5px" min="1" max="20">
+                <div style="font-size:10px;color:var(--text-muted);margin-top:2px">per keyword, per source</div>
+              </div>
             </div>
-          </div>
           </div>
           <div class="catlimits-section" style="margin-top:8px">
             <div class="catlimits-title">Per-Category Limits <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none;letter-spacing:normal">(max 30)</span></div>
             <table class="settings-table"><thead><tr><th>Category</th><th>Max</th></tr></thead><tbody id="tbl-catsettings"></tbody></table>
           </div>
-          <div style="margin-top:10px"><button class="btn-primary" onclick="saveUserSettings()">Save Settings</button></div>
         </div>
         <div class="settings-deck">
           <div class="settings-deck-title">🌍 Languages</div>
@@ -354,7 +352,7 @@
     <div id="settings-section-categories" style="display:none">
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
       <div class="settings-section-title">📁 Categories</div>
-      <table class="settings-table"><thead><tr><th>Seq</th><th>Name</th><th>Headlines</th><th>My Words</th><th>Active</th><th></th></tr></thead><tbody id="tbl-categories"></tbody></table>
+      <table class="settings-table"><thead><tr><th></th><th>Name</th><th>Headlines</th><th>My Words</th><th>Active</th><th></th></tr></thead><tbody id="tbl-categories"></tbody></table>
       <button class="btn-add" onclick="openModal('category')">+ Add Category</button>
     </div>
     <div id="settings-section-sources" style="display:none">
@@ -436,7 +434,7 @@
     <div class="modal-title">Global Sources</div>
     <div class="form-group">
       <label class="form-label">Password</label>
-      <input class="form-input" id="gs-password-input" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkGlobalSourcesPassword()">
+      <input class="form-input" id="gs-password-input" type="password" placeholder="Enter password" autocomplete="off" onkeydown="if(event.key==='Enter')checkGlobalSourcesPassword()">
     </div>
     <div id="gs-password-error" style="display:none;font-size:12px;color:#e05050;margin-top:4px">Incorrect password.</div>
     <div class="modal-actions">
@@ -469,6 +467,9 @@
         <span id="gs-channel-status" style="font-size:12px;color:var(--text-muted);margin-left:8px"></span>
       </div>
       <div id="gs-channelid-display" style="display:none;margin-top:6px;font-size:12px;color:var(--sky-deep);font-weight:600"></div>
+    </div>
+    <div id="gs-unfiltered-row" style="display:none" class="form-group">
+      <label class="form-checkbox-row"><input type="checkbox" id="gs-unfiltered-cb" style="accent-color:var(--sky-deep)"> Unfiltered (grab all videos from channel)</label>
     </div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeGlobalSourceModal()">Cancel</button>
@@ -587,6 +588,7 @@
     document.getElementById('us-maxheadlines').value=userSettings?.headlineSetting?.MaxHeadlines||50;
     document.getElementById('us-youtubemaxresults').value=userSettings?.headlineSetting?.YouTubeMaxResults||3;
     document.getElementById('us-otherperkey').value=userSettings?.headlineSetting?.OtherHeadlinesPerKeyword||3;
+    // Sync YouTube disable checkbox from localStorage only — don't override on settings visit
     const ytCb=document.getElementById('us-disable-yt');
     if(ytCb)ytCb.checked=localStorage.getItem(`dailyme_yt_disabled_${USER_ID}`)==='1';
     renderLanguageNav();renderLanguageScreens();renderLanguageCheckList();
@@ -609,14 +611,17 @@
   async function autoFetchHeadlinesIfNewDay(){
     const today=new Date().toDateString();
     if(localStorage.getItem('dailyme_last_fetch')===today)return;
+    // New day — re-enable YouTube
     localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
     const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=false;
+    await apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:false});
     try{
-      const status=document.getElementById('refresh-status');
-      if(status){status.style.display='block';status.textContent='📰 Gathering today\'s headlines...';}
       await apiPost('FetchHeadlines',{userID:USER_ID,disableYoutube:false});
       localStorage.setItem('dailyme_last_fetch',today);
-      if(status){status.style.display='none';}
+      // Auto-disable YouTube after fetch
+      localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
+      const ytCb2=document.getElementById('us-disable-yt');if(ytCb2)ytCb2.checked=true;
+      await apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:true});
     }catch(e){console.error('Auto-fetch failed:',e);}
   }
 
@@ -669,7 +674,7 @@
           <div class="lang-tab-bar">
             <div class="lang-tab" id="langtab-mw-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'mywords','${lang.LanguageNameEng}')">📝 My Words</div>
             <div class="lang-tab" id="langtab-decks-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'decks','${lang.LanguageNameEng}')">📚 My Decks</div>
-            <div class="lang-tab" id="langtab-fc-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'flashcards','${lang.LanguageNameEng}')">🃏 Flashcards</div>
+            Select-String "langtab-fc" "index.html"
             <div class="lang-tab lang-tab-disabled">💬 Conversation</div>
             <div class="lang-tab" id="langtab-conj-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'conjugation','${lang.LanguageNameEng}')">🔤 Conjugation</div>
           </div>
@@ -1573,7 +1578,7 @@
   async function refreshHeadlines(){
     try{
       const btn=document.getElementById('refresh-btn'),status=document.getElementById('refresh-status');
-      btn.textContent='Refreshing...';btn.style.color='#1a7a3a';btn.style.fontWeight='700';btn.disabled=true;
+      btn.textContent='↻ Refresh';btn.style.color='';btn.style.background='';btn.style.borderColor='';btn.style.fontWeight='';btn.disabled=false;
       status.style.display='none';
       const userSettings=await apiGet('GetUserSettings');
       if(userSettings?.headlineSetting?.RecencyDays){recencyDays_value=userSettings.headlineSetting.RecencyDays;document.getElementById('recency-val').textContent=recencyDays_value===1?'1 day':`${recencyDays_value} days`;}
@@ -1586,7 +1591,7 @@
       await loadHeadlines();
     }catch(e){
       const btn=document.getElementById('refresh-btn');
-      btn.textContent='↻ Refresh';btn.style.color='';btn.style.fontWeight='';btn.disabled=false;
+      btn.textContent='↻ Refresh';btn.style.color='';btn.style.background='';btn.style.borderColor='';btn.style.fontWeight='';btn.disabled=false;
     }
   }
 
@@ -1696,19 +1701,17 @@
   }
 
   async function saveUserSettings(){
-    clearYouTubeDisable();
+    // Re-enable YouTube when settings change
+    localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
+    const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=false;
     const recencyDays=Math.min(14,Math.max(1,parseInt(document.getElementById('us-recency').value)||7));
     let maxHeadlines=parseInt(document.getElementById('us-maxheadlines').value);
     const youTubeMaxResults=parseInt(document.getElementById('us-youtubemaxresults').value)||3;
     const otherHeadlinesPerKeyword=parseInt(document.getElementById('us-otherperkey').value)||3;
     const categorySettings=categories.filter(c=>c.IsActive==='Y').map(c=>({categoryID:c.CategoryID,maxItems:Math.min(30,Math.max(1,parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value||20)))}));
     const catSum=categorySettings.reduce((sum,cs)=>sum+cs.maxItems,0);
-    let autoAdjusted=false;
-    if(maxHeadlines<catSum){maxHeadlines=catSum;autoAdjusted=true;document.getElementById('us-maxheadlines').value=maxHeadlines;updateOtherLimit();}
-    await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,categorySettings});
-    const adj=document.getElementById('us-maxheadlines-adjusted');
-    if(autoAdjusted){adj.style.display='inline';alert('Settings saved! Max Headlines was automatically adjusted.');}
-    else{adj.style.display='none';alert('Settings saved!');}
+    if(maxHeadlines<catSum){maxHeadlines=catSum;document.getElementById('us-maxheadlines').value=maxHeadlines;updateOtherLimit();}
+    await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,categorySettings,disableYoutubeToday:false});
     recencyDays_value=recencyDays;
     document.getElementById('recency-val').textContent=recencyDays===1?'1 day':`${recencyDays} days`;
   }
@@ -1765,6 +1768,9 @@
   // ── SCREEN NAVIGATION ──
 
   function showScreen(name,pushState=true){
+    // Auto-save settings when navigating away
+    const wasOnSettings=document.getElementById('screen-settings')?.classList.contains('active');
+    if(wasOnSettings&&name!=='settings')saveUserSettings();
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
     const screenEl=document.getElementById('screen-'+name);
@@ -1777,14 +1783,14 @@
   function showSettingsMenu(pushState=true){
     currentSettingsSection=null;
     document.getElementById('settings-menu-view').style.display='block';
-    ['categories','sources','keywords','topics'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
+    ['categories','sources','keywords','topics','global-sources'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
     if(pushState)history.pushState({screen:'settings',section:null},'','');
   }
 
   function showSettingsSection(section,pushState=true){
     currentSettingsSection=section;
     document.getElementById('settings-menu-view').style.display='none';
-    ['categories','sources','keywords','topics'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
+    ['categories','sources','keywords','topics','global-sources'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
     document.getElementById(`settings-section-${section}`).style.display='block';
     renderSettingsSection(section);
     if(pushState)history.pushState({screen:'settings',section},'','');
@@ -1805,10 +1811,17 @@
   }
 
   function renderSettingsCategories(){
-    document.getElementById('tbl-categories').innerHTML=[...categories].filter(c=>c.Name.toLowerCase()!=='health').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999)).map(c=>`
-      <tr><td style="width:50px">${c.Sequence||'—'}</td><td><strong>${c.Name}</strong></td><td>${c.Headlines==='Y'?'✓':'—'}</td><td>${c.MyWords==='Y'?'✓':'—'}</td>
-      <td><button class="toggle ${c.IsActive==='Y'?'on':''}" onclick="toggleCategory(${c.CategoryID},this)"></button></td>
-      <td style="display:flex;gap:6px"><button class="btn-icon" onclick="openModal('category',${c.CategoryID})">✏️</button><button class="btn-icon danger" onclick="deleteCategory(${c.CategoryID})">🗑️</button></td></tr>`).join('');
+    const tbody=document.getElementById('tbl-categories');
+    tbody.innerHTML=[...categories].filter(c=>c.Name.toLowerCase()!=='health').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999)).map(c=>`
+      <tr draggable="true" data-id="${c.CategoryID}" data-type="category">
+        <td style="width:30px;color:var(--text-muted)">⠿</td>
+        <td><strong>${c.Name}</strong></td>
+        <td>${c.Headlines==='Y'?'✓':'—'}</td>
+        <td>${c.MyWords==='Y'?'✓':'—'}</td>
+        <td><button class="toggle ${c.IsActive==='Y'?'on':''}" onclick="toggleCategory(${c.CategoryID},this)"></button></td>
+        <td style="display:flex;gap:6px"><button class="btn-icon" onclick="openModal('category',${c.CategoryID})">✏️</button><button class="btn-icon danger" onclick="deleteCategory(${c.CategoryID})">🗑️</button></td>
+      </tr>`).join('');
+    initDragDrop(tbody,'category');
   }
 
   function renderSettingsSources(){
@@ -1851,8 +1864,8 @@
   async function toggleTopic(topicID,btn){clearYouTubeDisable();const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const tp=topics.find(t=>t.TopicID===topicID);await apiPost('SaveTopic',{action:'update',topicID,isActive,topic:tp?.Topic,categoryID:tp?.CategoryID,userID:USER_ID});if(tp)tp.IsActive=isActive?'Y':'N';}
   async function deleteSource(sourceID){if(!confirm('Remove this source?'))return;await apiPost('SaveSource',{action:'delete',sourceID,userID:USER_ID});sources=sources.filter(s=>s.SourceID!==sourceID);renderSettingsSources();}
   async function deleteCategory(categoryID){const cat=categories.find(c=>c.CategoryID===categoryID);if(cat&&cat.Name.toLowerCase()==='health'){alert('The Health category cannot be removed.');return;}if(!confirm('Remove this category?'))return;await apiPost('SaveCategory',{action:'delete',categoryID,userID:USER_ID});categories=categories.filter(c=>c.CategoryID!==categoryID);renderSettingsCategories();renderCategoryTiles(null);}
-  async function deleteKeyword(keywordID){if(!confirm('Delete this keyword?'))return;await apiPost('SaveKeyword',{action:'delete',keywordID,userID:USER_ID});keywords=keywords.filter(k=>k.KeywordID!==keywordID);renderSettingsKeywords();}
-  async function deleteTopic(topicID){if(!confirm('Delete this topic?'))return;await apiPost('SaveTopic',{action:'delete',topicID,userID:USER_ID});topics=topics.filter(t=>t.TopicID!==topicID);renderSettingsTopics();}
+  async function deleteKeyword(keywordID){if(!confirm('Delete this keyword?'))return;await apiPost('SaveKeyword',{action:'delete',keywordID,userID:USER_ID});keywords=keywords.filter(k=>k.KeywordID!==keywordID);renderSettingsKeywords();localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);}
+  async function deleteTopic(topicID){if(!confirm('Delete this topic?'))return;await apiPost('SaveTopic',{action:'delete',topicID,userID:USER_ID});topics=topics.filter(t=>t.TopicID!==topicID);renderSettingsTopics();localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);}
 
   // ── MODAL ──
 
@@ -1955,10 +1968,11 @@
         tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('dragging','drag-over'));
         setTimeout(()=>{
           const rows=[...tbody.querySelectorAll('tr[draggable]')];
-          const idKey=type==='keyword'?'keywordID':type==='source'?'sourceID':'topicID';
+          const idKey=type==='keyword'?'keywordID':type==='source'?'sourceID':type==='category'?'categoryID':'topicID';
           const sequences=rows.map((r,i)=>({[idKey]:parseInt(r.dataset.id),sequence:i+1}));
           if(type==='keyword'){apiPost('SaveKeyword',{action:'reorder',sequences,userID:USER_ID});keywords.forEach(k=>{const s=sequences.find(s=>s.keywordID===k.KeywordID);if(s)k.Sequence=s.sequence;});}
           else if(type==='source'){apiPost('SaveSource',{action:'reorder',sequences,userID:USER_ID});sources.forEach(src=>{const s=sequences.find(s=>s.sourceID===src.SourceID);if(s)src.Sequence=s.sequence;});}
+          else if(type==='category'){apiPost('SaveCategory',{action:'reorder',sequences,userID:USER_ID});categories.forEach(c=>{const s=sequences.find(s=>s.categoryID===c.CategoryID);if(s)c.Sequence=s.sequence;});}
           else{apiPost('SaveTopic',{action:'reorder',sequences,userID:USER_ID});topics.forEach(t=>{const s=sequences.find(s=>s.topicID===t.TopicID);if(s)t.Sequence=s.sequence;});}
         },50);
       });
@@ -2076,13 +2090,20 @@
     document.getElementById('gs-channelid-display').style.display='none';
     document.getElementById('gs-channelid-display').textContent='';
     // Set radio
-    const type=src?.SourceType||'RSS';
+    const type=src?.SourceType||(sourceID?'RSS':'API');
     document.querySelectorAll('input[name="gs-type"]').forEach(r=>r.checked=r.value===type);
     updateGsTypeFields();
     if(src?.YoutubeChannelID){
       gsResolvedChannelID=src.YoutubeChannelID;
       document.getElementById('gs-channelid-display').textContent=`Channel ID: ${src.YoutubeChannelID}`;
       document.getElementById('gs-channelid-display').style.display='block';
+    }
+    // Show/hide unfiltered checkbox for Youtube edit
+    const unfilteredRow=document.getElementById('gs-unfiltered-row');
+    if(unfilteredRow){
+      unfilteredRow.style.display=type==='Youtube'?'block':'none';
+      const unfilteredCb=document.getElementById('gs-unfiltered-cb');
+      if(unfilteredCb)unfilteredCb.checked=src?.YoutubeUnfiltered?true:false;
     }
     document.getElementById('gs-source-modal').style.display='flex';
   }
@@ -2095,6 +2116,8 @@
   function updateGsTypeFields(){
     const type=document.querySelector('input[name="gs-type"]:checked')?.value||'RSS';
     document.getElementById('gs-channel-lookup').style.display=type==='Youtube'?'block':'none';
+    const unfilteredRow=document.getElementById('gs-unfiltered-row');
+    if(unfilteredRow)unfilteredRow.style.display=type==='Youtube'?'block':'none';
     if(type!=='Youtube'){
       document.getElementById('gs-channelid-display').style.display='none';
       gsResolvedChannelID=null;
@@ -2132,10 +2155,12 @@
     if(sourceType==='Youtube'&&!gsResolvedChannelID&&!gsEditingID){
       return alert('Please use "Lookup Channel ID" to validate the YouTube channel before saving.');
     }
+    const gsUnfiltered=document.getElementById('gs-unfiltered-cb')?.checked||false;
     if(gsEditingID){
       await apiPost('SaveSource',{action:'update',sourceID:gsEditingID,name,url,sourceType,isActive:true,userID:USER_ID});
+      if(sourceType==='Youtube')await apiPost('SaveSource',{action:'updateUnfiltered',sourceID:gsEditingID,youtubeUnfiltered:gsUnfiltered,userID:USER_ID});
       const src=globalSources.find(s=>s.SourceID===gsEditingID);
-      if(src){src.Name=name;src.URL=url;src.SourceType=sourceType;}
+      if(src){src.Name=name;src.URL=url;src.SourceType=sourceType;src.YoutubeUnfiltered=gsUnfiltered;}
     }else{
       const result=await apiPost('SaveSource',{action:'add',name,url,sourceType,userID:USER_ID});
       if(result.sourceID){

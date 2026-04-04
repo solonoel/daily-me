@@ -74,6 +74,19 @@ module.exports = async function(context, req) {
         body: JSON.stringify({ success: true })
       };
 
+    } else if (action === 'reorder') {
+      if (Array.isArray(req.body.sequences)) {
+        for (const s of req.body.sequences) {
+          await pool.request()
+            .input('CategoryID', sql.Int, s.categoryID)
+            .input('UserID', sql.Int, userID)
+            .input('Sequence', sql.Int, s.sequence)
+            .query(`UPDATE [Category] SET Sequence=@Sequence WHERE CategoryID=@CategoryID AND UserID=@UserID`);
+        }
+      }
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true }) };
+
     } else if (action === 'delete') {
       // Null out CategoryID on related records before deleting
       await pool.request()
