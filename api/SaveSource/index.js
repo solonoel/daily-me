@@ -12,21 +12,37 @@ async function resolveYoutubeChannelID(url, apiKey) {
   if (channelMatch) return channelMatch[1];
   if (!handleMatch) throw new Error('Could not parse YouTube URL. Use https://www.youtube.com/@ChannelName format.');
   const handle = handleMatch[1];
-  const apiUrl = `https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=${encodeURIComponent(handle)}&key=${apiKey}`;
-  return new Promise((resolve, reject) => {
-    https.get(apiUrl, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          const channelID = parsed?.items?.[0]?.id;
-          if (!channelID) reject(new Error(`YouTube channel not found for @${handle}`));
-          else resolve(channelID);
-        } catch(e) { reject(new Error('YouTube API parse error')); }
-      });
-    }).on('error', reject);
-  });
+
+  function fetchJson(apiUrl) {
+    return new Promise((resolve, reject) => {
+      https.get(apiUrl, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(new Error('Parse error')); } });
+      }).on('error', reject);
+    });
+  }
+
+  // Method 1: forHandle (works for most handles)
+  try {
+    const d1 = await fetchJson(`https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=${encodeURIComponent(handle)}&key=${apiKey}`);
+    if (d1?.items?.[0]?.id) return d1.items[0].id;
+  } catch(e) {}
+
+  // Method 2: forUsername (works for older channels)
+  try {
+    const d2 = await fetchJson(`https://www.googleapis.com/youtube/v3/channels?part=id&forUsername=${encodeURIComponent(handle)}&key=${apiKey}`);
+    if (d2?.items?.[0]?.id) return d2.items[0].id;
+  } catch(e) {}
+
+  // Method 3: search.list by channel name (100 units but most reliable fallback)
+  try {
+    const d3 = await fetchJson(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(handle)}&type=channel&maxResults=1&key=${apiKey}`);
+    if (d3?.items?.[0]?.snippet?.channelId) return d3.items[0].snippet.channelId;
+    if (d3?.items?.[0]?.id?.channelId) return d3.items[0].id.channelId;
+  } catch(e) {}
+
+  throw new Error(`YouTube channel not found for @${handle}. Verify the URL is correct.`);
 }
 
 module.exports = async function(context, req) {
