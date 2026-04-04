@@ -22,17 +22,36 @@ module.exports = async function(context, req) {
     const result = await pool.request()
       .input('UserID', sql.Int, userID)
       .input('LanguageID', sql.Int, languageID)
-      .query(`SELECT w.UserLanguageWordsID, w.WordsName, w.WordsTranslation,
-                     w.WordsTranslationAudio, w.WordsImage, w.DateAdded,
-                     w.Flag, w.DateMastered, w.IsVerb, w.Gender
-              FROM [UserLanguageWords] w
-              ${whereClause}
-              ORDER BY w.DateAdded DESC`);
+      .query(`
+        SELECT w.UserLanguageWordsID, w.WordsName, w.WordsTranslation,
+               w.WordsTranslationAudio, w.WordsImage, w.DateAdded,
+               w.Flag, w.DateMastered, w.IsVerb, w.Gender,
+               STUFF((
+                 SELECT ',' + d.UserLanguageWordsDeckName
+                 FROM UserLanguageWordsDeckWords dw
+                 JOIN UserLanguageWordsDeck d ON d.UserLanguageWordsDeckID = dw.UserLanguageWordsDeckID
+                 WHERE dw.UserLanguageWordsID = w.UserLanguageWordsID
+                 FOR XML PATH(''), TYPE).value('.','NVARCHAR(MAX)'), 1, 1, '') AS DeckNames,
+               STUFF((
+                 SELECT ',' + CAST(dw2.UserLanguageWordsDeckID AS NVARCHAR)
+                 FROM UserLanguageWordsDeckWords dw2
+                 WHERE dw2.UserLanguageWordsID = w.UserLanguageWordsID
+                 FOR XML PATH(''), TYPE).value('.','NVARCHAR(MAX)'), 1, 1, '') AS DeckIDs
+        FROM [UserLanguageWords] w
+        ${whereClause}
+        ORDER BY w.DateAdded DESC
+      `);
+
+    // Parse DeckIDs string into array of ints
+    const records = result.recordset.map(r => ({
+      ...r,
+      DeckIDs: r.DeckIDs ? r.DeckIDs.split(',').map(Number) : []
+    }));
 
     context.res = {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(result.recordset)
+      body: JSON.stringify(records)
     };
   } catch(err) {
     context.res = { status: 500, body: 'Error: ' + err.message };

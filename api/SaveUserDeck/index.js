@@ -1,5 +1,4 @@
 const sql = require('mssql');
-
 const config = {
   server: 'brunsusa-sql.database.windows.net',
   database: 'DailyMeDB',
@@ -11,7 +10,7 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { action, userID = 1, languageID, deckID, deckName, status } = req.body;
+    const { action, userID = 1, languageID, deckID, deckName, status, wordID } = req.body;
 
     if (action === 'add') {
       const result = await pool.request()
@@ -35,25 +34,9 @@ module.exports = async function(context, req) {
         .input('UserID', sql.Int, userID)
         .input('DeckName', sql.NVarChar(200), deckName)
         .input('Status', sql.NVarChar(20), status)
-        .query(`
-          UPDATE [UserLanguageWordsDeck]
-          SET UserLanguageWordsDeckName = @DeckName, Status = @Status
-          WHERE UserLanguageWordsDeckID = @DeckID AND UserID = @UserID
-        `);
-      context.res = {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ success: true })
-      };
-
-    } else if (action === 'delete') {
-      await pool.request()
-        .input('DeckID', sql.Int, deckID)
-        .input('UserID', sql.Int, userID)
-        .query(`
-          DELETE FROM [UserLanguageWordsDeckWords] WHERE UserLanguageWordsDeckID = @DeckID;
-          DELETE FROM [UserLanguageWordsDeck] WHERE UserLanguageWordsDeckID = @DeckID AND UserID = @UserID;
-        `);
+        .query(`UPDATE [UserLanguageWordsDeck]
+                SET UserLanguageWordsDeckName = @DeckName, Status = @Status
+                WHERE UserLanguageWordsDeckID = @DeckID AND UserID = @UserID`);
       context.res = {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -65,11 +48,50 @@ module.exports = async function(context, req) {
         .input('DeckID', sql.Int, deckID)
         .input('UserID', sql.Int, userID)
         .input('Status', sql.NVarChar(20), status)
-        .query(`
-          UPDATE [UserLanguageWordsDeck]
-          SET Status = @Status
-          WHERE UserLanguageWordsDeckID = @DeckID AND UserID = @UserID
-        `);
+        .query(`UPDATE [UserLanguageWordsDeck]
+                SET Status = @Status
+                WHERE UserLanguageWordsDeckID = @DeckID AND UserID = @UserID`);
+      context.res = {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true })
+      };
+
+    } else if (action === 'delete') {
+      await pool.request()
+        .input('DeckID', sql.Int, deckID)
+        .input('UserID', sql.Int, userID)
+        .query(`DELETE FROM [UserLanguageWordsDeckWords] WHERE UserLanguageWordsDeckID = @DeckID;
+                DELETE FROM [UserLanguageWordsDeck] WHERE UserLanguageWordsDeckID = @DeckID AND UserID = @UserID;`);
+      context.res = {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true })
+      };
+
+    } else if (action === 'addWord') {
+      // Avoid duplicate
+      await pool.request()
+        .input('DeckID', sql.Int, deckID)
+        .input('WordID', sql.Int, wordID)
+        .query(`IF NOT EXISTS (
+                  SELECT 1 FROM [UserLanguageWordsDeckWords]
+                  WHERE UserLanguageWordsDeckID = @DeckID AND UserLanguageWordsID = @WordID
+                )
+                INSERT INTO [UserLanguageWordsDeckWords] (UserLanguageWordsDeckID, UserLanguageWordsID, DateAdded)
+                VALUES (@DeckID, @WordID, GETDATE())`);
+      context.res = {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true })
+      };
+
+    } else if (action === 'removeWord') {
+      await pool.request()
+        .input('DeckID', sql.Int, deckID)
+        .input('WordID', sql.Int, wordID)
+        .query(`DELETE FROM [UserLanguageWordsDeckWords]
+                WHERE UserLanguageWordsDeckID = @DeckID AND UserLanguageWordsID = @WordID`);
       context.res = {
         status: 200,
         headers: { 'Content-Type': 'application/json' },

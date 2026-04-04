@@ -156,8 +156,9 @@
     .word-name { font-size:15px; font-weight:600; color:var(--text); }
     .word-gender { font-size:17px; color:#1a3a5a; margin-left:12px; font-weight:700; }
     .word-translation { font-size:12px; color:var(--text-soft); margin-top:3px; white-space:pre-line; line-height:1.4; }
+    .word-deck-badge { font-size:10px; color:var(--sky-deep); background:#e6f1ff; border-radius:4px; padding:1px 6px; margin-left:8px; font-weight:600; white-space:nowrap; }
     .word-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
-    .word-btn { width:30px; height:30px; border-radius:6px; border:1.5px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:15px; transition:all 0.15s; }
+    .word-btn { width:30px; height:30px; border-radius:6px; border:1.5px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:15px; transition:all 0.15px; }
     .word-btn:hover { border-color:var(--sky-deep); background:#f0f7ff; }
     .word-btn.flag-active { border-color:var(--gold); background:rgba(232,160,32,0.08); }
     .word-btn.gotit-active { border-color:#22c55e; background:#f0fdf4; color:#16a34a; font-weight:700; }
@@ -183,9 +184,7 @@
     .fc-actions-bar { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:14px; }
     .fc-btn { width:38px; height:38px; border-radius:50%; border:2px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:17px; transition:all 0.15s; flex-shrink:0; }
     .fc-btn:hover { border-color:var(--sky-deep); background:#f0f7ff; }
-    .fc-speaker { }
     .fc-mastered:hover { border-color:#22c55e; background:#f0fdf4; color:#16a34a; }
-    .fc-flag-btn { }
     .fc-flag-btn:hover { border-color:var(--gold); background:rgba(232,160,32,0.08); }
     .fc-flag-active { border-color:var(--gold); background:rgba(232,160,32,0.08); }
     .fc-nav-btn { width:34px; height:34px; border-radius:8px; border:1.5px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:700; color:var(--sky-deep); transition:all 0.15s; flex-shrink:0; line-height:1; }
@@ -194,35 +193,41 @@
     .coming-soon { display:inline-block; font-size:9px; font-weight:700; background:#fff0d6; color:#b07000; border-radius:4px; padding:2px 6px; text-transform:uppercase; letter-spacing:0.5px; }
     .conjugate-link { font-size:11px; color:var(--sky-deep); text-decoration:none; font-weight:400; border-bottom:1px dashed var(--sky-deep); cursor:pointer; white-space:nowrap; }
     .conjugate-link:hover { color:#1a5fa8; }
-.conj-panel { margin-top:12px; }
-.conj-verb-header { background:var(--sky-deep); color:white; border-radius:10px 10px 0 0; padding:14px 16px; display:flex; align-items:baseline; gap:10px; }
-.conj-verb-name { font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:600; }
-.conj-verb-meaning { font-size:0.82rem; color:rgba(255,255,255,0.75); }
-.conj-mood { background:white; border:1.5px solid var(--border); border-top:none; overflow:hidden; }
-.conj-mood:last-child { border-radius:0 0 10px 10px; }
-.conj-mood-header { display:flex; align-items:center; justify-content:space-between; padding:9px 14px; cursor:pointer; font-size:13px; font-weight:700; color:white; background:#5fa8d8; border-bottom:1px solid #4a90c4; }
-.conj-mood-header.expanded { background:#4e9acc; }
-.conj-tenses-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:10px 14px; }
-.conj-tense-box { border:1.5px solid var(--border); border-radius:8px; overflow:hidden; }
-.conj-tense-header { background:#cce5ff; padding:5px 10px; font-size:10px; font-weight:700; color:#1a5a90; text-transform:uppercase; letter-spacing:0.6px; border-bottom:1px solid #a8d0f0; }
-.conj-grid { display:grid; grid-template-columns:1fr 1fr; grid-auto-flow:column; }
-.conj-cell { display:flex; align-items:center; gap:5px; padding:4px 8px; border-bottom:1px solid #eef5fc; border-right:1px solid #eef5fc; white-space:nowrap; }
-.conj-cell:nth-child(2n) { border-right:none; }
-.conj-cell:nth-last-child(-n+2) { border-bottom:none; }
-.conj-pronoun { font-size:11px; color:#1a5a90; font-weight:700; white-space:nowrap; min-width:28px; }
-.conj-form { font-size:13px; font-weight:600; color:var(--text); }
-.conj-verb-picker { position:relative; flex:1; cursor:pointer; background:white; border:1.5px solid var(--border); border-radius:8px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; gap:8px; user-select:none; }
-.conj-verb-picker:hover { border-color:var(--sky-deep); }
-.conj-pick-word { font-size:18px; font-weight:700; color:var(--text); flex:1; }
-.conj-pick-trans { font-size:11px; color:var(--text-muted); flex:1; text-align:right; }
-.conj-verb-dropdown { position:absolute; top:calc(100% + 4px); left:0; right:0; background:white; border:1.5px solid var(--border); border-radius:8px; z-index:200; max-height:220px; overflow-y:auto; box-shadow:0 6px 20px rgba(43,127,212,0.15); }
-.conj-verb-opt { padding:8px 12px; cursor:pointer; border-bottom:1px solid #eef5fc; display:flex; align-items:baseline; gap:10px; }
-.conj-verb-opt:last-child { border-bottom:none; }
-.conj-verb-opt:hover { background:#f0f7ff; }
-.conj-verb-opt-word { font-size:16px; font-weight:700; color:var(--text); }
-.conj-verb-opt-trans { font-size:11px; color:var(--text-muted); }
+    .conj-panel { margin-top:12px; }
+    .conj-verb-header { background:var(--sky-deep); color:white; border-radius:10px 10px 0 0; padding:14px 16px; display:flex; align-items:baseline; gap:10px; }
+    .conj-verb-name { font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:600; }
+    .conj-verb-meaning { font-size:0.82rem; color:rgba(255,255,255,0.75); }
+    .conj-mood { background:white; border:1.5px solid var(--border); border-top:none; overflow:hidden; }
+    .conj-mood:last-child { border-radius:0 0 10px 10px; }
+    .conj-mood-header { display:flex; align-items:center; justify-content:space-between; padding:9px 14px; cursor:pointer; font-size:13px; font-weight:700; color:white; background:#5fa8d8; border-bottom:1px solid #4a90c4; }
+    .conj-mood-header.expanded { background:#4e9acc; }
+    .conj-tenses-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:10px 14px; }
+    .conj-tense-box { border:1.5px solid var(--border); border-radius:8px; overflow:hidden; }
+    .conj-tense-header { background:#cce5ff; padding:5px 10px; font-size:10px; font-weight:700; color:#1a5a90; text-transform:uppercase; letter-spacing:0.6px; border-bottom:1px solid #a8d0f0; }
+    .conj-grid { display:grid; grid-template-columns:1fr 1fr; grid-auto-flow:column; }
+    .conj-cell { display:flex; align-items:center; gap:5px; padding:4px 8px; border-bottom:1px solid #eef5fc; border-right:1px solid #eef5fc; white-space:nowrap; }
+    .conj-cell:nth-child(2n) { border-right:none; }
+    .conj-cell:nth-last-child(-n+2) { border-bottom:none; }
+    .conj-pronoun { font-size:11px; color:#1a5a90; font-weight:700; white-space:nowrap; min-width:28px; }
+    .conj-form { font-size:13px; font-weight:600; color:var(--text); }
+    .conj-verb-picker { position:relative; flex:1; cursor:pointer; background:white; border:1.5px solid var(--border); border-radius:8px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; gap:8px; user-select:none; }
+    .conj-verb-picker:hover { border-color:var(--sky-deep); }
+    .conj-verb-dropdown { position:absolute; top:calc(100% + 4px); left:0; right:0; background:white; border:1.5px solid var(--border); border-radius:8px; z-index:200; max-height:220px; overflow-y:auto; box-shadow:0 6px 20px rgba(43,127,212,0.15); }
+    .conj-verb-opt { padding:8px 12px; cursor:pointer; border-bottom:1px solid #eef5fc; display:flex; align-items:baseline; gap:10px; }
+    .conj-verb-opt:last-child { border-bottom:none; }
+    .conj-verb-opt:hover { background:#f0f7ff; }
+    .conj-verb-opt-word { font-size:16px; font-weight:700; color:var(--text); }
+    .conj-verb-opt-trans { font-size:11px; color:var(--text-muted); }
+    /* Deck words grid in edit deck screen */
+    .deck-words-screen { background:white; border:1.5px solid var(--border); border-radius:12px; padding:16px; box-shadow:var(--shadow); }
+    .searchable-combo { position:relative; }
+    .searchable-combo-input { width:100%; padding:7px 10px; border:1.5px solid var(--border); border-radius:8px; font-size:13px; font-family:'DM Sans',sans-serif; color:var(--text); }
+    .searchable-combo-input:focus { outline:none; border-color:var(--sky-deep); }
+    .searchable-combo-dropdown { position:absolute; top:calc(100% + 2px); left:0; right:0; background:white; border:1.5px solid var(--border); border-radius:8px; z-index:300; max-height:180px; overflow-y:auto; box-shadow:0 4px 16px rgba(43,127,212,0.12); display:none; }
+    .searchable-combo-opt { padding:7px 12px; cursor:pointer; font-size:13px; border-bottom:1px solid #eef5fc; }
+    .searchable-combo-opt:last-child { border-bottom:none; }
+    .searchable-combo-opt:hover { background:#f0f7ff; }
     @media (max-width:700px) { .settings-deck-grid { grid-template-columns:1fr; } .header { padding:14px 16px; } .main { padding:16px; } .app-title { font-size:20px; } .nav-btn { padding:8px 14px; min-width:60px; } .headline-thumb { width:72px; height:45px; } }
-    /* Onboarding overlay */
     .onboard-overlay { position:fixed; inset:0; background:rgba(15,30,46,0.6); z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px; }
     .onboard-card { background:white; border-radius:20px; padding:36px 40px; max-width:600px; width:100%; box-shadow:0 20px 60px rgba(43,127,212,0.25); position:relative; max-height:90vh; overflow-y:auto; }
     .onboard-close { position:absolute; top:16px; right:20px; background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-muted); line-height:1; }
@@ -421,13 +426,8 @@
     'Health':{icon:'❤️',color:'#8a1010',bg:'#fde0e0',dot:'#e05050'},
     'Other':{icon:'📰',color:'#444',bg:'#f5f5f5',dot:'#888'}
   };
-  const langGreetings = {
-    'Spanish':'¡Hola! ¿Cómo estás hoy?','French':"Bonjour! Comment allez-vous aujourd'hui?",
-    'Italian':'Ciao! Come stai oggi?','Portuguese':'Olá! Como você está hoje?','Romanian':'Bună ziua! Cum ești astăzi?'
-  };
   const langCodes = {'Spanish':'es-ES','French':'fr-FR','Italian':'it-IT','Portuguese':'pt-PT','Romanian':'ro-RO'};
   const langArticles = {'Spanish':{M:'el',F:'la'},'French':{M:'le',F:'la'},'Italian':{M:'il',F:'la'},'Portuguese':{M:'o',F:'a'},'Romanian':{M:'',F:''}};
-
   const langEncouragements = {
     'Spanish': ['¡Sigue así!','¡Lo estás haciendo muy bien!','¡Cada día mejoras más!','¡Fantástico trabajo!','¡No te rindas!'],
     'French':  ['Continuez comme ça!','Vous faites du bon travail!','Chaque jour vous progressez!','Fantastique!','Ne lâchez pas!'],
@@ -436,21 +436,15 @@
     'Romanian': ['Continuă tot așa!','Te descurci foarte bine!','În fiecare zi progresezi!','Fantastic!','Nu te opri!']
   };
 
-  function getStreakEmoji(days){
-    if(days>=30)return'🏆';
-    if(days>=14)return'💎';
-    if(days>=7)return'🔥';
-    if(days>=3)return'⭐';
-    return'🌱';
-  }
-
-  const langStreaks = {}; // { languageID: streakDays }
+  function getStreakEmoji(days){ if(days>=30)return'🏆'; if(days>=14)return'💎'; if(days>=7)return'🔥'; if(days>=3)return'⭐'; return'🌱'; }
+  const langStreaks = {};
 
   let headlines=[],recencyDays_value=7,categories=[],sources=[],keywords=[],topics=[];
   let allLanguages=[],userLanguages=[];
   let currentFilter='Local',currentSettingsSection=null;
   let currentLangID=null,currentLangName=null;
   let myWords=[],myWordsFilter='active',showImages=true;
+  let myWordsDeckFilter=''; // deck ID filter for My Words, '' = all
   let flashcards=[],flashcardIndex=0,flashcardShowTranslation=false,flashcardFilter='all',flashcardAutoPronounce=true,flashcardLeadWith='language';
   let sentencesCache={};
   let newWordImage=null,newWordImageChanged=false;
@@ -459,6 +453,8 @@
   let userDecks=[],deckStatusFilter='Active';
   let deckSortCol='DateAdded',deckSortDir='desc';
   let currentDeckID=null;
+  let verbFilter='all';
+  let wordSearch='';
 
   function setGreeting(){
     const h=new Date().getHours(),p=h<12?'morning':h<17?'afternoon':'evening';
@@ -477,6 +473,7 @@
     const navDate=document.getElementById('nav-date');
     if(navDate)navDate.textContent=dateStr;
   }
+
   async function loadWeather(){
     try{
       const res=await fetch('https://api.open-meteo.com/v1/forecast?latitude=41.9945&longitude=-89.3334&current=temperature_2m,weathercode,windspeed_10m&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FChicago&forecast_days=1');
@@ -533,7 +530,6 @@
   async function autoFetchHeadlinesIfNewDay(){
     const today=new Date().toDateString();
     if(localStorage.getItem('dailyme_last_fetch')===today)return;
-    // New day — reset YouTube disable flag
     localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
     const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=false;
     try{
@@ -563,15 +559,10 @@
 
   async function visitLanguage(langID,langName){
     showScreen(`lang-${langID}`);
-    // Update streak
     try{
       const result=await apiPost('UpdateLanguageStreak',{userID:USER_ID,languageID:langID});
-      if(result.streakDays){
-        langStreaks[langID]=result.streakDays;
-        updateStreakDisplay(langID);
-      }
+      if(result.streakDays){langStreaks[langID]=result.streakDays;updateStreakDisplay(langID);}
     }catch(e){}
-    // Auto-open My Words
     await showLangFeature(langID,'mywords',langName);
   }
 
@@ -599,21 +590,23 @@
           </div>
           <div class="lang-tab-bar">
             <div class="lang-tab" id="langtab-mw-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'mywords','${lang.LanguageNameEng}')">📝 My Words</div>
-            <div class="lang-tab" id="langtab-fc-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'flashcards','${lang.LanguageNameEng}')">🃏 Flashcards</div>
-            <div class="lang-tab" id="langtab-conj-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'conjugation','${lang.LanguageNameEng}')">🔤 Conjugation</div>
             <div class="lang-tab" id="langtab-decks-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'decks','${lang.LanguageNameEng}')">📚 My Decks</div>
+            <div class="lang-tab" id="langtab-fc-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'flashcards','${lang.LanguageNameEng}')">🃏 Flashcards</div>
             <div class="lang-tab lang-tab-disabled">💬 Conversation</div>
+            <div class="lang-tab" id="langtab-conj-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'conjugation','${lang.LanguageNameEng}')">🔤 Conjugation</div>
           </div>
           <div id="lang-feature-${lang.LanguageID}" class="lang-feature-panel"></div>
         </div>
-        <div class="screen" id="screen-newword-${lang.LanguageID}"></div>`;
+        <div class="screen" id="screen-newword-${lang.LanguageID}"></div>
+        <div class="screen" id="screen-deckwords-${lang.LanguageID}"></div>`;
     }).join('');
   }
 
   async function showLangFeature(langID,feature,langName,autoLoadWordID=null){
     currentLangID=langID;currentLangName=langName;
     document.querySelectorAll('[id^="langtab-"]').forEach(t=>t.classList.remove('lang-tab-active'));
-    const tabEl=document.getElementById(feature==='flashcards'?`langtab-fc-${langID}`:feature==='conjugation'?`langtab-conj-${langID}`:feature==='decks'?`langtab-decks-${langID}`:`langtab-mw-${langID}`);
+    const tabMap={flashcards:`langtab-fc-${langID}`,conjugation:`langtab-conj-${langID}`,decks:`langtab-decks-${langID}`,mywords:`langtab-mw-${langID}`};
+    const tabEl=document.getElementById(tabMap[feature]||`langtab-mw-${langID}`);
     if(tabEl)tabEl.classList.add('lang-tab-active');
     const panel=document.getElementById(`lang-feature-${langID}`);if(!panel)return;
     if(feature==='flashcards'){
@@ -626,18 +619,19 @@
       const data=await apiGet('GetUserLanguageWords',`&languageID=${langID}&filter=active`);
       const verbs=Array.isArray(data)?data.filter(w=>w.IsVerb==='Y'):[];
       panel.innerHTML=renderConjugationHTML(langID,langName,verbs,autoLoadWordID||null);
-}else if(feature==='decks'){
+    }else if(feature==='decks'){
       const data=await apiGet('GetUserDecks',`&languageID=${langID}&status=all`);
       userDecks=Array.isArray(data)?data:[];
-      panel.innerHTML=renderDecksHTML(langID,langName);   
-}else if(feature==='decks'){
-      const data=await apiGet('GetUserDecks',`&languageID=${langID}&status=all`);
-      userDecks=Array.isArray(data)?data:[];
-      panel.innerHTML=renderDecksHTML(langID,langName);         
+      panel.innerHTML=renderDecksHTML(langID,langName);
     }else if(feature==='mywords'){
-      myWordsFilter='active';showImages=true;wordSearch='';
-      const data=await apiGet('GetUserLanguageWords',`&languageID=${langID}&filter=active`);
+      myWordsFilter='active';showImages=true;wordSearch='';myWordsDeckFilter='';
+      const data=await apiGet('GetUserLanguageWords',`&languageID=${langID}&filter=all`);
       myWords=Array.isArray(data)?data:[];
+      // Also load decks for filter combo
+      if(!userDecks.length){
+        const ddata=await apiGet('GetUserDecks',`&languageID=${langID}&status=all`);
+        userDecks=Array.isArray(ddata)?ddata:[];
+      }
       panel.innerHTML=renderMyWordsHTML(langID,langName);
     }
   }
@@ -670,60 +664,70 @@
     const panel=document.getElementById(`lang-feature-${currentLangID}`);
     if(panel){
       panel.innerHTML=renderMyWordsHTML(currentLangID,currentLangName);
-      // Restore search value and re-apply filter
       const searchEl=document.getElementById(`mw-search-${currentLangID}`);
       if(searchEl&&wordSearch){searchEl.value=wordSearch;setWordSearch(wordSearch);}
     }
   }
 
   async function loadMyWords(){
-    const data=await apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=${myWordsFilter}`);
-    myWords=Array.isArray(data)?data:[];renderMyWords();
+    const data=await apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=all`);
+    myWords=Array.isArray(data)?data:[];
+    renderMyWords();
   }
-
-  let verbFilter='all';
-  let wordSearch='';
 
   function setWordSearch(val){
     wordSearch=val.toLowerCase().trim();
-    const rows=document.querySelectorAll('.word-grid .word-row');
-    rows.forEach(row=>{
-      if(!wordSearch){row.style.display='';return;}
-      const name=row.querySelector('.word-name')?.textContent?.toLowerCase()||'';
-      const trans=row.querySelector('.word-translation')?.textContent?.toLowerCase()||'';
-      row.style.display=(name.includes(wordSearch)||trans.includes(wordSearch))?'':'none';
-    });
-  }rbFilter='all';
+    renderMyWords();
+  }
 
   function renderMyWordsHTML(langID,langName){
-    // Apply verb filter first
+    // Apply verb filter
     const verbFiltered = verbFilter==='verbs' ? myWords.filter(w=>w.IsVerb==='Y')
       : verbFilter==='nouns' ? myWords.filter(w=>w.IsVerb!=='Y')
       : myWords;
 
-    // Then apply status filter
-    const displayWords = myWordsFilter==='active' ? verbFiltered.filter(w=>!w.DateMastered)
-      : myWordsFilter==='flagged' ? verbFiltered.filter(w=>w.Flag)
-      : myWordsFilter==='mastered' ? verbFiltered.filter(w=>w.DateMastered)
+    // Apply deck filter
+    const deckFiltered = myWordsDeckFilter
+      ? verbFiltered.filter(w=>w.DeckIDs&&w.DeckIDs.includes(parseInt(myWordsDeckFilter)))
       : verbFiltered;
 
-    const activeCount=verbFiltered.filter(w=>!w.DateMastered).length;
-    const flaggedCount=verbFiltered.filter(w=>w.Flag).length;
-    const masteredCount=verbFiltered.filter(w=>w.DateMastered).length;
+    // Apply status filter
+    const displayWords = myWordsFilter==='active' ? deckFiltered.filter(w=>!w.DateMastered)
+      : myWordsFilter==='flagged' ? deckFiltered.filter(w=>w.Flag)
+      : myWordsFilter==='mastered' ? deckFiltered.filter(w=>w.DateMastered)
+      : deckFiltered;
+
+    // Apply word search
+    const searchFiltered = wordSearch
+      ? displayWords.filter(w=>{
+          const name=(w.WordsName||'').toLowerCase();
+          const trans=(w.WordsTranslation||'').toLowerCase();
+          return name.includes(wordSearch)||trans.includes(wordSearch);
+        })
+      : displayWords;
+
+    const activeCount=deckFiltered.filter(w=>!w.DateMastered).length;
+    const flaggedCount=deckFiltered.filter(w=>w.Flag).length;
+    const masteredCount=deckFiltered.filter(w=>w.DateMastered).length;
     const filters=[
       {key:'active',label:`Active (${activeCount})`},{key:'flagged',label:`Flagged (${flaggedCount})`},
-      {key:'mastered',label:`Mastered (${masteredCount})`},{key:'all',label:`All (${verbFiltered.length})`}
+      {key:'mastered',label:`Mastered (${masteredCount})`},{key:'all',label:`All (${deckFiltered.length})`}
     ];
 
-    const wordRows=displayWords.map(w=>{
+    const activeDecks=[...userDecks].filter(d=>d.Status==='Active').sort((a,b)=>a.UserLanguageWordsDeckName.localeCompare(b.UserLanguageWordsDeckName));
+
+    const wordRows=searchFiltered.map(w=>{
       const genderLabel=w.Gender==='M'?'<span class="word-gender">♂</span>':w.Gender==='F'?'<span class="word-gender">♀</span>':'';
       const verbLabel=w.IsVerb==='Y'?'<span style="font-size:10px;color:var(--text-muted);margin-left:4px">verb</span>':'';
       const conjugateLink=w.IsVerb==='Y'?`<span class="conjugate-link" onclick="showConjugation(${w.UserLanguageWordsID},()=>showLangFeature(currentLangID,'mywords',currentLangName))" style="font-weight:400;margin-left:10px;font-size:11px">conjugate</span>`:'';
       const imgEl=showImages?(w.WordsImage?`<img src="${w.WordsImage}" class="word-img" alt="">`:`<div class="word-img-placeholder">📖</div>`):'';
+      // Deck badge(s)
+      const deckNames=(w.DeckNames||'').split(',').map(s=>s.trim()).filter(Boolean);
+      const deckBadges=deckNames.map(n=>`<span class="word-deck-badge">${n}</span>`).join('');
       return `<div class="word-row" data-wordid="${w.UserLanguageWordsID}">
         ${imgEl}
         <div class="word-body">
-          <div class="word-name"><a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;" style="color:var(--text);text-decoration:none;border-bottom:1px dashed var(--border)">${w.WordsName}</a>${genderLabel}${verbLabel}${conjugateLink}</div>
+          <div class="word-name"><a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;" style="color:var(--text);text-decoration:none;border-bottom:1px dashed var(--border)">${w.WordsName}</a>${genderLabel}${verbLabel}${conjugateLink}${deckBadges}</div>
           <div class="word-translation">${w.WordsTranslation||''}</div>
         </div>
         <div class="word-actions">
@@ -737,33 +741,43 @@
       </div>`;
     }).join('')||'<div class="empty-state">No words found.</div>';
 
+    // Row 1: Word Search | Type | Deck | New Word button
+    // Row 2: Status filters (left) | Images (right)
     return `
-      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px;margin-bottom:12px">
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          ${filters.map(f=>`<button class="filter-btn ${myWordsFilter===f.key?'active':''}" onclick="setWordsFilter('${f.key}')">${f.label}</button>`).join('')}
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:12px;font-weight:600;color:var(--text-soft)">Word:</span>
+          <input type="text" id="mw-search-${langID}" placeholder="Search..." value="${wordSearch}" style="padding:4px 10px;border:1.5px solid var(--border);border-radius:100px;font-size:12px;font-family:'DM Sans',sans-serif;width:140px;outline:none" oninput="setWordSearch(this.value)" onfocus="this.style.borderColor='var(--sky-deep)'" onblur="this.style.borderColor='var(--border)'">
         </div>
-        <div style="width:1px;height:20px;background:var(--border);margin:0 10px"></div>
-        <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:1px;height:20px;background:var(--border);margin:0 6px"></div>
+        <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:12px;font-weight:600;color:var(--text-soft)">Type:</span>
           <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="vf-${langID}" value="all" ${verbFilter==='all'?'checked':''} onchange="setVerbFilter('all')" style="accent-color:var(--sky-deep)"> All</label>
           <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="vf-${langID}" value="nouns" ${verbFilter==='nouns'?'checked':''} onchange="setVerbFilter('nouns')" style="accent-color:var(--sky-deep)"> Nouns</label>
           <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="vf-${langID}" value="verbs" ${verbFilter==='verbs'?'checked':''} onchange="setVerbFilter('verbs')" style="accent-color:var(--sky-deep)"> Verbs</label>
         </div>
-        <div style="width:1px;height:20px;background:var(--border);margin:0 10px"></div>
+        <div style="width:1px;height:20px;background:var(--border);margin:0 6px"></div>
         <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-size:12px;font-weight:600;color:var(--text-soft)">Word:</span>
-          <input type="text" id="mw-search-${langID}" placeholder="Search..." style="padding:4px 10px;border:1.5px solid var(--border);border-radius:100px;font-size:12px;font-family:'DM Sans',sans-serif;width:140px;outline:none" oninput="setWordSearch(this.value)" onfocus="this.style.borderColor='var(--sky-deep)'" onblur="this.style.borderColor='var(--border)'">
+          <span style="font-size:12px;font-weight:600;color:var(--text-soft)">Deck:</span>
+          <select style="padding:4px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);background:white" onchange="setDeckFilter(this.value)">
+            <option value="">All Decks</option>
+            ${activeDecks.map(d=>`<option value="${d.UserLanguageWordsDeckID}" ${myWordsDeckFilter==d.UserLanguageWordsDeckID?'selected':''}>${d.UserLanguageWordsDeckName}</option>`).join('')}
+          </select>
         </div>
         <button class="btn-primary" style="margin-left:auto;padding:6px 14px;font-size:12px" onclick="showNewWord()">+ New Word</button>
-        <label class="images-toggle"><input type="checkbox" ${showImages?'checked':''} onchange="showImages=this.checked;renderMyWords()"> Images</label>
+      </div>
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${filters.map(f=>`<button class="filter-btn ${myWordsFilter===f.key?'active':''}" onclick="setWordsFilter('${f.key}')">${f.label}</button>`).join('')}
+        </div>
+        <label class="images-toggle" style="margin-left:auto"><input type="checkbox" ${showImages?'checked':''} onchange="showImages=this.checked;renderMyWords()"> Images</label>
       </div>
       <div class="word-grid">${wordRows}</div>`;
   }
 
   function setWordsFilter(filter){myWordsFilter=filter;renderMyWords();}
   function setVerbFilter(filter){verbFilter=filter;renderMyWords();}
-
-  function setWordsFilter(filter){myWordsFilter=filter;loadMyWords();}
+  function setDeckFilter(val){myWordsDeckFilter=val;renderMyWords();}
 
   function speakWordByID(wordID){
     const w=myWords.find(w=>w.UserLanguageWordsID===wordID);
@@ -779,8 +793,7 @@
     const word=myWords.find(w=>w.UserLanguageWordsID===wordID);if(!word)return;
     const newFlag=!word.Flag;
     await apiPost('SaveUserLanguageWord',{action:'flag',userID:USER_ID,wordID,flag:newFlag});
-    word.Flag=newFlag;
-    renderMyWords();
+    word.Flag=newFlag;renderMyWords();
   }
 
   async function markWordMastered(wordID,btn){
@@ -799,13 +812,74 @@
 
   // ── WORD FORM (new & edit) ──
 
-  function wordFormHTML(isEdit,word){
+  function renderWordDeckGrid(wordID,wordDecks){
+    // wordDecks: array of {UserLanguageWordsDeckID, UserLanguageWordsDeckName}
+    const activeDecks=[...userDecks].filter(d=>d.Status==='Active').sort((a,b)=>a.UserLanguageWordsDeckName.localeCompare(b.UserLanguageWordsDeckName));
+    const deckRows=(wordDecks||[]).map(d=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #eef5fc" id="wdeck-row-${d.UserLanguageWordsDeckID}">
+        <span style="flex:1;font-size:13px">${d.UserLanguageWordsDeckName}</span>
+        <button type="button" class="word-btn del" onclick="removeWordFromDeck(${wordID},${d.UserLanguageWordsDeckID})" title="Remove">✕</button>
+      </div>`).join('');
+    const availableDecks=activeDecks.filter(d=>!(wordDecks||[]).some(wd=>wd.UserLanguageWordsDeckID===d.UserLanguageWordsDeckID));
+    return `
+      <div class="form-group" id="word-deck-section">
+        <label class="form-label">Decks</label>
+        <div id="word-deck-list" style="border:1.5px solid var(--border);border-radius:8px;padding:8px;min-height:36px;margin-bottom:8px">${deckRows||'<div style="font-size:12px;color:var(--text-muted);padding:4px">Not in any deck</div>'}</div>
+        ${availableDecks.length?`
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="wdeck-add-select" class="form-select" style="font-size:12px;padding:5px 8px">
+            <option value="">— Add to deck —</option>
+            ${availableDecks.map(d=>`<option value="${d.UserLanguageWordsDeckID}">${d.UserLanguageWordsDeckName}</option>`).join('')}
+          </select>
+          <button type="button" class="btn-primary" style="padding:5px 12px;font-size:12px;white-space:nowrap" onclick="addWordToDeckFromEdit(${wordID})">Add</button>
+        </div>`:'<div style="font-size:11px;color:var(--text-muted)">No more active decks available.</div>'}
+      </div>`;
+  }
+
+  async function addWordToDeckFromEdit(wordID){
+    const sel=document.getElementById('wdeck-add-select');
+    if(!sel||!sel.value)return;
+    const deckID=parseInt(sel.value);
+    await apiPost('SaveUserDeck',{action:'addWord',userID:USER_ID,deckID,wordID});
+    // Refresh deck grid
+    const word=myWords.find(w=>w.UserLanguageWordsID===wordID);
+    const deckData=await apiGet('GetWordDecks',`&wordID=${wordID}`);
+    const section=document.getElementById('word-deck-section');
+    if(section)section.outerHTML=renderWordDeckGrid(wordID,Array.isArray(deckData)?deckData:[]);
+    // Update local word deck info
+    if(word){
+      const deck=userDecks.find(d=>d.UserLanguageWordsDeckID===deckID);
+      if(deck){
+        word.DeckNames=(word.DeckNames?word.DeckNames+',':'')+deck.UserLanguageWordsDeckName;
+        word.DeckIDs=word.DeckIDs||[];word.DeckIDs.push(deckID);
+      }
+    }
+  }
+
+  async function removeWordFromDeck(wordID,deckID){
+    await apiPost('SaveUserDeck',{action:'removeWord',userID:USER_ID,deckID,wordID});
+    const deckData=await apiGet('GetWordDecks',`&wordID=${wordID}`);
+    const section=document.getElementById('word-deck-section');
+    if(section)section.outerHTML=renderWordDeckGrid(wordID,Array.isArray(deckData)?deckData:[]);
+    // Update local
+    const word=myWords.find(w=>w.UserLanguageWordsID===wordID);
+    if(word){
+      word.DeckIDs=(word.DeckIDs||[]).filter(id=>id!==deckID);
+      const deck=userDecks.find(d=>d.UserLanguageWordsDeckID===deckID);
+      if(deck&&word.DeckNames){
+        word.DeckNames=word.DeckNames.split(',').map(s=>s.trim()).filter(s=>s!==deck.UserLanguageWordsDeckName).join(', ');
+      }
+    }
+  }
+
+  function wordFormHTML(isEdit,word,wordDecks){
     const imgSrc=newWordImage?`<img src="${newWordImage}" style="width:100%;height:100%;object-fit:cover">`:'<div class="newword-image-placeholder">🖼️</div>';
     const title=isEdit?`Edit ${currentLangName} Word`:`New ${currentLangName} Word`;
     const saveBtn=isEdit
       ?`<button class="btn-primary" onclick="saveWordForm()">Save Changes</button>`
       :`<button class="btn-primary" onclick="saveWordForm(false)">Save Word</button>
         <button class="btn-primary" style="background:#22c55e" onclick="saveWordForm(true)">Save &amp; Add Another</button>`;
+    const deckSection=isEdit?renderWordDeckGrid(word?.UserLanguageWordsID,wordDecks||[]):'';
     return `
       <div class="date-strip"><div class="date-main">${title}</div></div>
       <div class="newword-form">
@@ -850,6 +924,7 @@
           <label class="form-label">Translation(s)</label>
           <textarea class="form-textarea" id="nw-translation" placeholder="Enter one or more translations, one per line">${word?word.WordsTranslation||'':''}</textarea>
         </div>
+        ${deckSection}
         <div style="display:flex;gap:10px;margin-top:16px">
           ${saveBtn}
           <button class="btn-secondary" onclick="cancelWordForm()">Cancel</button>
@@ -861,16 +936,19 @@
     newWordImage=null;newWordImageChanged=false;editingWordID=null;
     const screenEl=document.getElementById(`screen-newword-${currentLangID}`);
     if(!screenEl){console.error('No newword screen for lang',currentLangID);return;}
-    screenEl.innerHTML=wordFormHTML(false,null);
+    screenEl.innerHTML=wordFormHTML(false,null,null);
     showScreen(`newword-${currentLangID}`);
   }
 
-  function editWord(wordID){
+  async function editWord(wordID){
     const word=myWords.find(w=>w.UserLanguageWordsID===wordID);if(!word)return;
     editingWordID=wordID;newWordImage=word.WordsImage||null;newWordImageChanged=false;
+    // Load current decks for this word
+    let wordDecks=[];
+    try{ const d=await apiGet('GetWordDecks',`&wordID=${wordID}`); wordDecks=Array.isArray(d)?d:[]; }catch(e){}
     const screenEl=document.getElementById(`screen-newword-${currentLangID}`);
     if(!screenEl){console.error('No newword screen for lang',currentLangID);return;}
-    screenEl.innerHTML=wordFormHTML(true,word);
+    screenEl.innerHTML=wordFormHTML(true,word,wordDecks);
     showScreen(`newword-${currentLangID}`);
   }
 
@@ -884,11 +962,18 @@
       const wordsTranslation=document.getElementById('nw-translation')?.value.trim();
       const isVerb=document.getElementById('nw-isverb')?.checked;
       const gender=document.getElementById('nw-gender')?.value||null;
+      let newWordID=null;
       if(editingWordID){
         const mastered=document.getElementById('nw-mastered')?.checked;
         await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:editingWordID,wordsName,wordsTranslation,isVerb,gender,mastered,wordsImage:newWordImage});
       }else{
-        await apiPost('SaveUserLanguageWord',{action:'add',userID:USER_ID,languageID:currentLangID,wordsName,wordsTranslation,isVerb,gender,wordsImage:newWordImage});
+        const result=await apiPost('SaveUserLanguageWord',{action:'add',userID:USER_ID,languageID:currentLangID,wordsName,wordsTranslation,isVerb,gender,wordsImage:newWordImage});
+        newWordID=result?.wordID||null;
+        // Auto-add to most recent deck
+        if(newWordID&&userDecks.length){
+          const sorted=[...userDecks].sort((a,b)=>new Date(b.DateAdded)-new Date(a.DateAdded));
+          if(sorted.length)await apiPost('SaveUserDeck',{action:'addWord',userID:USER_ID,deckID:sorted[0].UserLanguageWordsDeckID,wordID:newWordID});
+        }
       }
       newWordImageChanged=false;editingWordID=null;
       if(addAnother){newWordImage=null;showNewWord();}
@@ -1000,21 +1085,14 @@
       const displayTranslation=getDisplayTranslation(card);
       const sentencesHTML=flashcardShowTranslation?renderSentencesHTML(card.UserLanguageWordsID):'';
       const prevDis2=flashcardIndex===0?'disabled':'',nextDis2=flashcardIndex>=total-1?'disabled':'';
-
       let cardContent;
       if(!flashcardShowTranslation){
-        // Front side — show only the leading word
-        if(flashcardLeadWith==='language'){
-          cardContent=`<div class="flashcard-word">${card.WordsName}${genderLabel}</div><div class="flashcard-hint">Tap to reveal</div>`;
-        }else{
-          cardContent=`<div class="flashcard-translation">${displayTranslation}</div><div class="flashcard-hint">Tap to reveal</div>`;
-        }
+        cardContent=flashcardLeadWith==='language'
+          ?`<div class="flashcard-word">${card.WordsName}${genderLabel}</div><div class="flashcard-hint">Tap to reveal</div>`
+          :`<div class="flashcard-translation">${displayTranslation}</div><div class="flashcard-hint">Tap to reveal</div>`;
       }else{
-        // Back side — always: language word (top, large) + image + English translation + sentences
-        // Conjugate link pinned to upper-right corner via absolute positioning
         cardContent=`${fcConjugateLink}<div class="flashcard-word">${card.WordsName}${genderLabel}</div>${imgEl}<div class="flashcard-translation">${displayTranslation}</div>${sentencesHTML}`;
       }
-
       cardHTML=`
         <div class="flashcard" style="position:relative" onclick="toggleFlashcardTranslation()">
           ${cardContent}
@@ -1034,12 +1112,8 @@
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;margin-bottom:12px">
           <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-soft);background:white;border:1px solid var(--border);border-radius:100px;padding:5px 14px;flex-shrink:0">
             <span style="font-weight:600">Lead with:</span>
-            <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
-              <input type="radio" name="fc-lead-${langID}" value="language" ${flashcardLeadWith==='language'?'checked':''} onchange="setFlashcardLeadWith('language')" style="accent-color:var(--sky-deep)"> ${langName}
-            </label>
-            <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
-              <input type="radio" name="fc-lead-${langID}" value="english" ${flashcardLeadWith==='english'?'checked':''} onchange="setFlashcardLeadWith('english')" style="accent-color:var(--sky-deep)"> English
-            </label>
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="fc-lead-${langID}" value="language" ${flashcardLeadWith==='language'?'checked':''} onchange="setFlashcardLeadWith('language')" style="accent-color:var(--sky-deep)"> ${langName}</label>
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="fc-lead-${langID}" value="english" ${flashcardLeadWith==='english'?'checked':''} onchange="setFlashcardLeadWith('english')" style="accent-color:var(--sky-deep)"> English</label>
           </div>
           <div style="display:flex;gap:8px">
             ${filters.map(f=>`<button class="filter-btn ${flashcardFilter===f.key?'active':''}" onclick="setFlashcardFilter('${f.key}')">${f.label}</button>`).join('')}
@@ -1111,22 +1185,23 @@
     card.Flag=newFlag;btn.textContent=newFlag?'★':'☆';btn.classList.toggle('fc-flag-active',newFlag);
   }
 
-function renderConjugationHTML(langID,langName,verbs,autoLoadWordID=null){
+  // ── CONJUGATION ──
+
+  function renderConjugationHTML(langID,langName,verbs,autoLoadWordID=null){
     if(!verbs.length)return`<div class="empty-state">No verbs found. Add verbs in My Words.</div>`;
-    conjVerbs=verbs; conjLangName=langName;
+    conjVerbs=verbs;conjLangName=langName;
     const loadVerb=autoLoadWordID?verbs.find(v=>v.UserLanguageWordsID==autoLoadWordID)||null:null;
     const sortedVerbs=[...verbs].sort((a,b)=>a.WordsName.localeCompare(b.WordsName));
     const optItems=sortedVerbs.map(v=>`<div class="conj-verb-opt" onclick="selectConjVerb(${v.UserLanguageWordsID})" data-word="${v.WordsName.toLowerCase()}"><span class="conj-verb-opt-word">${v.WordsName}</span><span class="conj-verb-opt-trans">${v.WordsTranslation||''}</span></div>`).join('');
+    // If autoLoadWordID, load conjugation but keep dropdown closed
     if(loadVerb)setTimeout(()=>loadConjugation(loadVerb.UserLanguageWordsID,langName),0);
-    const pickerWord=loadVerb?loadVerb.WordsName:'Select a verb...';
-    const pickerTrans=loadVerb?loadVerb.WordsTranslation||'':'';
     return`<div class="conj-panel">
       <div style="display:flex;align-items:center;gap:10px;margin:12px 0">
         <button onclick="cancelConjugation()" style="padding:5px 12px;font-size:12px;font-weight:600;color:var(--sky-deep);background:white;border:1.5px solid var(--sky-deep);border-radius:6px;cursor:pointer;flex-shrink:0">← Back</button>
         <div class="conj-verb-picker" id="conj-verb-picker">
           <input id="conj-verb-search" class="form-input" placeholder="Type to search verbs..." style="font-size:13px;padding:6px 10px;border:none;outline:none;flex:1;font-family:'DM Sans',sans-serif" oninput="filterConjVerbs(this.value)" onfocus="document.getElementById('conj-verb-dropdown').style.display='block'">
           <span style="font-size:11px;color:var(--text-muted);padding-right:8px">▾</span>
-          <div class="conj-verb-dropdown" id="conj-verb-dropdown" style="display:${loadVerb?'none':'block'}" onclick="event.stopPropagation()">${optItems}</div>
+          <div class="conj-verb-dropdown" id="conj-verb-dropdown" style="display:none" onclick="event.stopPropagation()">${optItems}</div>
         </div>
       </div>
       <div id="conj-output">${loadVerb?'':'<div style="padding:20px;font-size:13px;color:var(--text-muted);text-align:center">Select a verb above to view conjugations.</div>'}</div>
@@ -1135,20 +1210,13 @@ function renderConjugationHTML(langID,langName,verbs,autoLoadWordID=null){
 
   function showConjugationFromFlashcard(wordID){
     const savedIdx=flashcardIndex;
-    showConjugation(wordID, async()=>{
+    showConjugation(wordID,async()=>{
       await showLangFeature(currentLangID,'flashcards',currentLangName);
-      flashcardIndex=savedIdx;
-      renderFlashcardsScreen();
+      flashcardIndex=savedIdx;renderFlashcardsScreen();
     });
   }
 
-  function toggleVerbPicker(e){
-    const dd=document.getElementById('conj-verb-dropdown');
-    if(!dd)return;
-    dd.style.display=dd.style.display==='none'?'block':'none';
-  }
-
-function filterConjVerbs(query){
+  function filterConjVerbs(query){
     const dd=document.getElementById('conj-verb-dropdown');
     if(!dd)return;
     dd.style.display='block';
@@ -1158,7 +1226,9 @@ function filterConjVerbs(query){
     });
   }
 
-function renderDecksHTML(langID,langName){
+  // ── MY DECKS ──
+
+  function renderDecksHTML(langID,langName){
     const statuses=['Pending','Active','Mastered','All'];
     const filtered=deckStatusFilter==='All'?userDecks:userDecks.filter(d=>d.Status===deckStatusFilter);
     const sorted=[...filtered].sort((a,b)=>{
@@ -1169,8 +1239,7 @@ function renderDecksHTML(langID,langName){
     const sortArrow=col=>deckSortCol===col?(deckSortDir==='asc'?'▲':'▼'):'';
     const sortTh=(col,label)=>`<th style="cursor:pointer" onclick="sortDecks('${col}')">${label} ${sortArrow(col)}</th>`;
     const rows=sorted.map(d=>`
-      <tr draggable="true" data-id="${d.UserLanguageWordsDeckID}">
-        <td style="width:30px;color:var(--text-muted)">⠿</td>
+      <tr data-id="${d.UserLanguageWordsDeckID}">
         <td><strong>${d.UserLanguageWordsDeckName}</strong></td>
         <td>${formatDate(d.DateAdded)}</td>
         <td>
@@ -1179,10 +1248,10 @@ function renderDecksHTML(langID,langName){
           </select>
         </td>
         <td style="text-align:center">${d.WordCount||0}</td>
-        <td><a href="#" onclick="reviewDeck(${d.UserLanguageWordsDeckID},'${d.UserLanguageWordsDeckName.replace(/'/g,"\\'")}');return false;" style="font-size:12px;color:var(--sky-deep);font-weight:600">Review</a></td>
         <td><a href="#" onclick="studyDeck(${d.UserLanguageWordsDeckID},'${d.UserLanguageWordsDeckName.replace(/'/g,"\\'")}');return false;" style="font-size:12px;color:#22c55e;font-weight:600">Study</a></td>
         <td style="display:flex;gap:4px">
           <button class="btn-icon" onclick="editDeck(${d.UserLanguageWordsDeckID})">✏️</button>
+          <a href="#" onclick="showDeckWords(${d.UserLanguageWordsDeckID},'${d.UserLanguageWordsDeckName.replace(/'/g,"\\'")}');return false;" style="font-size:12px;color:var(--sky-deep);font-weight:600;display:flex;align-items:center;padding:0 4px">Words</a>
           <button class="btn-icon danger" onclick="deleteDeck(${d.UserLanguageWordsDeckID})">🗑️</button>
         </td>
       </tr>`).join('');
@@ -1195,12 +1264,12 @@ function renderDecksHTML(langID,langName){
       </div>
       <table class="settings-table">
         <thead><tr>
-          <th style="width:30px"></th>
           ${sortTh('UserLanguageWordsDeckName','Deck Name')}
           ${sortTh('DateAdded','Date Added')}
           ${sortTh('Status','Status')}
           ${sortTh('WordCount','Words')}
-          <th>Review</th><th>Study</th><th></th>
+          <th></th>
+          <th></th>
         </tr></thead>
         <tbody id="tbl-decks-${langID}">${rows}</tbody>
       </table>`;
@@ -1252,19 +1321,33 @@ function renderDecksHTML(langID,langName){
     if(panel)panel.innerHTML=renderDecksHTML(currentLangID,currentLangName);
   }
 
-  async function reviewDeck(deckID,deckName){
-    currentDeckID=deckID;
-    myWordsFilter='all';showImages=true;wordSearch='';
+  async function showDeckWords(deckID,deckName){
     const data=await apiGet('GetDeckWords',`&deckID=${deckID}`);
-    myWords=Array.isArray(data)?data:[];
-    const panel=document.getElementById(`lang-feature-${currentLangID}`);
-    if(panel){
-      panel.innerHTML=renderMyWordsHTML(currentLangID,currentLangName);
-      // Mark My Words tab active
-      document.querySelectorAll('[id^="langtab-"]').forEach(t=>t.classList.remove('lang-tab-active'));
-      const mwTab=document.getElementById(`langtab-mw-${currentLangID}`);
-      if(mwTab)mwTab.classList.add('lang-tab-active');
-    }
+    const words=Array.isArray(data)?data:[];
+    const screenEl=document.getElementById(`screen-deckwords-${currentLangID}`);
+    if(!screenEl)return;
+    const rows=words.map(w=>`
+      <tr>
+        <td>${w.WordsName||'—'}</td>
+        <td style="font-size:12px;color:var(--text-soft)">${(w.WordsTranslation||'').split('\n')[0]}</td>
+        <td><button class="btn-icon danger" onclick="removeDeckWord(${deckID},${w.UserLanguageWordsID},this)" title="Remove">✕</button></td>
+      </tr>`).join('');
+    screenEl.innerHTML=`
+      <div class="date-strip"><div class="date-main">${deckName}</div><div class="date-sub">Deck Words</div></div>
+      <button class="settings-back" onclick="showScreen('lang-${currentLangID}');showLangFeature(currentLangID,'decks',currentLangName)">← Back to My Decks</button>
+      <table class="settings-table">
+        <thead><tr><th>Word</th><th>Translation</th><th></th></tr></thead>
+        <tbody id="deck-words-tbody">${rows||'<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:20px">No words in this deck.</td></tr>'}</tbody>
+      </table>`;
+    showScreen(`deckwords-${currentLangID}`);
+  }
+
+  async function removeDeckWord(deckID,wordID,btn){
+    await apiPost('SaveUserDeck',{action:'removeWord',userID:USER_ID,deckID,wordID});
+    btn.closest('tr').remove();
+    // Update deck word count locally
+    const deck=userDecks.find(d=>d.UserLanguageWordsDeckID===deckID);
+    if(deck&&deck.WordCount>0)deck.WordCount--;
   }
 
   async function studyDeck(deckID,deckName){
@@ -1289,7 +1372,7 @@ function renderDecksHTML(langID,langName){
     loadConjugation(wordID,conjLangName);
   }
 
-async function loadConjugation(wordID,langName){
+  async function loadConjugation(wordID,langName){
     const out=document.getElementById('conj-output');
     if(!out)return;
     out.innerHTML='<div style="padding:12px;font-size:13px;color:var(--text-muted)">Loading conjugations...</div>';
@@ -1325,18 +1408,17 @@ async function loadConjugation(wordID,langName){
     header.querySelector('.conj-mood-arrow').textContent=open?'▼':'▲';
   }
 
-  let conjReturnFn = null;
+  let conjReturnFn=null;
   function cancelConjugation(){
-    if(conjReturnFn) { conjReturnFn(); conjReturnFn=null; }
-    else { showScreen(`lang-${currentLangID}`); showLangFeature(currentLangID,'mywords',currentLangName); }
+    if(conjReturnFn){conjReturnFn();conjReturnFn=null;}
+    else{showScreen(`lang-${currentLangID}`);showLangFeature(currentLangID,'mywords',currentLangName);}
   }
 
-  async function showConjugation(wordID, returnFn){
-    conjReturnFn = returnFn || null;
-    history.pushState({view:'conjugation'}, '');
+  async function showConjugation(wordID,returnFn){
+    conjReturnFn=returnFn||null;
+    history.pushState({view:'conjugation'},'');
     await showLangFeature(currentLangID,'conjugation',currentLangName,wordID);
   }
-
 
   // ── KEYBOARD ──
   document.addEventListener('keydown',(e)=>{
@@ -1350,11 +1432,12 @@ async function loadConjugation(wordID,langName){
     if(e.code==='ArrowLeft'){e.preventDefault();moveFlashcard(-1);}
   });
   document.addEventListener('paste',handlePasteImage);
-  document.addEventListener('click',e=>{ const dd=document.getElementById('conj-verb-dropdown'); if(dd&&!document.getElementById('conj-verb-picker')?.contains(e.target)) dd.style.display='none'; });
-  document.addEventListener('keydown', function(e){
-    if(e.key==='Escape' && currentLangID && document.getElementById(`screen-conjugation-${currentLangID}`)?.classList.contains('active')){
-      cancelConjugation();
-    }
+  document.addEventListener('click',e=>{
+    const dd=document.getElementById('conj-verb-dropdown');
+    if(dd&&!document.getElementById('conj-verb-picker')?.contains(e.target))dd.style.display='none';
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&currentLangID&&document.getElementById(`screen-conjugation-${currentLangID}`)?.classList.contains('active'))cancelConjugation();
   });
 
   // ── HEADLINES ──
@@ -1384,6 +1467,10 @@ async function loadConjugation(wordID,langName){
       const disableYoutube=localStorage.getItem(`dailyme_yt_disabled_${USER_ID}`)==='1';
       await apiPost('CleanHeadlines',{userID:USER_ID});
       const fetchData=await apiPost('FetchHeadlines',{userID:USER_ID,disableYoutube});
+      // Auto-set YouTube disable after fetch
+      localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
+      const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=true;
+      apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:true});
       btn.textContent='↻ Refresh';btn.disabled=false;
       status.textContent=`✓ Updated — ${fetchData.inserted} new headlines fetched`;status.style.display='block';
       await loadHeadlines();
@@ -1490,9 +1577,8 @@ async function loadConjugation(wordID,langName){
     const checked=document.getElementById('us-disable-yt')?.checked;
     if(checked){
       localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
-      // Persist server-side: mark YouTube as "fetched today" so no future fetches run today
       apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:true});
-    } else {
+    }else{
       localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
     }
   }
