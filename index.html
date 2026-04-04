@@ -721,9 +721,9 @@
       const verbLabel=w.IsVerb==='Y'?'<span style="font-size:10px;color:var(--text-muted);margin-left:4px">verb</span>':'';
       const conjugateLink=w.IsVerb==='Y'?`<span class="conjugate-link" onclick="showConjugation(${w.UserLanguageWordsID},()=>showLangFeature(currentLangID,'mywords',currentLangName))" style="font-weight:400;margin-left:10px;font-size:11px">conjugate</span>`:'';
       const imgEl=showImages?(w.WordsImage?`<img src="${w.WordsImage}" class="word-img" alt="">`:`<div class="word-img-placeholder">📖</div>`):'';
-      // Deck badge(s)
+      // Deck badge(s) — comma separated
       const deckNames=(w.DeckNames||'').split(',').map(s=>s.trim()).filter(Boolean);
-      const deckBadges=deckNames.map(n=>`<span class="word-deck-badge">${n}</span>`).join('');
+      const deckBadges=deckNames.length?`<span class="word-deck-badge">${deckNames.join(', ')}</span>`:'';
       return `<div class="word-row" data-wordid="${w.UserLanguageWordsID}">
         ${imgEl}
         <div class="word-body">
@@ -747,7 +747,7 @@
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px;margin-bottom:6px">
         <div style="display:flex;align-items:center;gap:6px">
           <span style="font-size:12px;font-weight:600;color:var(--text-soft)">Word:</span>
-          <input type="text" id="mw-search-${langID}" placeholder="Search..." value="${wordSearch}" style="padding:4px 10px;border:1.5px solid var(--border);border-radius:100px;font-size:12px;font-family:'DM Sans',sans-serif;width:140px;outline:none" oninput="setWordSearch(this.value)" onfocus="this.style.borderColor='var(--sky-deep)'" onblur="this.style.borderColor='var(--border)'">
+          <input type="text" id="mw-search-${langID}" placeholder="Search..." value="${wordSearch}" style="padding:4px 10px;border:1.5px solid var(--border);border-radius:100px;font-size:12px;font-family:'DM Sans',sans-serif;width:100px;outline:none" oninput="setWordSearch(this.value)" onfocus="this.style.borderColor='var(--sky-deep)'" onblur="this.style.borderColor='var(--border)'">
         </div>
         <div style="width:1px;height:20px;background:var(--border);margin:0 6px"></div>
         <div style="display:flex;align-items:center;gap:8px">
@@ -764,7 +764,7 @@
             ${activeDecks.map(d=>`<option value="${d.UserLanguageWordsDeckID}" ${myWordsDeckFilter==d.UserLanguageWordsDeckID?'selected':''}>${d.UserLanguageWordsDeckName}</option>`).join('')}
           </select>
         </div>
-        <button class="btn-primary" style="margin-left:auto;padding:6px 14px;font-size:12px" onclick="showNewWord()">+ New Word</button>
+        <button class="btn-primary" style="margin-left:auto;padding:6px 12px;font-size:12px;white-space:nowrap" onclick="showNewWord()">+ New</button>
       </div>
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
         <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -816,22 +816,24 @@
     // wordDecks: array of {UserLanguageWordsDeckID, UserLanguageWordsDeckName}
     const activeDecks=[...userDecks].filter(d=>d.Status==='Active').sort((a,b)=>a.UserLanguageWordsDeckName.localeCompare(b.UserLanguageWordsDeckName));
     const deckRows=(wordDecks||[]).map(d=>`
-      <div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #eef5fc" id="wdeck-row-${d.UserLanguageWordsDeckID}">
-        <span style="flex:1;font-size:13px">${d.UserLanguageWordsDeckName}</span>
-        <button type="button" class="word-btn del" onclick="removeWordFromDeck(${wordID},${d.UserLanguageWordsDeckID})" title="Remove">✕</button>
+      <div style="display:flex;align-items:center;gap:8px;padding:2px 0;border-bottom:1px solid #eef5fc" id="wdeck-row-${d.UserLanguageWordsDeckID}">
+        <span style="flex:1;font-size:12px">${d.UserLanguageWordsDeckName}</span>
+        <button type="button" class="word-btn del" style="width:22px;height:22px;font-size:12px" onclick="removeWordFromDeck(${wordID},${d.UserLanguageWordsDeckID})" title="Remove">✕</button>
       </div>`).join('');
     const availableDecks=activeDecks.filter(d=>!(wordDecks||[]).some(wd=>wd.UserLanguageWordsDeckID===d.UserLanguageWordsDeckID));
+    const longestDeck=availableDecks.reduce((max,d)=>d.UserLanguageWordsDeckName.length>max?d.UserLanguageWordsDeckName.length:max,16);
+    const comboWidth=Math.min(Math.max(longestDeck*8+40,120),280);
     return `
       <div class="form-group" id="word-deck-section">
         <label class="form-label">Decks</label>
-        <div id="word-deck-list" style="border:1.5px solid var(--border);border-radius:8px;padding:8px;min-height:36px;margin-bottom:8px">${deckRows||'<div style="font-size:12px;color:var(--text-muted);padding:4px">Not in any deck</div>'}</div>
+        <div id="word-deck-list" style="border:1.5px solid var(--border);border-radius:8px;padding:4px 8px;min-height:28px;margin-bottom:6px">${deckRows||'<div style="font-size:11px;color:var(--text-muted);padding:2px 0">Not in any deck</div>'}</div>
         ${availableDecks.length?`
         <div style="display:flex;gap:8px;align-items:center">
-          <select id="wdeck-add-select" class="form-select" style="font-size:12px;padding:5px 8px">
+          <select id="wdeck-add-select" style="font-size:12px;padding:4px 6px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;color:var(--text);background:white;width:${comboWidth}px">
             <option value="">— Add to deck —</option>
             ${availableDecks.map(d=>`<option value="${d.UserLanguageWordsDeckID}">${d.UserLanguageWordsDeckName}</option>`).join('')}
           </select>
-          <button type="button" class="btn-primary" style="padding:5px 12px;font-size:12px;white-space:nowrap" onclick="addWordToDeckFromEdit(${wordID})">Add</button>
+          <button type="button" class="btn-primary" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="addWordToDeckFromEdit(${wordID})">Add</button>
         </div>`:'<div style="font-size:11px;color:var(--text-muted)">No more active decks available.</div>'}
       </div>`;
   }
@@ -876,7 +878,7 @@
     const imgSrc=newWordImage?`<img src="${newWordImage}" style="width:100%;height:100%;object-fit:cover">`:'<div class="newword-image-placeholder">🖼️</div>';
     const title=isEdit?`Edit ${currentLangName} Word`:`New ${currentLangName} Word`;
     const saveBtn=isEdit
-      ?`<button class="btn-primary" onclick="saveWordForm()">Save Changes</button>`
+      ?`<button class="btn-primary" onclick="saveWordForm()">OK</button>`
       :`<button class="btn-primary" onclick="saveWordForm(false)">Save Word</button>
         <button class="btn-primary" style="background:#22c55e" onclick="saveWordForm(true)">Save &amp; Add Another</button>`;
     const deckSection=isEdit?renderWordDeckGrid(word?.UserLanguageWordsID,wordDecks||[]):'';
@@ -1242,6 +1244,7 @@
       <tr data-id="${d.UserLanguageWordsDeckID}">
         <td><strong>${d.UserLanguageWordsDeckName}</strong></td>
         <td>${formatDate(d.DateAdded)}</td>
+        <td><a href="#" onclick="showDeckWords(${d.UserLanguageWordsDeckID},'${d.UserLanguageWordsDeckName.replace(/'/g,"\\'")}');return false;" style="font-size:12px;color:var(--sky-deep);font-weight:600">Words</a></td>
         <td>
           <select class="form-select" style="padding:2px 6px;font-size:11px;width:90px" onchange="changeDeckStatus(${d.UserLanguageWordsDeckID},this.value)">
             ${['Pending','Active','Mastered'].map(s=>`<option value="${s}" ${d.Status===s?'selected':''}>${s}</option>`).join('')}
@@ -1251,7 +1254,6 @@
         <td><a href="#" onclick="studyDeck(${d.UserLanguageWordsDeckID},'${d.UserLanguageWordsDeckName.replace(/'/g,"\\'")}');return false;" style="font-size:12px;color:#22c55e;font-weight:600">Study</a></td>
         <td style="display:flex;gap:4px">
           <button class="btn-icon" onclick="editDeck(${d.UserLanguageWordsDeckID})">✏️</button>
-          <a href="#" onclick="showDeckWords(${d.UserLanguageWordsDeckID},'${d.UserLanguageWordsDeckName.replace(/'/g,"\\'")}');return false;" style="font-size:12px;color:var(--sky-deep);font-weight:600;display:flex;align-items:center;padding:0 4px">Words</a>
           <button class="btn-icon danger" onclick="deleteDeck(${d.UserLanguageWordsDeckID})">🗑️</button>
         </td>
       </tr>`).join('');
@@ -1269,7 +1271,11 @@
           ${sortTh('Status','Status')}
           ${sortTh('WordCount','Words')}
           <th></th>
+          <th></<th>Words</th>
+          ${sortTh('Status','Status')}
+          ${sortTh('WordCount','Count')}
           <th></th>
+          <th></th>th>
         </tr></thead>
         <tbody id="tbl-decks-${langID}">${rows}</tbody>
       </table>`;
