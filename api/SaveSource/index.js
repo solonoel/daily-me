@@ -87,3 +87,81 @@ module.exports = async function(context, req) {
           .input('CategoryID', sql.Int, categoryID || null)
           .input('Sequence', sql.Int, sequence || nextSeq)
           .query(`
+            INSERT INTO [HeadlineSource] (Name, URL, SourceType, IsActive, CategoryID, Sequence, DateAdded)
+            VALUES (@Name, @URL, @SourceType, 'Y', @CategoryID, @Sequence, CAST(GETDATE() AS DATE));
+            SELECT SCOPE_IDENTITY() AS SourceID;
+          `);
+        const newSourceID = result.recordset[0].SourceID;
+        context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ success: true, sourceID: newSourceID }) };
+      }
+
+    } else if (action === 'update') {
+      await pool.request()
+        .input('SourceID', sql.Int, sourceID)
+        .input('Name', sql.NVarChar(200), name)
+        .input('URL', sql.NVarChar(500), url)
+        .input('SourceType', sql.NVarChar(20), sourceType)
+        .input('CategoryID', sql.Int, categoryID || null)
+        .input('Sequence', sql.Int, sequence || null)
+        .input('IsActive', sql.Char(1), isActive ? 'Y' : 'N')
+        .query(`
+          UPDATE [HeadlineSource]
+          SET Name=@Name, URL=@URL, SourceType=@SourceType, CategoryID=@CategoryID,
+              Sequence=ISNULL(@Sequence, Sequence), IsActive=@IsActive
+          WHERE SourceID=@SourceID
+        `);
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true }) };
+
+    } else if (action === 'updateUnfiltered') {
+      await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('SourceID', sql.Int, sourceID)
+        .input('YoutubeUnfiltered', sql.Bit, youtubeUnfiltered ? 1 : 0)
+        .query(`
+          UPDATE [UserHeadlineSource]
+          SET YoutubeUnfiltered = @YoutubeUnfiltered
+          WHERE UserID=@UserID AND SourceID=@SourceID
+        `);
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true }) };
+
+    } else if (action === 'resequence') {
+      if (Array.isArray(req.body.sequences)) {
+        for (const s of req.body.sequences) {
+          await pool.request()
+            .input('SourceID', sql.Int, s.sourceID)
+            .input('Sequence', sql.Int, s.sequence)
+            .query(`UPDATE [HeadlineSource] SET Sequence=@Sequence WHERE SourceID=@SourceID`);
+        }
+      }
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true }) };
+
+    } else if (action === 'delete') {
+      if (req.body.globalDelete === true) {
+        await pool.request().input('SourceID', sql.Int, sourceID)
+          .query(`DELETE FROM [UserHeadlineSource] WHERE SourceID=@SourceID`);
+        await pool.request().input('SourceID', sql.Int, sourceID)
+          .query(`DELETE FROM [HeadlineSource] WHERE SourceID=@SourceID`);
+      } else {
+        await pool.request()
+          .input('UserID', sql.Int, userID)
+          .input('SourceID', sql.Int, sourceID)
+          .query(`DELETE FROM [UserHeadlineSource] WHERE UserID=@UserID AND SourceID=@SourceID`);
+      }
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true }) };
+
+    } else {
+      context.res = { status: 400, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Unknown action: ' + action }) };
+    }
+
+  } catch(err) {
+    context.log('SaveSource error:', err.message, err.stack);
+    context.res = { status: 500, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: err.message }) };
+  }
+};
