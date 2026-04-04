@@ -15,7 +15,7 @@ module.exports = async function(context, req) {
 
     const settingResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT RecencyDays, MaxHeadlines, YouTubeMaxResults FROM [HeadlineSetting] WHERE UserID = @UserID`);
+      .query(`SELECT RecencyDays, MaxHeadlines, YouTubeMaxResults, OtherHeadlinesPerKeyword FROM [HeadlineSetting] WHERE UserID = @UserID`);
 
     const catSettingResult = await pool.request()
       .input('UserID', sql.Int, userID)

@@ -11,7 +11,7 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, categorySettings, disableYoutubeToday } = req.body;
+    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, otherHeadlinesPerKeyword, categorySettings, disableYoutubeToday } = req.body;
 
     if (disableYoutubeToday === true) {
       await pool.request()
@@ -35,9 +35,11 @@ module.exports = async function(context, req) {
         .input('RecencyDays', sql.Int, recencyDays || 7)
         .input('MaxHeadlines', sql.Int, maxHeadlines || 50)
         .input('YouTubeMaxResults', sql.Int, youTubeMaxResults || 3)
+        .input('OtherHeadlinesPerKeyword', sql.Int, otherHeadlinesPerKeyword ?? 3)
         .query(`
           UPDATE [HeadlineSetting]
           SET RecencyDays = @RecencyDays, MaxHeadlines = @MaxHeadlines, YouTubeMaxResults = @YouTubeMaxResults,
+              OtherHeadlinesPerKeyword = @OtherHeadlinesPerKeyword,
               LastYouTubeFetch = NULL
           WHERE UserID = @UserID
         `);

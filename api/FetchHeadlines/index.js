@@ -7,40 +7,20 @@ const config = {
   database: 'DailyMeDB',
   user: 'noeladmin',
   password: process.env.DB_PASSWORD,
-  options: {
-    encrypt: true,
-    trustServerCertificate: false,
-    connectTimeout: 60000,
-    requestTimeout: 60000
-  }
+  options: { encrypt: true, trustServerCertificate: false, connectTimeout: 60000, requestTimeout: 60000 }
 };
 
-// Language code mappings
 const langCodeMap = {
   'Spanish': 'es', 'French': 'fr', 'Italian': 'it',
   'Portuguese': 'pt', 'Romanian': 'ro', 'English': 'en'
 };
 
-// franc language detection - loaded dynamically to handle ESM module
 let francDetect = null;
 async function detectLang(text) {
   try {
-    if (!francDetect) {
-      const francModule = await import('franc');
-      francDetect = francModule.franc;
-    }
+    if (!francDetect) { const m = await import('franc'); francDetect = m.franc; }
     return francDetect(text, { minLength: 20 });
-  } catch(e) {
-    return 'und'; // undetermined
-  }
-}
-
-function isAllowedLanguage(text, allowedCodes) {
-  if (!text || text.length < 20) return true; // too short to detect, allow
-  // Quick ASCII check - if mostly ASCII it's likely English
-  const asciiRatio = (text.match(/[\x00-\x7F]/g) || []).length / text.length;
-  if (asciiRatio > 0.95 && allowedCodes.includes('en')) return true;
-  return true; // Will do async filtering after fetch for now
+  } catch(e) { return 'und'; }
 }
 
 function fetchUrl(url) {
@@ -76,16 +56,35 @@ function parseRSS(xml) {
   return articles;
 }
 
-async function fetchGuardian(source, keywords, topics, fromDate, langCodes) {
+function containsCJK(text) { return /[\u3000-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF]/.test(text); }
+function containsArabicOrHebrew(text) { return /[\u0600-\u06FF\u0590-\u05FF]/.test(text); }
+function containsCyrillic(text) { return /[\u0400-\u04FF]/.test(text); }
+
+async function filterByLanguage(articles, allowedCodes) {
+  const filtered = [];
+  for (const a of articles) {
+    const text = `${a.title || ''} ${a.summary || ''}`.trim();
+    if (containsCJK(text)) continue;
+    if (containsArabicOrHebrew(text)) continue;
+    if (containsCyrillic(text) && !allowedCodes.includes('ru') && !allowedCodes.includes('uk')) continue;
+    if (text.length < 20) { filtered.push(a); continue; }
+    const detected = await detectLang(text);
+    const iso3to2 = { 'eng':'en','spa':'es','fra':'fr','ita':'it','por':'pt','ron':'ro','und':'en','zho':'zh','jpn':'ja','kor':'ko' };
+    const detected2 = iso3to2[detected] || detected.substring(0,2);
+    if (detected === 'und' || allowedCodes.includes(detected2)) filtered.push(a);
+  }
+  return filtered;
+}
+
+async function fetchGuardian(source, keywords, topics, fromDateStr, langCodes, otherPerKeyword) {
   const apiKey = process.env.GUARDIAN_API_KEY;
   const articles = [];
   const terms = [...keywords, ...topics];
-  const langParam = langCodes.includes('en') ? '' : `&lang=${langCodes[0]}`;
   for (const term of terms) {
-    const url = `https://content.guardianapis.com/search?q=${encodeURIComponent(term.text)}&from-date=${fromDate}&show-fields=trailText&order-by=newest&page-size=10${langParam}&api-key=${apiKey}`;
-    const data = JSON.parse(await fetchUrl(url));
-    if (data.response?.results) {
-      for (const a of data.response.results) {
+    const url = `https://content.guardianapis.com/search?q=${encodeURIComponent(term.text)}&from-date=${fromDateStr}&show-fields=trailText&order-by=newest&page-size=${otherPerKeyword}&api-key=${apiKey}`;
+    try {
+      const data = JSON.parse(await fetchUrl(url));
+      for (const a of (data.response?.results || []).slice(0, otherPerKeyword)) {
         articles.push({
           title: a.webTitle, link: a.webUrl,
           summary: a.fields?.trailText?.replace(/<[^>]+>/g,'') || '',
@@ -93,60 +92,50 @@ async function fetchGuardian(source, keywords, topics, fromDate, langCodes) {
           topicID: term.topicID || null, pubDate: new Date(a.webPublicationDate)
         });
       }
-    }
+    } catch(e) {}
   }
   return articles;
 }
 
 async function fetchNYT(source) {
   const apiKey = process.env.NYT_API_KEY;
-  const url = `https://api.nytimes.com/svc/topstories/v2/home.json?api-key=${apiKey}`;
-  const data = JSON.parse(await fetchUrl(url));
+  const data = JSON.parse(await fetchUrl(`https://api.nytimes.com/svc/topstories/v2/home.json?api-key=${apiKey}`));
   return (data.results || []).map(a => ({
-    title: a.title, link: a.url,
-    summary: a.abstract || '', pubDate: new Date(a.published_date)
+    title: a.title, link: a.url, summary: a.abstract || '', pubDate: new Date(a.published_date)
   }));
 }
 
 async function fetchGNews(source, langCodes) {
   const apiKey = process.env.GNEWS_API_KEY;
   const lang = langCodes.includes('en') ? 'en' : langCodes[0] || 'en';
-  const url = `https://gnews.io/api/v4/top-headlines?lang=${lang}&max=20&apikey=${apiKey}`;
-  const data = JSON.parse(await fetchUrl(url));
+  const data = JSON.parse(await fetchUrl(`https://gnews.io/api/v4/top-headlines?lang=${lang}&max=20&apikey=${apiKey}`));
   return (data.articles || []).map(a => ({
-    title: a.title, link: a.url,
-    summary: a.description || '', pubDate: new Date(a.publishedAt)
+    title: a.title, link: a.url, summary: a.description || '', pubDate: new Date(a.publishedAt)
   }));
 }
 
 async function fetchCurrents(source) {
   const apiKey = process.env.CURRENTS_API_KEY;
-  const url = `https://api.currentsapi.services/v1/latest-news?language=en&apiKey=${apiKey}`;
-  const data = JSON.parse(await fetchUrl(url));
+  const data = JSON.parse(await fetchUrl(`https://api.currentsapi.services/v1/latest-news?language=en&apiKey=${apiKey}`));
   return (data.news || []).map(a => ({
-    title: a.title, link: a.url,
-    summary: a.description || '', pubDate: new Date(a.published)
+    title: a.title, link: a.url, summary: a.description || '', pubDate: new Date(a.published)
   }));
 }
 
 async function fetchMediaStack(source) {
   const apiKey = process.env.MEDIASTACK_API_KEY;
-  const url = `http://api.mediastack.com/v1/news?access_key=${apiKey}&languages=en&limit=20`;
-  const data = JSON.parse(await fetchUrl(url));
+  const data = JSON.parse(await fetchUrl(`http://api.mediastack.com/v1/news?access_key=${apiKey}&languages=en&limit=20`));
   return (data.data || []).map(a => ({
-    title: a.title, link: a.url,
-    summary: a.description || '', pubDate: new Date(a.published_at)
+    title: a.title, link: a.url, summary: a.description || '', pubDate: new Date(a.published_at)
   }));
 }
 
 async function fetchNewsAPI(source, langCodes) {
   const apiKey = process.env.NEWSAPI_KEY;
   const lang = langCodes.includes('en') ? 'en' : langCodes[0] || 'en';
-  const url = `https://newsapi.org/v2/top-headlines?language=${lang}&pageSize=20&apiKey=${apiKey}`;
-  const data = JSON.parse(await fetchUrl(url));
+  const data = JSON.parse(await fetchUrl(`https://newsapi.org/v2/top-headlines?language=${lang}&pageSize=20&apiKey=${apiKey}`));
   return (data.articles || []).map(a => ({
-    title: a.title, link: a.url,
-    summary: a.description || '', pubDate: new Date(a.publishedAt)
+    title: a.title, link: a.url, summary: a.description || '', pubDate: new Date(a.publishedAt)
   }));
 }
 
@@ -155,26 +144,57 @@ async function fetchRSS(source) {
   return parseRSS(xml);
 }
 
-async function fetchYouTube(source, keywords, maxResults, langCodes, context, fromDateStr) {
+function uploadsPlaylistID(channelID) {
+  return 'UU' + channelID.substring(2);
+}
+
+async function fetchYouTubeUnfiltered(source, maxResults, fromDate, context) {
   const apiKey = process.env.YOUTUBE_API_KEY;
+  const playlistID = uploadsPlaylistID(source.YoutubeChannelID);
+  const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistID}&maxResults=${maxResults}&key=${apiKey}`;
   const articles = [];
+  try {
+    const data = JSON.parse(await fetchUrl(url));
+    context.log(`YouTube unfiltered [${source.Name}]: ${data.items?.length || 0} items`);
+    for (const item of (data.items || [])) {
+      const snippet = item.snippet;
+      const videoID = snippet?.resourceId?.videoId;
+      if (!videoID) continue;
+      const pubDate = new Date(snippet.publishedAt);
+      if (pubDate < fromDate) continue;
+      articles.push({
+        title: snippet.title,
+        link: `https://www.youtube.com/watch?v=${videoID}`,
+        summary: (snippet.description || '').substring(0, 500),
+        thumbnailURL: snippet.thumbnails?.medium?.url || snippet.thumbnails?.default?.url || null,
+        channelName: snippet.channelTitle,
+        channelURL: `https://www.youtube.com/channel/${snippet.channelId}`,
+        pubDate
+      });
+    }
+  } catch(e) {
+    context.log(`YouTube unfiltered error [${source.Name}]: ${e.message}`);
+  }
+  return articles;
+}
+
+async function fetchYouTubeFiltered(source, keywords, maxResults, langCodes, fromDateStr, context) {
+  const apiKey = process.env.YOUTUBE_API_KEY;
   const relevanceLang = langCodes.includes('en') ? 'en' : langCodes[0] || 'en';
-  const channelId = source.URL?.match(/youtube\.com\/channel\/(UC[A-Za-z0-9_-]+)/)?.[1] || null;
-  const publishedAfterParam = fromDateStr ? `&publishedAfter=${fromDateStr}T00:00:00Z` : '';
-  const channelParam = channelId ? `&channelId=${channelId}` : '';
-  context.log(`YouTube: ${keywords.length} keywords, maxResults: ${maxResults}, lang: ${relevanceLang}, channel: ${channelId||'any'}`);
+  const channelID = source.YoutubeChannelID;
+  const articles = [];
   for (const term of keywords) {
     try {
-      const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(term.text)}&type=video&order=date&maxResults=${maxResults}${channelParam}${publishedAfterParam}&relevanceLanguage=${relevanceLang}&key=${apiKey}`;
-      const searchData = JSON.parse(await fetchUrl(searchUrl));
-      context.log(`YouTube term "${term.text}": ${searchData.items?.length || 0} results, error: ${JSON.stringify(searchData.error || null)}`);
-      for (const item of (searchData.items || []).slice(0, maxResults)) {
+      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(term.text)}&type=video&order=date&maxResults=${maxResults}&channelId=${channelID}&publishedAfter=${fromDateStr}T00:00:00Z&relevanceLanguage=${relevanceLang}&key=${apiKey}`;
+      const data = JSON.parse(await fetchUrl(url));
+      context.log(`YouTube filtered [${source.Name}] term "${term.text}": ${data.items?.length || 0} results`);
+      for (const item of (data.items || []).slice(0, maxResults)) {
         const videoID = item.id?.videoId;
         if (!videoID) continue;
         articles.push({
           title: item.snippet.title,
           link: `https://www.youtube.com/watch?v=${videoID}`,
-          summary: item.snippet.description?.substring(0, 500) || '',
+          summary: (item.snippet.description || '').substring(0, 500),
           thumbnailURL: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || null,
           channelName: item.snippet.channelTitle,
           channelURL: `https://www.youtube.com/channel/${item.snippet.channelId}`,
@@ -183,70 +203,28 @@ async function fetchYouTube(source, keywords, maxResults, langCodes, context, fr
         });
       }
     } catch(e) {
-      context.log(`YouTube fetch error for term "${term.text}": ${e.message}`);
+      context.log(`YouTube filtered error [${source.Name}] term "${term.text}": ${e.message}`);
     }
   }
   return articles;
 }
 
-function containsCJK(text) {
-  // Detect Chinese, Japanese, Korean characters
-  return /[\u3000-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF]/.test(text);
-}
-
-function containsArabicOrHebrew(text) {
-  return /[\u0600-\u06FF\u0590-\u05FF]/.test(text);
-}
-
-function containsCyrillic(text) {
-  return /[\u0400-\u04FF]/.test(text);
-}
-
-async function filterByLanguage(articles, allowedCodes) {
-  const filtered = [];
-  for (const a of articles) {
-    const text = `${a.title || ''} ${a.summary || ''}`.trim();
-
-    // Hard block CJK unless user has a CJK language (none currently supported)
-    if (containsCJK(text)) continue;
-
-    // Hard block Arabic/Hebrew unless user has those languages
-    if (containsArabicOrHebrew(text)) continue;
-
-    // Hard block Cyrillic unless user explicitly has Russian etc.
-    if (containsCyrillic(text) && !allowedCodes.includes('ru') && !allowedCodes.includes('uk')) continue;
-
-    if (text.length < 20) { filtered.push(a); continue; }
-
-    const detected = await detectLang(text);
-    const iso3to2 = { 'eng':'en','spa':'es','fra':'fr','ita':'it','por':'pt','ron':'ro','und':'en','zho':'zh','jpn':'ja','kor':'ko' };
-    const detected2 = iso3to2[detected] || detected.substring(0,2);
-
-    // If franc detects a language not in user's list, block it
-    // But allow 'und' (undetermined) through since it's usually short English text
-    if (detected === 'und' || allowedCodes.includes(detected2)) {
-      filtered.push(a);
-    }
-  }
-  return filtered;
-}
-
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const userID = req.body?.userID || req.query?.userID || 1;
-    const disableYoutube = req.body?.disableYoutube === true;
+    const userID = parseInt(req.body?.userID || req.query?.userID || 1);
 
-    // Get settings including LastYouTubeFetch
     const settingResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT RecencyDays, MaxHeadlines, YouTubeMaxResults, LastYouTubeFetch FROM [HeadlineSetting] WHERE UserID = @UserID`);
-    const recencyDays = settingResult.recordset[0]?.RecencyDays || 7;
-    const maxHeadlines = settingResult.recordset[0]?.MaxHeadlines || 50;
-    const youTubeMaxResults = settingResult.recordset[0]?.YouTubeMaxResults || 3;
-    const lastYouTubeFetch = settingResult.recordset[0]?.LastYouTubeFetch;
+      .query(`SELECT RecencyDays, MaxHeadlines, YouTubeMaxResults, OtherHeadlinesPerKeyword, LastYouTubeFetch
+              FROM [HeadlineSetting] WHERE UserID = @UserID`);
+    const settings = settingResult.recordset[0] || {};
+    const recencyDays = settings.RecencyDays || 7;
+    const maxHeadlines = settings.MaxHeadlines || 50;
+    const youTubeMaxResults = settings.YouTubeMaxResults || 3;
+    const otherPerKeyword = settings.OtherHeadlinesPerKeyword || 3;
+    const lastYouTubeFetch = settings.LastYouTubeFetch;
 
-    // Check if YouTube was already fetched today
     const today = new Date().toISOString().split('T')[0];
     const lastFetchDate = lastYouTubeFetch ? new Date(lastYouTubeFetch).toISOString().split('T')[0] : null;
     const youtubeAlreadyFetched = lastFetchDate === today;
@@ -255,37 +233,48 @@ module.exports = async function(context, req) {
     fromDate.setDate(fromDate.getDate() - recencyDays);
     const fromDateStr = fromDate.toISOString().split('T')[0];
 
-    // Get user's active languages
     const langResult = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`SELECT l.LanguageNameEng FROM UserLanguage ul
               JOIN Language l ON l.LanguageID = ul.LanguageID
               WHERE ul.UserID = @UserID AND ul.IsActive = 'Y'`);
-    const userLangCodes = ['en', ...langResult.recordset.map(r => langCodeMap[r.LanguageNameEng] || 'en')];
-    const uniqueLangCodes = [...new Set(userLangCodes)];
+    const uniqueLangCodes = [...new Set(['en', ...langResult.recordset.map(r => langCodeMap[r.LanguageNameEng] || 'en')])];
 
     const sourcesResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT h.*, ISNULL(uhs.Sequence, 999) AS UserSequence FROM [HeadlineSource] h
+      .query(`SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.CategoryID, h.IsActive,
+                     h.Sequence, h.YoutubeChannelID,
+                     uhs.YoutubeUnfiltered
+              FROM [HeadlineSource] h
               INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
               WHERE uhs.UserID = @UserID AND h.IsActive = 'Y'
-              ORDER BY ISNULL(uhs.Sequence, 999), h.SourceID`);
+              ORDER BY h.Sequence, h.SourceID`);
     const sources = sourcesResult.recordset;
 
     const kwResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT k.KeywordID, k.Keyword AS text, k.CategoryID FROM [HeadlineKeyword] k WHERE k.UserID = @UserID AND k.IsActive = 'Y'`);
+      .query(`SELECT KeywordID, Keyword AS text, CategoryID FROM [HeadlineKeyword] WHERE UserID=@UserID AND IsActive='Y'`);
     const tpResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT t.TopicID, t.Topic AS text, t.CategoryID FROM [HeadlineTopic] t WHERE t.UserID = @UserID AND t.IsActive = 'Y'`);
-
+      .query(`SELECT TopicID, Topic AS text, CategoryID FROM [HeadlineTopic] WHERE UserID=@UserID AND IsActive='Y'`);
     const keywords = kwResult.recordset.map(k => ({ ...k, keywordID: k.KeywordID, topicID: null }));
     const topics = tpResult.recordset.map(t => ({ ...t, keywordID: null, topicID: t.TopicID }));
 
     const existingResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT Link FROM [Headline] WHERE UserID = @UserID`);
+      .query(`SELECT Link FROM [Headline] WHERE UserID=@UserID`);
     const existingLinks = new Set(existingResult.recordset.map(r => r.Link));
+
+    const catNamesResult = await pool.request()
+      .input('UserID', sql.Int, userID)
+      .query(`SELECT CategoryID, Name FROM [Category] WHERE UserID=@UserID AND IsActive='Y' AND Headlines='Y'`);
+    const catLimitsResult = await pool.request()
+      .input('UserID', sql.Int, userID)
+      .query(`SELECT CategoryID, MaxItems FROM [UserCategorySetting] WHERE UserID=@UserID`);
+    const catLimits = {};
+    catLimitsResult.recordset.forEach(r => catLimits[r.CategoryID] = r.MaxItems);
+    const numCats = catNamesResult.recordset.length || 5;
+    const defaultPerCat = Math.ceil(maxHeadlines / numCats);
 
     let allArticles = [];
     let youtubeFetched = false;
@@ -294,32 +283,41 @@ module.exports = async function(context, req) {
       try {
         let articles = [];
         switch(source.SourceType) {
-          case 'Guardian':   articles = await fetchGuardian(source, keywords, topics, fromDateStr, uniqueLangCodes); break;
-          case 'NYT':        articles = await fetchNYT(source); break;
-          case 'GNews':      articles = await fetchGNews(source, uniqueLangCodes); break;
-          case 'Currents':   articles = await fetchCurrents(source); break;
-          case 'MediaStack': articles = await fetchMediaStack(source); break;
-          case 'NewsAPI':    articles = await fetchNewsAPI(source, uniqueLangCodes); break;
-          case 'RSS':        articles = await fetchRSS(source); break;
-          case 'YouTube':
-            if (youtubeAlreadyFetched || disableYoutube) {
-              context.log(`YouTube skipped — ${disableYoutube ? 'disabled by user' : 'already fetched today'}`);
+          case 'API':
+            if (source.Name.includes('Guardian'))    articles = await fetchGuardian(source, keywords, topics, fromDateStr, uniqueLangCodes, otherPerKeyword);
+            else if (source.Name.includes('NYT'))    articles = await fetchNYT(source);
+            else if (source.Name.includes('GNews'))  articles = await fetchGNews(source, uniqueLangCodes);
+            else if (source.Name.includes('Currents')) articles = await fetchCurrents(source);
+            else if (source.Name.includes('MediaStack')) articles = await fetchMediaStack(source);
+            else if (source.Name.includes('NewsAPI'))    articles = await fetchNewsAPI(source, uniqueLangCodes);
+            break;
+          case 'RSS':
+            articles = await fetchRSS(source);
+            articles = await filterByLanguage(articles, uniqueLangCodes);
+            break;
+          case 'Youtube':
+            if (youtubeAlreadyFetched) {
+              context.log(`YouTube skipped — already fetched today`);
               continue;
             }
-            articles = await fetchYouTube(source, keywords, youTubeMaxResults, uniqueLangCodes, context, fromDateStr);
+            if (!source.YoutubeChannelID) {
+              context.log(`YouTube skipped [${source.Name}] — no YoutubeChannelID`);
+              continue;
+            }
+            if (source.YoutubeUnfiltered) {
+              articles = await fetchYouTubeUnfiltered(source, 20, fromDate, context);
+            } else {
+              articles = await fetchYouTubeFiltered(source, keywords, youTubeMaxResults, uniqueLangCodes, fromDateStr, context);
+            }
             articles = await filterByLanguage(articles, uniqueLangCodes);
             youtubeFetched = true;
             break;
         }
 
-        // Post-filter by language for RSS sources
-        if (source.SourceType === 'RSS') {
-          articles = await filterByLanguage(articles, uniqueLangCodes);
-        }
-
         articles.forEach(a => {
           a.sourceName = source.Name;
           a.sourceID = source.SourceID;
+          a.sourceType = source.SourceType;
           if (!a.categoryID) a.categoryID = source.CategoryID || null;
           if (!a.keywordID) a.keywordID = null;
           if (!a.topicID) a.topicID = null;
@@ -333,8 +331,7 @@ module.exports = async function(context, req) {
       }
     }
 
-    // Update LastYouTubeFetch if YouTube was fetched, or if user disabled it (prevents re-running today)
-    if (youtubeFetched || disableYoutube) {
+    if (youtubeFetched) {
       await pool.request()
         .input('UserID', sql.Int, userID)
         .query(`UPDATE [HeadlineSetting] SET LastYouTubeFetch = GETDATE() WHERE UserID = @UserID`);
@@ -347,18 +344,13 @@ module.exports = async function(context, req) {
       return true;
     });
 
-    const catNamesResult = await pool.request()
-      .input('UserID', sql.Int, userID)
-      .query(`SELECT CategoryID, Name FROM [Category] WHERE UserID = @UserID AND IsActive = 'Y' AND Headlines = 'Y'`);
-
     for (const a of unique) {
       if (a.categoryID) continue;
       const text = `${a.title} ${a.summary}`.toLowerCase();
       let matched = false;
       for (const kw of kwResult.recordset) {
         const escaped = kw.text.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(`\\b${escaped}\\b`, 'i');
-        if (regex.test(text)) {
+        if (new RegExp(`\\b${escaped}\\b`, 'i').test(text)) {
           a.categoryID = kw.CategoryID; a.keywordID = kw.KeywordID;
           matched = true; break;
         }
@@ -369,35 +361,39 @@ module.exports = async function(context, req) {
         const matchCount = words.filter(w => text.includes(w)).length;
         if (matchCount >= Math.ceil(words.length * 0.5)) {
           a.categoryID = tp.CategoryID; a.topicID = tp.TopicID;
-          matched = true; break;
+          break;
         }
       }
     }
 
     unique.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
 
-    const catLimitsResult = await pool.request()
-      .input('UserID', sql.Int, userID)
-      .query(`SELECT CategoryID, MaxItems FROM [UserCategorySetting] WHERE UserID = @UserID`);
-    const catLimits = {};
-    catLimitsResult.recordset.forEach(r => catLimits[r.CategoryID] = r.MaxItems);
-    const numCats = catNamesResult.recordset.length || 5;
-    const defaultPerCat = Math.ceil(maxHeadlines / numCats);
-
     const selected = [];
     const catCounts = {};
+    const keywordSourceCounts = {};
+
     for (const a of unique) {
       const cat = a.categoryID !== null && a.categoryID !== undefined ? a.categoryID : 'none';
       if (!(cat in catCounts)) catCounts[cat] = 0;
-      if (cat === 'none') {
-        selected.push(a);
-      } else {
+
+      if (cat !== 'none') {
         const limit = catLimits[cat] || defaultPerCat;
-        if (catCounts[cat] < limit) { selected.push(a); catCounts[cat]++; }
+        if (catCounts[cat] >= limit) continue;
       }
+
+      if (a.sourceType !== 'Youtube' && (a.keywordID || a.topicID)) {
+        const termKey = `${a.keywordID || 'tp' + a.topicID}-${a.sourceID}`;
+        keywordSourceCounts[termKey] = (keywordSourceCounts[termKey] || 0);
+        if (keywordSourceCounts[termKey] >= otherPerKeyword) continue;
+        keywordSourceCounts[termKey]++;
+      }
+
+      selected.push(a);
+      if (cat !== 'none') catCounts[cat]++;
     }
 
     context.log(`unique: ${unique.length}, selected: ${selected.length}`);
+
     let totalInserted = 0;
     for (const a of selected) {
       try {
