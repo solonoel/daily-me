@@ -21,6 +21,14 @@ module.exports = async function(context, req) {
       return;
     }
 
+    if (disableYoutubeToday === false) {
+      await pool.request()
+        .input('UserID', sql.Int, userID)
+        .query(`UPDATE [HeadlineSetting] SET LastYouTubeFetch = NULL WHERE UserID = @UserID`);
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) };
+      return;
+    }
+
     if (recencyDays || maxHeadlines) {
       await pool.request()
         .input('UserID', sql.Int, userID)

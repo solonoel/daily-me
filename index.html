@@ -297,15 +297,12 @@
       <div class="date-strip"><div class="date-main">Settings</div><div class="date-sub">Manage your Daily Me preferences</div></div>
       <div class="settings-deck-grid">
         <div class="settings-deck">
-          <div class="settings-deck-title">📰 Headlines</div>
+          <div class="settings-deck-title" style="justify-content:space-between"><span>📰 Headlines</span><label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="checkbox" id="us-disable-yt" onchange="saveYtDisableFlag()"> Disable YouTube Today</label></div>
           <div class="settings-btn-row">
             <button class="settings-nav-btn" onclick="showSettingsSection('categories')">📁 Categories</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('sources')">🌐 Sources</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('keywords')">🔍 Keywords</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('topics')">💡 Topics</button>
-          </div>
-          <div class="settings-row" style="margin-bottom:6px;margin-top:8px">
-            <label class="form-checkbox-row" style="font-size:12px;text-transform:none;letter-spacing:normal;font-weight:600"><input type="checkbox" id="us-disable-yt" onchange="saveYtDisableFlag()"> Disable YouTube Searches Today</label>
           </div>
           <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px">
             <div>
@@ -1483,6 +1480,12 @@ async function loadConjugation(wordID,langName){
     const oi=document.getElementById('cs-other');if(oi)oi.value=Math.max(0,max-catSum);
   }
 
+  function clearYouTubeDisable(){
+    localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
+    const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=false;
+    apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:false});
+  }
+
   function saveYtDisableFlag(){
     const checked=document.getElementById('us-disable-yt')?.checked;
     if(checked){
@@ -1495,6 +1498,7 @@ async function loadConjugation(wordID,langName){
   }
 
   async function saveUserSettings(){
+    clearYouTubeDisable();
     const recencyDays=Math.min(14,Math.max(1,parseInt(document.getElementById('us-recency').value)||7));
     let maxHeadlines=parseInt(document.getElementById('us-maxheadlines').value);
     const youTubeMaxResults=parseInt(document.getElementById('us-youtubemaxresults').value)||3;
@@ -1643,9 +1647,9 @@ async function loadConjugation(wordID,langName){
   }
 
   async function toggleCategory(categoryID,btn){const isActive=!btn.classList.contains('on');btn.classList.toggle('on');await apiPost('SaveCategory',{action:'toggle',categoryID,isActive,userID:USER_ID});const cat=categories.find(c=>c.CategoryID===categoryID);if(cat)cat.IsActive=isActive?'Y':'N';}
-  async function toggleSource(sourceID,btn){const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const src=sources.find(s=>s.SourceID===sourceID);await apiPost('SaveSource',{action:'update',sourceID,isActive,name:src?.Name,url:src?.URL,sourceType:src?.SourceType,userID:USER_ID});if(src)src.IsActive=isActive?'Y':'N';}
-  async function toggleKeyword(keywordID,btn){const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const kw=keywords.find(k=>k.KeywordID===keywordID);await apiPost('SaveKeyword',{action:'update',keywordID,isActive,keyword:kw?.Keyword,categoryID:kw?.CategoryID,userID:USER_ID});if(kw)kw.IsActive=isActive?'Y':'N';}
-  async function toggleTopic(topicID,btn){const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const tp=topics.find(t=>t.TopicID===topicID);await apiPost('SaveTopic',{action:'update',topicID,isActive,topic:tp?.Topic,categoryID:tp?.CategoryID,userID:USER_ID});if(tp)tp.IsActive=isActive?'Y':'N';}
+  async function toggleSource(sourceID,btn){clearYouTubeDisable();const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const src=sources.find(s=>s.SourceID===sourceID);await apiPost('SaveSource',{action:'update',sourceID,isActive,name:src?.Name,url:src?.URL,sourceType:src?.SourceType,userID:USER_ID});if(src)src.IsActive=isActive?'Y':'N';}
+  async function toggleKeyword(keywordID,btn){clearYouTubeDisable();const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const kw=keywords.find(k=>k.KeywordID===keywordID);await apiPost('SaveKeyword',{action:'update',keywordID,isActive,keyword:kw?.Keyword,categoryID:kw?.CategoryID,userID:USER_ID});if(kw)kw.IsActive=isActive?'Y':'N';}
+  async function toggleTopic(topicID,btn){clearYouTubeDisable();const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const tp=topics.find(t=>t.TopicID===topicID);await apiPost('SaveTopic',{action:'update',topicID,isActive,topic:tp?.Topic,categoryID:tp?.CategoryID,userID:USER_ID});if(tp)tp.IsActive=isActive?'Y':'N';}
   async function deleteSource(sourceID){if(!confirm('Remove this source?'))return;await apiPost('SaveSource',{action:'delete',sourceID,userID:USER_ID});sources=sources.filter(s=>s.SourceID!==sourceID);renderSettingsSources();}
   async function deleteCategory(categoryID){const cat=categories.find(c=>c.CategoryID===categoryID);if(cat&&cat.Name.toLowerCase()==='health'){alert('The Health category cannot be removed.');return;}if(!confirm('Remove this category?'))return;await apiPost('SaveCategory',{action:'delete',categoryID,userID:USER_ID});categories=categories.filter(c=>c.CategoryID!==categoryID);renderSettingsCategories();renderCategoryTiles(null);}
   async function deleteKeyword(keywordID){if(!confirm('Delete this keyword?'))return;await apiPost('SaveKeyword',{action:'delete',keywordID,userID:USER_ID});keywords=keywords.filter(k=>k.KeywordID!==keywordID);renderSettingsKeywords();}
@@ -1703,6 +1707,7 @@ async function loadConjugation(wordID,langName){
   function closeModalOverlay(e){if(e.target===document.getElementById('modal'))closeModal();}
 
   async function saveModal(){
+    if(['category','source','keyword','topic'].includes(modalType))clearYouTubeDisable();
     if(modalType==='category'){
       const name=document.getElementById('m-name').value.trim(),sequence=parseInt(document.getElementById('m-seq').value)||99;
       const headlines=document.getElementById('m-headlines').checked,myWords=document.getElementById('m-mywords').checked;
