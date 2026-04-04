@@ -677,6 +677,16 @@
 
   function setWordSearch(val){
     wordSearch=val.toLowerCase().trim();
+    if(wordSearch){
+      verbFilter='all';
+      myWordsDeckFilter='';
+      myWordsFilter='all';
+    }
+    renderMyWords();
+  }
+
+  function clearWordSearch(){
+    wordSearch='';
     renderMyWords();
   }
 
@@ -747,7 +757,10 @@
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px;margin-bottom:6px">
         <div style="display:flex;align-items:center;gap:6px">
           <span style="font-size:12px;font-weight:600;color:var(--text-soft)">Word:</span>
-          <input type="text" id="mw-search-${langID}" placeholder="Search..." value="${wordSearch}" style="padding:4px 10px;border:1.5px solid var(--border);border-radius:100px;font-size:12px;font-family:'DM Sans',sans-serif;width:100px;outline:none" oninput="setWordSearch(this.value)" onfocus="this.style.borderColor='var(--sky-deep)'" onblur="this.style.borderColor='var(--border)'">
+          <div style="position:relative;display:inline-flex;align-items:center">
+            <input type="text" id="mw-search-${langID}" placeholder="Search..." value="${wordSearch}" style="padding:4px 28px 4px 10px;border:1.5px solid var(--border);border-radius:100px;font-size:12px;font-family:'DM Sans',sans-serif;width:100px;outline:none" oninput="setWordSearch(this.value)" onfocus="this.style.borderColor='var(--sky-deep)'" onblur="this.style.borderColor='var(--border)'">
+            ${wordSearch?`<span onclick="clearWordSearch()" style="position:absolute;right:8px;cursor:pointer;font-size:13px;color:var(--text-muted);line-height:1;user-select:none" title="Clear">✕</span>`:''}
+          </div>
         </div>
         <div style="width:1px;height:20px;background:var(--border);margin:0 6px"></div>
         <div style="display:flex;align-items:center;gap:8px">
@@ -1202,6 +1215,7 @@
         <button onclick="cancelConjugation()" style="padding:5px 12px;font-size:12px;font-weight:600;color:var(--sky-deep);background:white;border:1.5px solid var(--sky-deep);border-radius:6px;cursor:pointer;flex-shrink:0">← Back</button>
         <div class="conj-verb-picker" id="conj-verb-picker">
           <input id="conj-verb-search" class="form-input" placeholder="Type to search verbs..." style="font-size:13px;padding:6px 10px;border:none;outline:none;flex:1;font-family:'DM Sans',sans-serif" oninput="filterConjVerbs(this.value)" onfocus="document.getElementById('conj-verb-dropdown').style.display='block'">
+          <span id="conj-verb-clear" onclick="clearConjSearch()" style="font-size:13px;color:var(--text-muted);cursor:pointer;padding:0 4px;display:none" title="Clear">✕</span>
           <span style="font-size:11px;color:var(--text-muted);padding-right:8px">▾</span>
           <div class="conj-verb-dropdown" id="conj-verb-dropdown" style="display:none" onclick="event.stopPropagation()">${optItems}</div>
         </div>
@@ -1226,6 +1240,20 @@
     dd.querySelectorAll('.conj-verb-opt').forEach(opt=>{
       opt.style.display=(!q||opt.dataset.word.includes(q))?'':'none';
     });
+    const clr=document.getElementById('conj-verb-clear');
+    if(clr)clr.style.display=q?'inline':'none';
+  }
+
+  function clearConjSearch(){
+    const inp=document.getElementById('conj-verb-search');
+    const dd=document.getElementById('conj-verb-dropdown');
+    const clr=document.getElementById('conj-verb-clear');
+    if(inp)inp.value='';
+    if(clr)clr.style.display='none';
+    if(dd){
+      dd.style.display='none';
+      dd.querySelectorAll('.conj-verb-opt').forEach(opt=>opt.style.display='');
+    }
   }
 
   // ── MY DECKS ──
