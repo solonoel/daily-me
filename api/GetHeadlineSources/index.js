@@ -1,9 +1,6 @@
-const sql = require('mssql');
-
+﻿const sql = require('mssql');
 const config = {
-  server: 'brunsusa-sql.database.windows.net',
-  database: 'DailyMeDB',
-  user: 'noeladmin',
+  server: 'brunsusa-sql.database.windows.net', database: 'DailyMeDB', user: 'noeladmin',
   password: process.env.DB_PASSWORD,
   options: { encrypt: true, trustServerCertificate: false, connectTimeout: 60000, requestTimeout: 60000 }
 };
@@ -16,20 +13,24 @@ module.exports = async function(context, req) {
 
     let result;
     if (allSources) {
-      // Return all global sources regardless of user
       result = await pool.request()
-        .query(`SELECT SourceID, Name, URL, SourceType, CategoryID, IsActive, UserID FROM [HeadlineSource] WHERE IsActive = 'Y' ORDER BY Name`);
+        .query(`
+          SELECT SourceID, Name, URL, SourceType, CategoryID, IsActive,
+                 Sequence, DateAdded, YoutubeChannelID
+          FROM [HeadlineSource]
+          ORDER BY Sequence, Name
+        `);
     } else {
-      // Return only sources assigned to this user, ordered by user-defined sequence
       result = await pool.request()
         .input('UserID', sql.Int, userID)
         .query(`
-          SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.CategoryID, h.IsActive, h.UserID,
-                 ISNULL(uhs.Sequence, 999) AS Sequence
+          SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.CategoryID, h.IsActive,
+                 h.Sequence, h.DateAdded, h.YoutubeChannelID,
+                 uhs.YoutubeUnfiltered
           FROM [HeadlineSource] h
           INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
           WHERE uhs.UserID = @UserID
-          ORDER BY ISNULL(uhs.Sequence, 999), h.Name
+          ORDER BY h.Sequence, h.Name
         `);
     }
 
