@@ -7,11 +7,28 @@ const config = {
 };
 
 async function resolveYoutubeChannelID(url, apiKey) {
-  const handleMatch = url.match(/@([\w-]+)/);
   const channelMatch = url.match(/\/channel\/(UC[\w-]+)/);
   if (channelMatch) return channelMatch[1];
+
+  const handleMatch = url.match(/@([\w-]+)/);
   if (!handleMatch) throw new Error('Could not parse YouTube URL. Use https://www.youtube.com/@ChannelName format.');
   const handle = handleMatch[1];
+
+  function fetchText(fetchUrl) {
+    return new Promise((resolve, reject) => {
+      const client = fetchUrl.startsWith('https') ? https : require('http');
+      const options = { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36' } };
+      client.get(fetchUrl, options, (res) => {
+        // Follow redirects
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          return fetchText(res.headers.location).then(resolve).catch(reject);
+        }
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => resolve(data));
+      }).on('error', reject);
+    });
+  }
 
   function fetchJson(apiUrl) {
     return new Promise((resolve, reject) => {
@@ -23,23 +40,31 @@ async function resolveYoutubeChannelID(url, apiKey) {
     });
   }
 
-  // Method 1: forHandle (works for most handles)
+  // Method 1: forHandle API
   try {
     const d1 = await fetchJson(`https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=${encodeURIComponent(handle)}&key=${apiKey}`);
     if (d1?.items?.[0]?.id) return d1.items[0].id;
   } catch(e) {}
 
-  // Method 2: forUsername (works for older channels)
+  // Method 2: forUsername API
   try {
     const d2 = await fetchJson(`https://www.googleapis.com/youtube/v3/channels?part=id&forUsername=${encodeURIComponent(handle)}&key=${apiKey}`);
     if (d2?.items?.[0]?.id) return d2.items[0].id;
   } catch(e) {}
 
-  // Method 3: search.list by channel name (100 units but most reliable fallback)
+  // Method 3: scrape channelId from YouTube page HTML (most reliable)
   try {
-    const d3 = await fetchJson(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(handle)}&type=channel&maxResults=1&key=${apiKey}`);
-    if (d3?.items?.[0]?.snippet?.channelId) return d3.items[0].snippet.channelId;
-    if (d3?.items?.[0]?.id?.channelId) return d3.items[0].id.channelId;
+    const html = await fetchText(`https://www.youtube.com/@${handle}`);
+    const match = html.match(/"channelId"\s*:\s*"(UC[\w-]+)"/) ||
+                  html.match(/itemprop="channelId"\s+content="(UC[\w-]+)"/) ||
+                  html.match(/"externalId"\s*:\s*"(UC[\w-]+)"/);
+    if (match) return match[1];
+  } catch(e) {}
+
+  // Method 4: search.list fallback (100 units)
+  try {
+    const d4 = await fetchJson(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(handle)}&type=channel&maxResults=1&key=${apiKey}`);
+    if (d4?.items?.[0]?.id?.channelId) return d4.items[0].id.channelId;
   } catch(e) {}
 
   throw new Error(`YouTube channel not found for @${handle}. Verify the URL is correct.`);
