@@ -283,9 +283,9 @@
       <div class="category-row" id="cat-row"></div>
       <div class="recency-pill"><span>Recency</span><span class="recency-pill-value" id="recency-val">7 days</span></div>
       <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn">↻ Refresh</button>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:4px;width:100%">
-        <div id="last-fetch-time" style="font-size:10px;color:var(--text-muted)"></div>
-        <div id="last-yt-fetch-time" style="font-size:10px;color:var(--text-muted)"></div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:2px;width:100%">
+        <div id="last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
+        <div id="last-yt-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
       </div>
     </div>
     <div id="refresh-status" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep);margin-bottom:12px;padding:8px 14px;background:#f0f7ff;border-radius:8px;border:1px solid var(--border)"></div>
@@ -606,9 +606,9 @@
     const ytCb=document.getElementById('us-disable-yt');
     if(ytCb)ytCb.checked=localStorage.getItem(`dailyme_yt_disabled_${USER_ID}`)==='1';
     const savedTs=localStorage.getItem(`dailyme_last_fetch_time_${USER_ID}`);
-    const lft=document.getElementById('last-fetch-time');if(lft&&savedTs)lft.textContent=`refresh: ${fmtDT(new Date(savedTs))}`;
+    const lft=document.getElementById('last-fetch-time');if(lft&&savedTs){const d=new Date(savedTs);if(!isNaN(d)){lft.textContent=`refresh: ${fmtDT(d)}`;lft.style.display='';}}
     const savedYtTs=localStorage.getItem(`dailyme_last_yt_fetch_time_${USER_ID}`);
-    const ytLft=document.getElementById('last-yt-fetch-time');if(ytLft&&savedYtTs)ytLft.textContent=`youtube: ${fmtDT(new Date(savedYtTs))}`;
+    const ytLft=document.getElementById('last-yt-fetch-time');if(ytLft&&savedYtTs){const d=new Date(savedYtTs);if(!isNaN(d)){ytLft.textContent=`youtube: ${fmtDT(d)}`;ytLft.style.display='';}}
     renderLanguageNav();renderLanguageScreens();renderLanguageCheckList();
     renderCatSettingsTable(userSettings);renderCategoryTiles(null);
     const isFirstLogin=!localStorage.getItem(`dailyme_onboarded_${USER_ID}`);
@@ -1646,7 +1646,7 @@ async function refreshHeadlines(){
       const lft=document.getElementById('last-fetch-time');if(lft)lft.textContent=`refresh: ${ts}`;
       localStorage.setItem(`dailyme_last_fetch_time_${USER_ID}`,now.toISOString());
       const ytLft=document.getElementById('last-yt-fetch-time');
-      if(ytLft&&!disableYoutube){ytLft.textContent=`youtube: ${ts}`;localStorage.setItem(`dailyme_last_yt_fetch_time_${USER_ID}`,now.toISOString());}
+      if(ytLft&&!disableYoutube){ytLft.textContent=`youtube: ${ts}`;ytLft.style.display='';localStorage.setItem(`dailyme_last_yt_fetch_time_${USER_ID}`,now.toISOString());}
       await loadHeadlines();
     }catch(e){
       const btn=document.getElementById('refresh-btn');
@@ -2000,16 +2000,16 @@ async function refreshHeadlines(){
         if(src)setTimeout(()=>document.getElementById('m-type').value=src.SourceType||'RSS',0);
       }
     }else if(type==='keyword'){
+    }else if(type==='keyword'){
       const kw=id?keywords.find(k=>k.KeywordID===id):null;title=id?'Edit Keyword':'Add Keyword';
-      body=`<div class="form-row"><div class="form-group" style="flex:0 0 80px"><label class="form-label">Sequence</label><input class="form-input" id="m-seq" type="number" value="${kw?.Sequence||99}"></div><div class="form-group"><label class="form-label">Keyword (exact match)</label><input class="form-input" id="m-keyword" value="${kw?.Keyword||''}"></div></div>
+      body=`<div class="form-group"><label class="form-label">Keyword (exact match)</label><input class="form-input" id="m-keyword" value="${kw?.Keyword||''}"></div>
         <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>`;
       if(kw?.CategoryID)setTimeout(()=>document.getElementById('m-cat').value=kw.CategoryID,0);
     }else if(type==='topic'){
       const tp=id?topics.find(t=>t.TopicID===id):null;title=id?'Edit Topic':'Add Topic';
-      body=`<div class="form-row"><div class="form-group" style="flex:0 0 80px"><label class="form-label">Sequence</label><input class="form-input" id="m-seq" type="number" value="${tp?.Sequence||99}"></div><div class="form-group"><label class="form-label">Topic (fuzzy match)</label><input class="form-input" id="m-topic" value="${tp?.Topic||''}"></div></div>
+      body=`<div class="form-group"><label class="form-label">Topic (fuzzy match)</label><input class="form-input" id="m-topic" value="${tp?.Topic||''}"></div>
         <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>`;
       if(tp?.CategoryID)setTimeout(()=>document.getElementById('m-cat').value=tp.CategoryID,0);
-    }
     document.getElementById('modal-title').textContent=title;
     document.getElementById('modal-body').innerHTML=body;
     document.getElementById('modal').style.display='flex';
