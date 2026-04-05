@@ -915,11 +915,11 @@
       </div>
       <div class="word-grid">
         <div style="display:flex;align-items:center;padding:4px 14px;background:#f5f9ff;border-bottom:1.5px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-soft);gap:12px">
-          ${showImages?'<div style="width:52px;flex-shrink:0;margin-right:0"></div>':''}
-          <div style="flex:1;min-width:0"><span style="cursor:pointer;user-select:none" onclick="mwSort('word')">Words ${mwSortCol==='word'?(mwSortDir==='asc'?'▲':'▼'):'↕'}</span></div>
-          <div style="display:flex;gap:0;align-items:center;flex-shrink:0">
-            <span style="cursor:pointer;user-select:none;min-width:30px;margin-right:70px" onclick="mwSort('type')">Type ${mwSortCol==='type'?(mwSortDir==='asc'?'▲':'▼'):'↕'}</span>
-            <span style="cursor:pointer;user-select:none" onclick="mwSort('deck')">Decks ${mwSortCol==='deck'?(mwSortDir==='asc'?'▲':'▼'):'↕'}</span>
+          ${showImages?'<div style="width:52px;flex-shrink:0"></div>':''}
+          <div style="flex:1;min-width:0"><span style="cursor:pointer;user-select:none" onclick="mwSort('word')">Words ↕</span></div>
+          <div style="min-width:160px;flex-shrink:0;padding:0 8px;display:flex;flex-direction:column;gap:4px">
+            <span style="cursor:pointer;user-select:none" onclick="mwSort('type')">Type / Conjugate ↕</span>
+            <span style="cursor:pointer;user-select:none" onclick="mwSort('deck')">Decks ↕</span>
           </div>
           <div style="width:152px;flex-shrink:0"></div>
         </div>
