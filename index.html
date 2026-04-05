@@ -856,14 +856,14 @@
       }).join(' ');
       return `<div class="word-row" data-wordid="${w.UserLanguageWordsID}">
         ${imgEl}
-        <div class="word-body">
+        <div class="word-body" style="min-width:120px;flex-shrink:1">
           <div class="word-name"><a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;" style="color:var(--text);text-decoration:none;border-bottom:1px dashed var(--border)">${w.WordsName}</a>${genderLabel}</div>
           <div class="word-translation">${w.WordsTranslation||''}</div>
-          <div style="display:flex;align-items:center;gap:12px;margin-top:2px;flex-wrap:wrap">
-            ${typePart}
-            ${conjPart}
-            <div style="display:flex;gap:4px;flex-wrap:wrap">${deckLinks}</div>
-          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;min-width:200px;flex-shrink:0">
+          ${typePart}
+          ${conjPart}
+          <div style="display:flex;gap:4px;flex-wrap:wrap">${deckLinks}</div>
         </div>
         <div class="word-actions">
           <button class="word-btn" onclick="speakWordByID(${w.UserLanguageWordsID})" title="Pronounce">🔊</button>
@@ -1024,8 +1024,10 @@
   async function deleteWord(wordID){
     if(!confirm('Delete this word?'))return;
     try{
-      const result=await apiPost('SaveUserLanguageWord',{action:'delete',userID:USER_ID,wordID});
-      if(result?.error){alert('Could not delete: '+result.error);return;}
+      const res=await fetch(`${API_BASE}/SaveUserLanguageWord?code=${API_KEY}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',userID:USER_ID,wordID})});
+      const text=await res.text();
+      let result={};try{result=JSON.parse(text);}catch(e){}
+      if(!res.ok||result?.error){alert('Could not delete: '+(result?.error||text));return;}
       myWords=myWords.filter(w=>w.UserLanguageWordsID!==wordID);
       renderMyWords();
     }catch(e){alert('Delete failed: '+e.message);}
@@ -1827,7 +1829,7 @@ async function refreshHeadlines(){
       const items=groups[catName]||[],c=catColors[catName]||catColors['Other'];
       const rows=items.map(h=>`
         <div class="headline-row ${h.Retain==='Y'?'retained':''}" onclick="openHeadline('${h.Link}')">
-          ${h.ThumbnailURL?`<img src="${h.ThumbnailURL}" alt="" class="headline-thumb">`:''}
+          <img src="${h.ThumbnailURL||'images/newspaper.svg'}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">
           <div class="headline-body">
             <div class="headline-row-title">${h.HeadlineName}</div>
             ${h.Summary?`<div class="headline-row-summary">${h.Summary}</div>`:''}
