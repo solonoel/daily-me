@@ -283,7 +283,7 @@
       <div class="category-row" id="cat-row"></div>
       <div class="recency-pill"><span>Recency</span><span class="recency-pill-value" id="recency-val">7 days</span></div>
       <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn">↻ Refresh</button>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:0;width:100%">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:0;line-height:1">
         <div id="last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
         <div id="last-yt-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
       </div>
@@ -855,12 +855,12 @@
         ${imgEl}
         <div class="word-body">
           <div class="word-name"><a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;" style="color:var(--text);text-decoration:none;border-bottom:1px dashed var(--border)">${w.WordsName}</a>${genderLabel}</div>
-          <div class="word-translation" style="margin-bottom:10px">${w.WordsTranslation||''}</div>
-          <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
-            ${typePart}
-            ${conjPart}
-            <div style="display:flex;gap:4px;flex-wrap:wrap">${deckLinks}</div>
-          </div>
+          <div class="word-translation">${w.WordsTranslation||''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          ${typePart}
+          ${conjPart}
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-right:4px">${deckLinks}</div>
         </div>
         <div class="word-actions">
           <button class="word-btn" onclick="speakWordByID(${w.UserLanguageWordsID})" title="Pronounce">🔊</button>
@@ -912,13 +912,13 @@
       </div>
       <div class="word-grid">
         <div style="display:flex;align-items:center;padding:4px 14px;background:#f5f9ff;border-bottom:1.5px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-soft);gap:12px">
-          ${showImages?'<div style="width:52px;flex-shrink:0"></div>':''}
-          <div style="flex:1;min-width:0;display:flex;gap:16px">
-            <span style="cursor:pointer;user-select:none;min-width:120px" onclick="mwSort('word')">Words ${mwSortCol==='word'?(mwSortDir==='asc'?'▲':'▼'):'↕'}</span>
-            <span style="cursor:pointer;user-select:none;min-width:50px" onclick="mwSort('type')">Type ${mwSortCol==='type'?(mwSortDir==='asc'?'▲':'▼'):'↕'}</span>
-            <span style="cursor:pointer;user-select:none" onclick="mwSort('deck')">Deck Names ${mwSortCol==='deck'?(mwSortDir==='asc'?'▲':'▼'):'↕'}</span>
+          ${showImages?'<div style="width:52px;flex-shrink:0;margin-right:0"></div>':''}
+          <div style="flex:1;min-width:0"><span style="cursor:pointer;user-select:none" onclick="mwSort('word')">Words ${mwSortCol==='word'?(mwSortDir==='asc'?'▲':'▼'):'↕'}</span></div>
+          <div style="display:flex;gap:0;align-items:center;flex-shrink:0">
+            <span style="cursor:pointer;user-select:none;min-width:30px;margin-right:70px" onclick="mwSort('type')">Type ${mwSortCol==='type'?(mwSortDir==='asc'?'▲':'▼'):'↕'}</span>
+            <span style="cursor:pointer;user-select:none" onclick="mwSort('deck')">Decks ${mwSortCol==='deck'?(mwSortDir==='asc'?'▲':'▼'):'↕'}</span>
           </div>
-          <div style="width:160px;flex-shrink:0"></div>
+          <div style="width:152px;flex-shrink:0"></div>
         </div>
         ${wordRows}
       </div>`;
@@ -947,7 +947,7 @@
       }catch(e){failed++;}
     }
     if(statusEl){
-      statusEl.textContent=`Done ? ${imported} word${imported!==1?'s':''} imported${skipped?` (${skipped} skipped)`:''}`;
+      statusEl.textContent='Done - '+imported+' Word'+(imported!==1?'s':'')+' Imported'+(skipped?' ('+skipped+' skipped)':'')+'.';
       statusEl.style.display='inline';
       const dismiss=()=>{statusEl.style.display='none';document.removeEventListener('click',dismiss);document.removeEventListener('keydown',dismiss);};
       setTimeout(()=>{document.addEventListener('click',dismiss);document.addEventListener('keydown',dismiss);},100);
@@ -1059,7 +1059,7 @@
     const title=isEdit?`Edit ${currentLangName} Word`:`New ${currentLangName} Word`;
     const saveBtn=isEdit
       ?`<button class="btn-primary" onclick="saveWordForm()">OK</button>`
-      :`<button class="btn-primary" onclick="saveWordForm(false)">Save Word</button>
+      :`<button class="btn-primary" onclick="saveWordForm(false)">OK</button>
         <button class="btn-primary" style="background:#22c55e" onclick="saveWordForm(true)">Save &amp; New</button>`;
     const deckSection=isEdit?renderWordDeckGrid(word?.UserLanguageWordsID,wordDecks||[]):'';
     return `
@@ -1077,7 +1077,7 @@
               <label class="form-label">${currentLangName} Word or Phrase</label>
               <input class="form-input" id="nw-word" value="${word?word.WordsName:''}" placeholder="" style="font-size:22px;font-weight:700;color:var(--text)">
               <a href="#" id="nw-fetch-btn" onclick="fetchTranslation();return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;display:inline-block">🔍 Fetch Translation</a>
-              ${isEdit&&word?.IsVerb==='Y'?`<a href="#" onclick="showConjugation(${word.UserLanguageWordsID},()=>editWord(${word.UserLanguageWordsID}));return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:inline-block">🔤 Conjugate</a>`:''}
+              ${isEdit&&word?.IsVerb==='Y'?`<a href="#" onclick="showConjugationFromEdit(${word.UserLanguageWordsID});return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:inline-block">🔤 Conjugate</a>`:''}
               <a href="#" onclick="window.open('https://translate.google.com/#auto/en/'+encodeURIComponent(document.getElementById('nw-word').value),'_blank');return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:inline-block">Google Translate</a>
               <span id="nw-fetch-status" style="font-size:12px;color:var(--text-muted);margin-left:8px"></span>
             </div>
@@ -1422,6 +1422,13 @@ Respond ONLY with valid JSON, no markdown:
     </div>`;
   }
 
+  async function showConjugationFromEdit(wordID){
+    // Load all verbs for this language so conjVerbs is populated
+    const data=await apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=active`);
+    conjVerbs=Array.isArray(data)?data.filter(w=>w.IsVerb==='Y'):[];
+    conjLangName=currentLangName;
+    showConjugation(wordID,()=>editWord(wordID));
+  }
   function showConjugationFromFlashcard(wordID){
     const savedIdx=flashcardIndex;
     showConjugation(wordID,async()=>{
@@ -2038,7 +2045,7 @@ async function refreshHeadlines(){
   async function toggleTopic(topicID,btn){markSettingsChanged();const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const tp=topics.find(t=>t.TopicID===topicID);await apiPost('SaveTopic',{action:'update',topicID,isActive,topic:tp?.Topic,categoryID:tp?.CategoryID,userID:USER_ID});if(tp)tp.IsActive=isActive?'Y':'N';}
   async function deleteSource(sourceID){if(!confirm('Remove this source?'))return;await apiPost('SaveSource',{action:'delete',sourceID,userID:USER_ID});sources=sources.filter(s=>s.SourceID!==sourceID);renderSettingsSources();}
   async function deleteCategory(categoryID){const cat=categories.find(c=>c.CategoryID===categoryID);if(cat&&cat.Name.toLowerCase()==='health'){alert('The Health category cannot be removed.');return;}if(!confirm('Remove this category?'))return;await apiPost('SaveCategory',{action:'delete',categoryID,userID:USER_ID});categories=categories.filter(c=>c.CategoryID!==categoryID);renderSettingsCategories();renderCategoryTiles(null);}
-  function markSettingsChanged(){localStorage.setItem(`dailyme_settings_changed_${USER_ID}`,'1');localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);}
+  function markSettingsChanged(){localStorage.setItem(`dailyme_settings_changed_${USER_ID}`,'1');}
   async function deleteKeyword(keywordID){if(!confirm('Delete this keyword?'))return;await apiPost('SaveKeyword',{action:'delete',keywordID,userID:USER_ID});keywords=keywords.filter(k=>k.KeywordID!==keywordID);renderSettingsKeywords();markSettingsChanged();}
   async function deleteTopic(topicID){if(!confirm('Delete this topic?'))return;await apiPost('SaveTopic',{action:'delete',topicID,userID:USER_ID});topics=topics.filter(t=>t.TopicID!==topicID);renderSettingsTopics();markSettingsChanged();}
 
