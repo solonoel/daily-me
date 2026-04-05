@@ -859,11 +859,11 @@
         <div class="word-body">
           <div class="word-name"><a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;" style="color:var(--text);text-decoration:none;border-bottom:1px dashed var(--border)">${w.WordsName}</a>${genderLabel}</div>
           <div class="word-translation">${w.WordsTranslation||''}</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          ${typePart}
-          ${conjPart}
-          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-right:4px">${deckLinks}</div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:2px;flex-wrap:wrap">
+            ${typePart}
+            ${conjPart}
+            <div style="display:flex;gap:4px;flex-wrap:wrap">${deckLinks}</div>
+          </div>
         </div>
         <div class="word-actions">
           <button class="word-btn" onclick="speakWordByID(${w.UserLanguageWordsID})" title="Pronounce">🔊</button>
@@ -949,14 +949,16 @@
         if(result?.wordID){imported++;existingNames.add(word.toLowerCase());}else failed++;
       }catch(e){failed++;}
     }
-    if(statusEl){
-      statusEl.textContent='Done - '+imported+' Word'+(imported!==1?'s':'')+' Imported'+(skipped?' ('+skipped+' skipped)':'')+'.';
-      statusEl.style.display='inline';
-      const dismiss=()=>{statusEl.style.display='none';document.removeEventListener('click',dismiss);document.removeEventListener('keydown',dismiss);};
+    const doneMsg='Done - '+imported+' Word'+(imported!==1?'s':'')+' Imported'+(skipped?' ('+skipped+' skipped)':'')+'.'
+    await loadMyWords();
+    // Set status on freshly rendered element
+    const freshEl=getImportStatusEl();
+    if(freshEl){
+      freshEl.textContent=doneMsg;freshEl.style.display='inline';
+      const dismiss=()=>{freshEl.style.display='none';document.removeEventListener('click',dismiss);document.removeEventListener('keydown',dismiss);};
       setTimeout(()=>dismiss(),3000);
       setTimeout(()=>{document.addEventListener('click',dismiss);document.addEventListener('keydown',dismiss);},100);
     }
-    await loadMyWords();
   }
   function setWordsFilter(filter){myWordsFilter=filter;renderMyWords();}
   function mwSort(col){if(mwSortCol===col)mwSortDir=mwSortDir==='asc'?'desc':'asc';else{mwSortCol=col;mwSortDir='asc';}renderMyWords();}
