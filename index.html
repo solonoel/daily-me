@@ -279,10 +279,13 @@
 <main class="main">
   <div class="screen active" id="screen-headlines">
     <div class="category-bar">
-      <div class="category-row" id="cat-row"></div>
-      <div class="recency-pill"><span>Recency</span><span class="recency-pill-value" id="recency-val">7 days</span></div>
-      <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn">↻ Refresh</button>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:0;line-height:1">
+      <div style="display:flex;align-items:center;gap:8px;width:100%">
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-soft);white-space:nowrap;flex-shrink:0">Categories</span>
+        <div class="category-row" id="cat-row" style="flex:1;min-width:0"></div>
+        <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn" style="flex-shrink:0">↻ Refresh</button>
+      </div>
+      <div style="display:flex;justify-content:flex-end;align-items:center;gap:16px;width:100%;margin-top:1px;margin-bottom:-4px">
+        <span style="font-size:10px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="recency-val">7 days</span></span>
         <div id="last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
         <div id="last-yt-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
       </div>
@@ -536,7 +539,7 @@
   let currentFilter='Local',currentSettingsSection=null;
   let currentLangID=null,currentLangName=null;
   let myWords=[],myWordsFilter='active',showImages=true;
-  let mwSortCol='word',mwSortDir='asc';
+  let mwSortCol='dateadded',mwSortDir='desc';
   let myWordsDeckFilter=''; // deck ID filter for My Words, '' = all
   let flashcards=[],flashcardIndex=0,flashcardShowTranslation=false,flashcardFilter='all',flashcardAutoPronounce=true,flashcardLeadWith='language';
   let sentencesCache={};
@@ -831,7 +834,8 @@
 
     const mwSorted=[...searchFiltered].sort((a,b)=>{
       let av,bv;
-      if(mwSortCol==='word'){av=(a.WordsName||'').toLowerCase();bv=(b.WordsName||'').toLowerCase();}
+      if(mwSortCol==='dateadded'){av=a.DateAdded||'';bv=b.DateAdded||'';}
+      else if(mwSortCol==='word'){av=(a.WordsName||'').toLowerCase();bv=(b.WordsName||'').toLowerCase();}
       else if(mwSortCol==='type'){av=a.IsVerb==='Y'?'verb':'noun';bv=b.IsVerb==='Y'?'verb':'noun';}
       else if(mwSortCol==='deck'){av=((a.DeckNames||'').split(',')[0]||'').trim().toLowerCase();bv=((b.DeckNames||'').split(',')[0]||'').trim().toLowerCase();}
       else{av=(a.WordsName||'').toLowerCase();bv=(b.WordsName||'').toLowerCase();}
@@ -1200,18 +1204,18 @@
     const response=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,
         messages:[{role:'user',content:`You are a ${currentLangName} language expert. For the ${currentLangName} word/phrase "${word}":
-1. Provide English translation(s). If multiple meanings exist, list each on its own line.
-2. State if it is a verb (true/false).
-3. State gender if noun (M/F/N/null).
-4. Regional usage - append to wordWithRegion only if region-specific:
-   - Common in Latin America: add " (l)"
-   - Spain only: add " (s)"
-   - Mexico only: add " (m)"
-   - U.S. Spanish only: add " (u)"
-   - Multiple regions: e.g. " (l,s)"
-   - Universal: no suffix
-Respond ONLY with valid JSON, no markdown:
-{"translation":"line1\nline2","isVerb":false,"gender":"M","wordWithRegion":"${word}"}`}]})});
+1. Provide ALL common English translations. Group by meaning ? if the word has multiple distinct meanings (e.g. as noun vs verb, or different contexts), list each on its own line. Include usage notes in parentheses where helpful, e.g. "bank (financial)", "bank (riverbank)", "to bank (aviation)". Be thorough.
+2. State if it is a verb (true/false). If it can be both noun and verb, use true.
+3. State gender if noun (M/F/N/null). If multiple genders are possible, use the most common.
+4. Regional usage for the ${currentLangName} word itself - append suffix to wordWithRegion only if region-specific:
+   - Common primarily in Latin America: add " (l)"
+   - Common primarily in Spain only: add " (s)"
+   - Common primarily in Mexico only: add " (m)"
+   - Common primarily in U.S. Spanish only: add " (u)"
+   - Common in multiple specific regions: combine, e.g. " (l,s)"
+   - Used universally: no suffix
+Respond ONLY with valid JSON, no markdown, no extra keys:
+{"translation":"meaning1\nmeaning2\nmeaning3","isVerb":false,"gender":"M","wordWithRegion":"${word}"}`}]})});
     const data=await response.json();
     const txt=data.content?.[0]?.text||'';
     return JSON.parse(txt.replace(/\`\`\`json|\`\`\`/g,'').trim());
@@ -1423,11 +1427,14 @@ Respond ONLY with valid JSON, no markdown:
   }
 
   async function showConjugationFromEdit(wordID){
-    // Load all verbs for this language so conjVerbs is populated
     const data=await apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=active`);
     conjVerbs=Array.isArray(data)?data.filter(w=>w.IsVerb==='Y'):[];
     conjLangName=currentLangName;
-    showConjugation(wordID,()=>editWord(wordID));
+    // Must be on lang screen for conjugation panel to render
+    showScreen(`lang-${currentLangID}`,false);
+    conjReturnFn=()=>editWord(wordID);
+    history.pushState({view:'conjugation'},'');
+    await showLangFeature(currentLangID,'conjugation',currentLangName,wordID);
   }
   function showConjugationFromFlashcard(wordID){
     const savedIdx=flashcardIndex;
