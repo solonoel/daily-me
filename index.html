@@ -283,6 +283,7 @@
       <div class="category-row" id="cat-row"></div>
       <div class="recency-pill"><span>Recency</span><span class="recency-pill-value" id="recency-val">7 days</span></div>
       <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn">↻ Refresh</button>
+      <div id="last-fetch-time" style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:2px"></div>
     </div>
     <div id="refresh-status" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep);margin-bottom:12px;padding:8px 14px;background:#f0f7ff;border-radius:8px;border:1px solid var(--border)"></div>
     <div id="headlines-grouped"></div>
@@ -600,6 +601,8 @@
     // Sync YouTube disable checkbox from localStorage only — don't override on settings visit
     const ytCb=document.getElementById('us-disable-yt');
     if(ytCb)ytCb.checked=localStorage.getItem(`dailyme_yt_disabled_${USER_ID}`)==='1';
+    const savedTs=localStorage.getItem(`dailyme_last_fetch_time_${USER_ID}`);
+    const lft=document.getElementById('last-fetch-time');if(lft&&savedTs)lft.textContent=`Last: ${savedTs}`;
     renderLanguageNav();renderLanguageScreens();renderLanguageCheckList();
     renderCatSettingsTable(userSettings);renderCategoryTiles(null);
     const isFirstLogin=!localStorage.getItem(`dailyme_onboarded_${USER_ID}`);
@@ -1602,11 +1605,20 @@ async function refreshHeadlines(){
       const userSettings=await apiGet('GetUserSettings');
       if(userSettings?.headlineSetting?.RecencyDays){recencyDays_value=userSettings.headlineSetting.RecencyDays;document.getElementById('recency-val').textContent=recencyDays_value===1?'1 day':`${recencyDays_value} days`;}
       const disableYoutube=localStorage.getItem(`dailyme_yt_disabled_${USER_ID}`)==='1';
+      const settingsChanged=localStorage.getItem(`dailyme_settings_changed_${USER_ID}`)==='1';
+      if(settingsChanged){
+        await apiPost('CleanHeadlines',{userID:USER_ID});
+        localStorage.removeItem(`dailyme_settings_changed_${USER_ID}`);
+      }
       await apiPost('FetchHeadlines',{userID:USER_ID,disableYoutube});
       localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
       const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=true;
       apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:true});
       btn.textContent='↻ Refresh';btn.style.color='';btn.style.background='';btn.style.borderColor='';btn.style.fontWeight='';btn.disabled=false;
+      const now=new Date();
+      const ts=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      const lft=document.getElementById('last-fetch-time');if(lft)lft.textContent=`Last: ${ts}`;
+      localStorage.setItem(`dailyme_last_fetch_time_${USER_ID}`,ts);
       await loadHeadlines();
     }catch(e){
       const btn=document.getElementById('refresh-btn');
@@ -1898,13 +1910,14 @@ async function refreshHeadlines(){
   }
 
   async function toggleCategory(categoryID,btn){const isActive=!btn.classList.contains('on');btn.classList.toggle('on');await apiPost('SaveCategory',{action:'toggle',categoryID,isActive,userID:USER_ID});const cat=categories.find(c=>c.CategoryID===categoryID);if(cat)cat.IsActive=isActive?'Y':'N';}
-  async function toggleSource(sourceID,btn){clearYouTubeDisable();const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const src=sources.find(s=>s.SourceID===sourceID);await apiPost('SaveSource',{action:'update',sourceID,isActive,name:src?.Name,url:src?.URL,sourceType:src?.SourceType,userID:USER_ID});if(src)src.IsActive=isActive?'Y':'N';}
-  async function toggleKeyword(keywordID,btn){clearYouTubeDisable();const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const kw=keywords.find(k=>k.KeywordID===keywordID);await apiPost('SaveKeyword',{action:'update',keywordID,isActive,keyword:kw?.Keyword,categoryID:kw?.CategoryID,userID:USER_ID});if(kw)kw.IsActive=isActive?'Y':'N';}
-  async function toggleTopic(topicID,btn){clearYouTubeDisable();const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const tp=topics.find(t=>t.TopicID===topicID);await apiPost('SaveTopic',{action:'update',topicID,isActive,topic:tp?.Topic,categoryID:tp?.CategoryID,userID:USER_ID});if(tp)tp.IsActive=isActive?'Y':'N';}
+  async function toggleSource(sourceID,btn){markSettingsChanged();const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const src=sources.find(s=>s.SourceID===sourceID);await apiPost('SaveSource',{action:'update',sourceID,isActive,name:src?.Name,url:src?.URL,sourceType:src?.SourceType,userID:USER_ID});if(src)src.IsActive=isActive?'Y':'N';}
+  async function toggleKeyword(keywordID,btn){markSettingsChanged();const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const kw=keywords.find(k=>k.KeywordID===keywordID);await apiPost('SaveKeyword',{action:'update',keywordID,isActive,keyword:kw?.Keyword,categoryID:kw?.CategoryID,userID:USER_ID});if(kw)kw.IsActive=isActive?'Y':'N';}
+  async function toggleTopic(topicID,btn){markSettingsChanged();const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const tp=topics.find(t=>t.TopicID===topicID);await apiPost('SaveTopic',{action:'update',topicID,isActive,topic:tp?.Topic,categoryID:tp?.CategoryID,userID:USER_ID});if(tp)tp.IsActive=isActive?'Y':'N';}
   async function deleteSource(sourceID){if(!confirm('Remove this source?'))return;await apiPost('SaveSource',{action:'delete',sourceID,userID:USER_ID});sources=sources.filter(s=>s.SourceID!==sourceID);renderSettingsSources();}
   async function deleteCategory(categoryID){const cat=categories.find(c=>c.CategoryID===categoryID);if(cat&&cat.Name.toLowerCase()==='health'){alert('The Health category cannot be removed.');return;}if(!confirm('Remove this category?'))return;await apiPost('SaveCategory',{action:'delete',categoryID,userID:USER_ID});categories=categories.filter(c=>c.CategoryID!==categoryID);renderSettingsCategories();renderCategoryTiles(null);}
-  async function deleteKeyword(keywordID){if(!confirm('Delete this keyword?'))return;await apiPost('SaveKeyword',{action:'delete',keywordID,userID:USER_ID});keywords=keywords.filter(k=>k.KeywordID!==keywordID);renderSettingsKeywords();localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);}
-  async function deleteTopic(topicID){if(!confirm('Delete this topic?'))return;await apiPost('SaveTopic',{action:'delete',topicID,userID:USER_ID});topics=topics.filter(t=>t.TopicID!==topicID);renderSettingsTopics();localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);}
+  function markSettingsChanged(){localStorage.setItem(`dailyme_settings_changed_${USER_ID}`,'1');localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);}
+  async function deleteKeyword(keywordID){if(!confirm('Delete this keyword?'))return;await apiPost('SaveKeyword',{action:'delete',keywordID,userID:USER_ID});keywords=keywords.filter(k=>k.KeywordID!==keywordID);renderSettingsKeywords();markSettingsChanged();}
+  async function deleteTopic(topicID){if(!confirm('Delete this topic?'))return;await apiPost('SaveTopic',{action:'delete',topicID,userID:USER_ID});topics=topics.filter(t=>t.TopicID!==topicID);renderSettingsTopics();markSettingsChanged();}
 
   // ── MODAL ──
 
@@ -1958,7 +1971,7 @@ async function refreshHeadlines(){
   function closeModalOverlay(e){if(e.target===document.getElementById('modal'))closeModal();}
 
   async function saveModal(){
-    if(['category','source','keyword','topic'].includes(modalType))clearYouTubeDisable();
+    if(['category','source','keyword','topic'].includes(modalType))markSettingsChanged();
     if(modalType==='category'){
       const name=document.getElementById('m-name').value.trim(),sequence=parseInt(document.getElementById('m-seq').value)||99;
       const headlines=document.getElementById('m-headlines').checked,myWords=document.getElementById('m-mywords').checked;
