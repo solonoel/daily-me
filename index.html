@@ -42,7 +42,7 @@
     .section-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-soft); margin-bottom:10px; }
     .category-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:8px; position:sticky; top:54px; z-index:90; background:linear-gradient(160deg,#e8f4ff 0%,#f5f9ff 60%,#eef7f0 100%); padding:8px 32px; margin-left:-32px; margin-right:-32px; box-shadow:0 2px 8px rgba(43,127,212,0.06); }
     .category-row { display:flex; gap:7px; flex-wrap:wrap; flex:1; }
-    .cat-tile { display:flex; align-items:center; gap:6px; padding:6px 13px; border-radius:100px; border:1.5px solid var(--border); background:white; cursor:pointer; font-size:12px; font-weight:600; color:var(--text-soft); transition:all 0.2s; white-space:nowrap; }
+    .cat-tile { display:flex; align-items:center; gap:4px; padding:4px 10px; border-radius:100px; border:1.5px solid var(--border); background:white; cursor:pointer; font-size:12px; font-weight:600; color:var(--text-soft); transition:all 0.2s; white-space:nowrap; }
     .cat-tile:hover { border-color:var(--sky-deep); color:var(--sky-deep); background:#f0f7ff; }
     .cat-tile.active { background:var(--sky-deep); color:white; border-color:var(--sky-deep); }
     .cat-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
@@ -278,7 +278,6 @@
 </nav>
 <main class="main">
   <div class="screen active" id="screen-headlines">
-    <div class="section-label" style="margin-top:8px">Categories</div>
     <div class="category-bar">
       <div class="category-row" id="cat-row"></div>
       <div class="recency-pill"><span>Recency</span><span class="recency-pill-value" id="recency-val">7 days</span></div>
@@ -950,6 +949,7 @@
       statusEl.textContent='Done - '+imported+' Word'+(imported!==1?'s':'')+' Imported'+(skipped?' ('+skipped+' skipped)':'')+'.';
       statusEl.style.display='inline';
       const dismiss=()=>{statusEl.style.display='none';document.removeEventListener('click',dismiss);document.removeEventListener('keydown',dismiss);};
+      setTimeout(()=>dismiss(),3000);
       setTimeout(()=>{document.addEventListener('click',dismiss);document.addEventListener('keydown',dismiss);},100);
     }
     await loadMyWords();
@@ -1750,7 +1750,7 @@ async function refreshHeadlines(){
     row.innerHTML=cats.map(c=>{
       const style=catColors[c.Name]||{dot:'#888'};
       const count=allHeadlines?allHeadlines.filter(h=>h.CategoryID===c.CategoryID).length:null;
-      const isEmpty=count!==null&&count===0;return `<div class="cat-tile ${currentFilter===c.Name?'active':''} ${isEmpty?'cat-empty':''}" onclick="filterCat('${c.Name}',this)" style="${isEmpty?'opacity:0.45;cursor:default':''}"><div class="cat-dot" style="background:${style.dot}"></div>${c.Name}${count!==null?` (${count})`:''}</div>`;
+      const isEmpty=count!==null&&count===0;return `<div class="cat-tile ${currentFilter===c.Name?'active':''} ${isEmpty?'cat-empty':''}" onclick="${isEmpty?'':"filterCat('${c.Name}',this)"}" style="${isEmpty?'opacity:0.45;cursor:default':''}"><div class="cat-dot" style="background:${style.dot}"></div>${c.Name}${(count!==null&&!isEmpty)?` (${count})`:''}</div>`;
     }).join('')+
     `<div class="cat-tile ${currentFilter==='Other'?'active':''}" onclick="filterCat('Other',this)"><div class="cat-dot" style="background:#888"></div>Other${allHeadlines!==null?` (${allHeadlines?allHeadlines.filter(h=>!h.CategoryID).length:0})`:''}</div>`;
   }
