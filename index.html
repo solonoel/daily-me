@@ -309,7 +309,7 @@
       </div>
       <div class="settings-deck-grid">
         <div class="settings-deck">
-          <div class="settings-deck-title" style="justify-content:space-between"><span>📰 Headlines</span><label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="checkbox" id="us-disable-yt" onchange="saveYtDisableFlag()"> Disable YouTube Today</label></div>
+          <div class="settings-deck-title" style="justify-content:space-between"><span>📰 Headlines</span><label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="checkbox" id="us-disable-yt" onchange="saveYtDisableFlag()"> Disable Youtube Today</label></div>
           <div class="settings-btn-row">
             <button class="settings-nav-btn" onclick="showSettingsSection('categories')">📁 Categories</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('sources')">🌐 Sources</button>
@@ -359,7 +359,7 @@
         <span>📁 Categories</span>
         <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openModal('category')">+ Add Category</button>
       </div>
-      <table class="settings-table"><thead><tr><th></th><th>Name</th><th>Headlines</th><th>My Words</th><th>Active</th><th></th></tr></thead><tbody id="tbl-categories"></tbody></table>
+      <table class="settings-table"><thead><tr><th></th><th>Name</th><th>Active</th><th></th></tr></thead><tbody id="tbl-categories"></tbody></table>
     </div>
     <div id="settings-section-sources" style="display:none">
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
@@ -495,8 +495,9 @@
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title" id="modal-title">Add Item</div>
     <div id="modal-body"></div>
-    <div class="modal-actions">
+    <div class="modal-actions" id="modal-actions">
       <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" style="background:#22c55e" id="modal-save-new" onclick="saveModal(true)">Save & New</button>
       <button class="btn-primary" onclick="saveModal()">Save</button>
     </div>
   </div>
@@ -895,7 +896,9 @@
             ${activeDecks.map(d=>`<option value="${d.UserLanguageWordsDeckID}" ${myWordsDeckFilter==d.UserLanguageWordsDeckID?'selected':''}>${d.UserLanguageWordsDeckName}</option>`).join('')}
           </select>
         </div>
-        <button class="btn-primary" style="margin-left:auto;padding:6px 12px;font-size:12px;white-space:nowrap" onclick="showNewWord()">+ New</button>
+        <input type="file" id="mw-import-input" accept=".txt,.csv" style="display:none" onchange="importWords(event)">
+        <button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="document.getElementById('mw-import-input').click()">&#x2B06; Import</button>
+        <button class="btn-primary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="showNewWord()">+ New</button>
       </div>
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
         <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -917,6 +920,27 @@
       </div>`;
   }
 
+  async function importWords(event){
+    const file=event.target.files[0];if(!file)return;
+    event.target.value='';
+    const text=await file.text();
+    const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    if(!lines.length)return alert('No words found in file.');
+    if(!confirm(`Import ${lines.length} word(s)?`))return;
+    let imported=0,failed=0;
+    for(const line of lines){
+      const word=line.split(/[,\t]/)[0].trim();
+      if(!word)continue;
+      try{
+        const trans=await apiPost('GetWordTranslation',{word,languageCode:currentLangName});
+        const result=await apiPost('SaveUserLanguageWord',{action:'add',userID:USER_ID,languageID:currentLangID,
+          wordsName:word,wordsTranslation:trans.translation||'',isVerb:trans.isVerb||false,gender:trans.gender||null,wordsImage:null});
+        if(result?.wordID)imported++;else failed++;
+      }catch(e){failed++;}
+    }
+    alert(`Import complete: ${imported} added${failed?`, ${failed} failed`:''}.`);
+    await loadMyWords();
+  }
   function setWordsFilter(filter){myWordsFilter=filter;renderMyWords();}
   function mwSort(col){if(mwSortCol===col)mwSortDir=mwSortDir==='asc'?'desc':'asc';else{mwSortCol=col;mwSortDir='asc';}renderMyWords();}
   function setVerbFilter(filter){verbFilter=filter;renderMyWords();}
@@ -1978,8 +2002,7 @@ async function refreshHeadlines(){
     let title='',body='';
     if(type==='category'){
       const cat=id?categories.find(c=>c.CategoryID===id):null;title=id?'Edit Category':'Add Category';
-      body=`<div class="form-row"><div class="form-group"><label class="form-label">Name</label><input class="form-input" id="m-name" value="${cat?.Name||''}"></div><div class="form-group" style="flex:0 0 80px"><label class="form-label">Sequence</label><input class="form-input" id="m-seq" type="number" value="${cat?.Sequence||''}"></div></div>
-        <div class="form-group"><label class="form-label">Used In</label><div style="display:flex;gap:20px;margin-top:6px"><label class="form-checkbox-row"><input type="checkbox" id="m-headlines" ${cat?.Headlines==='Y'?'checked':''}> Headlines</label><label class="form-checkbox-row"><input type="checkbox" id="m-mywords" ${cat?.MyWords==='Y'?'checked':''}> My Words</label></div></div>`;
+      body=`<div class="form-group"><label class="form-label">Name</label><input class="form-input" id="m-name" value="${cat?.Name||''}"></div>`;
     }else if(type==='source'){
       const src=id?sources.find(s=>s.SourceID===id):null;
       if(!id&&USER_ID!==1){
@@ -2000,33 +2023,35 @@ async function refreshHeadlines(){
         if(src)setTimeout(()=>document.getElementById('m-type').value=src.SourceType||'RSS',0);
       }
     }else if(type==='keyword'){
-    }else if(type==='keyword'){
       const kw=id?keywords.find(k=>k.KeywordID===id):null;title=id?'Edit Keyword':'Add Keyword';
-      body=`<div class="form-group"><label class="form-label">Keyword (exact match)</label><input class="form-input" id="m-keyword" value="${kw?.Keyword||''}"></div>
+      body=`<div class="form-row"><div class="form-group" style="flex:0 0 80px"><label class="form-label">Sequence</label><input class="form-input" id="m-seq" type="number" value="${kw?.Sequence||99}"></div><div class="form-group"><label class="form-label">Keyword (exact match)</label><input class="form-input" id="m-keyword" value="${kw?.Keyword||''}"></div></div>
         <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>`;
       if(kw?.CategoryID)setTimeout(()=>document.getElementById('m-cat').value=kw.CategoryID,0);
     }else if(type==='topic'){
       const tp=id?topics.find(t=>t.TopicID===id):null;title=id?'Edit Topic':'Add Topic';
-      body=`<div class="form-group"><label class="form-label">Topic (fuzzy match)</label><input class="form-input" id="m-topic" value="${tp?.Topic||''}"></div>
+      body=`<div class="form-row"><div class="form-group" style="flex:0 0 80px"><label class="form-label">Sequence</label><input class="form-input" id="m-seq" type="number" value="${tp?.Sequence||99}"></div><div class="form-group"><label class="form-label">Topic (fuzzy match)</label><input class="form-input" id="m-topic" value="${tp?.Topic||''}"></div></div>
         <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>`;
       if(tp?.CategoryID)setTimeout(()=>document.getElementById('m-cat').value=tp.CategoryID,0);
+    }
     document.getElementById('modal-title').textContent=title;
     document.getElementById('modal-body').innerHTML=body;
+    const saveNewBtn=document.getElementById('modal-save-new');
+    if(saveNewBtn)saveNewBtn.style.display=(type==='source'&&!id&&USER_ID!==1)?'none':'';
     document.getElementById('modal').style.display='flex';
   }
 
   function closeModal(){document.getElementById('modal').style.display='none';modalType=null;modalID=null;}
   function closeModalOverlay(e){if(e.target===document.getElementById('modal'))closeModal();}
 
-  async function saveModal(){
+  async function saveModal(addAnother=false){
     if(['category','source','keyword','topic'].includes(modalType))markSettingsChanged();
     if(modalType==='category'){
-      const name=document.getElementById('m-name').value.trim(),sequence=parseInt(document.getElementById('m-seq').value)||99;
-      const headlines=document.getElementById('m-headlines').checked,myWords=document.getElementById('m-mywords').checked;
+      const name=document.getElementById('m-name').value.trim();
       if(!name)return alert('Name is required');
       if(!modalID&&name.toLowerCase()==='health')return alert('A "Health" category already exists and is managed separately.');
-      if(modalID){await apiPost('SaveCategory',{action:'update',categoryID:modalID,name,sequence,headlines,myWords,isActive:true,userID:USER_ID});const cat=categories.find(c=>c.CategoryID===modalID);if(cat){cat.Name=name;cat.Sequence=sequence;cat.Headlines=headlines?'Y':'N';cat.MyWords=myWords?'Y':'N';}}
-      else{const result=await apiPost('SaveCategory',{action:'add',name,sequence,headlines,myWords,userID:USER_ID});categories.push({CategoryID:result.categoryID,Name:name,Sequence:sequence,Headlines:headlines?'Y':'N',MyWords:myWords?'Y':'N',IsActive:'Y'});}
+      const sequence=modalID?(categories.find(c=>c.CategoryID===modalID)?.Sequence||99):99;
+      if(modalID){await apiPost('SaveCategory',{action:'update',categoryID:modalID,name,sequence,headlines:true,myWords:false,isActive:true,userID:USER_ID});const cat=categories.find(c=>c.CategoryID===modalID);if(cat){cat.Name=name;}}
+      else{const result=await apiPost('SaveCategory',{action:'add',name,sequence,headlines:true,myWords:false,userID:USER_ID});categories.push({CategoryID:result.categoryID,Name:name,Sequence:sequence,Headlines:'Y',MyWords:'N',IsActive:'Y'});}
       renderSettingsCategories();renderCategoryTiles(null);
     }else if(modalType==='source'){
       if(!modalID&&USER_ID!==1){
@@ -2043,29 +2068,37 @@ async function refreshHeadlines(){
       }
       renderSettingsSources();
     }else if(modalType==='keyword'){
-      const keyword=document.getElementById('m-keyword').value.trim(),categoryID=document.getElementById('m-cat').value||null,sequence=parseInt(document.getElementById('m-seq').value)||99;
+      const keyword=document.getElementById('m-keyword').value.trim(),categoryID=document.getElementById('m-cat').value||null;
+      const sequence=modalID?(keywords.find(k=>k.KeywordID===modalID)?.Sequence||99):(Math.max(...keywords.map(k=>k.Sequence||0),0)+1);
       if(!keyword)return alert('Keyword is required');
-      if(modalID){await apiPost('SaveKeyword',{action:'update',keywordID:modalID,keyword,categoryID,sequence,isActive:true,userID:USER_ID});const kw=keywords.find(k=>k.KeywordID===modalID);if(kw){kw.Keyword=keyword;kw.CategoryID=categoryID;kw.Sequence=sequence;kw.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}}
+      if(modalID){await apiPost('SaveKeyword',{action:'update',keywordID:modalID,keyword,categoryID,sequence,isActive:true,userID:USER_ID});const kw=keywords.find(k=>k.KeywordID===modalID);if(kw){kw.Keyword=keyword;kw.CategoryID=categoryID;kw.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}}
       else{const result=await apiPost('SaveKeyword',{action:'add',keyword,categoryID,sequence,userID:USER_ID});keywords.push({KeywordID:result.keywordID,Keyword:keyword,CategoryID:categoryID,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});}
       renderSettingsKeywords();
     }else if(modalType==='topic'){
-      const topic=document.getElementById('m-topic').value.trim(),categoryID=document.getElementById('m-cat').value||null,sequence=parseInt(document.getElementById('m-seq').value)||99;
+      const topic=document.getElementById('m-topic').value.trim(),categoryID=document.getElementById('m-cat').value||null;
+      const sequence=modalID?(topics.find(t=>t.TopicID===modalID)?.Sequence||99):(Math.max(...topics.map(t=>t.Sequence||0),0)+1);
       if(!topic)return alert('Topic is required');
-      if(modalID){await apiPost('SaveTopic',{action:'update',topicID:modalID,topic,categoryID,sequence,isActive:true,userID:USER_ID});const tp=topics.find(t=>t.TopicID===modalID);if(tp){tp.Topic=topic;tp.CategoryID=categoryID;tp.Sequence=sequence;tp.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}}
+      if(modalID){await apiPost('SaveTopic',{action:'update',topicID:modalID,topic,categoryID,sequence,isActive:true,userID:USER_ID});const tp=topics.find(t=>t.TopicID===modalID);if(tp){tp.Topic=topic;tp.CategoryID=categoryID;tp.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}}
       else{const result=await apiPost('SaveTopic',{action:'add',topic,categoryID,sequence,userID:USER_ID});topics.push({TopicID:result.topicID,Topic:topic,CategoryID:categoryID,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});}
       renderSettingsTopics();
     }
-    closeModal();
+    if(addAnother){
+      const t=modalType;modalID=null;
+      await openModal(t);
+    }else{
+      closeModal();
+    }
   }
 
   // ── DRAG/DROP ──
 
   function initDragDrop(tbody,type){
-    let dragSrc=null;
+    let dragSrc=null,dragMoved=false;
     tbody.querySelectorAll('tr[draggable]').forEach(row=>{
-      row.addEventListener('dragstart',e=>{dragSrc=row;row.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+      row.addEventListener('dragstart',e=>{dragSrc=row;dragMoved=false;row.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
       row.addEventListener('dragend',()=>{
         tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('dragging','drag-over'));
+        if(!dragMoved)return;
         setTimeout(()=>{
           const rows=[...tbody.querySelectorAll('tr[draggable]')];
           const idKey=type==='keyword'?'keywordID':type==='source'?'sourceID':type==='category'?'categoryID':'topicID';
@@ -2077,7 +2110,7 @@ async function refreshHeadlines(){
         },50);
       });
       row.addEventListener('dragover',e=>{e.preventDefault();tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('drag-over'));if(row!==dragSrc)row.classList.add('drag-over');});
-      row.addEventListener('drop',e=>{e.preventDefault();if(dragSrc&&dragSrc!==row){const rows=[...tbody.querySelectorAll('tr')];const si=rows.indexOf(dragSrc),ti=rows.indexOf(row);if(si<ti)row.after(dragSrc);else row.before(dragSrc);}});
+      row.addEventListener('drop',e=>{e.preventDefault();if(dragSrc&&dragSrc!==row){dragMoved=true;const rows=[...tbody.querySelectorAll('tr')];const si=rows.indexOf(dragSrc),ti=rows.indexOf(row);if(si<ti)row.after(dragSrc);else row.before(dragSrc);}});
     });
   }
 
@@ -2158,20 +2191,20 @@ async function refreshHeadlines(){
   }
 
   function initGlobalSourcesDragDrop(tbody){
-    let dragSrc=null;
+    let dragSrc=null,dragMoved=false;
     tbody.querySelectorAll('tr[draggable]').forEach(row=>{
-      row.addEventListener('dragstart',e=>{dragSrc=row;row.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+      row.addEventListener('dragstart',e=>{dragSrc=row;dragMoved=false;row.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
       row.addEventListener('dragend',()=>{
         tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('dragging','drag-over'));
+        if(!dragMoved)return;
         const rows=[...tbody.querySelectorAll('tr[draggable]')];
         const sequences=rows.map((r,i)=>({sourceID:parseInt(r.dataset.id),sequence:i+1}));
         sequences.forEach(s=>{const src=globalSources.find(g=>g.SourceID===s.sourceID);if(src)src.Sequence=s.sequence;});
-        // Update seq display
         rows.forEach((r,i)=>{const td=r.querySelector('td:first-child');if(td)td.textContent=i+1;});
         apiPost('SaveSource',{action:'resequence',sequences,userID:USER_ID});
       });
       row.addEventListener('dragover',e=>{e.preventDefault();tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('drag-over'));if(row!==dragSrc)row.classList.add('drag-over');});
-      row.addEventListener('drop',e=>{e.preventDefault();if(dragSrc&&dragSrc!==row){const rows=[...tbody.querySelectorAll('tr')];if(rows.indexOf(dragSrc)<rows.indexOf(row))row.after(dragSrc);else row.before(dragSrc);}});
+      row.addEventListener('drop',e=>{e.preventDefault();if(dragSrc&&dragSrc!==row){dragMoved=true;const rows=[...tbody.querySelectorAll('tr')];if(rows.indexOf(dragSrc)<rows.indexOf(row))row.after(dragSrc);else row.before(dragSrc);}});
     });
   }
 
