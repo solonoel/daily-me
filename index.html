@@ -283,7 +283,10 @@
       <div class="category-row" id="cat-row"></div>
       <div class="recency-pill"><span>Recency</span><span class="recency-pill-value" id="recency-val">7 days</span></div>
       <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn">↻ Refresh</button>
-      <div id="last-fetch-time" style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:2px"></div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:4px;width:100%">
+        <div id="last-fetch-time" style="font-size:10px;color:var(--text-muted)"></div>
+        <div id="last-yt-fetch-time" style="font-size:10px;color:var(--text-muted)"></div>
+      </div>
     </div>
     <div id="refresh-status" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep);margin-bottom:12px;padding:8px 14px;background:#f0f7ff;border-radius:8px;border:1px solid var(--border)"></div>
     <div id="headlines-grouped"></div>
@@ -443,7 +446,7 @@
     <div class="modal-title">Global Sources</div>
     <div class="form-group">
       <label class="form-label">Password</label>
-      <input class="form-input" id="gs-password-input" type="password" placeholder="Enter password" autocomplete="off" onkeydown="if(event.key==='Enter')checkGlobalSourcesPassword()">
+      <input class="form-input" id="gs-password-input" type="password" placeholder="Enter password" autocomplete="new-password" onkeydown="if(event.key==='Enter')checkGlobalSourcesPassword()">
     </div>
     <div id="gs-password-error" style="display:none;font-size:12px;color:#e05050;margin-top:4px">Incorrect password.</div>
     <div class="modal-actions">
@@ -533,6 +536,7 @@
   let currentFilter='Local',currentSettingsSection=null;
   let currentLangID=null,currentLangName=null;
   let myWords=[],myWordsFilter='active',showImages=true;
+  let mwSortCol='word',mwSortDir='asc';
   let myWordsDeckFilter=''; // deck ID filter for My Words, '' = all
   let flashcards=[],flashcardIndex=0,flashcardShowTranslation=false,flashcardFilter='all',flashcardAutoPronounce=true,flashcardLeadWith='language';
   let sentencesCache={};
@@ -602,7 +606,9 @@
     const ytCb=document.getElementById('us-disable-yt');
     if(ytCb)ytCb.checked=localStorage.getItem(`dailyme_yt_disabled_${USER_ID}`)==='1';
     const savedTs=localStorage.getItem(`dailyme_last_fetch_time_${USER_ID}`);
-    const lft=document.getElementById('last-fetch-time');if(lft&&savedTs)lft.textContent=`Last: ${savedTs}`;
+    const lft=document.getElementById('last-fetch-time');if(lft&&savedTs)lft.textContent=`refresh: ${fmtDT(new Date(savedTs))}`;
+    const savedYtTs=localStorage.getItem(`dailyme_last_yt_fetch_time_${USER_ID}`);
+    const ytLft=document.getElementById('last-yt-fetch-time');if(ytLft&&savedYtTs)ytLft.textContent=`youtube: ${fmtDT(new Date(savedYtTs))}`;
     renderLanguageNav();renderLanguageScreens();renderLanguageCheckList();
     renderCatSettingsTable(userSettings);renderCategoryTiles(null);
     const isFirstLogin=!localStorage.getItem(`dailyme_onboarded_${USER_ID}`);
@@ -820,7 +826,15 @@
 
     const activeDecks=[...userDecks].filter(d=>d.Status==='Active').sort((a,b)=>a.UserLanguageWordsDeckName.localeCompare(b.UserLanguageWordsDeckName));
 
-    const wordRows=searchFiltered.map(w=>{
+    const mwSorted=[...searchFiltered].sort((a,b)=>{
+      let av,bv;
+      if(mwSortCol==='word'){av=(a.WordsName||'').toLowerCase();bv=(b.WordsName||'').toLowerCase();}
+      else if(mwSortCol==='type'){av=a.IsVerb==='Y'?'verb':'noun';bv=b.IsVerb==='Y'?'verb':'noun';}
+      else if(mwSortCol==='deck'){av=((a.DeckNames||'').split(',')[0]||'').trim().toLowerCase();bv=((b.DeckNames||'').split(',')[0]||'').trim().toLowerCase();}
+      else{av=(a.WordsName||'').toLowerCase();bv=(b.WordsName||'').toLowerCase();}
+      return mwSortDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+    });
+    const wordRows=mwSorted.map(w=>{
       const genderLabel=w.Gender==='M'?'<span class="word-gender">♂</span>':w.Gender==='F'?'<span class="word-gender">♀</span>':'';
       const imgEl=showImages?(w.WordsImage
         ?`<a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;"><img src="${w.WordsImage}" class="word-img" alt="" style="cursor:pointer"></a>`
@@ -889,10 +903,22 @@
         </div>
         <label class="images-toggle" style="margin-left:auto"><input type="checkbox" ${showImages?'checked':''} onchange="showImages=this.checked;renderMyWords()"> Images</label>
       </div>
-      <div class="word-grid">${wordRows}</div>`;
+      <div class="word-grid">
+        <div style="display:flex;align-items:center;padding:4px 14px;background:#f5f9ff;border-bottom:1.5px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-soft);gap:12px">
+          ${showImages?'<div style="width:52px;flex-shrink:0"></div>':''}
+          <div style="flex:1;min-width:0;display:flex;gap:16px">
+            <span style="cursor:pointer;user-select:none;min-width:120px" onclick="mwSort('word')">Words ${mwSortCol==='word'?(mwSortDir==='asc'?'▲':'▼'):'↕'}</span>
+            <span style="cursor:pointer;user-select:none;min-width:50px" onclick="mwSort('type')">Type ${mwSortCol==='type'?(mwSortDir==='asc'?'▲':'▼'):'↕'}</span>
+            <span style="cursor:pointer;user-select:none" onclick="mwSort('deck')">Deck Names ${mwSortCol==='deck'?(mwSortDir==='asc'?'▲':'▼'):'↕'}</span>
+          </div>
+          <div style="width:160px;flex-shrink:0"></div>
+        </div>
+        ${wordRows}
+      </div>`;
   }
 
   function setWordsFilter(filter){myWordsFilter=filter;renderMyWords();}
+  function mwSort(col){if(mwSortCol===col)mwSortDir=mwSortDir==='asc'?'desc':'asc';else{mwSortCol=col;mwSortDir='asc';}renderMyWords();}
   function setVerbFilter(filter){verbFilter=filter;renderMyWords();}
   function setDeckFilter(val){myWordsDeckFilter=val;renderMyWords();}
 
@@ -1616,9 +1642,11 @@ async function refreshHeadlines(){
       apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:true});
       btn.textContent='↻ Refresh';btn.style.color='';btn.style.background='';btn.style.borderColor='';btn.style.fontWeight='';btn.disabled=false;
       const now=new Date();
-      const ts=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-      const lft=document.getElementById('last-fetch-time');if(lft)lft.textContent=`Last: ${ts}`;
-      localStorage.setItem(`dailyme_last_fetch_time_${USER_ID}`,ts);
+      const ts=fmtDT(now);
+      const lft=document.getElementById('last-fetch-time');if(lft)lft.textContent=`refresh: ${ts}`;
+      localStorage.setItem(`dailyme_last_fetch_time_${USER_ID}`,now.toISOString());
+      const ytLft=document.getElementById('last-yt-fetch-time');
+      if(ytLft&&!disableYoutube){ytLft.textContent=`youtube: ${ts}`;localStorage.setItem(`dailyme_last_yt_fetch_time_${USER_ID}`,now.toISOString());}
       await loadHeadlines();
     }catch(e){
       const btn=document.getElementById('refresh-btn');
@@ -1626,6 +1654,11 @@ async function refreshHeadlines(){
     }
   }
 
+  function fmtDT(d){
+    const mm=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0'),yyyy=d.getFullYear();
+    const hh=String(d.getHours()).padStart(2,'0'),min=String(d.getMinutes()).padStart(2,'0');
+    return`${mm}.${dd}.${yyyy} ${hh}:${min}`;
+  }
   function formatAge(dateStr){
     const diff=Date.now()-new Date(dateStr).getTime(),hrs=Math.floor(diff/3600000);
     if(hrs<1)return'<1h';if(hrs<24)return`${hrs}h`;return`${Math.floor(hrs/24)}d`;
@@ -1899,9 +1932,24 @@ async function refreshHeadlines(){
     initDragDrop(tbody,'keyword');
   }
 
+  let topSortCol='Sequence',topSortDir='asc';
+  function sortTopics(col){
+    if(topSortCol===col)topSortDir=topSortDir==='asc'?'desc':'asc';
+    else{topSortCol=col;topSortDir='asc';}
+    renderSettingsTopics();
+  }
   function renderSettingsTopics(){
     const tbody=document.getElementById('tbl-topics');
-    tbody.innerHTML=topics.map(t=>`
+    const arrow=col=>topSortCol===col?(topSortDir==='asc'?'▲':'▼'):'';
+    const sorted=[...topics].sort((a,b)=>{
+      if(topSortCol==='Sequence')return topSortDir==='asc'?(a.Sequence||99)-(b.Sequence||99):(b.Sequence||99)-(a.Sequence||99);
+      const av=(a[topSortCol==='Topic'?'Topic':'CategoryName']||'').toLowerCase();
+      const bv=(b[topSortCol==='Topic'?'Topic':'CategoryName']||'').toLowerCase();
+      return topSortDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+    });
+    const thead=tbody.closest('table')?.querySelector('thead tr');
+    if(thead)thead.innerHTML=`<th style="width:30px">⠿</th><th style="cursor:pointer" onclick="sortTopics('Topic')">Topic ${arrow('Topic')}</th><th style="cursor:pointer" onclick="sortTopics('CategoryName')">Category ${arrow('CategoryName')}</th><th>Active</th><th></th>`;
+    tbody.innerHTML=sorted.map(t=>`
       <tr draggable="true" data-id="${t.TopicID}" data-type="topic">
         <td style="width:30px;color:var(--text-muted)">⠿</td><td>${t.Topic}</td><td>${t.CategoryName||'—'}</td>
         <td><button class="toggle ${t.IsActive==='Y'?'on':''}" onclick="toggleTopic(${t.TopicID},this)"></button></td>
@@ -2262,11 +2310,26 @@ async function refreshHeadlines(){
     renderGlobalSourcesTable();
   }
 
-  // ── USER HEADLINE SOURCES — add Unfiltered column and delete button ──
+  // ── USER HEADLINE SOURCES — sortable headers, Unfiltered column, delete button ──
 
+  let srcSortCol='Sequence',srcSortDir='asc';
+  function sortSources(col){
+    if(srcSortCol===col)srcSortDir=srcSortDir==='asc'?'desc':'asc';
+    else{srcSortCol=col;srcSortDir='asc';}
+    renderSettingsSources();
+  }
   function renderSettingsSources(){
     const tbody=document.getElementById('tbl-sources');
-    tbody.innerHTML=sources.map(s=>`
+    const arrow=col=>srcSortCol===col?(srcSortDir==='asc'?'▲':'▼'):'';
+    const sorted=[...sources].sort((a,b)=>{
+      if(srcSortCol==='Sequence')return srcSortDir==='asc'?(a.Sequence||99)-(b.Sequence||99):(b.Sequence||99)-(a.Sequence||99);
+      const av=(a[srcSortCol==='Name'?'Name':srcSortCol==='URL'?'URL':'SourceType']||'').toLowerCase();
+      const bv=(b[srcSortCol==='Name'?'Name':srcSortCol==='URL'?'URL':'SourceType']||'').toLowerCase();
+      return srcSortDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+    });
+    const thead=tbody.closest('table')?.querySelector('thead tr');
+    if(thead)thead.innerHTML=`<th style="width:30px"></th><th style="cursor:pointer" onclick="sortSources('Name')">Name ${arrow('Name')}</th><th style="cursor:pointer" onclick="sortSources('URL')">URL ${arrow('URL')}</th><th style="cursor:pointer" onclick="sortSources('SourceType')">Type ${arrow('SourceType')}</th><th>Unfiltered</th><th></th>`;
+    tbody.innerHTML=sorted.map(s=>`
       <tr draggable="true" data-id="${s.SourceID}" data-type="source">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
         <td>${s.Name||'—'}</td>
