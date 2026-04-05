@@ -904,6 +904,7 @@
         </div>
         <input type="file" id="mw-import-input" accept=".txt,.csv" style="display:none" onchange="importWords(event)">
         <button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="document.getElementById('mw-import-input').click()">&#x2B06; Import</button>
+        <button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="retranslateAllWords()">&#x21bb; Re-translate All</button>
         <span id="mw-import-status" style="display:none;font-size:11px;color:var(--sky-deep);font-weight:600;white-space:nowrap"></span>
         <button class="btn-primary" style="margin-left:auto;padding:6px 12px;font-size:12px;white-space:nowrap" onclick="showNewWord()">+ New</button>
       </div>
@@ -914,12 +915,13 @@
         <label class="images-toggle" style="margin-left:auto"><input type="checkbox" ${showImages?'checked':''} onchange="showImages=this.checked;renderMyWords()"> Images</label>
       </div>
       <div class="word-grid">
-        <div style="display:flex;align-items:center;padding:4px 14px;background:#f5f9ff;border-bottom:1.5px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-soft);gap:12px">
+        <div style="display:flex;align-items:center;padding:4px 14px;background:#f5f9ff;border-bottom:1.5px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-soft);gap:16px">
           ${showImages?'<div style="width:52px;flex-shrink:0"></div>':''}
-          <div style="flex:1;min-width:0"><span style="cursor:pointer;user-select:none" onclick="mwSort('word')">Words ↕</span></div>
-          <div style="min-width:160px;flex-shrink:0;padding:0 8px;display:flex;flex-direction:column;gap:4px">
-            <span style="cursor:pointer;user-select:none" onclick="mwSort('type')">Type / Conjugate ↕</span>
-            <span style="cursor:pointer;user-select:none" onclick="mwSort('deck')">Decks ↕</span>
+          <div style="flex:1;min-width:0;display:flex;align-items:center;gap:16px">
+            <span style="min-width:140px;flex-shrink:0;cursor:pointer;user-select:none" onclick="mwSort('word')">Words</span>
+            <span style="min-width:30px;cursor:pointer;user-select:none" onclick="mwSort('type')">Type</span>
+            <span style="min-width:70px;cursor:pointer;user-select:none">Conjugate</span>
+            <span style="cursor:pointer;user-select:none" onclick="mwSort('deck')">Decks</span>
           </div>
           <div style="width:152px;flex-shrink:0"></div>
         </div>
@@ -960,6 +962,36 @@
       setTimeout(()=>{document.addEventListener('click',dismiss);document.addEventListener('keydown',dismiss);},100);
     }
   }
+  async function retranslateAllWords(){
+    if(!confirm('Re-fetch translations for all '+myWords.length+' words? This may take a while.'))return;
+    const statusEl=getImportStatusEl();
+    if(statusEl){statusEl.textContent='Re-translating...';statusEl.style.display='inline';}
+    let updated=0,failed=0;
+    for(const w of myWords){
+      try{
+        let trans;
+        try{trans=await aiTranslate(w.WordsName);}catch(e){trans=await apiPost('GetWordTranslation',{word:w.WordsName,languageCode:currentLangName});}
+        const wordsName=trans.wordWithRegion||w.WordsName;
+        const wordsTranslation=trans.translation||w.WordsTranslation||'';
+        const isVerb=trans.isVerb===true||trans.isVerb==='true';
+        const gender=trans.gender||w.Gender||null;
+        await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:w.UserLanguageWordsID,
+          wordsName,wordsTranslation,isVerb,gender,mastered:!!w.DateMastered,wordsImage:w.WordsImage||null});
+        w.WordsName=wordsName;w.WordsTranslation=wordsTranslation;w.IsVerb=isVerb?'Y':'N';w.Gender=gender;
+        updated++;
+        if(statusEl)statusEl.textContent='Re-translating... '+updated+'/'+myWords.length;
+      }catch(e){failed++;}
+    }
+    const doneMsg='Done - '+updated+' words re-translated'+(failed?' ('+failed+' failed)':'')+'.'
+    await loadMyWords();
+    const freshEl=getImportStatusEl();
+    if(freshEl){
+      freshEl.textContent=doneMsg;freshEl.style.display='inline';
+      const dismiss=()=>{freshEl.style.display='none';document.removeEventListener('click',dismiss);};
+      setTimeout(()=>dismiss(),5000);
+      setTimeout(()=>document.addEventListener('click',dismiss),100);
+    }
+  }
   function setWordsFilter(filter){myWordsFilter=filter;renderMyWords();}
   function mwSort(col){if(mwSortCol===col)mwSortDir=mwSortDir==='asc'?'desc':'asc';else{mwSortCol=col;mwSortDir='asc';}renderMyWords();}
   function setVerbFilter(filter){verbFilter=filter;renderMyWords();}
@@ -991,9 +1023,12 @@
 
   async function deleteWord(wordID){
     if(!confirm('Delete this word?'))return;
-    await apiPost('SaveUserLanguageWord',{action:'delete',userID:USER_ID,wordID});
-    myWords=myWords.filter(w=>w.UserLanguageWordsID!==wordID);
-    renderMyWords();
+    try{
+      const result=await apiPost('SaveUserLanguageWord',{action:'delete',userID:USER_ID,wordID});
+      if(result?.error){alert('Could not delete: '+result.error);return;}
+      myWords=myWords.filter(w=>w.UserLanguageWordsID!==wordID);
+      renderMyWords();
+    }catch(e){alert('Delete failed: '+e.message);}
   }
 
   // ── WORD FORM (new & edit) ──
@@ -1060,6 +1095,13 @@
     }
   }
 
+  function deleteWordImage(){
+    newWordImage=null;newWordImageChanged=true;
+    const area=document.getElementById('nw-img-area');
+    if(area)area.innerHTML='<div class="newword-image-placeholder">🖼️</div>';
+    const del=document.getElementById('nw-img-delete');
+    if(del)del.style.display='none';
+  }
   function wordFormHTML(isEdit,word,wordDecks){
     const imgSrc=newWordImage?`<img src="${newWordImage}" style="width:100%;height:100%;object-fit:cover">`:'<div class="newword-image-placeholder">🖼️</div>';
     const title=isEdit?`Edit ${currentLangName} Word`:`New ${currentLangName} Word`;
@@ -1076,7 +1118,10 @@
             <div class="form-label">Image</div>
             <div class="newword-image-area" id="nw-img-area">${imgSrc}</div>
             <input type="file" id="nw-img-input" accept="image/*" style="display:none" onchange="handleNewWordImage(event)">
-            <a href="#" onclick="document.getElementById('nw-img-input').click();return false;" style="font-size:10px;color:var(--sky-deep);display:block;margin-top:4px;text-align:center">Browse</a>
+            <div style="display:flex;justify-content:center;gap:10px;margin-top:4px">
+              <a href="#" onclick="document.getElementById('nw-img-input').click();return false;" style="font-size:10px;color:var(--sky-deep)">Browse</a>
+              <a href="#" id="nw-img-delete" onclick="deleteWordImage();return false;" style="font-size:10px;color:#e05050;display:${newWordImage?'inline':'none'}">Delete</a>
+            </div>
           </div>
           <div style="flex:1">
             <div class="form-group">
@@ -1759,7 +1804,7 @@ async function refreshHeadlines(){
     row.innerHTML=cats.map(c=>{
       const style=catColors[c.Name]||{dot:'#888'};
       const count=allHeadlines?allHeadlines.filter(h=>h.CategoryID===c.CategoryID).length:null;
-      const isEmpty=count!==null&&count===0;return `<div class="cat-tile ${currentFilter===c.Name?'active':''} ${isEmpty?'cat-empty':''}" onclick="${isEmpty?'':"filterCat('${c.Name}',this)"}" style="${isEmpty?'opacity:0.45;cursor:default':''}"><div class="cat-dot" style="background:${style.dot}"></div>${c.Name}${(count!==null&&!isEmpty)?` (${count})`:''}</div>`;
+      const isEmpty=count!==null&&count===0;const onclk=isEmpty?'':('filterCat(\'' + c.Name + '\',this)');return `<div class="cat-tile ${currentFilter===c.Name?'active':''} ${isEmpty?'cat-empty':''}" onclick="${onclk}" style="${isEmpty?'opacity:0.45;cursor:default':''}"><div class="cat-dot" style="background:${style.dot}"></div>${c.Name}${(count!==null&&!isEmpty)?' ('+count+')':''}</div>`;
     }).join('')+
     `<div class="cat-tile ${currentFilter==='Other'?'active':''}" onclick="filterCat('Other',this)"><div class="cat-dot" style="background:#888"></div>Other${allHeadlines!==null?` (${allHeadlines?allHeadlines.filter(h=>!h.CategoryID).length:0})`:''}</div>`;
   }
