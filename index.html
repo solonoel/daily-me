@@ -819,17 +819,27 @@
 
     const wordRows=searchFiltered.map(w=>{
       const genderLabel=w.Gender==='M'?'<span class="word-gender">♂</span>':w.Gender==='F'?'<span class="word-gender">♀</span>':'';
-      const verbLabel=w.IsVerb==='Y'?'<span style="font-size:10px;color:var(--text-muted);margin-left:4px">verb</span>':'';
-      const conjugateLink=w.IsVerb==='Y'?`<span class="conjugate-link" onclick="showConjugation(${w.UserLanguageWordsID},()=>showLangFeature(currentLangID,'mywords',currentLangName))" style="font-weight:400;margin-left:10px;font-size:11px">conjugate</span>`:'';
-      const imgEl=showImages?(w.WordsImage?`<img src="${w.WordsImage}" class="word-img" alt="">`:`<div class="word-img-placeholder">📖</div>`):'';
-      // Deck badge(s) — comma separated
+      const imgEl=showImages?(w.WordsImage
+        ?`<a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;"><img src="${w.WordsImage}" class="word-img" alt="" style="cursor:pointer"></a>`
+        :`<a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;"><div class="word-img-placeholder">📖</div></a>`):'';
+      // Meta row: type | conjugate | decks — grid aligned
+      const typePart=w.IsVerb==='Y'?'<span style="font-size:10px;color:var(--text-muted);min-width:30px">verb</span>':'<span style="min-width:30px"></span>';
+      const conjPart=w.IsVerb==='Y'?`<span class="conjugate-link" onclick="showConjugation(${w.UserLanguageWordsID},()=>showLangFeature(currentLangID,'mywords',currentLangName))" style="font-weight:400;font-size:11px;min-width:70px">conjugate</span>`:'<span style="min-width:70px"></span>';
       const deckNames=(w.DeckNames||'').split(',').map(s=>s.trim()).filter(Boolean);
-      const deckBadges=deckNames.length?`<span class="word-deck-badge">${deckNames.join(', ')}</span>`:'';
+      const deckLinks=deckNames.map(dn=>{
+        const deck=userDecks.find(d=>d.UserLanguageWordsDeckName===dn);
+        return deck?`<a href="#" onclick="goToDeckFromWord(${deck.UserLanguageWordsDeckID},'${dn.replace(/'/g,"\\'")}',${w.UserLanguageWordsID});return false;" class="word-deck-badge" style="text-decoration:none">${dn}</a>`:`<span class="word-deck-badge">${dn}</span>`;
+      }).join(' ');
       return `<div class="word-row" data-wordid="${w.UserLanguageWordsID}">
         ${imgEl}
         <div class="word-body">
-          <div class="word-name"><a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;" style="color:var(--text);text-decoration:none;border-bottom:1px dashed var(--border)">${w.WordsName}</a>${genderLabel}${verbLabel}${conjugateLink}${deckBadges}</div>
-          <div class="word-translation">${w.WordsTranslation||''}</div>
+          <div class="word-name"><a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;" style="color:var(--text);text-decoration:none;border-bottom:1px dashed var(--border)">${w.WordsName}</a>${genderLabel}</div>
+          <div class="word-translation" style="margin-bottom:10px">${w.WordsTranslation||''}</div>
+          <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+            ${typePart}
+            ${conjPart}
+            <div style="display:flex;gap:4px;flex-wrap:wrap">${deckLinks}</div>
+          </div>
         </div>
         <div class="word-actions">
           <button class="word-btn" onclick="speakWordByID(${w.UserLanguageWordsID})" title="Pronounce">🔊</button>
@@ -1851,9 +1861,25 @@ async function refreshHeadlines(){
     if(document.getElementById('btn-add-source'))document.getElementById('btn-add-source').style.display='inline-flex';
   }
 
+  let kwSortCol='Sequence',kwSortDir='asc';
+  function sortKeywords(col){
+    if(kwSortCol===col)kwSortDir=kwSortDir==='asc'?'desc':'asc';
+    else{kwSortCol=col;kwSortDir='asc';}
+    renderSettingsKeywords();
+  }
   function renderSettingsKeywords(){
     const tbody=document.getElementById('tbl-keywords');
-    tbody.innerHTML=keywords.map(k=>`
+    const arrow=col=>kwSortCol===col?(kwSortDir==='asc'?'▲':'▼'):'';
+    const sorted=[...keywords].sort((a,b)=>{
+      if(kwSortCol==='Sequence')return kwSortDir==='asc'?(a.Sequence||99)-(b.Sequence||99):(b.Sequence||99)-(a.Sequence||99);
+      const av=(a[kwSortCol==='Keyword'?'Keyword':'CategoryName']||'').toLowerCase();
+      const bv=(b[kwSortCol==='Keyword'?'Keyword':'CategoryName']||'').toLowerCase();
+      return kwSortDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+    });
+    // Update headers
+    const thead=tbody.closest('table')?.querySelector('thead tr');
+    if(thead)thead.innerHTML=`<th style="width:30px">⠿</th><th style="cursor:pointer" onclick="sortKeywords('Keyword')">Keyword ${arrow('Keyword')}</th><th style="cursor:pointer" onclick="sortKeywords('CategoryName')">Category ${arrow('CategoryName')}</th><th>Active</th><th></th>`;
+    tbody.innerHTML=sorted.map(k=>`
       <tr draggable="true" data-id="${k.KeywordID}" data-type="keyword">
         <td style="width:30px;color:var(--text-muted)">⠿</td><td>${k.Keyword}</td><td>${k.CategoryName||'—'}</td>
         <td><button class="toggle ${k.IsActive==='Y'?'on':''}" onclick="toggleKeyword(${k.KeywordID},this)"></button></td>
@@ -2002,9 +2028,12 @@ async function refreshHeadlines(){
   let gsResolvedChannelID=null;
 
   function openGlobalSources(){
-    setTimeout(()=>{document.getElementById('gs-password-input').value='';},50);
     document.getElementById('gs-password-error').style.display='none';
     document.getElementById('gs-password-modal').style.display='flex';
+    setTimeout(()=>{
+      const inp=document.getElementById('gs-password-input');
+      inp.value='';inp.focus();
+    },100);
   }
 
   function checkGlobalSourcesPassword(){
@@ -2250,6 +2279,13 @@ async function refreshHeadlines(){
     await apiPost('SaveSource',{action:'delete',sourceID,userID:USER_ID});
     sources=sources.filter(s=>s.SourceID!==sourceID);
     renderSettingsSources();
+  }
+
+  function goToDeckFromWord(deckID, deckName, wordID){
+    // Store return info then navigate to decks with that deck pre-selected
+    sessionStorage.setItem('returnToWord', JSON.stringify({langID:currentLangID,langName:currentLangName,wordID}));
+    myWordsDeckFilter=String(deckID);
+    showLangFeature(currentLangID,'decks',currentLangName);
   }
 
   // ── INIT ──
