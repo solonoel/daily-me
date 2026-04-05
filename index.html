@@ -283,7 +283,7 @@
       <div class="category-row" id="cat-row"></div>
       <div class="recency-pill"><span>Recency</span><span class="recency-pill-value" id="recency-val">7 days</span></div>
       <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn">↻ Refresh</button>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:2px;width:100%">
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:0;width:100%">
         <div id="last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
         <div id="last-yt-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
       </div>
@@ -396,10 +396,10 @@
       <table class="settings-table" id="tbl-global-sources">
         <thead><tr>
           <th style="width:40px"></th>
-          <th style="cursor:pointer" onclick="sortGlobalSources('Name')">Name <span id="gs-sort-Name"></span></th>
-          <th style="cursor:pointer" onclick="sortGlobalSources('SourceType')">Type <span id="gs-sort-SourceType"></span></th>
+          <th>Name</th>
+          <th>Type</th>
           <th>URL</th>
-          <th style="cursor:pointer" onclick="sortGlobalSources('DateAdded')">Date Added <span id="gs-sort-DateAdded"></span></th>
+          <th>Date Added</th>
           <th>Other</th>
           <th></th>
         </tr></thead>
@@ -776,14 +776,17 @@
     renderMyWords();
   }
 
+  let _mwSearchTimer=null;
   function setWordSearch(val){
     wordSearch=val.toLowerCase().trim();
-    if(wordSearch){
-      verbFilter='all';
-      myWordsDeckFilter='';
-      myWordsFilter='all';
-    }
-    renderMyWords();
+    if(wordSearch){verbFilter='all';myWordsDeckFilter='';myWordsFilter='all';}
+    clearTimeout(_mwSearchTimer);
+    _mwSearchTimer=setTimeout(()=>{
+      const el=document.getElementById('mw-search-'+currentLangID);
+      const pos=el?el.selectionStart:null;
+      renderMyWords();
+      if(pos!==null){const el2=document.getElementById('mw-search-'+currentLangID);if(el2){el2.focus();try{el2.setSelectionRange(pos,pos);}catch(e){}}}
+    },150);
   }
 
   function clearWordSearch(){
@@ -899,7 +902,7 @@
         <input type="file" id="mw-import-input" accept=".txt,.csv" style="display:none" onchange="importWords(event)">
         <button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="document.getElementById('mw-import-input').click()">&#x2B06; Import</button>
         <span id="mw-import-status" style="display:none;font-size:11px;color:var(--sky-deep);font-weight:600;white-space:nowrap"></span>
-        <button class="btn-primary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="showNewWord()">+ New</button>
+        <button class="btn-primary" style="margin-left:auto;padding:6px 12px;font-size:12px;white-space:nowrap" onclick="showNewWord()">+ New</button>
       </div>
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
         <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -928,9 +931,8 @@
     const text=await file.text();
     const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
     if(!lines.length)return alert('No words found in file.');
-    if(!confirm(`Import ${lines.length} word(s)?`))return;
     const statusEl=getImportStatusEl();
-    if(statusEl){statusEl.textContent='? Importing...';statusEl.style.display='inline';}
+    if(statusEl){statusEl.textContent='Importing...';statusEl.style.display='inline';}
     const existingNames=new Set(myWords.map(w=>(w.WordsName||'').toLowerCase()));
     let imported=0,skipped=0,failed=0;
     for(const line of lines){
@@ -938,7 +940,7 @@
       if(!word)continue;
       if(existingNames.has(word.toLowerCase())){skipped++;continue;}
       try{
-        const trans=await apiPost('GetWordTranslation',{word,languageCode:currentLangName});
+        let trans;try{trans=await aiTranslate(word);}catch(e){trans=await apiPost('GetWordTranslation',{word,languageCode:currentLangName});}
         const result=await apiPost('SaveUserLanguageWord',{action:'add',userID:USER_ID,languageID:currentLangID,
           wordsName:word,wordsTranslation:trans.translation||'',isVerb:trans.isVerb||false,gender:trans.gender||null,wordsImage:null});
         if(result?.wordID){imported++;existingNames.add(word.toLowerCase());}else failed++;
@@ -1076,7 +1078,7 @@
               <input class="form-input" id="nw-word" value="${word?word.WordsName:''}" placeholder="" style="font-size:22px;font-weight:700;color:var(--text)">
               <a href="#" id="nw-fetch-btn" onclick="fetchTranslation();return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;display:inline-block">🔍 Fetch Translation</a>
               ${isEdit&&word?.IsVerb==='Y'?`<a href="#" onclick="showConjugation(${word.UserLanguageWordsID},()=>editWord(${word.UserLanguageWordsID}));return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:inline-block">🔤 Conjugate</a>`:''}
-              <a href="#" onclick="window.open('https://translate.google.com/#auto/en/'+encodeURIComponent(document.getElementById('nw-word').value),'_blank');return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:inline-block">?? Google Translate</a>
+              <a href="#" onclick="window.open('https://translate.google.com/#auto/en/'+encodeURIComponent(document.getElementById('nw-word').value),'_blank');return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:inline-block">Google Translate</a>
               <span id="nw-fetch-status" style="font-size:12px;color:var(--text-muted);margin-left:8px"></span>
             </div>
             <div class="form-row">
@@ -1156,8 +1158,8 @@
         }
       }
       newWordImageChanged=false;editingWordID=null;
-      if(addAnother){newWordImage=null;showNewWord();}
-      else{showScreen(`lang-${currentLangID}`);await showLangFeature(currentLangID,'mywords',currentLangName);}
+      if(addAnother){newWordImage=null;const d=await apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=all`);myWords=Array.isArray(d)?d:[];showNewWord();}
+      else{showScreen(`lang-${currentLangID}`);const d=await apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=all`);myWords=Array.isArray(d)?d:[];await showLangFeature(currentLangID,'mywords',currentLangName);}
     }finally{_wordFormSaving=false;}
   }
 
@@ -1194,27 +1196,58 @@
     reader.readAsDataURL(file);
   }
 
+  async function aiTranslate(word){
+    const response=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,
+        messages:[{role:'user',content:`You are a ${currentLangName} language expert. For the ${currentLangName} word/phrase "${word}":
+1. Provide English translation(s). If multiple meanings exist, list each on its own line.
+2. State if it is a verb (true/false).
+3. State gender if noun (M/F/N/null).
+4. Regional usage - append to wordWithRegion only if region-specific:
+   - Common in Latin America: add " (l)"
+   - Spain only: add " (s)"
+   - Mexico only: add " (m)"
+   - U.S. Spanish only: add " (u)"
+   - Multiple regions: e.g. " (l,s)"
+   - Universal: no suffix
+Respond ONLY with valid JSON, no markdown:
+{"translation":"line1\nline2","isVerb":false,"gender":"M","wordWithRegion":"${word}"}`}]})});
+    const data=await response.json();
+    const txt=data.content?.[0]?.text||'';
+    return JSON.parse(txt.replace(/\`\`\`json|\`\`\`/g,'').trim());
+  }
   async function fetchTranslation(){
     const word=document.getElementById('nw-word')?.value.trim();
     if(!word){alert('Enter a word first.');return;}
     const btn=document.getElementById('nw-fetch-btn'),status=document.getElementById('nw-fetch-status');
     btn.style.pointerEvents='none';btn.textContent='⏳ Fetching...';status.textContent='';
     try{
-      const result=await apiPost('GetWordTranslation',{word,languageCode:currentLangName});
-      if(result.translation){
-        document.getElementById('nw-translation').value=result.translation;
-        if(result.isVerb===true||result.isVerb==='true'){const cb=document.getElementById('nw-isverb');if(cb)cb.checked=true;}
-        if(result.gender){
-          const sel=document.getElementById('nw-gender');if(sel)sel.value=result.gender;
-          const wordInput=document.getElementById('nw-word');
-          if(wordInput){
-            const art=langArticles[currentLangName]?.[result.gender];
+      const parsed=await aiTranslate(word);
+      if(parsed.translation){
+        document.getElementById('nw-translation').value=parsed.translation;
+        if(parsed.isVerb===true||parsed.isVerb==='true'){const cb=document.getElementById('nw-isverb');if(cb)cb.checked=true;}
+        if(parsed.gender){const sel=document.getElementById('nw-gender');if(sel)sel.value=parsed.gender;}
+        const wordInput=document.getElementById('nw-word');
+        if(wordInput){
+          if(parsed.wordWithRegion&&parsed.wordWithRegion!==word){wordInput.value=parsed.wordWithRegion;}
+          else if(parsed.gender){
+            const art=langArticles[currentLangName]?.[parsed.gender];
             if(art){const cur=wordInput.value.trim();if(!cur.toLowerCase().startsWith(art+' '))wordInput.value=art+' '+cur;}
           }
         }
         status.textContent='✓ Done';
       }else status.textContent='No translation found';
-    }catch(e){status.textContent='Error';}
+    }catch(e){
+      try{
+        const result=await apiPost('GetWordTranslation',{word,languageCode:currentLangName});
+        if(result.translation){
+          document.getElementById('nw-translation').value=result.translation;
+          if(result.isVerb===true||result.isVerb==='true'){const cb=document.getElementById('nw-isverb');if(cb)cb.checked=true;}
+          if(result.gender){const sel=document.getElementById('nw-gender');if(sel)sel.value=result.gender;}
+          status.textContent='✓ Done';
+        }else status.textContent='No translation found';
+      }catch(e2){status.textContent='Error';}
+    }
     btn.style.pointerEvents='';btn.textContent='🔍 Fetch Translation';
   }
 
@@ -1928,8 +1961,6 @@ async function refreshHeadlines(){
       <tr draggable="true" data-id="${c.CategoryID}" data-type="category">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
         <td><strong>${c.Name}</strong></td>
-        <td>${c.Headlines==='Y'?'✓':'—'}</td>
-        <td>${c.MyWords==='Y'?'✓':'—'}</td>
         <td><button class="toggle ${c.IsActive==='Y'?'on':''}" onclick="toggleCategory(${c.CategoryID},this)"></button></td>
         <td style="display:flex;gap:6px"><button class="btn-icon" onclick="openModal('category',${c.CategoryID})">✏️</button><button class="btn-icon danger" onclick="deleteCategory(${c.CategoryID})">🗑️</button></td>
       </tr>`).join('');
@@ -1967,7 +1998,7 @@ async function refreshHeadlines(){
     });
     // Update headers
     const thead=tbody.closest('table')?.querySelector('thead tr');
-    if(thead)thead.innerHTML=`<th style="width:30px">⠿</th><th style="cursor:pointer" onclick="sortKeywords('Keyword')">Keyword ${arrow('Keyword')}</th><th style="cursor:pointer" onclick="sortKeywords('CategoryName')">Category ${arrow('CategoryName')}</th><th>Active</th><th></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th>Category</th><th>Active</th><th></th>`;
     tbody.innerHTML=sorted.map(k=>`
       <tr draggable="true" data-id="${k.KeywordID}" data-type="keyword">
         <td style="width:30px;color:var(--text-muted)">⠿</td><td>${k.Keyword}</td><td>${k.CategoryName||'—'}</td>
@@ -1992,7 +2023,7 @@ async function refreshHeadlines(){
       return topSortDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
     });
     const thead=tbody.closest('table')?.querySelector('thead tr');
-    if(thead)thead.innerHTML=`<th style="width:30px">⠿</th><th style="cursor:pointer" onclick="sortTopics('Topic')">Topic ${arrow('Topic')}</th><th style="cursor:pointer" onclick="sortTopics('CategoryName')">Category ${arrow('CategoryName')}</th><th>Active</th><th></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Topic</th><th>Category</th><th>Active</th><th></th>`;
     tbody.innerHTML=sorted.map(t=>`
       <tr draggable="true" data-id="${t.TopicID}" data-type="topic">
         <td style="width:30px;color:var(--text-muted)">⠿</td><td>${t.Topic}</td><td>${t.CategoryName||'—'}</td>
@@ -2044,12 +2075,12 @@ async function refreshHeadlines(){
       }
     }else if(type==='keyword'){
       const kw=id?keywords.find(k=>k.KeywordID===id):null;title=id?'Edit Keyword':'Add Keyword';
-      body=`<div class="form-row"><div class="form-group" style="flex:0 0 80px"><label class="form-label">Sequence</label><input class="form-input" id="m-seq" type="number" value="${kw?.Sequence||99}"></div><div class="form-group"><label class="form-label">Keyword (exact match)</label><input class="form-input" id="m-keyword" value="${kw?.Keyword||''}"></div></div>
+      body=`<div class="form-group"><label class="form-label">Keyword (exact match)</label><input class="form-input" id="m-keyword" value="${kw?.Keyword||''}"></div>
         <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>`;
       if(kw?.CategoryID)setTimeout(()=>document.getElementById('m-cat').value=kw.CategoryID,0);
     }else if(type==='topic'){
       const tp=id?topics.find(t=>t.TopicID===id):null;title=id?'Edit Topic':'Add Topic';
-      body=`<div class="form-row"><div class="form-group" style="flex:0 0 80px"><label class="form-label">Sequence</label><input class="form-input" id="m-seq" type="number" value="${tp?.Sequence||99}"></div><div class="form-group"><label class="form-label">Topic (fuzzy match)</label><input class="form-input" id="m-topic" value="${tp?.Topic||''}"></div></div>
+      body=`<div class="form-group"><label class="form-label">Topic (fuzzy match)</label><input class="form-input" id="m-topic" value="${tp?.Topic||''}"></div>
         <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>`;
       if(tp?.CategoryID)setTimeout(()=>document.getElementById('m-cat').value=tp.CategoryID,0);
     }
@@ -2381,7 +2412,7 @@ async function refreshHeadlines(){
       return srcSortDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
     });
     const thead=tbody.closest('table')?.querySelector('thead tr');
-    if(thead)thead.innerHTML=`<th style="width:30px"></th><th style="cursor:pointer" onclick="sortSources('Name')">Name ${arrow('Name')}</th><th style="cursor:pointer" onclick="sortSources('URL')">URL ${arrow('URL')}</th><th style="cursor:pointer" onclick="sortSources('SourceType')">Type ${arrow('SourceType')}</th><th>Unfiltered</th><th></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th>URL</th><th>Type</th><th>Unfiltered</th><th></th>`;
     tbody.innerHTML=sorted.map(s=>`
       <tr draggable="true" data-id="${s.SourceID}" data-type="source">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
