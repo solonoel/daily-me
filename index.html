@@ -898,6 +898,7 @@
         </div>
         <input type="file" id="mw-import-input" accept=".txt,.csv" style="display:none" onchange="importWords(event)">
         <button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="document.getElementById('mw-import-input').click()">&#x2B06; Import</button>
+        <span id="mw-import-status" style="display:none;font-size:11px;color:var(--sky-deep);font-weight:600;white-space:nowrap"></span>
         <button class="btn-primary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="showNewWord()">+ New</button>
       </div>
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
@@ -920,6 +921,7 @@
       </div>`;
   }
 
+  function getImportStatusEl(){return document.getElementById('mw-import-status');}
   async function importWords(event){
     const file=event.target.files[0];if(!file)return;
     event.target.value='';
@@ -927,18 +929,27 @@
     const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
     if(!lines.length)return alert('No words found in file.');
     if(!confirm(`Import ${lines.length} word(s)?`))return;
-    let imported=0,failed=0;
+    const statusEl=getImportStatusEl();
+    if(statusEl){statusEl.textContent='? Importing...';statusEl.style.display='inline';}
+    const existingNames=new Set(myWords.map(w=>(w.WordsName||'').toLowerCase()));
+    let imported=0,skipped=0,failed=0;
     for(const line of lines){
       const word=line.split(/[,\t]/)[0].trim();
       if(!word)continue;
+      if(existingNames.has(word.toLowerCase())){skipped++;continue;}
       try{
         const trans=await apiPost('GetWordTranslation',{word,languageCode:currentLangName});
         const result=await apiPost('SaveUserLanguageWord',{action:'add',userID:USER_ID,languageID:currentLangID,
           wordsName:word,wordsTranslation:trans.translation||'',isVerb:trans.isVerb||false,gender:trans.gender||null,wordsImage:null});
-        if(result?.wordID)imported++;else failed++;
+        if(result?.wordID){imported++;existingNames.add(word.toLowerCase());}else failed++;
       }catch(e){failed++;}
     }
-    alert(`Import complete: ${imported} added${failed?`, ${failed} failed`:''}.`);
+    if(statusEl){
+      statusEl.textContent=`Done ? ${imported} word${imported!==1?'s':''} imported${skipped?` (${skipped} skipped)`:''}`;
+      statusEl.style.display='inline';
+      const dismiss=()=>{statusEl.style.display='none';document.removeEventListener('click',dismiss);document.removeEventListener('keydown',dismiss);};
+      setTimeout(()=>{document.addEventListener('click',dismiss);document.addEventListener('keydown',dismiss);},100);
+    }
     await loadMyWords();
   }
   function setWordsFilter(filter){myWordsFilter=filter;renderMyWords();}
@@ -1047,7 +1058,7 @@
     const saveBtn=isEdit
       ?`<button class="btn-primary" onclick="saveWordForm()">OK</button>`
       :`<button class="btn-primary" onclick="saveWordForm(false)">Save Word</button>
-        <button class="btn-primary" style="background:#22c55e" onclick="saveWordForm(true)">Save &amp; Add Another</button>`;
+        <button class="btn-primary" style="background:#22c55e" onclick="saveWordForm(true)">Save &amp; New</button>`;
     const deckSection=isEdit?renderWordDeckGrid(word?.UserLanguageWordsID,wordDecks||[]):'';
     return `
       <div class="date-strip"><div class="date-main">${title}</div></div>
@@ -1064,8 +1075,8 @@
               <label class="form-label">${currentLangName} Word or Phrase</label>
               <input class="form-input" id="nw-word" value="${word?word.WordsName:''}" placeholder="" style="font-size:22px;font-weight:700;color:var(--text)">
               <a href="#" id="nw-fetch-btn" onclick="fetchTranslation();return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;display:inline-block">🔍 Fetch Translation</a>
-              <a href="#" onclick="window.open('https://translate.google.com/#auto/en/'+encodeURIComponent(document.getElementById('nw-word').value),'_blank');return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:inline-block">🌐 Translate</a>
               ${isEdit&&word?.IsVerb==='Y'?`<a href="#" onclick="showConjugation(${word.UserLanguageWordsID},()=>editWord(${word.UserLanguageWordsID}));return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:inline-block">🔤 Conjugate</a>`:''}
+              <a href="#" onclick="window.open('https://translate.google.com/#auto/en/'+encodeURIComponent(document.getElementById('nw-word').value),'_blank');return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:inline-block">?? Google Translate</a>
               <span id="nw-fetch-status" style="font-size:12px;color:var(--text-muted);margin-left:8px"></span>
             </div>
             <div class="form-row">
@@ -1667,7 +1678,7 @@ async function refreshHeadlines(){
       btn.textContent='↻ Refresh';btn.style.color='';btn.style.background='';btn.style.borderColor='';btn.style.fontWeight='';btn.disabled=false;
       const now=new Date();
       const ts=fmtDT(now);
-      const lft=document.getElementById('last-fetch-time');if(lft)lft.textContent=`refresh: ${ts}`;
+      const lft=document.getElementById('last-fetch-time');if(lft){lft.textContent=`refresh: ${ts}`;lft.style.display='';}
       localStorage.setItem(`dailyme_last_fetch_time_${USER_ID}`,now.toISOString());
       const ytLft=document.getElementById('last-yt-fetch-time');
       if(ytLft&&!disableYoutube){ytLft.textContent=`youtube: ${ts}`;ytLft.style.display='';localStorage.setItem(`dailyme_last_yt_fetch_time_${USER_ID}`,now.toISOString());}
@@ -1699,7 +1710,7 @@ async function refreshHeadlines(){
     row.innerHTML=cats.map(c=>{
       const style=catColors[c.Name]||{dot:'#888'};
       const count=allHeadlines?allHeadlines.filter(h=>h.CategoryID===c.CategoryID).length:null;
-      return `<div class="cat-tile ${currentFilter===c.Name?'active':''}" onclick="filterCat('${c.Name}',this)"><div class="cat-dot" style="background:${style.dot}"></div>${c.Name}${count!==null?` (${count})`:''}</div>`;
+      const isEmpty=count!==null&&count===0;return `<div class="cat-tile ${currentFilter===c.Name?'active':''} ${isEmpty?'cat-empty':''}" onclick="filterCat('${c.Name}',this)" style="${isEmpty?'opacity:0.45;cursor:default':''}"><div class="cat-dot" style="background:${style.dot}"></div>${c.Name}${count!==null?` (${count})`:''}</div>`;
     }).join('')+
     `<div class="cat-tile ${currentFilter==='Other'?'active':''}" onclick="filterCat('Other',this)"><div class="cat-dot" style="background:#888"></div>Other${allHeadlines!==null?` (${allHeadlines?allHeadlines.filter(h=>!h.CategoryID).length:0})`:''}</div>`;
   }
@@ -1759,7 +1770,7 @@ async function refreshHeadlines(){
   function renderCatSettingsTable(userSettings){
     const catRows=categories.filter(c=>c.IsActive==='Y').map(c=>{
       const existing=userSettings?.categorySettings?.find(cs=>cs.CategoryID===c.CategoryID);
-      return `<tr style="line-height:1.2"><td style="padding:3px 10px;font-size:12px">${c.Name}</td><td style="padding:3px 10px"><input type="number" class="form-input" style="width:40px;font-size:12px;padding:2px 4px" min="1" max="30" id="cs-${c.CategoryID}" value="${Math.min(existing?.MaxItems||20,30)}" oninput="updateOtherLimit()"></td></tr>`;
+      return `<tr style="line-height:1.2"><td style="padding:3px 10px;font-size:12px">${c.Name}</td><td style="padding:3px 10px"><input type="number" class="form-input" style="width:40px;font-size:12px;padding:2px 4px" min="1" max="30" id="cs-${c.CategoryID}" value="${Math.min(existing?.MaxItems||20,30)}" oninput="updateOtherLimit();debounceSaveCatLimits()"></td></tr>`;
     }).join('');
     document.getElementById('tbl-catsettings').innerHTML=catRows+
       `<tr style="line-height:1.2"><td style="padding:3px 10px;font-size:12px">Other</td><td style="padding:3px 10px"><input type="number" class="form-input" id="cs-other" readonly tabindex="-1" style="width:40px;font-size:12px;padding:2px 4px;background:#f5f9ff;color:var(--text-muted)"></td></tr>`;
@@ -1767,6 +1778,18 @@ async function refreshHeadlines(){
     document.getElementById('us-maxheadlines').addEventListener('input',updateOtherLimit);
   }
 
+  let _catLimitsTimer=null;
+  function debounceSaveCatLimits(){
+    clearTimeout(_catLimitsTimer);
+    _catLimitsTimer=setTimeout(async()=>{
+      const recencyDays=Math.min(14,Math.max(1,parseInt(document.getElementById('us-recency')?.value)||7));
+      let maxHeadlines=parseInt(document.getElementById('us-maxheadlines')?.value)||50;
+      const youTubeMaxResults=parseInt(document.getElementById('us-youtubemaxresults')?.value)||3;
+      const otherHeadlinesPerKeyword=parseInt(document.getElementById('us-otherperkey')?.value)||3;
+      const categorySettings=categories.filter(c=>c.IsActive==='Y').map(c=>({categoryID:c.CategoryID,maxItems:Math.min(30,Math.max(1,parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value)||20))}));
+      await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,categorySettings});
+    },800);
+  }
   function updateOtherLimit(){
     const max=parseInt(document.getElementById('us-maxheadlines')?.value)||0;
     const catSum=categories.filter(c=>c.IsActive==='Y').reduce((sum,c)=>sum+(parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value)||0),0);
@@ -1791,9 +1814,6 @@ async function refreshHeadlines(){
 
   async function saveUserSettings(){
     if(!document.getElementById('us-recency'))return; // not on settings screen
-    // Re-enable YouTube when settings change
-    localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
-    const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=false;
     const recencyDays=Math.min(14,Math.max(1,parseInt(document.getElementById('us-recency').value)||7));
     let maxHeadlines=parseInt(document.getElementById('us-maxheadlines').value);
     const youTubeMaxResults=parseInt(document.getElementById('us-youtubemaxresults').value)||3;
@@ -1801,7 +1821,7 @@ async function refreshHeadlines(){
     const categorySettings=categories.filter(c=>c.IsActive==='Y').map(c=>({categoryID:c.CategoryID,maxItems:Math.min(30,Math.max(1,parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value||20)))}));
     const catSum=categorySettings.reduce((sum,cs)=>sum+cs.maxItems,0);
     if(maxHeadlines<catSum){maxHeadlines=catSum;document.getElementById('us-maxheadlines').value=maxHeadlines;updateOtherLimit();}
-    await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,categorySettings,disableYoutubeToday:false});
+    await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,categorySettings});
     recencyDays_value=recencyDays;
     document.getElementById('recency-val').textContent=recencyDays===1?'1 day':`${recencyDays} days`;
   }
