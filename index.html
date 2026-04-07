@@ -619,8 +619,8 @@
       showScreen('settings',false);
       document.getElementById('onboard-overlay').style.display='flex';
     } else {
-      await autoFetchHeadlinesIfNewDay();
       await loadHeadlines();
+      autoFetchHeadlinesIfNewDay();
     }
   }
 
@@ -636,6 +636,9 @@
     localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
     const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=false;
     await apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:false});
+    // Show Refreshing... state on button
+    const btn=document.getElementById('refresh-btn');
+    if(btn){btn.textContent='Refreshing...';btn.style.color='white';btn.style.background='#1a5fa8';btn.style.borderColor='#1a5fa8';btn.style.fontWeight='700';btn.disabled=true;}
     try{
       await apiPost('FetchHeadlines',{userID:USER_ID,disableYoutube:false});
       localStorage.setItem('dailyme_last_fetch',today);
@@ -643,7 +646,21 @@
       localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
       const ytCb2=document.getElementById('us-disable-yt');if(ytCb2)ytCb2.checked=true;
       await apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:true});
-    }catch(e){console.error('Auto-fetch failed:',e);}
+      // Update timestamps
+      const now=new Date();
+      const ts=fmtDT(now);
+      localStorage.setItem(`dailyme_last_fetch_time_${USER_ID}`,now.toISOString());
+      const lft=document.getElementById('last-fetch-time');if(lft){lft.textContent=`refresh: ${ts}`;lft.style.display='';}
+      const ytLft=document.getElementById('last-yt-fetch-time');
+      if(ytLft){ytLft.textContent=`youtube: ${ts}`;ytLft.style.display='';localStorage.setItem(`dailyme_last_yt_fetch_time_${USER_ID}`,now.toISOString());}
+      // Reload headlines now that fresh ones are in DB
+      await loadHeadlines();
+    }catch(e){
+      console.error('Auto-fetch failed:',e);
+    }finally{
+      // Restore button regardless of success/failure
+      if(btn){btn.textContent='↻ Refresh';btn.style.color='';btn.style.background='';btn.style.borderColor='';btn.style.fontWeight='';btn.disabled=false;}
+    }
   }
 
   // ── LANGUAGE ──
@@ -830,7 +847,7 @@
       {key:'mastered',label:`Mastered (${masteredCount})`},{key:'all',label:`All (${deckFiltered.length})`}
     ];
 
-    const activeDecks=[...userDecks].filter(d=>d.Status==='Active').sort((a,b)=>a.UserLanguageWordsDeckName.localeCompare(b.UserLanguageWordsDeckName));
+    const activeDecks=[...userDecks].filter(d=>d.Status==='Active').sort((a,b)=>b.UserLanguageWordsDeckName.localeCompare(a.UserLanguageWordsDeckName));
 
     const mwSorted=[...searchFiltered].sort((a,b)=>{
       let av,bv;
@@ -908,17 +925,17 @@
         <span id="mw-import-status" style="display:none;font-size:11px;color:var(--sky-deep);font-weight:600;white-space:nowrap"></span>
         <button class="btn-primary" style="margin-left:auto;padding:6px 12px;font-size:12px;white-space:nowrap" onclick="showNewWord()">+ New</button>
       </div>
-      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px;margin-bottom:10px">
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${filters.map(f=>`<button class="filter-btn ${myWordsFilter===f.key?'active':''}" onclick="setWordsFilter('${f.key}')">${f.label}</button>`).join('')}
         </div>
         <label class="images-toggle" style="margin-left:auto"><input type="checkbox" ${showImages?'checked':''} onchange="showImages=this.checked;renderMyWords()"> Images</label>
       </div>
       <div class="word-grid">
-        <div style="display:flex;align-items:center;padding:4px 14px;background:#f5f9ff;border-bottom:1.5px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-soft);gap:16px">
+        <div style="display:flex;align-items:center;padding:4px 14px;background:#f5f9ff;border-bottom:1.5px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-soft);gap:12px">
           ${showImages?'<div style="width:52px;flex-shrink:0"></div>':''}
-          <div style="flex:1;min-width:0;display:flex;align-items:center;gap:16px">
-            <span style="min-width:140px;flex-shrink:0;cursor:pointer;user-select:none" onclick="mwSort('word')">Words</span>
+          <div style="min-width:120px;flex-shrink:1;cursor:pointer;user-select:none" onclick="mwSort('word')">Words</div>
+          <div style="display:flex;align-items:center;gap:12px;min-width:200px;flex-shrink:0">
             <span style="min-width:30px;cursor:pointer;user-select:none" onclick="mwSort('type')">Type</span>
             <span style="min-width:70px;cursor:pointer;user-select:none">Conjugate</span>
             <span style="cursor:pointer;user-select:none" onclick="mwSort('deck')">Decks</span>
@@ -1252,19 +1269,26 @@
   async function aiTranslate(word){
     const response=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,
-        messages:[{role:'user',content:`You are a ${currentLangName} language expert. For the ${currentLangName} word/phrase "${word}":
-1. Provide ALL common English translations. Group by meaning ? if the word has multiple distinct meanings (e.g. as noun vs verb, or different contexts), list each on its own line. Include usage notes in parentheses where helpful, e.g. "bank (financial)", "bank (riverbank)", "to bank (aviation)". Be thorough.
-2. State if it is a verb (true/false). If it can be both noun and verb, use true.
-3. State gender if noun (M/F/N/null). If multiple genders are possible, use the most common.
-4. Regional usage for the ${currentLangName} word itself - append suffix to wordWithRegion only if region-specific:
-   - Common primarily in Latin America: add " (l)"
-   - Common primarily in Spain only: add " (s)"
-   - Common primarily in Mexico only: add " (m)"
-   - Common primarily in U.S. Spanish only: add " (u)"
-   - Common in multiple specific regions: combine, e.g. " (l,s)"
-   - Used universally: no suffix
-Respond ONLY with valid JSON, no markdown, no extra keys:
-{"translation":"meaning1\nmeaning2\nmeaning3","isVerb":false,"gender":"M","wordWithRegion":"${word}"}`}]})});
+        messages:[{role:'user',content:`You are a ${currentLangName}-English dictionary. For the ${currentLangName} word/phrase "${word}", provide a thorough dictionary-style entry.
+
+TRANSLATION RULES:
+- List ALL common English translations, one per line — aim for 2 to 4 translations like SpanishDict does
+- If the word has multiple distinct meanings or parts of speech, include all of them
+- For VERBS: every translation line MUST start with "to " (e.g. "to run", "to escape", "to flee") — no exceptions
+- For NOUNS: include usage context in parentheses where it helps distinguish meanings, e.g. "charge (electricity)", "charge (accusation)"
+- For words that are both noun and verb: include both sets of translations, verbs with "to ", nouns without
+- Do NOT include example sentences, just the translations
+
+REGIONAL SUFFIX RULES (append to wordWithRegion only if region-specific):
+- Latin America primarily: add " (l)"
+- Spain only: add " (s)"  
+- Mexico only: add " (m)"
+- U.S. Spanish only: add " (u)"
+- Multiple regions: combine e.g. " (l,s)"
+- Universal: no suffix
+
+Respond ONLY with valid JSON, no markdown, no extra text:
+{"translation":"to run\nto flee\nto escape","isVerb":true,"gender":null,"wordWithRegion":"${word}"}`}]})});
     const data=await response.json();
     const txt=data.content?.[0]?.text||'';
     return JSON.parse(txt.replace(/\`\`\`json|\`\`\`/g,'').trim());
@@ -1520,6 +1544,10 @@ Respond ONLY with valid JSON, no markdown, no extra keys:
   // ── MY DECKS ──
 
   function renderDecksHTML(langID,langName){
+    const pendingCount=userDecks.filter(d=>d.Status==='Pending').length;
+    const activeCount=userDecks.filter(d=>d.Status==='Active').length;
+    const masteredCount=userDecks.filter(d=>d.Status==='Mastered').length;
+    const statusCounts={'Pending':pendingCount,'Active':activeCount,'Mastered':masteredCount,'All':userDecks.length};
     const statuses=['Pending','Active','Mastered','All'];
     const filtered=deckStatusFilter==='All'?userDecks:userDecks.filter(d=>d.Status===deckStatusFilter);
     const sorted=[...filtered].sort((a,b)=>{
@@ -1550,7 +1578,7 @@ Respond ONLY with valid JSON, no markdown, no extra keys:
     return `
       <div style="display:flex;align-items:center;gap:8px;margin:12px 0;flex-wrap:wrap">
         <span style="font-size:12px;font-weight:600;color:var(--text-soft)">Status:</span>
-        ${statuses.map(s=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="deck-status-${langID}" value="${s}" ${deckStatusFilter===s?'checked':''} onchange="setDeckStatusFilter('${s}')" style="accent-color:var(--sky-deep)"> ${s}</label>`).join('')}
+        ${statuses.map(s=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="deck-status-${langID}" value="${s}" ${deckStatusFilter===s?'checked':''} onchange="setDeckStatusFilter('${s}')" style="accent-color:var(--sky-deep)"> ${s} (${statusCounts[s]})</label>`).join('')}
         <button class="btn-primary" style="margin-left:auto;padding:5px 14px;font-size:12px" onclick="addDeck()">+ New Deck</button>
       </div>
       <table class="settings-table">
