@@ -994,9 +994,12 @@
         let trans;
         try{trans=await aiTranslate(w.WordsName);}catch(e){trans=await apiPost('GetWordTranslation',{word:w.WordsName,languageCode:currentLangName});}
         const wordsName=trans.wordWithRegion||w.WordsName;
-        const wordsTranslation=trans.translation||w.WordsTranslation||'';
         const isVerb=trans.isVerb===true||trans.isVerb==='true';
         const gender=trans.gender||w.Gender||null;
+        let wordsTranslation=trans.translation||w.WordsTranslation||'';
+        if(isVerb&&wordsTranslation){
+          wordsTranslation=wordsTranslation.split(/[\n,]/).map(t=>t.trim()).filter(Boolean).map(t=>t.toLowerCase().startsWith('to ')?t:'to '+t).join(', ');
+        }
         await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:w.UserLanguageWordsID,
           wordsName,wordsTranslation,isVerb,gender,mastered:!!w.DateMastered,wordsImage:w.WordsImage||null});
         w.WordsName=wordsName;w.WordsTranslation=wordsTranslation;w.IsVerb=isVerb?'Y':'N';w.Gender=gender;
