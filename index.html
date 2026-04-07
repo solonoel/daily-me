@@ -1293,7 +1293,7 @@ REGIONAL SUFFIX RULES (append to wordWithRegion only if region-specific):
 - Universal: no suffix
 
 Respond ONLY with valid JSON, no markdown, no extra text:
-{"translation":"to run\nto flee\nto escape","isVerb":true,"gender":null,"wordWithRegion":"${word}"}`}]})});
+{"translation":"to run, to flee, to escape","isVerb":true,"gender":null,"wordWithRegion":"${word}"}`}]})});
     const data=await response.json();
     const txt=data.content?.[0]?.text||'';
     return JSON.parse(txt.replace(/\`\`\`json|\`\`\`/g,'').trim());
