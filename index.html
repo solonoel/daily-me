@@ -1278,17 +1278,6 @@
       }
     }
     return result;
-  }  
-- Mexico only: add " (m)"
-- U.S. Spanish only: add " (u)"
-- Multiple regions: combine e.g. " (l,s)"
-- Universal: no suffix
-
-Respond ONLY with valid JSON, no markdown, no extra text:
-{"translation":"to run, to flee, to escape","isVerb":true,"gender":null,"wordWithRegion":"${word}"}`}]})});
-    const data=await response.json();
-    const txt=data.content?.[0]?.text||'';
-    return JSON.parse(txt.replace(/\`\`\`json|\`\`\`/g,'').trim());
   }
   async function fetchTranslation(){
     const word=document.getElementById('nw-word')?.value.trim();
