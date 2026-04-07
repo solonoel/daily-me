@@ -962,14 +962,10 @@
       if(!word)continue;
       if(existingNames.has(word.toLowerCase())){skipped++;continue;}
       try{
-        let trans;try{trans=await aiTranslate(word);}catch(e){trans=await apiPost('GetWordTranslation',{word,languageCode:currentLangName});}
-        let translationText=trans.translation||'';
+        const trans=await translateWord(word);
         const isVerbFlag=trans.isVerb===true||trans.isVerb==='true';
-        if(isVerbFlag&&translationText){
-          translationText=translationText.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>l.toLowerCase().startsWith('to ')?l:'to '+l).join('\n');
-        }
         const result=await apiPost('SaveUserLanguageWord',{action:'add',userID:USER_ID,languageID:currentLangID,
-          wordsName:word,wordsTranslation:translationText,isVerb:isVerbFlag,gender:trans.gender||null,wordsImage:null});
+          wordsName:word,wordsTranslation:trans.translation||'',isVerb:isVerbFlag,gender:trans.gender||null,wordsImage:null});
         if(result?.wordID){imported++;existingNames.add(word.toLowerCase());}else failed++;
       }catch(e){failed++;}
     }
@@ -991,15 +987,11 @@
     let updated=0,failed=0;
     for(const w of myWords){
       try{
-        let trans;
-        try{trans=await aiTranslate(w.WordsName);}catch(e){trans=await apiPost('GetWordTranslation',{word:w.WordsName,languageCode:currentLangName});}
+        const trans=await translateWord(w.WordsName);
         const wordsName=trans.wordWithRegion||w.WordsName;
         const isVerb=trans.isVerb===true||trans.isVerb==='true';
         const gender=trans.gender||w.Gender||null;
-        let wordsTranslation=trans.translation||w.WordsTranslation||'';
-        if(isVerb&&wordsTranslation){
-          wordsTranslation=wordsTranslation.split(/[\n,]/).map(t=>t.trim()).filter(Boolean).map(t=>t.toLowerCase().startsWith('to ')?t:'to '+t).join(', ');
-        }
+        const wordsTranslation=trans.translation||w.WordsTranslation||'';
         await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:w.UserLanguageWordsID,
           wordsName,wordsTranslation,isVerb,gender,mastered:!!w.DateMastered,wordsImage:w.WordsImage||null});
         w.WordsName=wordsName;w.WordsTranslation=wordsTranslation;w.IsVerb=isVerb?'Y':'N';w.Gender=gender;
@@ -1274,22 +1266,19 @@
     reader.readAsDataURL(file);
   }
 
-  async function aiTranslate(word){
-    const response=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,
-        messages:[{role:'user',content:`You are a ${currentLangName}-English dictionary. For the ${currentLangName} word/phrase "${word}", provide a thorough dictionary-style entry.
-
-TRANSLATION RULES:
-- List ALL common English translations, one per line — aim for 2 to 4 translations like SpanishDict does
-- If the word has multiple distinct meanings or parts of speech, include all of them
-- For VERBS: every translation line MUST start with "to " (e.g. "to run", "to escape", "to flee") — no exceptions
-- For NOUNS: include usage context in parentheses where it helps distinguish meanings, e.g. "charge (electricity)", "charge (accusation)"
-- For words that are both noun and verb: include both sets of translations, verbs with "to ", nouns without
-- Do NOT include example sentences, just the translations
-
-REGIONAL SUFFIX RULES (append to wordWithRegion only if region-specific):
-- Latin America primarily: add " (l)"
-- Spain only: add " (s)"  
+  async function translateWord(word){
+    const result=await apiPost('GetWordTranslation',{word,languageCode:currentLangName});
+    if(result.translation){
+      const isVerbFlag=result.isVerb===true||result.isVerb==='true';
+      const parts=result.translation.split(/[\n,]/).map(t=>t.trim()).filter(Boolean);
+      if(isVerbFlag){
+        result.translation=parts.map(t=>t.toLowerCase().startsWith('to ')?t:'to '+t).join(', ');
+      }else{
+        result.translation=parts.join(', ');
+      }
+    }
+    return result;
+  }  
 - Mexico only: add " (m)"
 - U.S. Spanish only: add " (u)"
 - Multiple regions: combine e.g. " (l,s)"
@@ -1307,32 +1296,19 @@ Respond ONLY with valid JSON, no markdown, no extra text:
     const btn=document.getElementById('nw-fetch-btn'),status=document.getElementById('nw-fetch-status');
     btn.style.pointerEvents='none';btn.textContent='⏳ Fetching...';status.textContent='';
     try{
-      const parsed=await aiTranslate(word);
-      if(parsed.translation){
-        document.getElementById('nw-translation').value=parsed.translation;
-        if(parsed.isVerb===true||parsed.isVerb==='true'){const cb=document.getElementById('nw-isverb');if(cb)cb.checked=true;}
-        if(parsed.gender){const sel=document.getElementById('nw-gender');if(sel)sel.value=parsed.gender;}
+      const result=await translateWord(word);
+      if(result.translation){
+        document.getElementById('nw-translation').value=result.translation;
+        if(result.isVerb===true||result.isVerb==='true'){const cb=document.getElementById('nw-isverb');if(cb)cb.checked=true;}
+        if(result.gender){const sel=document.getElementById('nw-gender');if(sel)sel.value=result.gender;}
         const wordInput=document.getElementById('nw-word');
-        if(wordInput){
-          if(parsed.wordWithRegion&&parsed.wordWithRegion!==word){wordInput.value=parsed.wordWithRegion;}
-          else if(parsed.gender){
-            const art=langArticles[currentLangName]?.[parsed.gender];
-            if(art){const cur=wordInput.value.trim();if(!cur.toLowerCase().startsWith(art+' '))wordInput.value=art+' '+cur;}
-          }
+        if(wordInput&&result.gender){
+          const art=langArticles[currentLangName]?.[result.gender];
+          if(art){const cur=wordInput.value.trim();if(!cur.toLowerCase().startsWith(art+' '))wordInput.value=art+' '+cur;}
         }
         status.textContent='✓ Done';
       }else status.textContent='No translation found';
-    }catch(e){
-      try{
-        const result=await apiPost('GetWordTranslation',{word,languageCode:currentLangName});
-        if(result.translation){
-          document.getElementById('nw-translation').value=result.translation;
-          if(result.isVerb===true||result.isVerb==='true'){const cb=document.getElementById('nw-isverb');if(cb)cb.checked=true;}
-          if(result.gender){const sel=document.getElementById('nw-gender');if(sel)sel.value=result.gender;}
-          status.textContent='✓ Done';
-        }else status.textContent='No translation found';
-      }catch(e2){status.textContent='Error';}
-    }
+    }catch(e){status.textContent='Error: '+e.message;}
     btn.style.pointerEvents='';btn.textContent='🔍 Fetch Translation';
   }
 
