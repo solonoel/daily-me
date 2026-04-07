@@ -963,8 +963,13 @@
       if(existingNames.has(word.toLowerCase())){skipped++;continue;}
       try{
         let trans;try{trans=await aiTranslate(word);}catch(e){trans=await apiPost('GetWordTranslation',{word,languageCode:currentLangName});}
+        let translationText=trans.translation||'';
+        const isVerbFlag=trans.isVerb===true||trans.isVerb==='true';
+        if(isVerbFlag&&translationText){
+          translationText=translationText.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>l.toLowerCase().startsWith('to ')?l:'to '+l).join('\n');
+        }
         const result=await apiPost('SaveUserLanguageWord',{action:'add',userID:USER_ID,languageID:currentLangID,
-          wordsName:word,wordsTranslation:trans.translation||'',isVerb:trans.isVerb||false,gender:trans.gender||null,wordsImage:null});
+          wordsName:word,wordsTranslation:translationText,isVerb:isVerbFlag,gender:trans.gender||null,wordsImage:null});
         if(result?.wordID){imported++;existingNames.add(word.toLowerCase());}else failed++;
       }catch(e){failed++;}
     }
@@ -1381,7 +1386,10 @@ Respond ONLY with valid JSON, no markdown, no extra text:
           ?`<div class="flashcard-word">${card.WordsName}${genderLabel}</div><div class="flashcard-hint">Tap to reveal</div>`
           :`<div class="flashcard-translation">${displayTranslation}</div><div class="flashcard-hint">Tap to reveal</div>`;
       }else{
-        cardContent=`${fcConjugateLink}<div class="flashcard-word">${card.WordsName}${genderLabel}</div>${imgEl}<div class="flashcard-translation">${displayTranslation}</div>${sentencesHTML}`;
+        const sentencesSection=sentencesHTML?`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${
+          (sentencesCache[card.UserLanguageWordsID]||[]).map(s=>`<div style="margin-bottom:3px"><span style="font-size:13px;font-weight:600;color:var(--text)">${s.sentence}</span><br><span style="font-size:11px;color:var(--text-muted);padding-left:4px">${s.translation}</span></div>`).join('')
+        }</div>`:'';
+        cardContent=`${fcConjugateLink}<div class="flashcard-word" style="margin-bottom:10px">${card.WordsName}${genderLabel}</div><div style="display:flex;gap:16px;align-items:flex-start;width:100%;text-align:left">${imgEl?`<div style="flex-shrink:0">${card.WordsImage?`<img src="${card.WordsImage}" class="flashcard-image" alt="">`:''}</div>`:''}<div style="flex:1;min-width:0"><div class="flashcard-translation" style="text-align:left">${displayTranslation}</div>${sentencesSection}</div></div>`;
       }
       cardHTML=`
         <div class="flashcard" style="position:relative" onclick="toggleFlashcardTranslation()">
