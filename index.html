@@ -279,12 +279,15 @@
   <div class="screen active" id="screen-headlines">
     <div class="category-bar">
       <div style="display:flex;flex-direction:column;width:100%;background:white">
-        <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:4px 12px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 12px;border-bottom:1px solid var(--border)">
           <span style="font-size:10px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="recency-val">7 days</span></span>
           <div id="last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
-          <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="expand" onchange="setGroupExpand(true)" style="accent-color:var(--sky-deep)"> Expand</label>
-          <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--sky-deep);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="collapse" checked onchange="setGroupExpand(false)" style="accent-color:var(--sky-deep)"> Collapse</label>
-          <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn" style="flex-shrink:0">↻ Refresh</button>
+          <div id="last-yt-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="expand" checked onchange="setGroupExpand(true)" style="accent-color:var(--sky-deep)"> Expanded</label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--sky-deep);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="collapse" onchange="setGroupExpand(false)" style="accent-color:var(--sky-deep)"> Collapsed</label>
+            <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn" style="flex-shrink:0">↻ Refresh</button>
+          </div>
         </div>
         <div class="category-row" id="cat-row" style="display:flex;align-items:stretch;flex-wrap:wrap"></div>
       </div>
@@ -1219,8 +1222,8 @@
         }
       }
       newWordImageChanged=false;editingWordID=null;
-      if(addAnother){newWordImage=null;const d=await apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=all`);myWords=Array.isArray(d)?d:[];showNewWord();}
-      else{showScreen(`lang-${currentLangID}`);const d=await apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=all`);myWords=Array.isArray(d)?d:[];await showLangFeature(currentLangID,'mywords',currentLangName);}
+      if(addAnother){newWordImage=null;showNewWord();apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=all`).then(d=>{myWords=Array.isArray(d)?d:[];});}
+      else{showScreen(`lang-${currentLangID}`);showLangFeature(currentLangID,'mywords',currentLangName);apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=all`).then(d=>{myWords=Array.isArray(d)?d:[];renderMyWords();});}
     }finally{_wordFormSaving=false;}
   }
 
@@ -1327,7 +1330,8 @@
     const filtered=getFilteredFlashcards(),total=filtered.length,card=filtered[flashcardIndex];
     const filters=[
       {key:'all',label:`All (${flashcards.filter(w=>!w.DateMastered).length})`},
-      {key:'flagged',label:`Flagged (${flashcards.filter(w=>w.Flag).length})`}
+      {key:'flagged',label:`Flagged (${flashcards.filter(w=>w.Flag).length})`},
+      {key:'mastered',label:`Mastered (${flashcards.filter(w=>w.DateMastered).length})`}
     ];
     let cardHTML='';
     if(!card){
@@ -1408,6 +1412,7 @@
 
   function getFilteredFlashcards(){
     if(flashcardFilter==='flagged')return flashcards.filter(w=>w.Flag&&!w.DateMastered);
+    if(flashcardFilter==='mastered')return flashcards.filter(w=>w.DateMastered);
     return flashcards.filter(w=>!w.DateMastered);
   }
 
@@ -1806,6 +1811,15 @@
       localStorage.setItem(`dailyme_last_fetch_time_${USER_ID}`,now.toISOString());
       const ytLft=document.getElementById('last-yt-fetch-time');
       if(ytLft&&!disableYoutube){ytLft.textContent=`youtube: ${ts}`;ytLft.style.display='';localStorage.setItem(`dailyme_last_yt_fetch_time_${USER_ID}`,now.toISOString());}
+      const res2=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`);
+      const all2=await res2.json();
+      if(Array.isArray(all2)&&all2.length){
+        if(all2.some(h=>h.IsSubscription===1||h.IsSubscription===true)){currentFilter='Subscriptions';}
+        else{
+          const orderedCats=[...categories].filter(c=>c.IsActive==='Y'&&c.Headlines==='Y').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999));
+          for(const cat of orderedCats){if(all2.some(h=>h.CategoryID===cat.CategoryID)){currentFilter=cat.Name;break;}}
+        }
+      }
       await loadHeadlines();
     }catch(e){
       const btn=document.getElementById('refresh-btn');
@@ -1927,7 +1941,7 @@
             </div>
           </div>
           <button class="retain-btn ${h.Retain==='Y'?'active':''}" onclick="toggleRetain(${h.HeadlineID},event)" title="Retain"></button>
-          <button class="btn-icon danger" onclick="deleteHeadline(${h.HeadlineID},event)" title="Delete" style="width:22px;height:22px;font-size:11px;margin-top:2px;flex-shrink:0">✕</button>
+          <button class="retain-btn" onclick="deleteHeadline(${h.HeadlineID},event)" title="Delete" style="margin-top:2px;flex-shrink:0;font-size:12px;color:var(--text-muted)">✕</button>
         </div>`).join('');
       return `<div class="cat-group">
         <div class="cat-group-header" style="background:${headerBg};color:${headerColor};border-bottom:1.5px solid ${headerColor}44;cursor:pointer" onclick="toggleGroup(this)">
@@ -2154,8 +2168,12 @@
       return kwSortDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
     });
     const thead=tbody.closest('table')?.querySelector('thead tr');
-    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th>Group Label</th><th>Category</th><th>Active</th><th></th>`;
-    tbody.innerHTML=sorted.map(k=>`
+    const kwCatFilter=document.getElementById('kw-cat-filter')?.value||'';
+      const catOpts=`<option value="">All Categories</option>`+categories.map(c=>`<option value="${c.CategoryID}" ${kwCatFilter==c.CategoryID?'selected':''}>${c.Name}</option>`).join('');
+      if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th>Group Label</th><th><select id="kw-cat-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()">${catOpts}</select></th><th>Active</th><th></th>`;
+    const kwCatFilterVal=document.getElementById('kw-cat-filter')?.value||'';
+    const kwFiltered=kwCatFilterVal?sorted.filter(k=>String(k.CategoryID)===String(kwCatFilterVal)):sorted;
+    tbody.innerHTML=kwFiltered.map(k=>`
       <tr draggable="true" data-id="${k.KeywordID}" data-type="keyword">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
         <td>${k.Keyword}</td>
@@ -2181,8 +2199,12 @@
       return topSortDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
     });
     const thead=tbody.closest('table')?.querySelector('thead tr');
-    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Topic</th><th>Group Label</th><th>Category</th><th>Active</th><th></th>`;
-    tbody.innerHTML=sorted.map(t=>`
+    const tpCatFilter=document.getElementById('tp-cat-filter')?.value||'';
+      const tpCatOpts=`<option value="">All Categories</option>`+categories.map(c=>`<option value="${c.CategoryID}" ${tpCatFilter==c.CategoryID?'selected':''}>${c.Name}</option>`).join('');
+      if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Topic</th><th>Group Label</th><th><select id="tp-cat-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsTopics()">${tpCatOpts}</select></th><th>Active</th><th></th>`;
+    const tpCatFilterVal=document.getElementById('tp-cat-filter')?.value||'';
+    const tpFiltered=tpCatFilterVal?sorted.filter(t=>String(t.CategoryID)===String(tpCatFilterVal)):sorted;
+    tbody.innerHTML=tpFiltered.map(t=>`
       <tr draggable="true" data-id="${t.TopicID}" data-type="topic">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
         <td>${t.Topic}</td>
