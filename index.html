@@ -218,7 +218,6 @@
     .conj-verb-opt:hover { background:#f0f7ff; }
     .conj-verb-opt-word { font-size:16px; font-weight:700; color:var(--text); }
     .conj-verb-opt-trans { font-size:11px; color:var(--text-muted); }
-    /* Deck words grid in edit deck screen */
     .deck-words-screen { background:white; border:1.5px solid var(--border); border-radius:12px; padding:16px; box-shadow:var(--shadow); }
     .searchable-combo { position:relative; }
     .searchable-combo-input { width:100%; padding:7px 10px; border:1.5px solid var(--border); border-radius:8px; font-size:13px; font-family:'DM Sans',sans-serif; color:var(--text); }
@@ -333,6 +332,36 @@
               <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">YouTube Headlines/Keyword</div>
               <input type="number" id="us-youtubemaxresults" class="form-input" style="width:52px;font-size:12px;padding:3px 5px" min="1" max="20">
             </div>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Scheduled Fetch Time</div>
+              <select id="us-fetchhour" class="form-select" style="font-size:12px;padding:3px 5px">
+                <option value="">None</option>
+                <option value="0">12:00 AM</option>
+                <option value="1">1:00 AM</option>
+                <option value="2">2:00 AM</option>
+                <option value="3">3:00 AM</option>
+                <option value="4">4:00 AM</option>
+                <option value="5">5:00 AM</option>
+                <option value="6">6:00 AM</option>
+                <option value="7">7:00 AM</option>
+                <option value="8">8:00 AM</option>
+                <option value="9">9:00 AM</option>
+                <option value="10">10:00 AM</option>
+                <option value="11">11:00 AM</option>
+                <option value="12">12:00 PM</option>
+                <option value="13">1:00 PM</option>
+                <option value="14">2:00 PM</option>
+                <option value="15">3:00 PM</option>
+                <option value="16">4:00 PM</option>
+                <option value="17">5:00 PM</option>
+                <option value="18">6:00 PM</option>
+                <option value="19">7:00 PM</option>
+                <option value="20">8:00 PM</option>
+                <option value="21">9:00 PM</option>
+                <option value="22">10:00 PM</option>
+                <option value="23">11:00 PM</option>
+              </select>
+            </div>
           </div>
           <div style="margin-top:8px;margin-bottom:4px">
             <div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">OTHER HEADLINES/KEYWORD-SOURCE</div>
@@ -378,7 +407,7 @@
         <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openModal('keyword')">+ Add Keyword</button>
       </div>
       <div style="font-size:12px;color:var(--sky-deep);background:#f0f7ff;border:1px solid var(--border);border-radius:8px;padding:8px 14px;margin-bottom:12px">📺 Keywords are searched on YouTube. Drag to reorder — higher items prioritized in headline sorting.</div>
-      <table class="settings-table"><thead><tr><th>⠿</th><th>Keyword</th><th>Category</th><th>Active</th><th></th></tr></thead><tbody id="tbl-keywords"></tbody></table>
+      <table class="settings-table"><thead><tr><th>⠿</th><th>Keyword</th><th>Group Label</th><th>Category</th><th>Active</th><th></th></tr></thead><tbody id="tbl-keywords"></tbody></table>
     </div>
     <div id="settings-section-topics" style="display:none">
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
@@ -387,7 +416,7 @@
         <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openModal('topic')">+ Add Topic</button>
       </div>
       <div style="font-size:12px;color:var(--text-soft);background:#f5f9ff;border:1px solid var(--border);border-radius:8px;padding:8px 14px;margin-bottom:12px">📰 Topics are used for news categorization only — not searched on YouTube. Drag to reorder.</div>
-      <table class="settings-table"><thead><tr><th>⠿</th><th>Topic</th><th>Category</th><th>Active</th><th></th></tr></thead><tbody id="tbl-topics"></tbody></table>
+      <table class="settings-table"><thead><tr><th>⠿</th><th>Topic</th><th>Group Label</th><th>Category</th><th>Active</th><th></th></tr></thead><tbody id="tbl-topics"></tbody></table>
     </div>
     <div id="settings-section-global-sources" style="display:none">
       <button class="settings-back" onclick="closeGlobalSources()">← Back to Settings</button>
@@ -519,6 +548,7 @@
     'Local':{icon:'📍',color:'#3d1580',bg:'#ede6ff',dot:'#8b5cf6'},
     'Spanish':{icon:'🗣️',color:'#1a5fa8',bg:'#e6f1ff',dot:'#2b7fd4'},
     'Health':{icon:'❤️',color:'#8a1010',bg:'#fde0e0',dot:'#e05050'},
+    'Subscriptions':{icon:'📡',color:'#0a5c4e',bg:'#d6f5ef',dot:'#2abfaa'},
     'Other':{icon:'📰',color:'#444',bg:'#f5f5f5',dot:'#888'}
   };
   const langCodes = {'Spanish':'es-ES','French':'fr-FR','Italian':'it-IT','Portuguese':'pt-PT','Romanian':'ro-RO'};
@@ -536,11 +566,11 @@
 
   let headlines=[],recencyDays_value=7,categories=[],sources=[],keywords=[],topics=[];
   let allLanguages=[],userLanguages=[];
-  let currentFilter='Local',currentSettingsSection=null;
+  let currentFilter='Subscriptions',currentSettingsSection=null;
   let currentLangID=null,currentLangName=null;
   let myWords=[],myWordsFilter='active',showImages=true;
   let mwSortCol='dateadded',mwSortDir='desc';
-  let myWordsDeckFilter=''; // deck ID filter for My Words, '' = all
+  let myWordsDeckFilter='';
   let flashcards=[],flashcardIndex=0,flashcardShowTranslation=false,flashcardFilter='all',flashcardAutoPronounce=true,flashcardLeadWith='language';
   let sentencesCache={};
   let newWordImage=null,newWordImageChanged=false;
@@ -605,9 +635,18 @@
     document.getElementById('us-maxheadlines').value=userSettings?.headlineSetting?.MaxHeadlines||50;
     document.getElementById('us-youtubemaxresults').value=userSettings?.headlineSetting?.YouTubeMaxResults||3;
     document.getElementById('us-otherperkey').value=userSettings?.headlineSetting?.OtherHeadlinesPerKeyword||3;
-    // Sync YouTube disable checkbox from localStorage only — don't override on settings visit
+    const fetchHourEl=document.getElementById('us-fetchhour');
+    if(fetchHourEl){
+      const fh=userSettings?.headlineSetting?.FetchHour;
+      fetchHourEl.value=(fh!==null&&fh!==undefined)?String(fh):'';
+    }
     const ytCb=document.getElementById('us-disable-yt');
-    if(ytCb)ytCb.checked=localStorage.getItem(`dailyme_yt_disabled_${USER_ID}`)==='1';
+    if(ytCb){
+      const dbDisabled=userSettings?.headlineSetting?.DisableYoutubeToday;
+      ytCb.checked=!!dbDisabled;
+      if(dbDisabled)localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
+      else localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
+    }
     const savedTs=localStorage.getItem(`dailyme_last_fetch_time_${USER_ID}`);
     const lft=document.getElementById('last-fetch-time');if(lft&&savedTs){const d=new Date(savedTs);if(!isNaN(d)){lft.textContent=`refresh: ${fmtDT(d)}`;lft.style.display='';}}
     const savedYtTs=localStorage.getItem(`dailyme_last_yt_fetch_time_${USER_ID}`);
@@ -620,47 +659,12 @@
       document.getElementById('onboard-overlay').style.display='flex';
     } else {
       await loadHeadlines();
-      autoFetchHeadlinesIfNewDay();
     }
   }
 
   function closeOnboarding(){
     localStorage.setItem(`dailyme_onboarded_${USER_ID}`,'1');
     document.getElementById('onboard-overlay').style.display='none';
-  }
-
-  async function autoFetchHeadlinesIfNewDay(){
-    const today=new Date().toDateString();
-    if(localStorage.getItem('dailyme_last_fetch')===today)return;
-    // New day — re-enable YouTube
-    localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
-    const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=false;
-    await apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:false});
-    // Show Refreshing... state on button
-    const btn=document.getElementById('refresh-btn');
-    if(btn){btn.textContent='Refreshing...';btn.style.color='white';btn.style.background='#1a5fa8';btn.style.borderColor='#1a5fa8';btn.style.fontWeight='700';btn.disabled=true;}
-    try{
-      await apiPost('FetchHeadlines',{userID:USER_ID,disableYoutube:false});
-      localStorage.setItem('dailyme_last_fetch',today);
-      // Auto-disable YouTube after fetch
-      localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
-      const ytCb2=document.getElementById('us-disable-yt');if(ytCb2)ytCb2.checked=true;
-      await apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:true});
-      // Update timestamps
-      const now=new Date();
-      const ts=fmtDT(now);
-      localStorage.setItem(`dailyme_last_fetch_time_${USER_ID}`,now.toISOString());
-      const lft=document.getElementById('last-fetch-time');if(lft){lft.textContent=`refresh: ${ts}`;lft.style.display='';}
-      const ytLft=document.getElementById('last-yt-fetch-time');
-      if(ytLft){ytLft.textContent=`youtube: ${ts}`;ytLft.style.display='';localStorage.setItem(`dailyme_last_yt_fetch_time_${USER_ID}`,now.toISOString());}
-      // Reload headlines now that fresh ones are in DB
-      await loadHeadlines();
-    }catch(e){
-      console.error('Auto-fetch failed:',e);
-    }finally{
-      // Restore button regardless of success/failure
-      if(btn){btn.textContent='↻ Refresh';btn.style.color='';btn.style.background='';btn.style.borderColor='';btn.style.fontWeight='';btn.disabled=false;}
-    }
   }
 
   // ── LANGUAGE ──
@@ -705,13 +709,16 @@
             <div class="lang-compact-name">${lang.LanguageNameEng}</div>
             <div class="lang-compact-native">${lang.LanguageName}</div>
             <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-              <div class="lang-compact-greeting">${langEncouragements[lang.LanguageNameEng]?langEncouragements[lang.LanguageNameEng][Math.floor(Math.random()*langEncouragements[lang.LanguageNameEng].length)]:''}</div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <button class="btn-primary" style="padding:4px 12px;font-size:12px" onclick="visitLanguage(${lang.LanguageID},'${lang.LanguageNameEng}');showNewWord()">+ Add Word</button>
+                <div class="lang-compact-greeting">${langEncouragements[lang.LanguageNameEng]?langEncouragements[lang.LanguageNameEng][Math.floor(Math.random()*langEncouragements[lang.LanguageNameEng].length)]:''}</div>
+              </div>
               <div id="lang-streak-${lang.LanguageID}" style="font-size:12px;font-weight:600;color:var(--sky-deep)">Streak: ${langStreaks[lang.LanguageID]||0} ${getStreakEmoji(langStreaks[lang.LanguageID]||0)}</div>
             </div>
           </div>
           <div class="lang-tab-bar">
-            <div class="lang-tab" id="langtab-mw-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'mywords','${lang.LanguageNameEng}')">📝 My Words</div>
             <div class="lang-tab" id="langtab-decks-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'decks','${lang.LanguageNameEng}')">📚 My Decks</div>
+            <div class="lang-tab" id="langtab-mw-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'mywords','${lang.LanguageNameEng}')">📝 My Words</div>
             <div class="lang-tab lang-tab-disabled">💬 Conversation</div>
             <div class="lang-tab" id="langtab-conj-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'conjugation','${lang.LanguageNameEng}')">🔤 Conjugation</div>
           </div>
@@ -747,7 +754,6 @@
       myWordsFilter='active';showImages=true;wordSearch='';myWordsDeckFilter='';
       const data=await apiGet('GetUserLanguageWords',`&languageID=${langID}&filter=all`);
       myWords=Array.isArray(data)?data:[];
-      // Also load decks for filter combo
       if(!userDecks.length){
         const ddata=await apiGet('GetUserDecks',`&languageID=${langID}&status=all`);
         userDecks=Array.isArray(ddata)?ddata:[];
@@ -814,23 +820,16 @@
   }
 
   function renderMyWordsHTML(langID,langName){
-    // Apply verb filter
     const verbFiltered = verbFilter==='verbs' ? myWords.filter(w=>w.IsVerb==='Y')
       : verbFilter==='nouns' ? myWords.filter(w=>w.IsVerb!=='Y')
       : myWords;
-
-    // Apply deck filter
     const deckFiltered = myWordsDeckFilter
       ? verbFiltered.filter(w=>w.DeckIDs&&w.DeckIDs.includes(parseInt(myWordsDeckFilter)))
       : verbFiltered;
-
-    // Apply status filter
     const displayWords = myWordsFilter==='active' ? deckFiltered.filter(w=>!w.DateMastered)
       : myWordsFilter==='flagged' ? deckFiltered.filter(w=>w.Flag)
       : myWordsFilter==='mastered' ? deckFiltered.filter(w=>w.DateMastered)
       : deckFiltered;
-
-    // Apply word search
     const searchFiltered = wordSearch
       ? displayWords.filter(w=>{
           const name=(w.WordsName||'').toLowerCase();
@@ -838,7 +837,6 @@
           return name.includes(wordSearch)||trans.includes(wordSearch);
         })
       : displayWords;
-
     const activeCount=deckFiltered.filter(w=>!w.DateMastered).length;
     const flaggedCount=deckFiltered.filter(w=>w.Flag).length;
     const masteredCount=deckFiltered.filter(w=>w.DateMastered).length;
@@ -846,9 +844,7 @@
       {key:'active',label:`Active (${activeCount})`},{key:'flagged',label:`Flagged (${flaggedCount})`},
       {key:'mastered',label:`Mastered (${masteredCount})`},{key:'all',label:`All (${deckFiltered.length})`}
     ];
-
     const activeDecks=[...userDecks].filter(d=>d.Status==='Active').sort((a,b)=>b.UserLanguageWordsDeckName.localeCompare(a.UserLanguageWordsDeckName));
-
     const mwSorted=[...searchFiltered].sort((a,b)=>{
       let av,bv;
       if(mwSortCol==='dateadded'){av=a.DateAdded||'';bv=b.DateAdded||'';}
@@ -863,7 +859,6 @@
       const imgEl=showImages?(w.WordsImage
         ?`<a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;"><img src="${w.WordsImage}" class="word-img" alt="" style="cursor:pointer"></a>`
         :`<a href="#" onclick="editWord(${w.UserLanguageWordsID});return false;"><div class="word-img-placeholder">📖</div></a>`):'';
-      // Meta row: type | conjugate | decks — grid aligned
       const typePart=w.IsVerb==='Y'?'<span style="font-size:10px;color:var(--text-muted);min-width:30px">verb</span>':'<span style="min-width:30px"></span>';
       const conjPart=w.IsVerb==='Y'?`<span class="conjugate-link" onclick="showConjugation(${w.UserLanguageWordsID},()=>showLangFeature(currentLangID,'mywords',currentLangName))" style="font-weight:400;font-size:11px;min-width:70px">conjugate</span>`:'<span style="min-width:70px"></span>';
       const deckNames=(w.DeckNames||'').split(',').map(s=>s.trim()).filter(Boolean);
@@ -893,8 +888,6 @@
       </div>`;
     }).join('')||'<div class="empty-state">No words found.</div>';
 
-    // Row 1: Word Search | Type | Deck | New Word button
-    // Row 2: Status filters (left) | Images (right)
     return `
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px;margin-bottom:6px">
         <div style="display:flex;align-items:center;gap:6px">
@@ -966,12 +959,12 @@
         const isVerbFlag=trans.isVerb===true||trans.isVerb==='true';
         const result=await apiPost('SaveUserLanguageWord',{action:'add',userID:USER_ID,languageID:currentLangID,
           wordsName:word,wordsTranslation:trans.translation||'',isVerb:isVerbFlag,gender:trans.gender||null,wordsImage:null});
-        if(result?.wordID){imported++;existingNames.add(word.toLowerCase());}else failed++;
+        if(result?.duplicate){skipped++;}
+        else if(result?.wordID){imported++;existingNames.add(word.toLowerCase());}else failed++;
       }catch(e){failed++;}
     }
-    const doneMsg='Done - '+imported+' Word'+(imported!==1?'s':'')+' Imported'+(skipped?' ('+skipped+' skipped)':'')+'.'
+    const doneMsg='Done - '+imported+' Word'+(imported!==1?'s':'')+' Imported'+(skipped?' ('+skipped+' duplicate'+(skipped!==1?'s':'')+' skipped)':'')+'.'
     await loadMyWords();
-    // Set status on freshly rendered element
     const freshEl=getImportStatusEl();
     if(freshEl){
       freshEl.textContent=doneMsg;freshEl.style.display='inline';
@@ -1050,10 +1043,9 @@
     }catch(e){alert('Delete failed: '+e.message);}
   }
 
-  // ── WORD FORM (new & edit) ──
+  // ── WORD FORM ──
 
   function renderWordDeckGrid(wordID,wordDecks){
-    // wordDecks: array of {UserLanguageWordsDeckID, UserLanguageWordsDeckName}
     const activeDecks=[...userDecks].filter(d=>d.Status==='Active').sort((a,b)=>a.UserLanguageWordsDeckName.localeCompare(b.UserLanguageWordsDeckName));
     const deckRows=(wordDecks||[]).map(d=>`
       <div style="display:flex;align-items:center;gap:8px;padding:2px 0;border-bottom:1px solid #eef5fc" id="wdeck-row-${d.UserLanguageWordsDeckID}">
@@ -1083,12 +1075,10 @@
     if(!sel||!sel.value)return;
     const deckID=parseInt(sel.value);
     await apiPost('SaveUserDeck',{action:'addWord',userID:USER_ID,deckID,wordID});
-    // Refresh deck grid
     const word=myWords.find(w=>w.UserLanguageWordsID===wordID);
     const deckData=await apiGet('GetWordDecks',`&wordID=${wordID}`);
     const section=document.getElementById('word-deck-section');
     if(section)section.outerHTML=renderWordDeckGrid(wordID,Array.isArray(deckData)?deckData:[]);
-    // Update local word deck info
     if(word){
       const deck=userDecks.find(d=>d.UserLanguageWordsDeckID===deckID);
       if(deck){
@@ -1103,7 +1093,6 @@
     const deckData=await apiGet('GetWordDecks',`&wordID=${wordID}`);
     const section=document.getElementById('word-deck-section');
     if(section)section.outerHTML=renderWordDeckGrid(wordID,Array.isArray(deckData)?deckData:[]);
-    // Update local
     const word=myWords.find(w=>w.UserLanguageWordsID===wordID);
     if(word){
       word.DeckIDs=(word.DeckIDs||[]).filter(id=>id!==deckID);
@@ -1195,7 +1184,6 @@
   async function editWord(wordID){
     const word=myWords.find(w=>w.UserLanguageWordsID===wordID);if(!word)return;
     editingWordID=wordID;newWordImage=word.WordsImage||null;newWordImageChanged=false;
-    // Load current decks for this word
     let wordDecks=[];
     try{ const d=await apiGet('GetWordDecks',`&wordID=${wordID}`); wordDecks=Array.isArray(d)?d:[]; }catch(e){}
     const screenEl=document.getElementById(`screen-newword-${currentLangID}`);
@@ -1220,8 +1208,12 @@
         await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:editingWordID,wordsName,wordsTranslation,isVerb,gender,mastered,wordsImage:newWordImage});
       }else{
         const result=await apiPost('SaveUserLanguageWord',{action:'add',userID:USER_ID,languageID:currentLangID,wordsName,wordsTranslation,isVerb,gender,wordsImage:newWordImage});
+        if(result?.duplicate){
+          const statusEl=document.getElementById('nw-fetch-status');
+          if(statusEl){statusEl.textContent='Word not added. Already present.';statusEl.style.color='#e05050';}
+          return;
+        }
         newWordID=result?.wordID||null;
-        // Auto-add to most recent deck
         if(newWordID&&userDecks.length){
           const sorted=[...userDecks].sort((a,b)=>new Date(b.DateAdded)-new Date(a.DateAdded));
           if(sorted.length)await apiPost('SaveUserDeck',{action:'addWord',userID:USER_ID,deckID:sorted[0].UserLanguageWordsDeckID,wordID:newWordID});
@@ -1459,7 +1451,6 @@
     const loadVerb=autoLoadWordID?verbs.find(v=>v.UserLanguageWordsID==autoLoadWordID)||null:null;
     const sortedVerbs=[...verbs].sort((a,b)=>a.WordsName.localeCompare(b.WordsName));
     const optItems=sortedVerbs.map(v=>`<div class="conj-verb-opt" onclick="selectConjVerb(${v.UserLanguageWordsID})" data-word="${v.WordsName.toLowerCase()}"><span class="conj-verb-opt-word">${v.WordsName}</span><span class="conj-verb-opt-trans">${v.WordsTranslation||''}</span></div>`).join('');
-    // If autoLoadWordID, load conjugation but keep dropdown closed
     if(loadVerb)setTimeout(()=>loadConjugation(loadVerb.UserLanguageWordsID,langName),0);
     return`<div class="conj-panel">
       <div style="display:flex;align-items:center;gap:10px;margin:12px 0">
@@ -1479,7 +1470,6 @@
     const data=await apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=active`);
     conjVerbs=Array.isArray(data)?data.filter(w=>w.IsVerb==='Y'):[];
     conjLangName=currentLangName;
-    // Must be on lang screen for conjugation panel to render
     showScreen(`lang-${currentLangID}`,false);
     conjReturnFn=()=>editWord(wordID);
     history.pushState({view:'conjugation'},'');
@@ -1561,14 +1551,11 @@
         <thead><tr>
           ${sortTh('UserLanguageWordsDeckName','Deck Name')}
           ${sortTh('DateAdded','Date Added')}
-          ${sortTh('Status','Status')}
-          ${sortTh('WordCount','Words')}
-          <th></th>
-          <th></<th>Words</th>
+          <th>Words</th>
           ${sortTh('Status','Status')}
           ${sortTh('WordCount','Count')}
           <th></th>
-          <th></th>th>
+          <th></th>
         </tr></thead>
         <tbody id="tbl-decks-${langID}">${rows}</tbody>
       </table>`;
@@ -1644,7 +1631,6 @@
   async function removeDeckWord(deckID,wordID,btn){
     await apiPost('SaveUserDeck',{action:'removeWord',userID:USER_ID,deckID,wordID});
     btn.closest('tr').remove();
-    // Update deck word count locally
     const deck=userDecks.find(d=>d.UserLanguageWordsDeckID===deckID);
     if(deck&&deck.WordCount>0)deck.WordCount--;
   }
@@ -1741,24 +1727,55 @@
 
   // ── HEADLINES ──
 
+  // Resolve the display group label for a headline
+  function resolveGroupLabel(h) {
+    if (h.IsSubscription === 1 || h.IsSubscription === true) return 'Subscriptions';
+    const kwLabel = h.KeywordGroupLabel && h.KeywordGroupLabel.trim() !== '' ? h.KeywordGroupLabel.trim() : null;
+    const kwName  = h.Keyword || null;
+    const tpLabel = h.TopicGroupLabel && h.TopicGroupLabel.trim() !== '' ? h.TopicGroupLabel.trim() : null;
+    const tpName  = h.Topic || null;
+    // Keyword takes priority over topic
+    if (kwName) {
+      const label = kwLabel && kwLabel.toLowerCase() !== kwName.toLowerCase() ? kwLabel : kwName;
+      return label;
+    }
+    if (tpName) {
+      const label = tpLabel && tpLabel.toLowerCase() !== tpName.toLowerCase() ? tpLabel : tpName;
+      return label;
+    }
+    return 'Other';
+  }
+
   async function loadHeadlines(){
     try{
       const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`);
       let allData=await res.json();if(!Array.isArray(allData))allData=[];
-      if(currentFilter==='Other')headlines=allData.filter(h=>!h.CategoryID);
-      else if(currentFilter==='all')headlines=allData;
-      else{const catID=getCategoryID(currentFilter);headlines=catID?allData.filter(h=>h.CategoryID===catID):allData;}
+      if(currentFilter==='Subscriptions'){
+        headlines=allData.filter(h=>h.IsSubscription===1||h.IsSubscription===true);
+      } else if(currentFilter==='Other'){
+        headlines=allData.filter(h=>resolveGroupLabel(h)==='Other');
+      } else if(currentFilter==='all'){
+        headlines=allData;
+      } else {
+        // Match by resolved group label or category
+        const catID=getCategoryID(currentFilter);
+        if(catID){
+          headlines=allData.filter(h=>h.CategoryID===catID);
+        } else {
+          headlines=allData.filter(h=>resolveGroupLabel(h)===currentFilter);
+        }
+      }
       if(!categories.length)categories=await apiGet('GetCategories');
       renderCategoryTiles(allData);renderHeadlines();
     }catch(e){console.error('Error loading headlines:',e);}
   }
 
   function getCategoryID(catName){
-    if(!catName||catName==='all'||catName==='Other')return null;
+    if(!catName||catName==='all'||catName==='Other'||catName==='Subscriptions')return null;
     const cat=categories.find(c=>c.Name.toLowerCase()===catName.toLowerCase());return cat?cat.CategoryID:null;
   }
 
-async function refreshHeadlines(){
+  async function refreshHeadlines(){
     try{
       const btn=document.getElementById('refresh-btn'),status=document.getElementById('refresh-status');
       btn.textContent='Refreshing...';btn.style.color='white';btn.style.background='#1a5fa8';btn.style.borderColor='#1a5fa8';btn.style.fontWeight='700';btn.disabled=true;
@@ -1805,32 +1822,66 @@ async function refreshHeadlines(){
   }
 
   function renderCategoryTiles(allHeadlines){
-    const cats=categories.filter(c=>c.Headlines==='Y'&&c.IsActive==='Y'&&c.Name.toLowerCase()!=='health').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999));
     const row=document.getElementById('cat-row');
-    row.innerHTML=cats.map(c=>{
+    // Count subscriptions
+    const subCount=allHeadlines?allHeadlines.filter(h=>h.IsSubscription===1||h.IsSubscription===true).length:null;
+    const subEmpty=subCount!==null&&subCount===0;
+    let html=`<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''} ${subEmpty?'cat-empty':''}" onclick="${subEmpty?'':'filterCat(\'Subscriptions\',this)'}" style="${subEmpty?'opacity:0.45;cursor:default':''}">📡 Subscriptions${subCount!==null&&!subEmpty?' ('+subCount+')':''}</div>`;
+    // Category tiles
+    const cats=categories.filter(c=>c.Headlines==='Y'&&c.IsActive==='Y'&&c.Name.toLowerCase()!=='health').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999));
+    html+=cats.map(c=>{
       const style=catColors[c.Name]||{dot:'#888'};
       const count=allHeadlines?allHeadlines.filter(h=>h.CategoryID===c.CategoryID).length:null;
-      const isEmpty=count!==null&&count===0;const onclk=isEmpty?'':('filterCat(\'' + c.Name + '\',this)');return `<div class="cat-tile ${currentFilter===c.Name?'active':''} ${isEmpty?'cat-empty':''}" onclick="${onclk}" style="${isEmpty?'opacity:0.45;cursor:default':''}"><div class="cat-dot" style="background:${style.dot}"></div>${c.Name}${(count!==null&&!isEmpty)?' ('+count+')':''}</div>`;
-    }).join('')+
-    `<div class="cat-tile ${currentFilter==='Other'?'active':''}" onclick="filterCat('Other',this)"><div class="cat-dot" style="background:#888"></div>Other${allHeadlines!==null?` (${allHeadlines?allHeadlines.filter(h=>!h.CategoryID).length:0})`:''}</div>`;
+      const isEmpty=count!==null&&count===0;
+      const onclk=isEmpty?'':('filterCat(\'' + c.Name + '\',this)');
+      return `<div class="cat-tile ${currentFilter===c.Name?'active':''} ${isEmpty?'cat-empty':''}" onclick="${onclk}" style="${isEmpty?'opacity:0.45;cursor:default':''}"><div class="cat-dot" style="background:${style.dot}"></div>${c.Name}${(count!==null&&!isEmpty)?' ('+count+')':''}</div>`;
+    }).join('');
+    html+=`<div class="cat-tile ${currentFilter==='Other'?'active':''}" onclick="filterCat('Other',this)"><div class="cat-dot" style="background:#888"></div>Other${allHeadlines!==null?` (${allHeadlines?allHeadlines.filter(h=>resolveGroupLabel(h)==='Other').length:0})`:''}</div>`;
+    row.innerHTML=html;
   }
 
   function renderHeadlines(){
-    if(headlines.length===0&&currentFilter!=='all'&&currentFilter!=='Other'){
+    if(headlines.length===0&&currentFilter!=='all'&&currentFilter!=='Other'&&currentFilter!=='Subscriptions'){
       fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`).then(r=>r.json()).then(all=>{
         if(!Array.isArray(all)||!all.length){document.getElementById('headlines-grouped').innerHTML='<div class="empty-state">No headlines found. Click ↻ Refresh to fetch latest headlines.</div>';return;}
+        // Try Subscriptions first
+        if(all.some(h=>h.IsSubscription===1||h.IsSubscription===true)){
+          currentFilter='Subscriptions';renderCategoryTiles(all);
+          headlines=all.filter(h=>h.IsSubscription===1||h.IsSubscription===true);renderHeadlines();return;
+        }
         const orderedCats=[...categories].filter(c=>c.IsActive==='Y'&&c.Headlines==='Y').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999));
         for(const cat of orderedCats){if(all.some(h=>h.CategoryID===cat.CategoryID)){currentFilter=cat.Name;renderCategoryTiles(all);headlines=all.filter(h=>h.CategoryID===cat.CategoryID);renderHeadlines();return;}}
         document.getElementById('headlines-grouped').innerHTML='<div class="empty-state">No headlines found. Click ↻ Refresh to fetch latest headlines.</div>';
       });return;
     }
     if(!headlines.length){document.getElementById('headlines-grouped').innerHTML='<div class="empty-state">No headlines found. Click ↻ Refresh to fetch latest headlines.</div>';return;}
+
+    // Group by resolved group label
     const groups={};
-    headlines.forEach(h=>{const key=h.CategoryName||'Other';if(!groups[key])groups[key]=[];groups[key].push(h);});
-    const orderedKeys=[...categories.filter(c=>groups[c.Name]).sort((a,b)=>(a.Sequence||999)-(b.Sequence||999)).map(c=>c.Name),...(groups['Other']?['Other']:[])];
-    Object.keys(groups).forEach(k=>{if(!orderedKeys.includes(k))orderedKeys.push(k);});
-    document.getElementById('headlines-grouped').innerHTML=orderedKeys.map(catName=>{
-      const items=groups[catName]||[],c=catColors[catName]||catColors['Other'];
+    const groupSeq={};
+    headlines.forEach(h=>{
+      const key=resolveGroupLabel(h);
+      if(!groups[key])groups[key]=[];
+      groups[key].push(h);
+      // Track minimum keyword/topic sequence for ordering groups
+      const seq=h.KeywordSequence||h.TopicSequence||999;
+      if(groupSeq[key]===undefined||seq<groupSeq[key])groupSeq[key]=seq;
+    });
+
+    // Order: Subscriptions first, then by min sequence, Other last
+    const orderedKeys=Object.keys(groups).sort((a,b)=>{
+      if(a==='Subscriptions')return -1;if(b==='Subscriptions')return 1;
+      if(a==='Other')return 1;if(b==='Other')return -1;
+      return (groupSeq[a]||999)-(groupSeq[b]||999);
+    });
+
+    document.getElementById('headlines-grouped').innerHTML=orderedKeys.map(groupName=>{
+      const items=groups[groupName]||[];
+      const c=groupName==='Subscriptions'?catColors['Subscriptions']:catColors[groupName]||catColors['Other'];
+      const icon=groupName==='Subscriptions'?'📡':(c.icon||'📰');
+      const headerBg=groupName==='Subscriptions'?'#d6f5ef':'#f5f5f5';
+      const headerColor=groupName==='Subscriptions'?'#0a5c4e':'#444';
+      const headerBorder=groupName==='Subscriptions'?'#0a5c4e44':'#44444444';
       const rows=items.map(h=>`
         <div class="headline-row ${h.Retain==='Y'?'retained':''}" onclick="openHeadline('${h.Link}')">
           <img src="${h.ThumbnailURL||'images/newspaper.svg'}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">
@@ -1842,11 +1893,12 @@ async function refreshHeadlines(){
               <span class="headline-row-source">source: ${h.SourceName||'—'}</span>
               <span class="headline-row-source">keyword: ${h.Keyword||h.Topic||'—'}</span>
               ${h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:''}
+              ${h.Duration?`<span style="font-size:11px;color:var(--text-muted);background:#f0f7ff;border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-weight:600">⏱ ${h.Duration}</span>`:''}
             </div>
           </div>
           <button class="retain-btn ${h.Retain==='Y'?'active':''}" onclick="toggleRetain(${h.HeadlineID},event)"></button>
         </div>`).join('');
-      return `<div class="cat-group"><div class="cat-group-header" style="background:${c.bg};color:${c.color};border-bottom:1.5px solid ${c.color}44"><span>${c.icon}</span><span>${catName} <span style="opacity:0.6;font-weight:500">(${items.length})</span></span></div>${rows}</div>`;
+      return `<div class="cat-group"><div class="cat-group-header" style="background:${headerBg};color:${headerColor};border-bottom:1.5px solid ${headerBorder}"><span>${icon}</span><span>${groupName} <span style="opacity:0.6;font-weight:500">(${items.length})</span></span></div>${rows}</div>`;
     }).join('');
   }
 
@@ -1913,15 +1965,17 @@ async function refreshHeadlines(){
   }
 
   async function saveUserSettings(){
-    if(!document.getElementById('us-recency'))return; // not on settings screen
+    if(!document.getElementById('us-recency'))return;
     const recencyDays=Math.min(14,Math.max(1,parseInt(document.getElementById('us-recency').value)||7));
     let maxHeadlines=parseInt(document.getElementById('us-maxheadlines').value);
     const youTubeMaxResults=parseInt(document.getElementById('us-youtubemaxresults').value)||3;
     const otherHeadlinesPerKeyword=parseInt(document.getElementById('us-otherperkey').value)||3;
+    const fetchHourVal=document.getElementById('us-fetchhour')?.value;
+    const fetchHour=fetchHourVal===''?null:parseInt(fetchHourVal);
     const categorySettings=categories.filter(c=>c.IsActive==='Y').map(c=>({categoryID:c.CategoryID,maxItems:Math.min(30,Math.max(1,parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value||20)))}));
     const catSum=categorySettings.reduce((sum,cs)=>sum+cs.maxItems,0);
     if(maxHeadlines<catSum){maxHeadlines=catSum;document.getElementById('us-maxheadlines').value=maxHeadlines;updateOtherLimit();}
-    await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,categorySettings});
+    await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,fetchHour,categorySettings});
     recencyDays_value=recencyDays;
     document.getElementById('recency-val').textContent=recencyDays===1?'1 day':`${recencyDays} days`;
   }
@@ -1959,6 +2013,7 @@ async function refreshHeadlines(){
             <span class="headline-row-source">source: ${h.SourceName||'—'}</span>
             <span class="headline-row-source">keyword: ${h.Keyword||h.Topic||'—'}</span>
             ${h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:''}
+            ${h.Duration?`<span style="font-size:11px;color:var(--text-muted);background:#f0f7ff;border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-weight:600">⏱ ${h.Duration}</span>`:''}
           </div>
         </div>
         <button class="retain-btn ${h.Retain==='Y'?'active':''}" onclick="toggleRetainHealth(${h.HeadlineID},event)"></button>
@@ -1978,7 +2033,6 @@ async function refreshHeadlines(){
   // ── SCREEN NAVIGATION ──
 
   function showScreen(name,pushState=true){
-    // Auto-save settings when navigating away
     const wasOnSettings=document.getElementById('screen-settings')?.classList.contains('active');
     if(wasOnSettings&&name!=='settings'){
       try{saveUserSettings();}catch(e){console.error('Auto-save failed:',e);}
@@ -2056,19 +2110,20 @@ async function refreshHeadlines(){
   }
   function renderSettingsKeywords(){
     const tbody=document.getElementById('tbl-keywords');
-    const arrow=col=>kwSortCol===col?(kwSortDir==='asc'?'▲':'▼'):'';
     const sorted=[...keywords].sort((a,b)=>{
       if(kwSortCol==='Sequence')return kwSortDir==='asc'?(a.Sequence||99)-(b.Sequence||99):(b.Sequence||99)-(a.Sequence||99);
       const av=(a[kwSortCol==='Keyword'?'Keyword':'CategoryName']||'').toLowerCase();
       const bv=(b[kwSortCol==='Keyword'?'Keyword':'CategoryName']||'').toLowerCase();
       return kwSortDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
     });
-    // Update headers
     const thead=tbody.closest('table')?.querySelector('thead tr');
-    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th>Category</th><th>Active</th><th></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th>Group Label</th><th>Category</th><th>Active</th><th></th>`;
     tbody.innerHTML=sorted.map(k=>`
       <tr draggable="true" data-id="${k.KeywordID}" data-type="keyword">
-        <td style="width:30px;color:var(--text-muted)">⠿</td><td>${k.Keyword}</td><td>${k.CategoryName||'—'}</td>
+        <td style="width:30px;color:var(--text-muted)">⠿</td>
+        <td>${k.Keyword}</td>
+        <td style="font-size:11px;color:var(--text-soft)">${k.GroupLabel&&k.GroupLabel.toLowerCase()!==k.Keyword.toLowerCase()?k.GroupLabel:'—'}</td>
+        <td>${k.CategoryName||'—'}</td>
         <td><button class="toggle ${k.IsActive==='Y'?'on':''}" onclick="toggleKeyword(${k.KeywordID},this)"></button></td>
         <td style="display:flex;gap:6px"><button class="btn-icon" onclick="openModal('keyword',${k.KeywordID})">✏️</button><button class="btn-icon danger" onclick="deleteKeyword(${k.KeywordID})">🗑️</button></td></tr>`).join('');
     initDragDrop(tbody,'keyword');
@@ -2082,7 +2137,6 @@ async function refreshHeadlines(){
   }
   function renderSettingsTopics(){
     const tbody=document.getElementById('tbl-topics');
-    const arrow=col=>topSortCol===col?(topSortDir==='asc'?'▲':'▼'):'';
     const sorted=[...topics].sort((a,b)=>{
       if(topSortCol==='Sequence')return topSortDir==='asc'?(a.Sequence||99)-(b.Sequence||99):(b.Sequence||99)-(a.Sequence||99);
       const av=(a[topSortCol==='Topic'?'Topic':'CategoryName']||'').toLowerCase();
@@ -2090,10 +2144,13 @@ async function refreshHeadlines(){
       return topSortDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
     });
     const thead=tbody.closest('table')?.querySelector('thead tr');
-    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Topic</th><th>Category</th><th>Active</th><th></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Topic</th><th>Group Label</th><th>Category</th><th>Active</th><th></th>`;
     tbody.innerHTML=sorted.map(t=>`
       <tr draggable="true" data-id="${t.TopicID}" data-type="topic">
-        <td style="width:30px;color:var(--text-muted)">⠿</td><td>${t.Topic}</td><td>${t.CategoryName||'—'}</td>
+        <td style="width:30px;color:var(--text-muted)">⠿</td>
+        <td>${t.Topic}</td>
+        <td style="font-size:11px;color:var(--text-soft)">${t.GroupLabel&&t.GroupLabel.toLowerCase()!==t.Topic.toLowerCase()?t.GroupLabel:'—'}</td>
+        <td>${t.CategoryName||'—'}</td>
         <td><button class="toggle ${t.IsActive==='Y'?'on':''}" onclick="toggleTopic(${t.TopicID},this)"></button></td>
         <td style="display:flex;gap:6px"><button class="btn-icon" onclick="openModal('topic',${t.TopicID})">✏️</button><button class="btn-icon danger" onclick="deleteTopic(${t.TopicID})">🗑️</button></td></tr>`).join('');
     initDragDrop(tbody,'topic');
@@ -2142,12 +2199,16 @@ async function refreshHeadlines(){
       }
     }else if(type==='keyword'){
       const kw=id?keywords.find(k=>k.KeywordID===id):null;title=id?'Edit Keyword':'Add Keyword';
+      const currentGroupLabel=kw?.GroupLabel&&kw.GroupLabel.toLowerCase()!==kw.Keyword?.toLowerCase()?kw.GroupLabel:'';
       body=`<div class="form-group"><label class="form-label">Keyword (exact match)</label><input class="form-input" id="m-keyword" value="${kw?.Keyword||''}"></div>
+        <div class="form-group"><label class="form-label">Group Label <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(optional — groups headlines with same label)</span></label><input class="form-input" id="m-grouplabel" value="${currentGroupLabel}" placeholder="Leave blank to use keyword name"></div>
         <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>`;
       if(kw?.CategoryID)setTimeout(()=>document.getElementById('m-cat').value=kw.CategoryID,0);
     }else if(type==='topic'){
       const tp=id?topics.find(t=>t.TopicID===id):null;title=id?'Edit Topic':'Add Topic';
+      const currentGroupLabel=tp?.GroupLabel&&tp.GroupLabel.toLowerCase()!==tp.Topic?.toLowerCase()?tp.GroupLabel:'';
       body=`<div class="form-group"><label class="form-label">Topic (fuzzy match)</label><input class="form-input" id="m-topic" value="${tp?.Topic||''}"></div>
+        <div class="form-group"><label class="form-label">Group Label <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(optional — groups headlines with same label)</span></label><input class="form-input" id="m-grouplabel" value="${currentGroupLabel}" placeholder="Leave blank to use topic name"></div>
         <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>`;
       if(tp?.CategoryID)setTimeout(()=>document.getElementById('m-cat').value=tp.CategoryID,0);
     }
@@ -2186,18 +2247,36 @@ async function refreshHeadlines(){
       }
       renderSettingsSources();
     }else if(modalType==='keyword'){
-      const keyword=document.getElementById('m-keyword').value.trim(),categoryID=document.getElementById('m-cat').value||null;
+      const keyword=document.getElementById('m-keyword').value.trim();
+      const categoryID=document.getElementById('m-cat').value||null;
+      const rawLabel=document.getElementById('m-grouplabel')?.value.trim()||'';
+      const groupLabel=rawLabel.toLowerCase()===keyword.toLowerCase()?null:(rawLabel||null);
       const sequence=modalID?(keywords.find(k=>k.KeywordID===modalID)?.Sequence||99):(Math.max(...keywords.map(k=>k.Sequence||0),0)+1);
       if(!keyword)return alert('Keyword is required');
-      if(modalID){await apiPost('SaveKeyword',{action:'update',keywordID:modalID,keyword,categoryID,sequence,isActive:true,userID:USER_ID});const kw=keywords.find(k=>k.KeywordID===modalID);if(kw){kw.Keyword=keyword;kw.CategoryID=categoryID;kw.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}}
-      else{const result=await apiPost('SaveKeyword',{action:'add',keyword,categoryID,sequence,userID:USER_ID});keywords.push({KeywordID:result.keywordID,Keyword:keyword,CategoryID:categoryID,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});}
+      if(modalID){
+        await apiPost('SaveKeyword',{action:'update',keywordID:modalID,keyword,categoryID,sequence,isActive:true,groupLabel,userID:USER_ID});
+        const kw=keywords.find(k=>k.KeywordID===modalID);
+        if(kw){kw.Keyword=keyword;kw.CategoryID=categoryID;kw.GroupLabel=groupLabel;kw.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}
+      }else{
+        const result=await apiPost('SaveKeyword',{action:'add',keyword,categoryID,sequence,groupLabel,userID:USER_ID});
+        keywords.push({KeywordID:result.keywordID,Keyword:keyword,CategoryID:categoryID,GroupLabel:groupLabel,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
+      }
       renderSettingsKeywords();
     }else if(modalType==='topic'){
-      const topic=document.getElementById('m-topic').value.trim(),categoryID=document.getElementById('m-cat').value||null;
+      const topic=document.getElementById('m-topic').value.trim();
+      const categoryID=document.getElementById('m-cat').value||null;
+      const rawLabel=document.getElementById('m-grouplabel')?.value.trim()||'';
+      const groupLabel=rawLabel.toLowerCase()===topic.toLowerCase()?null:(rawLabel||null);
       const sequence=modalID?(topics.find(t=>t.TopicID===modalID)?.Sequence||99):(Math.max(...topics.map(t=>t.Sequence||0),0)+1);
       if(!topic)return alert('Topic is required');
-      if(modalID){await apiPost('SaveTopic',{action:'update',topicID:modalID,topic,categoryID,sequence,isActive:true,userID:USER_ID});const tp=topics.find(t=>t.TopicID===modalID);if(tp){tp.Topic=topic;tp.CategoryID=categoryID;tp.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}}
-      else{const result=await apiPost('SaveTopic',{action:'add',topic,categoryID,sequence,userID:USER_ID});topics.push({TopicID:result.topicID,Topic:topic,CategoryID:categoryID,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});}
+      if(modalID){
+        await apiPost('SaveTopic',{action:'update',topicID:modalID,topic,categoryID,sequence,isActive:true,groupLabel,userID:USER_ID});
+        const tp=topics.find(t=>t.TopicID===modalID);
+        if(tp){tp.Topic=topic;tp.CategoryID=categoryID;tp.GroupLabel=groupLabel;tp.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}
+      }else{
+        const result=await apiPost('SaveTopic',{action:'add',topic,categoryID,sequence,groupLabel,userID:USER_ID});
+        topics.push({TopicID:result.topicID,Topic:topic,CategoryID:categoryID,GroupLabel:groupLabel,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
+      }
       renderSettingsTopics();
     }
     if(addAnother){
@@ -2327,7 +2406,6 @@ async function refreshHeadlines(){
   }
 
   async function saveGsUnfiltered(sourceID,cb){
-    // YoutubeUnfiltered on HeadlineSource is a global field — update via SaveSource update action
     const src=globalSources.find(s=>s.SourceID===sourceID);
     if(src)src.YoutubeUnfiltered=cb.checked?1:0;
     await apiPost('SaveSource',{action:'updateUnfiltered',sourceID,youtubeUnfiltered:cb.checked,userID:USER_ID});
@@ -2343,7 +2421,6 @@ async function refreshHeadlines(){
     document.getElementById('gs-channel-status').textContent='';
     document.getElementById('gs-channelid-display').style.display='none';
     document.getElementById('gs-channelid-display').textContent='';
-    // Set radio
     const type=src?.SourceType||(sourceID?'RSS':'API');
     document.querySelectorAll('input[name="gs-type"]').forEach(r=>r.checked=r.value===type);
     updateGsTypeFields();
@@ -2352,7 +2429,6 @@ async function refreshHeadlines(){
       document.getElementById('gs-channelid-display').textContent=`Channel ID: ${src.YoutubeChannelID}`;
       document.getElementById('gs-channelid-display').style.display='block';
     }
-    // Show/hide unfiltered checkbox for Youtube edit
     const unfilteredRow=document.getElementById('gs-unfiltered-row');
     if(unfilteredRow){
       unfilteredRow.style.display=type==='Youtube'?'block':'none';
@@ -2392,7 +2468,6 @@ async function refreshHeadlines(){
         status.textContent='✓ Found';status.style.color='#22c55e';
         display.textContent=`Channel ID: ${result.youtubeChannelID}`;
         display.style.display='block';
-        // Roll back the test insert
         if(result.sourceID)await apiPost('SaveSource',{action:'delete',sourceID:result.sourceID,globalDelete:true,userID:USER_ID});
       }else{
         status.textContent='Channel not found.';status.style.color='#e05050';
@@ -2461,8 +2536,6 @@ async function refreshHeadlines(){
     renderGlobalSourcesTable();
   }
 
-  // ── USER HEADLINE SOURCES — sortable headers, Unfiltered column, delete button ──
-
   let srcSortCol='Sequence',srcSortDir='asc';
   function sortSources(col){
     if(srcSortCol===col)srcSortDir=srcSortDir==='asc'?'desc':'asc';
@@ -2471,7 +2544,6 @@ async function refreshHeadlines(){
   }
   function renderSettingsSources(){
     const tbody=document.getElementById('tbl-sources');
-    const arrow=col=>srcSortCol===col?(srcSortDir==='asc'?'▲':'▼'):'';
     const sorted=[...sources].sort((a,b)=>{
       if(srcSortCol==='Sequence')return srcSortDir==='asc'?(a.Sequence||99)-(b.Sequence||99):(b.Sequence||99)-(a.Sequence||99);
       const av=(a[srcSortCol==='Name'?'Name':srcSortCol==='URL'?'URL':'SourceType']||'').toLowerCase();
@@ -2509,7 +2581,6 @@ async function refreshHeadlines(){
   }
 
   function goToDeckFromWord(deckID, deckName, wordID){
-    // Store return info then navigate to decks with that deck pre-selected
     sessionStorage.setItem('returnToWord', JSON.stringify({langID:currentLangID,langName:currentLangName,wordID}));
     myWordsDeckFilter=String(deckID);
     showLangFeature(currentLangID,'decks',currentLangName);

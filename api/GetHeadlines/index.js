@@ -23,10 +23,12 @@ module.exports = async function(context, req) {
     let query = `
 SELECT h.HeadlineID, h.UserID, h.CategoryID, h.HeadlineName,
              h.Link, h.Summary, h.CreatedDate, h.LastViewedDate, h.Retain,
-             h.KeywordID, h.TopicID, h.ThumbnailURL, h.ChannelName, h.ChannelURL,
+             h.KeywordID, h.TopicID, h.ThumbnailURL, h.ChannelName, h.ChannelURL, h.Duration,
              c.Name AS CategoryName, k.Keyword, k.Sequence AS KeywordSequence,
+             k.GroupLabel AS KeywordGroupLabel, t.GroupLabel AS TopicGroupLabel,
              t.Topic, t.Sequence AS TopicSequence,
-             hs.Name AS SourceName
+             hs.Name AS SourceName,
+             CASE WHEN h.ChannelName IS NOT NULL AND h.KeywordID IS NULL THEN 1 ELSE 0 END AS IsSubscription
       FROM [Headline] h
       LEFT JOIN [Category] c ON h.CategoryID = c.CategoryID
       LEFT JOIN [HeadlineKeyword] k ON h.KeywordID = k.KeywordID

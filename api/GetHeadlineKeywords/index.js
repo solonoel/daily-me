@@ -22,7 +22,7 @@ module.exports = async function(context, req) {
       .input('UserID', sql.Int, userID)
       .query(`
         SELECT k.KeywordID, k.CategoryID, k.Keyword, k.IsActive, k.Sequence,
-               c.Name AS CategoryName
+               k.GroupLabel, c.Name AS CategoryName
         FROM [HeadlineKeyword] k
         LEFT JOIN [Category] c ON k.CategoryID = c.CategoryID
         WHERE k.UserID = @UserID

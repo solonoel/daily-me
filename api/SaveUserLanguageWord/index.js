@@ -128,6 +128,22 @@ module.exports = async function(context, req) {
             wordsImage, wordsTranslationAudio, isVerb, gender, flag, mastered } = req.body;
 
     if (action === 'add') {
+      // Strip pronouns (el, la, le, il, o, a) from stored words before comparing
+      const stripPronoun = w => (w||'').trim().replace(/^(el|la|le|il|los|las|les|un|una|o|a)\s+/i, '').toLowerCase();
+      const incoming = stripPronoun(wordsName);
+      const existingResult = await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('LanguageID', sql.Int, languageID)
+        .query(`SELECT WordsName FROM [UserLanguageWords] WHERE UserID=@UserID AND LanguageID=@LanguageID`);
+      const isDuplicate = existingResult.recordset.some(r => stripPronoun(r.WordsName) === incoming);
+      if (isDuplicate) {
+        context.res = {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ success: false, duplicate: true })
+        };
+        return;
+      }
       const result = await pool.request()
         .input('UserID', sql.Int, userID)
         .input('LanguageID', sql.Int, languageID)
@@ -208,10 +224,12 @@ module.exports = async function(context, req) {
       };
 
     } else if (action === 'delete') {
-      // Remove deck associations first to avoid FK violation
       await pool.request()
         .input('WordID', sql.Int, wordID)
         .query(`DELETE FROM [UserLanguageWordsDeckWords] WHERE UserLanguageWordsID=@WordID`);
+      await pool.request()
+        .input('WordID', sql.Int, wordID)
+        .query(`DELETE FROM [UserVerbConjugation] WHERE UserLanguageWordsID=@WordID`);
       await pool.request()
         .input('WordID', sql.Int, wordID)
         .input('UserID', sql.Int, userID)

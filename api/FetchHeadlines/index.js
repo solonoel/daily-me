@@ -148,6 +148,35 @@ function uploadsPlaylistID(channelID) {
   return 'UU' + channelID.substring(2);
 }
 
+function parseISO8601Duration(duration) {
+  if (!duration) return null;
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return null;
+  const h = parseInt(match[1] || 0);
+  const m = parseInt(match[2] || 0);
+  const s = parseInt(match[3] || 0);
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+async function fetchYouTubeDurations(videoIDs, apiKey, context) {
+  const durations = {};
+  // Batch in groups of 50
+  for (let i = 0; i < videoIDs.length; i += 50) {
+    const batch = videoIDs.slice(i, i + 50);
+    try {
+      const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${batch.join(',')}&key=${apiKey}`;
+      const data = JSON.parse(await fetchUrl(url));
+      for (const item of (data.items || [])) {
+        durations[item.id] = parseISO8601Duration(item.contentDetails?.duration);
+      }
+    } catch(e) {
+      context.log(`Duration fetch error: ${e.message}`);
+    }
+  }
+  return durations;
+}
+
 async function fetchYouTubeUnfiltered(source, maxResults, fromDate, context) {
   const apiKey = process.env.YOUTUBE_API_KEY;
   const playlistID = uploadsPlaylistID(source.YoutubeChannelID);
@@ -324,6 +353,7 @@ module.exports = async function(context, req) {
           if (!a.thumbnailURL) a.thumbnailURL = null;
           if (!a.channelName) a.channelName = null;
           if (!a.channelURL) a.channelURL = null;
+          if (!a.duration) a.duration = null;
         });
         allArticles = allArticles.concat(articles);
       } catch(err) {
@@ -335,6 +365,19 @@ module.exports = async function(context, req) {
       await pool.request()
         .input('UserID', sql.Int, userID)
         .query(`UPDATE [HeadlineSetting] SET LastYouTubeFetch = GETDATE() WHERE UserID = @UserID`);
+      // Fetch durations for all YouTube articles in one batch
+      const ytArticles = allArticles.filter(a => a.sourceType === 'Youtube');
+      const videoIDs = ytArticles.map(a => {
+        const m = a.link?.match(/[?&]v=([^&]+)/);
+        return m ? m[1] : null;
+      }).filter(Boolean);
+      if (videoIDs.length) {
+        const durations = await fetchYouTubeDurations(videoIDs, process.env.YOUTUBE_API_KEY, context);
+        ytArticles.forEach(a => {
+          const m = a.link?.match(/[?&]v=([^&]+)/);
+          if (m) a.duration = durations[m[1]] || null;
+        });
+      }
     }
 
     const seen = new Set();
@@ -409,12 +452,13 @@ module.exports = async function(context, req) {
           .input('ChannelName', sql.NVarChar(200), a.channelName || null)
           .input('ChannelURL', sql.NVarChar(500), a.channelURL || null)
           .input('SourceID', sql.Int, a.sourceID || null)
+          .input('Duration', sql.VarChar(20), a.duration || null)
           .query(`INSERT INTO [Headline]
                     (UserID, CategoryID, HeadlineName, Link, Summary, CreatedDate, Retain,
-                     KeywordID, TopicID, ThumbnailURL, ChannelName, ChannelURL, SourceID)
+                     KeywordID, TopicID, ThumbnailURL, ChannelName, ChannelURL, SourceID, Duration)
                   VALUES
                     (@UserID, @CategoryID, @HeadlineName, @Link, @Summary, GETDATE(), 'N',
-                     @KeywordID, @TopicID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID)`);
+                     @KeywordID, @TopicID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID, @Duration)`);
         totalInserted++;
       } catch(insertErr) {
         context.log(`Insert error: ${insertErr.message} | title: ${a.title?.substring(0,50)}`);
