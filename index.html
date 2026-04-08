@@ -1824,7 +1824,8 @@
     const row=document.getElementById('cat-row');
     const subCount=allHeadlines?allHeadlines.filter(h=>h.IsSubscription===1||h.IsSubscription===true).length:null;
     const subEmpty=subCount!==null&&subCount===0;
-    let html=`<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}" onclick="${subEmpty?'':\"filterCat('Subscriptions',this)\"}" style="${subEmpty?'opacity:0.35;cursor:default':''}">📡 Subscriptions</div>`;
+    let subAction = subEmpty ? '' : "filterCat('Subscriptions',this)";
+let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}" onclick="${subAction}" style="${subEmpty?'opacity:0.35;cursor:default':''}">📡 Subscriptions</div>`;
     const cats=categories.filter(c=>c.Headlines==='Y'&&c.IsActive==='Y'&&c.Name.toLowerCase()!=='health').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999));
     html+=cats.map(c=>{
       const isEmpty=allHeadlines?allHeadlines.filter(h=>h.CategoryID===c.CategoryID).length===0:false;
