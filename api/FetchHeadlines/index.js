@@ -307,6 +307,37 @@ module.exports = async function(context, req) {
 
     let allArticles = [];
     let youtubeFetched = false;
+    const usedSubscriptionChannelIDs = new Set();
+
+    // Process unfiltered subscription YouTube sources first
+    for (const source of sources) {
+      if (source.SourceType === 'Youtube' && source.YoutubeUnfiltered) {
+        if (youtubeAlreadyFetched) continue;
+        if (!source.YoutubeChannelID) continue;
+        try {
+          let articles = await fetchYouTubeUnfiltered(source, 20, fromDate, context);
+          articles = await filterByLanguage(articles, uniqueLangCodes);
+          articles.forEach(a => {
+            a.isSubscription = true;
+            a.sourceName = source.Name;
+            a.sourceID = source.SourceID;
+            a.sourceType = source.SourceType;
+            a.categoryID = null;
+            a.keywordID = null;
+            a.topicID = null;
+            if (!a.thumbnailURL) a.thumbnailURL = null;
+            if (!a.channelName) a.channelName = null;
+            if (!a.channelURL) a.channelURL = null;
+            if (!a.duration) a.duration = null;
+          });
+          allArticles = allArticles.concat(articles);
+          usedSubscriptionChannelIDs.add(source.YoutubeChannelID);
+          youtubeFetched = true;
+        } catch(err) {
+          context.log(`Error fetching subscription source ${source.Name}: ${err.message}`);
+        }
+      }
+    }
 
     for (const source of sources) {
       try {
@@ -331,6 +362,7 @@ module.exports = async function(context, req) {
             }
             break;
           case 'Youtube':
+            if (source.YoutubeUnfiltered) continue; // already handled above
             if (youtubeAlreadyFetched) {
               context.log(`YouTube skipped — already fetched today`);
               continue;
@@ -339,12 +371,8 @@ module.exports = async function(context, req) {
               context.log(`YouTube skipped [${source.Name}] — no YoutubeChannelID`);
               continue;
             }
-            if (source.YoutubeUnfiltered) {
-              articles = await fetchYouTubeUnfiltered(source, 20, fromDate, context);
-              articles.forEach(a => a.isSubscription = true);
-            } else {
-              articles = await fetchYouTubeFiltered(source, keywords, youTubeMaxResults, uniqueLangCodes, fromDateStr, context);
-            }
+            if (usedSubscriptionChannelIDs.has(source.YoutubeChannelID)) continue;
+            articles = await fetchYouTubeFiltered(source, keywords, youTubeMaxResults, uniqueLangCodes, fromDateStr, context);
             articles = await filterByLanguage(articles, uniqueLangCodes);
             youtubeFetched = true;
             break;
@@ -373,7 +401,7 @@ module.exports = async function(context, req) {
       await pool.request()
         .input('UserID', sql.Int, userID)
         .query(`UPDATE [HeadlineSetting] SET LastYouTubeFetch = GETDATE() WHERE UserID = @UserID`);
-      // Fetch durations for all YouTube articles in one batch
+      // Fetch durations for all YouTube articles in one batch (including unfiltered)
       const ytArticles = allArticles.filter(a => a.sourceType === 'Youtube');
       const videoIDs = ytArticles.map(a => {
         const m = a.link?.match(/[?&]v=([^&]+)/);
