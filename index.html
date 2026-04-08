@@ -10,7 +10,7 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     :root { --sky-deep: #2b7fd4; --text: #0f1e2e; --text-soft: #3a5a7a; --text-muted: #5a7a9a; --gold: #e8a020; --border: #8ab8d8; --shadow: 0 2px 12px rgba(43,127,212,0.12); }
-    body { font-family:'DM Sans',sans-serif; background:linear-gradient(160deg,#e8f4ff 0%,#f5f9ff 60%,#eef7f0 100%); min-height:100vh; color:var(--text); }
+    body { font-family:'DM Sans',sans-serif; background:linear-gradient(160deg,#d0e8f8 0%,#e4f1fb 60%,#daeef2 100%); min-height:100vh; color:var(--text); }
     .header { background:linear-gradient(135deg,#2b7fd4 0%,#1a9fd4 100%); padding:16px 32px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 4px 24px rgba(43,127,212,0.25); position:relative; overflow:hidden; }
     .header::before { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,0.07); }
     .header-left { position:relative; z-index:1; display:flex; align-items:center; gap:14px; }
@@ -40,7 +40,7 @@
     .date-main { font-family:'Playfair Display',serif; font-size:22px; color:var(--text); }
     .date-sub { font-size:13px; color:var(--text-soft); }
     .section-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-soft); margin-bottom:10px; }
-    .category-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:4px; position:sticky; top:54px; z-index:90; background:linear-gradient(160deg,#e8f4ff 0%,#f5f9ff 60%,#eef7f0 100%); padding:0 0 0 0; margin-left:0; margin-right:0; box-shadow:0 2px 8px rgba(43,127,212,0.06); border-bottom:2px solid var(--border); }
+    .category-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:4px; position:sticky; top:54px; z-index:90; background:linear-gradient(160deg,#d0e8f8 0%,#e4f1fb 60%,#daeef2 100%); padding:0 0 0 0; margin-left:0; margin-right:0; box-shadow:0 2px 8px rgba(43,127,212,0.06); border-bottom:2px solid var(--border); }
     .category-row { display:flex; gap:7px; flex-wrap:wrap; flex:1; }
     .cat-tile { display:flex; align-items:center; gap:4px; padding:6px 14px; border-radius:0; border:none; border-bottom:3px solid transparent; background:transparent; cursor:pointer; font-size:12px; font-weight:600; color:var(--text-soft); transition:all 0.2s; white-space:nowrap; }
     .cat-tile:hover { color:var(--sky-deep); border-bottom-color:var(--sky-deep); }
@@ -278,15 +278,15 @@
 <main class="main">
   <div class="screen active" id="screen-headlines">
     <div class="category-bar">
-      <div style="display:flex;align-items:stretch;width:100%;background:white">
-        <div class="category-row" id="cat-row" style="flex:1;min-width:0;display:flex;align-items:stretch"></div>
-        <div style="display:flex;align-items:center;gap:8px;padding:0 12px;border-left:1px solid var(--border);flex-shrink:0">
+      <div style="display:flex;flex-direction:column;width:100%;background:white">
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:4px 12px;border-bottom:1px solid var(--border)">
           <span style="font-size:10px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="recency-val">7 days</span></span>
           <div id="last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
           <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="expand" onchange="setGroupExpand(true)" style="accent-color:var(--sky-deep)"> Expand</label>
           <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--sky-deep);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="collapse" checked onchange="setGroupExpand(false)" style="accent-color:var(--sky-deep)"> Collapse</label>
           <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn" style="flex-shrink:0">↻ Refresh</button>
         </div>
+        <div class="category-row" id="cat-row" style="display:flex;align-items:stretch;flex-wrap:wrap"></div>
       </div>
     </div>
     <div id="refresh-status" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep);margin-bottom:12px;padding:8px 14px;background:#f0f7ff;border-radius:8px;border:1px solid var(--border)"></div>
@@ -566,7 +566,7 @@
 
   let headlines=[],recencyDays_value=7,categories=[],sources=[],keywords=[],topics=[];
   let allLanguages=[],userLanguages=[];
-  let currentFilter='Subscriptions',currentSettingsSection=null,groupsExpanded=false;
+  let currentFilter='Subscriptions',currentSettingsSection=null,groupsExpanded=true;
   let currentLangID=null,currentLangName=null;
   let myWords=[],myWordsFilter='active',showImages=true;
   let mwSortCol='dateadded',mwSortDir='desc';
@@ -1348,7 +1348,15 @@
         const sentencesSection=sentencesHTML?`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${
           (sentencesCache[card.UserLanguageWordsID]||[]).map(s=>`<div style="margin-bottom:3px"><span style="font-size:13px;font-weight:600;color:var(--text)">${s.sentence}</span><br><span style="font-size:11px;color:var(--text-muted);padding-left:4px">${s.translation}</span></div>`).join('')
         }</div>`:'';
-        cardContent=`${fcConjugateLink}<div class="flashcard-word" style="margin-bottom:10px">${card.WordsName}${genderLabel}</div><div style="display:flex;gap:16px;align-items:flex-start;width:100%;text-align:left">${imgEl?`<div style="flex-shrink:0">${card.WordsImage?`<img src="${card.WordsImage}" class="flashcard-image" alt="">`:''}</div>`:''}<div style="flex:1;min-width:0"><div class="flashcard-translation" style="text-align:left">${displayTranslation}</div>${sentencesSection}</div></div>`;
+        const leftCol=`<div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0;min-width:110px">`+
+          `<div class="flashcard-word" style="text-align:center">${card.WordsName}${genderLabel}</div>`+
+          (card.WordsImage?`<img src="${card.WordsImage}" class="flashcard-image" alt="">`:`<div style="width:100px;height:100px;border-radius:12px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--text-muted)">📖</div>`)+
+          `</div>`;
+        const rightCol=`<div style="flex:1;min-width:0;text-align:left;border-left:1px solid var(--border);padding-left:16px">`+
+          `<div class="flashcard-translation" style="text-align:left">${displayTranslation}</div>`+
+          sentencesSection+
+          `</div>`;
+        cardContent=`${fcConjugateLink}<div style="display:flex;gap:16px;align-items:flex-start;width:100%">${leftCol}${rightCol}</div>`;
       }
       cardHTML=`
         <div class="flashcard" style="position:relative" onclick="toggleFlashcardTranslation()">
@@ -1825,13 +1833,17 @@
     const subCount=allHeadlines?allHeadlines.filter(h=>h.IsSubscription===1||h.IsSubscription===true).length:null;
     const subEmpty=subCount!==null&&subCount===0;
     let subAction = subEmpty ? '' : "filterCat('Subscriptions',this)";
-let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}" onclick="${subAction}" style="${subEmpty?'opacity:0.35;cursor:default':''}">📡 Subscriptions</div>`;
+    let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}" onclick="${subAction}" style="${subEmpty?'opacity:0.35;cursor:default':''}">📡 Subscriptions</div>`;
     const cats=categories.filter(c=>c.Headlines==='Y'&&c.IsActive==='Y'&&c.Name.toLowerCase()!=='health').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999));
     html+=cats.map(c=>{
-      const isEmpty=allHeadlines?allHeadlines.filter(h=>h.CategoryID===c.CategoryID).length===0:false;
-      return `<div class="cat-tile ${currentFilter===c.Name?'active':''}" onclick="${isEmpty?'':(`filterCat('${c.Name}',this)`)}" style="${isEmpty?'opacity:0.35;cursor:default':''}">${c.Name}</div>`;
+      const count=allHeadlines?allHeadlines.filter(h=>h.CategoryID===c.CategoryID).length:null;
+      const isEmpty=count!==null&&count===0;
+      const countLabel=count!==null&&count>0?` (${count})`:'';
+      return `<div class="cat-tile ${currentFilter===c.Name?'active':''}" onclick="${isEmpty?'':(`filterCat('${c.Name}',this)`)}" style="${isEmpty?'opacity:0.35;cursor:default':''}">${c.Name}${countLabel}</div>`;
     }).join('');
-    html+=`<div class="cat-tile ${currentFilter==='Other'?'active':''}" onclick="filterCat('Other',this)">Other</div>`;
+    const otherCount=allHeadlines?allHeadlines.filter(h=>resolveGroupLabel(h)==='Other').length:null;
+    const otherLabel=otherCount!==null&&otherCount>0?` (${otherCount})`:'';
+    html+=`<div class="cat-tile ${currentFilter==='Other'?'active':''}" onclick="filterCat('Other',this)">Other${otherLabel}</div>`;
     row.innerHTML=html;
   }
 
@@ -1896,8 +1908,8 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       const items=groups[groupName]||[];
       const c=groupName==='Subscriptions'?catColors['Subscriptions']:catColors[groupName]||catColors['Other'];
       const icon=groupName==='Subscriptions'?'📡':(c.icon||'📰');
-      const headerBg=c.bg||'#f5f5f5';
-      const headerColor=c.color||'#444';
+      const headerBg='#c2ddf0';
+      const headerColor='#1a4a6e';
       const countLabel=items.length>1?` <span style="opacity:0.6;font-weight:500">(${items.length})</span>`:'';
       const isSubscriptions=groupName==='Subscriptions';
       const rows=items.map(h=>`
@@ -2583,7 +2595,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         <td>${s.Name||'—'}</td>
         <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)">${s.URL}</td>
         <td><span class="badge">${s.SourceType||'RSS'}</span></td>
-        ${s.SourceType==='Youtube'
+        ${s.SourceIsSubscription
           ?`<td><label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" ${s.YoutubeUnfiltered?'checked':''} onchange="saveUserUnfiltered(${s.SourceID},this)" style="accent-color:var(--sky-deep)"> Unfiltered</label></td>`
           :'<td>—</td>'}
         <td><button class="btn-icon danger" onclick="removeUserSource(${s.SourceID})" title="Remove">🗑️</button></td>
