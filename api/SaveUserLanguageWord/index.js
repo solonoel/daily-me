@@ -208,6 +208,10 @@ module.exports = async function(context, req) {
       };
 
     } else if (action === 'delete') {
+      // Remove deck associations first to avoid FK violation
+      await pool.request()
+        .input('WordID', sql.Int, wordID)
+        .query(`DELETE FROM [UserLanguageWordsDeckWords] WHERE UserLanguageWordsID=@WordID`);
       await pool.request()
         .input('WordID', sql.Int, wordID)
         .input('UserID', sql.Int, userID)

@@ -11,20 +11,22 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, otherHeadlinesPerKeyword, categorySettings, disableYoutubeToday } = req.body;
+    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, otherHeadlinesPerKeyword, categorySettings, disableYoutubeToday, fetchHour } = req.body;
 
-    if (disableYoutubeToday === true) {
+    if (disableYoutubeToday !== undefined) {
       await pool.request()
         .input('UserID', sql.Int, userID)
-        .query(`UPDATE [HeadlineSetting] SET LastYouTubeFetch = GETDATE() WHERE UserID = @UserID`);
+        .input('DisableYoutubeToday', sql.Bit, disableYoutubeToday ? 1 : 0)
+        .query(`UPDATE [HeadlineSetting] SET DisableYoutubeToday = @DisableYoutubeToday WHERE UserID = @UserID`);
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) };
       return;
     }
 
-    if (disableYoutubeToday === false) {
+    if (fetchHour !== undefined) {
       await pool.request()
         .input('UserID', sql.Int, userID)
-        .query(`UPDATE [HeadlineSetting] SET LastYouTubeFetch = NULL WHERE UserID = @UserID`);
+        .input('FetchHour', sql.Int, fetchHour === null ? null : parseInt(fetchHour))
+        .query(`UPDATE [HeadlineSetting] SET FetchHour = @FetchHour WHERE UserID = @UserID`);
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) };
       return;
     }
@@ -39,8 +41,7 @@ module.exports = async function(context, req) {
         .query(`
           UPDATE [HeadlineSetting]
           SET RecencyDays = @RecencyDays, MaxHeadlines = @MaxHeadlines, YouTubeMaxResults = @YouTubeMaxResults,
-              OtherHeadlinesPerKeyword = @OtherHeadlinesPerKeyword,
-              LastYouTubeFetch = NULL
+              OtherHeadlinesPerKeyword = @OtherHeadlinesPerKeyword
           WHERE UserID = @UserID
         `);
     }

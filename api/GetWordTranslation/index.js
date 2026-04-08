@@ -46,20 +46,20 @@ module.exports = async function(context, req) {
 
     const response = await fetchUrl('https://api-free.deepl.com/v2/translate', options, body);
     const data = JSON.parse(response);
-    const translation = data.translations?.[0]?.text || '';
+    let translation = data.translations?.[0]?.text || '';
 
-    // Ask Claude to determine gender and verb status
+    // Ask Claude to determine gender, verb status, and synonyms
     let gender = null, isVerb = false;
     try {
       const anthropicBody = JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 100,
+        max_tokens: 200,
         messages: [{
           role: 'user',
           content: `For the ${languageCode} word or phrase "${word}", respond with JSON only, no markdown:
 {"isVerb": true|false, "gender": "M"|"F"|"N"|null, "synonyms": ["word1","word2"]}
 - gender: M=masculine, F=feminine, N=neuter, null=not applicable (verbs, plurals, proper nouns)
-- synonyms: 2-3 additional English translations/synonyms most relevant to this word. Do NOT include "to" prefix. Empty array if none.`
+- synonyms: 2-3 additional English translations most relevant to this word. For verbs, include "to " prefix on each (e.g. "to run"). For nouns, no prefix. Empty array if none.`
         }]
       });
       const anthropicOptions = {
@@ -80,6 +80,7 @@ module.exports = async function(context, req) {
       gender = parsed.gender || null;
       isVerb = !!parsed.isVerb;
       const synonyms = Array.isArray(parsed.synonyms) ? parsed.synonyms : [];
+
       // Build combined translation: DeepL base + Claude synonyms, deduped
       const seen = new Set();
       const parts = [translation, ...synonyms].map(t => t.trim()).filter(t => {
@@ -88,6 +89,7 @@ module.exports = async function(context, req) {
         seen.add(key);
         return true;
       });
+
       if (isVerb) {
         translation = parts.map(t => t.toLowerCase().startsWith('to ') ? t : 'to ' + t).join(', ');
       } else {
