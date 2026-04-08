@@ -18,7 +18,7 @@
     .app-title { font-family:'Playfair Display',serif; font-size:26px; font-weight:600; color:white; letter-spacing:-0.5px; line-height:1; }
     .app-title span { color:rgba(255,255,255,0.6); font-weight:400; }
     .greeting { font-size:12px; color:rgba(255,255,255,0.85); margin-top:4px; font-weight:300; }
-    .weather-block { display:flex; align-items:center; gap:14px; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); border-radius:16px; padding:12px 20px; position:relative; z-index:1; min-width:160px; }
+    .weather-block { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); border-radius:16px; padding:10px 16px; position:relative; z-index:1; min-width:160px; flex-wrap:wrap; }
     .weather-icon { font-size:34px; line-height:1; }
     .weather-temp { font-family:'Playfair Display',serif; font-size:24px; font-weight:600; color:white; line-height:1; }
     .weather-desc { font-size:10px; color:rgba(255,255,255,0.8); margin-top:3px; text-transform:uppercase; letter-spacing:0.8px; }
@@ -67,6 +67,7 @@
     .headline-row-age { font-size:11px; color:var(--text-soft); }
     .retain-btn { width:26px; height:26px; border-radius:6px; border:1.5px solid var(--border); background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; transition:all 0.15s; flex-shrink:0; margin-top:2px; color:var(--text-muted); }
     .retain-btn::before { content:'☆'; }
+    .retain-btn[data-delete]::before { content:''; }
     .retain-btn.active::before { content:'★'; color:var(--gold); }
     .retain-btn:hover { border-color:var(--gold); }
     .retain-btn.active { border-color:var(--gold); background:rgba(232,160,32,0.08); }
@@ -606,13 +607,23 @@
 
   async function loadWeather(){
     try{
-      const res=await fetch('https://api.open-meteo.com/v1/forecast?latitude=41.9945&longitude=-89.3334&current=temperature_2m,weathercode,windspeed_10m&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FChicago&forecast_days=1');
+      const res=await fetch('https://api.open-meteo.com/v1/forecast?latitude=41.9945&longitude=-89.3334&current=temperature_2m,weathercode,windspeed_10m&daily=temperature_2m_max,temperature_2m_min,weathercode&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FChicago&forecast_days=4');
       const data=await res.json(),c=data.current,d=data.daily;
       const wm={0:['☀️','Clear'],1:['🌤️','Mostly Clear'],2:['⛅','Partly Cloudy'],3:['☁️','Overcast'],45:['🌫️','Foggy'],48:['🌫️','Icy Fog'],51:['🌦️','Drizzle'],53:['🌦️','Drizzle'],55:['🌧️','Heavy Drizzle'],61:['🌧️','Light Rain'],63:['🌧️','Rain'],65:['🌧️','Heavy Rain'],71:['🌨️','Light Snow'],73:['🌨️','Snow'],75:['❄️','Heavy Snow'],80:['🌦️','Showers'],81:['🌧️','Showers'],82:['⛈️','Violent Showers'],95:['⛈️','Thunderstorm'],96:['⛈️','Thunderstorm'],99:['⛈️','Thunderstorm']};
+      const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
       const [icon,desc]=wm[c.weathercode]||['🌡️','Unknown'];
-      document.getElementById('weather-block').innerHTML=`<a href="https://forecast.weather.gov/MapClick.php?CityName=Oregon&state=IL&site=LOT&textField1=41.9945&textField2=-89.3334" target="_blank" style="display:flex;align-items:center;gap:14px;text-decoration:none"><div class="weather-icon">${icon}</div><div><div class="weather-temp">${Math.round(c.temperature_2m)}°F</div><div class="weather-desc">${desc}</div><div class="weather-detail">H:${Math.round(d.temperature_2m_max[0])}° L:${Math.round(d.temperature_2m_min[0])}° · Wind ${Math.round(c.windspeed_10m)} mph</div></div></a>`;
-    }catch(e){document.getElementById('weather-block').innerHTML='<div class="weather-loading">Weather unavailable</div>';}
-  }
+      const forecastBoxes=d.time.slice(1,4).map((dateStr,i)=>{
+        const [fIcon]=wm[d.weathercode[i+1]]||['🌡️'];
+        const dow=days[new Date(dateStr+'T12:00:00').getDay()];
+        return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:10px;padding:5px 8px;min-width:48px">
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.8);text-transform:uppercase;letter-spacing:0.5px">${dow}</div>
+          <div style="font-size:20px;line-height:1">${fIcon}</div>
+          <div style="font-size:10px;color:white;font-weight:600">${Math.round(d.temperature_2m_max[i+1])}°</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.65)">${Math.round(d.temperature_2m_min[i+1])}°</div>
+        </div>`;
+      }).join('');
+      document.getElementById('weather-block').innerHTML=`
+        <a href="https://forecast.weather.gov/MapClick.php?CityName=Oreg
 
   async function apiPost(endpoint,body){
     const res=await fetch(`${API_BASE}/${endpoint}?code=${API_KEY}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -733,7 +744,7 @@
     }).join('');
   }
 
-  async function showLangFeature(langID,feature,langName,autoLoadWordID=null){
+  async function showLangFeature(langID,feature,langName,autoLoadWordID=null,skipLoad=false){
     currentLangID=langID;currentLangName=langName;
     document.querySelectorAll('[id^="langtab-"]').forEach(t=>t.classList.remove('lang-tab-active'));
     const tabMap={flashcards:`langtab-fc-${langID}`,conjugation:`langtab-conj-${langID}`,decks:`langtab-decks-${langID}`,mywords:`langtab-mw-${langID}`};
@@ -756,11 +767,13 @@
       panel.innerHTML=renderDecksHTML(langID,langName);
     }else if(feature==='mywords'){
       myWordsFilter='active';showImages=true;wordSearch='';myWordsDeckFilter='';
-      const data=await apiGet('GetUserLanguageWords',`&languageID=${langID}&filter=all`);
-      myWords=Array.isArray(data)?data:[];
-      if(!userDecks.length){
-        const ddata=await apiGet('GetUserDecks',`&languageID=${langID}&status=all`);
-        userDecks=Array.isArray(ddata)?ddata:[];
+      if(!skipLoad){
+        const data=await apiGet('GetUserLanguageWords',`&languageID=${langID}&filter=all`);
+        myWords=Array.isArray(data)?data:[];
+        if(!userDecks.length){
+          const ddata=await apiGet('GetUserDecks',`&languageID=${langID}&status=all`);
+          userDecks=Array.isArray(ddata)?ddata:[];
+        }
       }
       panel.innerHTML=renderMyWordsHTML(langID,langName);
     }
@@ -1224,7 +1237,7 @@
       }
       newWordImageChanged=false;editingWordID=null;
       if(addAnother){newWordImage=null;showNewWord();apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=all`).then(d=>{myWords=Array.isArray(d)?d:[];});}
-      else{showScreen(`lang-${currentLangID}`);showLangFeature(currentLangID,'mywords',currentLangName);apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=all`).then(d=>{myWords=Array.isArray(d)?d:[];renderMyWords();});}
+      else{showScreen(`lang-${currentLangID}`);showLangFeature(currentLangID,'mywords',currentLangName,null,true);apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=all`).then(d=>{myWords=Array.isArray(d)?d:[];renderMyWords();});}
     }finally{_wordFormSaving=false;}
   }
 
@@ -1655,7 +1668,7 @@ const fcCounts={
 
   async function studyDeck(deckID,deckName){
     currentDeckID=deckID;
-    flashcardFilter='all';flashcardIndex=0;flashcardShowTranslation=false;sentencesCache={};
+    flashcardFilter='study';flashcardIndex=0;flashcardShowTranslation=false;sentencesCache={};
     const data=await apiGet('GetDeckWords',`&deckID=${deckID}`);
     flashcards=Array.isArray(data)?data:[];
     const panel=document.getElementById(`lang-feature-${currentLangID}`);
@@ -1665,6 +1678,7 @@ const fcCounts={
       const fcTab=document.getElementById(`langtab-fc-${currentLangID}`);
       if(fcTab)fcTab.classList.add('lang-tab-active');
     }
+    history.pushState({screen:`lang-${currentLangID}`,langFeature:'decks',langID:currentLangID,langName:currentLangName},'','');
   }
 
   function selectConjVerb(wordID){
@@ -1948,7 +1962,7 @@ const fcCounts={
             </div>
           </div>
           <button class="retain-btn ${h.Retain==='Y'?'active':''}" onclick="toggleRetain(${h.HeadlineID},event)" title="Retain"></button>
-          <button class="retain-btn" onclick="deleteHeadline(${h.HeadlineID},event)" title="Delete" style="margin-top:2px;flex-shrink:0;font-size:12px;color:var(--text-muted)">✕</button>
+          <button class="retain-btn" onclick="deleteHeadline(${h.HeadlineID},event)" title="Delete" style="margin-top:2px;flex-shrink:0;font-size:12px;color:var(--text-muted)" data-delete="1">✕</button>
         </div>`).join('');
       return `<div class="cat-group">
         <div class="cat-group-header" style="background:${headerBg};color:${headerColor};border-bottom:1.5px solid ${headerColor}44;cursor:pointer" onclick="toggleGroup(this)">
@@ -2648,10 +2662,9 @@ const fcCounts={
     renderSettingsSources();
   }
 
-  function goToDeckFromWord(deckID, deckName, wordID){
-    sessionStorage.setItem('returnToWord', JSON.stringify({langID:currentLangID,langName:currentLangName,wordID}));
-    myWordsDeckFilter=String(deckID);
-    showLangFeature(currentLangID,'decks',currentLangName);
+  async function goToDeckFromWord(deckID, deckName, wordID){
+    history.pushState({screen:`lang-${currentLangID}`,langFeature:'mywords',langID:currentLangID,langName:currentLangName,returnWordID:wordID},'','');
+    await studyDeck(deckID,deckName);
   }
 
   // ── INIT ──
