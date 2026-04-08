@@ -273,7 +273,7 @@ module.exports = async function(context, req) {
       .input('UserID', sql.Int, userID)
       .query(`SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.CategoryID, h.IsActive,
                      h.Sequence, h.YoutubeChannelID,
-                     uhs.YoutubeUnfiltered
+                     uhs.IsSubscription AS YoutubeUnfiltered
               FROM [HeadlineSource] h
               INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
               WHERE uhs.UserID = @UserID AND h.IsActive = 'Y'
@@ -396,6 +396,7 @@ module.exports = async function(context, req) {
     });
 
     for (const a of unique) {
+      if (a.isSubscription) { a.categoryID = null; a.keywordID = null; a.topicID = null; continue; }
       if (a.categoryID) continue;
       const text = `${a.title} ${a.summary}`.toLowerCase();
       let matched = false;
@@ -461,12 +462,13 @@ module.exports = async function(context, req) {
           .input('ChannelURL', sql.NVarChar(500), a.channelURL || null)
           .input('SourceID', sql.Int, a.sourceID || null)
           .input('Duration', sql.VarChar(20), a.duration || null)
+          .input('IsSubscription', sql.Bit, a.isSubscription ? 1 : 0)
           .query(`INSERT INTO [Headline]
                     (UserID, CategoryID, HeadlineName, Link, Summary, CreatedDate, Retain,
-                     KeywordID, TopicID, ThumbnailURL, ChannelName, ChannelURL, SourceID, Duration)
+                     KeywordID, TopicID, ThumbnailURL, ChannelName, ChannelURL, SourceID, Duration, IsSubscription)
                   VALUES
                     (@UserID, @CategoryID, @HeadlineName, @Link, @Summary, GETDATE(), 'N',
-                     @KeywordID, @TopicID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID, @Duration)`);
+                     @KeywordID, @TopicID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID, @Duration, @IsSubscription)`);
         totalInserted++;
       } catch(insertErr) {
         context.log(`Insert error: ${insertErr.message} | title: ${a.title?.substring(0,50)}`);
