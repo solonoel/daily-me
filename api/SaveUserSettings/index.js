@@ -14,10 +14,11 @@ module.exports = async function(context, req) {
     const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, otherHeadlinesPerKeyword, categorySettings, disableYoutubeToday, fetchHour } = req.body;
 
     if (disableYoutubeToday !== undefined) {
+      const resetYT = req.body.resetYouTubeFetch === true;
       await pool.request()
         .input('UserID', sql.Int, userID)
         .input('DisableYoutubeToday', sql.Bit, disableYoutubeToday ? 1 : 0)
-        .query(`UPDATE [HeadlineSetting] SET DisableYoutubeToday = @DisableYoutubeToday WHERE UserID = @UserID`);
+        .query(`UPDATE [HeadlineSetting] SET DisableYoutubeToday = @DisableYoutubeToday${resetYT ? ', LastYouTubeFetch = NULL' : ''} WHERE UserID = @UserID`);
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) };
       return;
     }

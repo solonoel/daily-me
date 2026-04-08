@@ -19,6 +19,7 @@ module.exports = async function(context, req) {
     const userID = parseInt(req.query.userID || '1');
     const categoryID = req.query.categoryID;
     const recencyDays = parseInt(req.query.recencyDays || '7');
+    const unlimited = req.query.unlimited === 'true';
 
     let query = `
 SELECT h.HeadlineID, h.UserID, h.CategoryID, h.HeadlineName,
@@ -54,7 +55,7 @@ SELECT h.HeadlineID, h.UserID, h.CategoryID, h.HeadlineName,
     let headlines = result.recordset;
 
     // Apply per-category display limits when not filtering by a single category
-    if (!categoryID) {
+    if (!categoryID && !unlimited) {
       const catLimitsResult = await pool.request()
         .input('UserID', sql.Int, userID)
         .query(`SELECT CategoryID, MaxItems FROM [UserCategorySetting] WHERE UserID = @UserID`);
@@ -70,6 +71,7 @@ SELECT h.HeadlineID, h.UserID, h.CategoryID, h.HeadlineName,
 
       const catCounts = {};
       headlines = headlines.filter(h => {
+        if (h.IsSubscription === true || h.IsSubscription === 1) return true;
         const cat = h.CategoryID || 'none';
         const limit = cat === 'none' ? defaultPerCat : (catLimits[cat] || defaultPerCat);
         catCounts[cat] = (catCounts[cat] || 0);

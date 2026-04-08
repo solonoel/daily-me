@@ -287,6 +287,7 @@
             <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="expand" checked onchange="setGroupExpand(true)" style="accent-color:var(--sky-deep)"> Expanded</label>
             <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--sky-deep);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="collapse" onchange="setGroupExpand(false)" style="accent-color:var(--sky-deep)"> Collapsed</label>
             <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn" style="flex-shrink:0">↻ Refresh</button>
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="checkbox" id="hl-unlimited" style="accent-color:var(--sky-deep)" onchange="loadHeadlines()"> Unlimited</label>
           </div>
         </div>
         <div class="category-row" id="cat-row" style="display:flex;align-items:stretch;flex-wrap:wrap"></div>
@@ -574,7 +575,7 @@
   let myWords=[],myWordsFilter='active',showImages=true;
   let mwSortCol='dateadded',mwSortDir='desc';
   let myWordsDeckFilter='';
-  let flashcards=[],flashcardIndex=0,flashcardShowTranslation=false,flashcardFilter='all',flashcardAutoPronounce=true,flashcardLeadWith='language';
+  let flashcards=[],flashcardIndex=0,flashcardShowTranslation=false,flashcardFilter='study',flashcardAutoPronounce=true,flashcardLeadWith='language';
   let sentencesCache={};
   let newWordImage=null,newWordImageChanged=false;
   let editingWordID=null;
@@ -740,7 +741,7 @@
     if(tabEl)tabEl.classList.add('lang-tab-active');
     const panel=document.getElementById(`lang-feature-${langID}`);if(!panel)return;
     if(feature==='flashcards'){
-      flashcardFilter='all';flashcardIndex=0;flashcardShowTranslation=false;flashcardAutoPronounce=true;flashcardLeadWith='language';sentencesCache={};
+      flashcardFilter='study';flashcardIndex=0;flashcardShowTranslation=false;flashcardAutoPronounce=true;flashcardLeadWith='language';sentencesCache={};
       const data=await apiGet('GetUserLanguageWords',`&languageID=${langID}&filter=active`);
       flashcards=Array.isArray(data)?data:[];
       panel.innerHTML=renderFlashcardsHTML(langID,langName);
@@ -1328,11 +1329,12 @@
 
   function renderFlashcardsHTML(langID,langName){
     const filtered=getFilteredFlashcards(),total=filtered.length,card=filtered[flashcardIndex];
-    const filters=[
-      {key:'all',label:`All (${flashcards.filter(w=>!w.DateMastered).length})`},
-      {key:'flagged',label:`Flagged (${flashcards.filter(w=>w.Flag).length})`},
-      {key:'mastered',label:`Mastered (${flashcards.filter(w=>w.DateMastered).length})`}
-    ];
+const fcCounts={
+      study: flashcards.filter(w=>!w.DateMastered).length,
+      flagged: flashcards.filter(w=>w.Flag&&!w.DateMastered).length,
+      mastered: flashcards.filter(w=>w.DateMastered).length,
+      all: flashcards.length
+    };
     let cardHTML='';
     if(!card){
       cardHTML=`<div class="flashcard"><div class="flashcard-word">No words to study!</div><div class="flashcard-hint">Add words in My Words.</div></div>`;
@@ -1384,8 +1386,11 @@
             <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="fc-lead-${langID}" value="language" ${flashcardLeadWith==='language'?'checked':''} onchange="setFlashcardLeadWith('language')" style="accent-color:var(--sky-deep)"> ${langName}</label>
             <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="fc-lead-${langID}" value="english" ${flashcardLeadWith==='english'?'checked':''} onchange="setFlashcardLeadWith('english')" style="accent-color:var(--sky-deep)"> English</label>
           </div>
-          <div style="display:flex;gap:8px">
-            ${filters.map(f=>`<button class="filter-btn ${flashcardFilter===f.key?'active':''}" onclick="setFlashcardFilter('${f.key}')">${f.label}</button>`).join('')}
+          <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-soft);background:white;border:1px solid var(--border);border-radius:100px;padding:5px 14px;flex-shrink:0">
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="fc-filter-${langID}" value="study" ${flashcardFilter==='study'?'checked':''} onchange="setFlashcardFilter('study')" style="accent-color:var(--sky-deep)"> To Study (${fcCounts.study})</label>
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="fc-filter-${langID}" value="flagged" ${flashcardFilter==='flagged'?'checked':''} onchange="setFlashcardFilter('flagged')" style="accent-color:var(--sky-deep)"> Flagged (${fcCounts.flagged})</label>
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="fc-filter-${langID}" value="mastered" ${flashcardFilter==='mastered'?'checked':''} onchange="setFlashcardFilter('mastered')" style="accent-color:var(--sky-deep)"> Mastered (${fcCounts.mastered})</label>
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="fc-filter-${langID}" value="all" ${flashcardFilter==='all'?'checked':''} onchange="setFlashcardFilter('all')" style="accent-color:var(--sky-deep)"> All (${fcCounts.all})</label>
           </div>
           <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-soft);cursor:pointer;background:white;border:1px solid var(--border);border-radius:100px;padding:5px 14px;flex-shrink:0">
             🔊 Auto Pronounce <input type="checkbox" id="fc-auto-pronounce" ${flashcardAutoPronounce?'checked':''} onchange="flashcardAutoPronounce=this.checked" style="accent-color:var(--sky-deep)">
@@ -1413,6 +1418,7 @@
   function getFilteredFlashcards(){
     if(flashcardFilter==='flagged')return flashcards.filter(w=>w.Flag&&!w.DateMastered);
     if(flashcardFilter==='mastered')return flashcards.filter(w=>w.DateMastered);
+    if(flashcardFilter==='all')return flashcards;
     return flashcards.filter(w=>!w.DateMastered);
   }
 
@@ -1760,7 +1766,8 @@
 
   async function loadHeadlines(){
     try{
-      const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`);
+      const unlimited=document.getElementById('hl-unlimited')?.checked?'&unlimited=true':'';
+      const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}${unlimited}`);
       let allData=await res.json();if(!Array.isArray(allData))allData=[];
       if(currentFilter==='Subscriptions'){
         headlines=allData.filter(h=>h.IsSubscription===1||h.IsSubscription===true);
@@ -2012,6 +2019,8 @@
       apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:true});
     }else{
       localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
+      localStorage.removeItem(`dailyme_last_yt_fetch_time_${USER_ID}`);
+      apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:false,resetYouTubeFetch:true});
     }
   }
 
