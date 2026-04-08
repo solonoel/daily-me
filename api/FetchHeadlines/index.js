@@ -321,8 +321,14 @@ module.exports = async function(context, req) {
             else if (source.Name.includes('NewsAPI'))    articles = await fetchNewsAPI(source, uniqueLangCodes);
             break;
           case 'RSS':
-            articles = await fetchRSS(source);
-            articles = await filterByLanguage(articles, uniqueLangCodes);
+            if (source.YoutubeUnfiltered) {
+              articles = await fetchRSS(source);
+              articles = await filterByLanguage(articles, uniqueLangCodes);
+              articles.forEach(a => a.isSubscription = true);
+            } else {
+              articles = await fetchRSS(source);
+              articles = await filterByLanguage(articles, uniqueLangCodes);
+            }
             break;
           case 'Youtube':
             if (youtubeAlreadyFetched) {
@@ -335,6 +341,7 @@ module.exports = async function(context, req) {
             }
             if (source.YoutubeUnfiltered) {
               articles = await fetchYouTubeUnfiltered(source, 20, fromDate, context);
+              articles.forEach(a => a.isSubscription = true);
             } else {
               articles = await fetchYouTubeFiltered(source, keywords, youTubeMaxResults, uniqueLangCodes, fromDateStr, context);
             }
@@ -354,6 +361,7 @@ module.exports = async function(context, req) {
           if (!a.channelName) a.channelName = null;
           if (!a.channelURL) a.channelURL = null;
           if (!a.duration) a.duration = null;
+          if (!a.isSubscription) a.isSubscription = false;
         });
         allArticles = allArticles.concat(articles);
       } catch(err) {

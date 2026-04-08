@@ -40,11 +40,11 @@
     .date-main { font-family:'Playfair Display',serif; font-size:22px; color:var(--text); }
     .date-sub { font-size:13px; color:var(--text-soft); }
     .section-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-soft); margin-bottom:10px; }
-    .category-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:4px; position:sticky; top:54px; z-index:90; background:linear-gradient(160deg,#e8f4ff 0%,#f5f9ff 60%,#eef7f0 100%); padding:6px 32px 4px 32px; margin-left:-32px; margin-right:-32px; box-shadow:0 2px 8px rgba(43,127,212,0.06); }
+    .category-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:4px; position:sticky; top:54px; z-index:90; background:linear-gradient(160deg,#e8f4ff 0%,#f5f9ff 60%,#eef7f0 100%); padding:0 0 0 0; margin-left:0; margin-right:0; box-shadow:0 2px 8px rgba(43,127,212,0.06); border-bottom:2px solid var(--border); }
     .category-row { display:flex; gap:7px; flex-wrap:wrap; flex:1; }
-    .cat-tile { display:flex; align-items:center; gap:4px; padding:4px 10px; border-radius:100px; border:1.5px solid var(--border); background:white; cursor:pointer; font-size:12px; font-weight:600; color:var(--text-soft); transition:all 0.2s; white-space:nowrap; }
-    .cat-tile:hover { border-color:var(--sky-deep); color:var(--sky-deep); background:#f0f7ff; }
-    .cat-tile.active { background:var(--sky-deep); color:white; border-color:var(--sky-deep); }
+    .cat-tile { display:flex; align-items:center; gap:4px; padding:6px 14px; border-radius:0; border:none; border-bottom:3px solid transparent; background:transparent; cursor:pointer; font-size:12px; font-weight:600; color:var(--text-soft); transition:all 0.2s; white-space:nowrap; }
+    .cat-tile:hover { color:var(--sky-deep); border-bottom-color:var(--sky-deep); }
+    .cat-tile.active { color:var(--sky-deep); border-bottom-color:var(--sky-deep); font-weight:700; }
     .cat-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
     .recency-pill { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-soft); background:white; border:1px solid var(--border); border-radius:100px; padding:5px 12px; white-space:nowrap; flex-shrink:0; }
     .recency-pill-value { font-weight:700; color:var(--sky-deep); font-size:11px; }
@@ -278,15 +278,15 @@
 <main class="main">
   <div class="screen active" id="screen-headlines">
     <div class="category-bar">
-      <div style="display:flex;align-items:center;gap:8px;width:100%">
-        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-soft);white-space:nowrap;flex-shrink:0">Categories</span>
-        <div class="category-row" id="cat-row" style="flex:1;min-width:0"></div>
-        <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn" style="flex-shrink:0">↻ Refresh</button>
-      </div>
-      <div style="display:flex;justify-content:flex-end;align-items:center;gap:16px;width:100%;margin-top:1px;margin-bottom:-4px">
-        <span style="font-size:10px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="recency-val">7 days</span></span>
-        <div id="last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
-        <div id="last-yt-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
+      <div style="display:flex;align-items:stretch;width:100%;background:white">
+        <div class="category-row" id="cat-row" style="flex:1;min-width:0;display:flex;align-items:stretch"></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:0 12px;border-left:1px solid var(--border);flex-shrink:0">
+          <span style="font-size:10px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="recency-val">7 days</span></span>
+          <div id="last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
+          <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="expand" onchange="setGroupExpand(true)" style="accent-color:var(--sky-deep)"> Expand</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--sky-deep);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="collapse" checked onchange="setGroupExpand(false)" style="accent-color:var(--sky-deep)"> Collapse</label>
+          <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn" style="flex-shrink:0">↻ Refresh</button>
+        </div>
       </div>
     </div>
     <div id="refresh-status" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep);margin-bottom:12px;padding:8px 14px;background:#f0f7ff;border-radius:8px;border:1px solid var(--border)"></div>
@@ -566,7 +566,7 @@
 
   let headlines=[],recencyDays_value=7,categories=[],sources=[],keywords=[],topics=[];
   let allLanguages=[],userLanguages=[];
-  let currentFilter='Subscriptions',currentSettingsSection=null;
+  let currentFilter='Subscriptions',currentSettingsSection=null,groupsExpanded=false;
   let currentLangID=null,currentLangName=null;
   let myWords=[],myWordsFilter='active',showImages=true;
   let mwSortCol='dateadded',mwSortDir='desc';
@@ -688,7 +688,7 @@
       const result=await apiPost('UpdateLanguageStreak',{userID:USER_ID,languageID:langID});
       if(result.streakDays){langStreaks[langID]=result.streakDays;updateStreakDisplay(langID);}
     }catch(e){}
-    await showLangFeature(langID,'mywords',langName);
+    await showLangFeature(langID,'decks',langName);
   }
 
   function updateStreakDisplay(langID){
@@ -916,7 +916,6 @@
         <button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="document.getElementById('mw-import-input').click()">&#x2B06; Import</button>
         <button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="retranslateAllWords()">&#x21bb; Re-translate All</button>
         <span id="mw-import-status" style="display:none;font-size:11px;color:var(--sky-deep);font-weight:600;white-space:nowrap"></span>
-        <button class="btn-primary" style="margin-left:auto;padding:6px 12px;font-size:12px;white-space:nowrap" onclick="showNewWord()">+ New</button>
       </div>
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px;margin-bottom:10px">
         <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -1823,28 +1822,43 @@
 
   function renderCategoryTiles(allHeadlines){
     const row=document.getElementById('cat-row');
-    // Count subscriptions
     const subCount=allHeadlines?allHeadlines.filter(h=>h.IsSubscription===1||h.IsSubscription===true).length:null;
     const subEmpty=subCount!==null&&subCount===0;
-    let html=`<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''} ${subEmpty?'cat-empty':''}" onclick="${subEmpty?'':'filterCat(\'Subscriptions\',this)'}" style="${subEmpty?'opacity:0.45;cursor:default':''}">📡 Subscriptions${subCount!==null&&!subEmpty?' ('+subCount+')':''}</div>`;
-    // Category tiles
+    let html=`<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}" onclick="${subEmpty?'':\"filterCat('Subscriptions',this)\"}" style="${subEmpty?'opacity:0.35;cursor:default':''}">📡 Subscriptions</div>`;
     const cats=categories.filter(c=>c.Headlines==='Y'&&c.IsActive==='Y'&&c.Name.toLowerCase()!=='health').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999));
     html+=cats.map(c=>{
-      const style=catColors[c.Name]||{dot:'#888'};
-      const count=allHeadlines?allHeadlines.filter(h=>h.CategoryID===c.CategoryID).length:null;
-      const isEmpty=count!==null&&count===0;
-      const onclk=isEmpty?'':('filterCat(\'' + c.Name + '\',this)');
-      return `<div class="cat-tile ${currentFilter===c.Name?'active':''} ${isEmpty?'cat-empty':''}" onclick="${onclk}" style="${isEmpty?'opacity:0.45;cursor:default':''}"><div class="cat-dot" style="background:${style.dot}"></div>${c.Name}${(count!==null&&!isEmpty)?' ('+count+')':''}</div>`;
+      const isEmpty=allHeadlines?allHeadlines.filter(h=>h.CategoryID===c.CategoryID).length===0:false;
+      return `<div class="cat-tile ${currentFilter===c.Name?'active':''}" onclick="${isEmpty?'':(`filterCat('${c.Name}',this)`)}" style="${isEmpty?'opacity:0.35;cursor:default':''}">${c.Name}</div>`;
     }).join('');
-    html+=`<div class="cat-tile ${currentFilter==='Other'?'active':''}" onclick="filterCat('Other',this)"><div class="cat-dot" style="background:#888"></div>Other${allHeadlines!==null?` (${allHeadlines?allHeadlines.filter(h=>resolveGroupLabel(h)==='Other').length:0})`:''}</div>`;
+    html+=`<div class="cat-tile ${currentFilter==='Other'?'active':''}" onclick="filterCat('Other',this)">Other</div>`;
     row.innerHTML=html;
   }
 
+  function setGroupExpand(val){
+    groupsExpanded=val;
+    document.querySelectorAll('.cat-group-body').forEach(b=>b.style.display=val?'block':'none');
+    document.querySelectorAll('.group-arrow').forEach(a=>a.textContent=val?'▼':'▶');
+  }
+
+  function toggleGroup(header){
+    const body=header.nextElementSibling;
+    const open=body.style.display!=='none';
+    body.style.display=open?'none':'block';
+    const arrow=header.querySelector('.group-arrow');
+    if(arrow)arrow.textContent=open?'▶':'▼';
+  }
+
+  async function deleteHeadline(headlineID,e){
+    e.stopPropagation();
+    headlines=headlines.filter(h=>h.HeadlineID!==headlineID);
+    renderHeadlines();
+    try{ await apiPost('SaveRetain',{headlineID,retain:false,deleteIt:true}); }catch(err){}
+  }
+
   function renderHeadlines(){
-    if(headlines.length===0&&currentFilter!=='all'&&currentFilter!=='Other'&&currentFilter!=='Subscriptions'){
+    if(headlines.length===0&&currentFilter!=='all'&&currentFilter!=='Other'){
       fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`).then(r=>r.json()).then(all=>{
         if(!Array.isArray(all)||!all.length){document.getElementById('headlines-grouped').innerHTML='<div class="empty-state">No headlines found. Click ↻ Refresh to fetch latest headlines.</div>';return;}
-        // Try Subscriptions first
         if(all.some(h=>h.IsSubscription===1||h.IsSubscription===true)){
           currentFilter='Subscriptions';renderCategoryTiles(all);
           headlines=all.filter(h=>h.IsSubscription===1||h.IsSubscription===true);renderHeadlines();return;
@@ -1856,19 +1870,21 @@
     }
     if(!headlines.length){document.getElementById('headlines-grouped').innerHTML='<div class="empty-state">No headlines found. Click ↻ Refresh to fetch latest headlines.</div>';return;}
 
-    // Group by resolved group label
+    // Subscriptions filter: exclude IsSubscription headlines from keyword groups
+    const displayHeadlines = currentFilter==='Subscriptions'
+      ? headlines
+      : headlines.filter(h=>!(h.IsSubscription===1||h.IsSubscription===true));
+
     const groups={};
     const groupSeq={};
-    headlines.forEach(h=>{
+    displayHeadlines.forEach(h=>{
       const key=resolveGroupLabel(h);
       if(!groups[key])groups[key]=[];
       groups[key].push(h);
-      // Track minimum keyword/topic sequence for ordering groups
       const seq=h.KeywordSequence||h.TopicSequence||999;
       if(groupSeq[key]===undefined||seq<groupSeq[key])groupSeq[key]=seq;
     });
 
-    // Order: Subscriptions first, then by min sequence, Other last
     const orderedKeys=Object.keys(groups).sort((a,b)=>{
       if(a==='Subscriptions')return -1;if(b==='Subscriptions')return 1;
       if(a==='Other')return 1;if(b==='Other')return -1;
@@ -1879,11 +1895,12 @@
       const items=groups[groupName]||[];
       const c=groupName==='Subscriptions'?catColors['Subscriptions']:catColors[groupName]||catColors['Other'];
       const icon=groupName==='Subscriptions'?'📡':(c.icon||'📰');
-      const headerBg=groupName==='Subscriptions'?'#d6f5ef':'#f5f5f5';
-      const headerColor=groupName==='Subscriptions'?'#0a5c4e':'#444';
-      const headerBorder=groupName==='Subscriptions'?'#0a5c4e44':'#44444444';
+      const headerBg=c.bg||'#f5f5f5';
+      const headerColor=c.color||'#444';
+      const countLabel=items.length>1?` <span style="opacity:0.6;font-weight:500">(${items.length})</span>`:'';
+      const isSubscriptions=groupName==='Subscriptions';
       const rows=items.map(h=>`
-        <div class="headline-row ${h.Retain==='Y'?'retained':''}" onclick="openHeadline('${h.Link}')">
+        <div class="headline-row ${h.Retain==='Y'?'retained':''}" onclick="openHeadline('${h.Link.replace(/'/g,"\\'")}')">
           <img src="${h.ThumbnailURL||'images/newspaper.svg'}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">
           <div class="headline-body">
             <div class="headline-row-title">${h.HeadlineName}</div>
@@ -1891,14 +1908,21 @@
             <div class="headline-row-meta">
               <span class="headline-row-source">date: ${formatDate(h.CreatedDate)}</span>
               <span class="headline-row-source">source: ${h.SourceName||'—'}</span>
-              <span class="headline-row-source">keyword: ${h.Keyword||h.Topic||'—'}</span>
+              ${!isSubscriptions?`<span class="headline-row-source">keyword: ${h.Keyword||h.Topic||'—'}</span>`:''}
               ${h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:''}
               ${h.Duration?`<span style="font-size:11px;color:var(--text-muted);background:#f0f7ff;border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-weight:600">⏱ ${h.Duration}</span>`:''}
             </div>
           </div>
-          <button class="retain-btn ${h.Retain==='Y'?'active':''}" onclick="toggleRetain(${h.HeadlineID},event)"></button>
+          <button class="retain-btn ${h.Retain==='Y'?'active':''}" onclick="toggleRetain(${h.HeadlineID},event)" title="Retain"></button>
+          <button class="btn-icon danger" onclick="deleteHeadline(${h.HeadlineID},event)" title="Delete" style="width:22px;height:22px;font-size:11px;margin-top:2px;flex-shrink:0">✕</button>
         </div>`).join('');
-      return `<div class="cat-group"><div class="cat-group-header" style="background:${headerBg};color:${headerColor};border-bottom:1.5px solid ${headerBorder}"><span>${icon}</span><span>${groupName} <span style="opacity:0.6;font-weight:500">(${items.length})</span></span></div>${rows}</div>`;
+      return `<div class="cat-group">
+        <div class="cat-group-header" style="background:${headerBg};color:${headerColor};border-bottom:1.5px solid ${headerColor}44;cursor:pointer" onclick="toggleGroup(this)">
+          <span class="group-arrow" style="font-size:10px;margin-right:4px">${groupsExpanded?'▼':'▶'}</span>
+          <span>${icon}</span><span style="margin-left:6px">${groupName}${countLabel}</span>
+        </div>
+        <div class="cat-group-body" style="display:${groupsExpanded?'block':'none'}">${rows}</div>
+      </div>`;
     }).join('');
   }
 
