@@ -618,12 +618,23 @@
         return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:10px;padding:5px 8px;min-width:48px">
           <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.8);text-transform:uppercase;letter-spacing:0.5px">${dow}</div>
           <div style="font-size:20px;line-height:1">${fIcon}</div>
-          <div style="font-size:10px;color:white;font-weight:600">${Math.round(d.temperature_2m_max[i+1])}°</div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.65)">${Math.round(d.temperature_2m_min[i+1])}°</div>
+          <div style="font-size:10px;color:white;font-weight:600">${Math.round(d.temperature_2m_max[i+1])}&#176;</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.65)">${Math.round(d.temperature_2m_min[i+1])}&#176;</div>
         </div>`;
       }).join('');
       document.getElementById('weather-block').innerHTML=`
-        <a href="https://forecast.weather.gov/MapClick.php?CityName=Oreg
+        <a href="https://forecast.weather.gov/MapClick.php?CityName=Oregon&state=IL&site=LOT&textField1=41.9945&textField2=-89.3334" target="_blank" style="display:flex;align-items:center;gap:10px;text-decoration:none">
+          <div class="weather-icon" style="font-size:28px">${icon}</div>
+          <div>
+            <div class="weather-temp" style="font-size:20px">${Math.round(c.temperature_2m)}&#176;F</div>
+            <div class="weather-desc">${desc}</div>
+            <div class="weather-detail">H:${Math.round(d.temperature_2m_max[0])}&#176; L:${Math.round(d.temperature_2m_min[0])}&#176; &middot; Wind ${Math.round(c.windspeed_10m)} mph</div>
+          </div>
+        </a>
+        <div style="width:1px;height:40px;background:rgba(255,255,255,0.25);margin:0 4px"></div>
+        <div style="display:flex;gap:6px">${forecastBoxes}</div>`;
+    }catch(e){document.getElementById('weather-block').innerHTML='<div class="weather-loading">Weather unavailable</div>';}
+  }
 
   async function apiPost(endpoint,body){
     const res=await fetch(`${API_BASE}/${endpoint}?code=${API_KEY}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
