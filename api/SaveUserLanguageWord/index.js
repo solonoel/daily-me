@@ -212,10 +212,11 @@ module.exports = async function(context, req) {
       };
 
     } else if (action === 'mastered') {
+      const setMastered = req.body.mastered !== false;
       await pool.request()
         .input('WordID', sql.Int, wordID)
         .input('UserID', sql.Int, userID)
-        .query(`UPDATE [UserLanguageWords] SET DateMastered=GETDATE()
+        .query(`UPDATE [UserLanguageWords] SET DateMastered=${setMastered?'GETDATE()':'NULL'}
                 WHERE UserLanguageWordsID=@WordID AND UserID=@UserID`);
       context.res = {
         status: 200,

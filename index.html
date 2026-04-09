@@ -186,6 +186,7 @@
     .fc-btn { width:38px; height:38px; border-radius:50%; border:2px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:17px; transition:all 0.15s; flex-shrink:0; }
     .fc-btn:hover { border-color:var(--sky-deep); background:#f0f7ff; }
     .fc-mastered:hover { border-color:#22c55e; background:#f0fdf4; color:#16a34a; }
+    .fc-mastered-active { border-color:#22c55e; background:#f0fdf4; color:#16a34a; }
     .fc-flag-btn:hover { border-color:var(--gold); background:rgba(232,160,32,0.08); }
     .fc-flag-active { border-color:var(--gold); background:rgba(232,160,32,0.08); }
     .fc-nav-btn { width:34px; height:34px; border-radius:8px; border:1.5px solid var(--border); background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:700; color:var(--sky-deep); transition:all 0.15s; flex-shrink:0; line-height:1; }
@@ -577,7 +578,7 @@
   let newWordImage=null,newWordImageChanged=false;
   let editingWordID=null;
   let conjVerbs=[],conjLangName='';
-  let userDecks=[],deckStatusFilter='Active';
+  let userDecks=[],deckStatusFilter='Active',currentDeckName='';
   let deckSortCol='DateAdded',deckSortDir='desc';
   let currentDeckID=null;
   let verbFilter='all';
@@ -1016,11 +1017,15 @@
     }
   }
   async function retranslateAllWords(){
-    if(!confirm('Re-fetch translations for all '+myWords.length+' words? This may take a while.'))return;
+    const verbFiltered=verbFilter==='verbs'?myWords.filter(w=>w.IsVerb==='Y'):verbFilter==='nouns'?myWords.filter(w=>w.IsVerb!=='Y'):myWords;
+    const deckFiltered=myWordsDeckFilter?verbFiltered.filter(w=>w.DeckIDs&&w.DeckIDs.includes(parseInt(myWordsDeckFilter))):verbFiltered;
+    const statusFiltered=myWordsFilter==='active'?deckFiltered.filter(w=>!w.DateMastered):myWordsFilter==='flagged'?deckFiltered.filter(w=>w.Flag):myWordsFilter==='mastered'?deckFiltered.filter(w=>w.DateMastered):deckFiltered;
+    const wordsToTranslate=wordSearch?statusFiltered.filter(w=>{const n=(w.WordsName||'').toLowerCase(),t=(w.WordsTranslation||'').toLowerCase();return n.includes(wordSearch)||t.includes(wordSearch);}):statusFiltered;
+    if(!confirm('Re-fetch translations for '+wordsToTranslate.length+' displayed words? This may take a while.'))return;
     const statusEl=getImportStatusEl();
     if(statusEl){statusEl.textContent='Re-translating...';statusEl.style.display='inline';}
     let updated=0,failed=0;
-    for(const w of myWords){
+    for(const w of wordsToTranslate){
       try{
         const trans=await translateWord(w.WordsName);
         const wordsName=trans.wordWithRegion||w.WordsName;
@@ -1031,7 +1036,7 @@
           wordsName,wordsTranslation,isVerb,gender,mastered:!!w.DateMastered,wordsImage:w.WordsImage||null});
         w.WordsName=wordsName;w.WordsTranslation=wordsTranslation;w.IsVerb=isVerb?'Y':'N';w.Gender=gender;
         updated++;
-        if(statusEl)statusEl.textContent='Re-translating... '+updated+'/'+myWords.length;
+        if(statusEl)statusEl.textContent='Re-translating... '+updated+'/'+wordsToTranslate.length;
       }catch(e){failed++;}
     }
     const doneMsg='Done - '+updated+' words re-translated'+(failed?' ('+failed+' failed)':'')+'.'
@@ -1349,7 +1354,7 @@
     const cached=sentencesCache[wordID];
     if(cached===undefined||cached===null)return cached===null?`<div style="font-size:11px;color:var(--text-muted);margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">Loading sentences…</div>`:'';
     if(!cached.length)return'';
-    return`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${cached.map(s=>`<div style="margin-bottom:5px"><span style="font-size:11px;font-weight:700;color:var(--sky-deep)">${s.pronoun}:</span> <span style="font-size:12px;color:var(--text)">${s.sentence}</span><br><span style="font-size:11px;color:var(--text-muted);padding-left:4px;line-height:1.0;display:inline-block;margin-top:-1px">${s.translation}</span></div>`).join('')}</div>`;
+    return`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${cached.map(s=>`<div style="margin-bottom:5px"><div style="font-size:11px;font-weight:700;color:var(--sky-deep);margin-bottom:0">${s.pronoun}: <span style="font-weight:400;color:var(--text);font-size:12px">${s.sentence}</span></div><div style="font-size:11px;color:var(--text-muted);padding-left:4px;margin-top:-2px">${s.translation}</div></div>`).join('')}</div>`;
   }
 
   function setFlashcardLeadWith(val){flashcardLeadWith=val;flashcardShowTranslation=false;renderFlashcardsScreen();}
@@ -1391,7 +1396,7 @@ const fcCounts={
           :`<div class="flashcard-translation">${displayTranslation}</div><div class="flashcard-hint">Tap to reveal</div>`;
       }else{
         const sentencesSection=sentencesHTML?`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${
-          (sentencesCache[card.UserLanguageWordsID]||[]).map(s=>`<div style="margin-bottom:3px"><span style="font-size:13px;font-weight:600;color:var(--text)">${s.sentence}</span><br><span style="font-size:11px;color:var(--text-muted);padding-left:4px;line-height:1.1;display:inline-block">${s.translation}</span></div>`).join('')
+          (sentencesCache[card.UserLanguageWordsID]||[]).map(s=>`<div style="margin-bottom:3px"><div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:0">${s.sentence}</div><div style="font-size:11px;color:var(--text-muted);padding-left:4px;margin-top:-2px">${s.translation}</div></div>`).join('')
         }</div>`:'';
         const leftCol=`<div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0;min-width:110px">`+
           `<div class="flashcard-word" style="text-align:center">${card.WordsName}${genderLabel}</div>`+
@@ -1409,7 +1414,7 @@ const fcCounts={
         </div>
         <div class="fc-actions-bar">
           <button class="fc-btn fc-speaker" onclick="speakWordFC(${card.UserLanguageWordsID})" title="Pronounce">🔊</button>
-          <button class="fc-btn fc-mastered" onclick="flashcardGotIt(${card.UserLanguageWordsID})" title="Mastered">✓</button>
+          <button class="fc-btn fc-mastered ${card.DateMastered?'fc-mastered-active':''}" onclick="flashcardGotIt(${card.UserLanguageWordsID})" title="${card.DateMastered?'Mastered — click to undo':'Mark as mastered'}">✓</button>
           <button class="fc-btn fc-flag-btn ${card.Flag?'fc-flag-active':''}" onclick="flashcardToggleFlag(${card.UserLanguageWordsID},this)" title="Flag">${card.Flag?'★':'☆'}</button>
           <div style="width:1px;height:24px;background:var(--border);margin:0 4px"></div>
           <button class="fc-nav-btn ${prevDis2}" onclick="moveFlashcard(-1)" title="Previous">‹</button>
@@ -1419,7 +1424,13 @@ const fcCounts={
     const prevDis=flashcardIndex===0?'disabled':'',nextDis=flashcardIndex>=total-1?'disabled':'';
     return `
       <div class="flashcard-container">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;margin-bottom:6px;padding:6px 12px;background:white;border:1.5px solid var(--border);border-radius:10px">
+          <span style="font-family:'Playfair Display',serif;font-size:16px;font-weight:600;color:var(--text)">${currentDeckName}</span>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-soft);cursor:pointer;flex-shrink:0">
+            🔊 Auto Pronounce <input type="checkbox" id="fc-auto-pronounce" ${flashcardAutoPronounce?'checked':''} onchange="flashcardAutoPronounce=this.checked" style="accent-color:var(--sky-deep)">
+          </label>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">
           <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-soft);background:white;border:1px solid var(--border);border-radius:100px;padding:5px 14px;flex-shrink:0">
             <span style="font-weight:600">Lead with:</span>
             <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="fc-lead-${langID}" value="language" ${flashcardLeadWith==='language'?'checked':''} onchange="setFlashcardLeadWith('language')" style="accent-color:var(--sky-deep)"> ${langName}</label>
@@ -1431,10 +1442,7 @@ const fcCounts={
             <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="fc-filter-${langID}" value="mastered" ${flashcardFilter==='mastered'?'checked':''} onchange="setFlashcardFilter('mastered')" style="accent-color:var(--sky-deep)"> Mastered (${fcCounts.mastered})</label>
             <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="fc-filter-${langID}" value="all" ${flashcardFilter==='all'?'checked':''} onchange="setFlashcardFilter('all')" style="accent-color:var(--sky-deep)"> All (${fcCounts.all})</label>
           </div>
-          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-soft);cursor:pointer;background:white;border:1px solid var(--border);border-radius:100px;padding:5px 14px;flex-shrink:0">
-            🔊 Auto Pronounce <input type="checkbox" id="fc-auto-pronounce" ${flashcardAutoPronounce?'checked':''} onchange="flashcardAutoPronounce=this.checked" style="accent-color:var(--sky-deep)">
-          </label>
-        </div>
+          </div>
         <div class="flashcard-nav">
           <a class="${prevDis}" onclick="moveFlashcard(-Infinity)">⟪</a>
           <span class="flashcard-nav-pos">${total>0?`${flashcardIndex+1} of ${total}`:'0 of 0'}</span>
@@ -1484,12 +1492,16 @@ const fcCounts={
   function setFlashcardFilter(filter){flashcardFilter=filter;flashcardIndex=0;flashcardShowTranslation=false;renderFlashcardsScreen();}
 
   async function flashcardGotIt(wordID){
-    await apiPost('SaveUserLanguageWord',{action:'mastered',userID:USER_ID,wordID});
-    const wasLast=flashcardIndex>=getFilteredFlashcards().length-1;
-    flashcards=flashcards.filter(w=>w.UserLanguageWordsID!==wordID);
-    const total=getFilteredFlashcards().length;
-    if(wasLast||flashcardIndex>=total)flashcardIndex=total>0?0:-1;
-    if(flashcardIndex<0)flashcardIndex=0;
+    const card=flashcards.find(w=>w.UserLanguageWordsID===wordID);if(!card)return;
+    const newMastered=!card.DateMastered;
+    await apiPost('SaveUserLanguageWord',{action:'mastered',userID:USER_ID,wordID,mastered:newMastered});
+    card.DateMastered=newMastered?new Date().toISOString():null;
+    // If mastering, advance to next card (stay in place if un-mastering)
+    if(newMastered){
+      const total=getFilteredFlashcards().length;
+      const wasLast=flashcardIndex>=total-1;
+      if(wasLast)flashcardIndex=total>1?0:0;
+    }
     flashcardShowTranslation=false;renderFlashcardsScreen();
   }
 
@@ -1693,7 +1705,7 @@ const fcCounts={
   }
 
   async function studyDeck(deckID,deckName,returnFeature='decks',returnWordID=null){
-    currentDeckID=deckID;
+    currentDeckID=deckID;currentDeckName=deckName||'';
     flashcardFilter='study';flashcardIndex=0;flashcardShowTranslation=false;sentencesCache={};
     const data=await apiGet('GetDeckWords',`&deckID=${deckID}`);
     flashcards=Array.isArray(data)?data:[];
