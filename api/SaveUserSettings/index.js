@@ -23,26 +23,19 @@ module.exports = async function(context, req) {
       return;
     }
 
-    if (fetchHour !== undefined) {
-      await pool.request()
-        .input('UserID', sql.Int, userID)
-        .input('FetchHour', sql.Int, fetchHour === null ? null : parseInt(fetchHour))
-        .query(`UPDATE [HeadlineSetting] SET FetchHour = @FetchHour WHERE UserID = @UserID`);
-      context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) };
-      return;
-    }
-
-    if (recencyDays || maxHeadlines) {
+    if (recencyDays || maxHeadlines || fetchHour !== undefined) {
       await pool.request()
         .input('UserID', sql.Int, userID)
         .input('RecencyDays', sql.Int, recencyDays || 7)
         .input('MaxHeadlines', sql.Int, maxHeadlines || 50)
         .input('YouTubeMaxResults', sql.Int, youTubeMaxResults || 3)
         .input('OtherHeadlinesPerKeyword', sql.Int, otherHeadlinesPerKeyword ?? 3)
+        .input('FetchHour', sql.Int, fetchHour === undefined ? null : (fetchHour === null ? null : parseInt(fetchHour)))
         .query(`
           UPDATE [HeadlineSetting]
           SET RecencyDays = @RecencyDays, MaxHeadlines = @MaxHeadlines, YouTubeMaxResults = @YouTubeMaxResults,
-              OtherHeadlinesPerKeyword = @OtherHeadlinesPerKeyword
+              OtherHeadlinesPerKeyword = @OtherHeadlinesPerKeyword,
+              FetchHour = ISNULL(@FetchHour, FetchHour)
           WHERE UserID = @UserID
         `);
     }

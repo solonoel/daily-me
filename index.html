@@ -651,7 +651,9 @@
     allLanguages=Array.isArray(langs)?langs:[];userLanguages=Array.isArray(ulangs)?ulangs:[];
     if(userSettings?.headlineSetting?.RecencyDays){
       recencyDays_value=userSettings.headlineSetting.RecencyDays;
-      document.getElementById('recency-val').textContent=recencyDays_value===1?'1 day':`${recencyDays_value} days`;
+      const lastFetchRecency=localStorage.getItem(`dailyme_last_fetch_recency_${USER_ID}`);
+      const displayRecency=lastFetchRecency?parseInt(lastFetchRecency):recencyDays_value;
+      document.getElementById('recency-val').textContent=displayRecency===1?'1 day':`${displayRecency} days`;
     }
     document.getElementById('us-recency').value=userSettings?.headlineSetting?.RecencyDays||7;
     document.getElementById('us-maxheadlines').value=userSettings?.headlineSetting?.MaxHeadlines||50;
@@ -1347,7 +1349,7 @@
     const cached=sentencesCache[wordID];
     if(cached===undefined||cached===null)return cached===null?`<div style="font-size:11px;color:var(--text-muted);margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">Loading sentences…</div>`:'';
     if(!cached.length)return'';
-    return`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${cached.map(s=>`<div style="margin-bottom:5px"><span style="font-size:11px;font-weight:700;color:var(--sky-deep)">${s.pronoun}:</span> <span style="font-size:12px;color:var(--text)">${s.sentence}</span><br><span style="font-size:11px;color:var(--text-muted);padding-left:4px;line-height:1.1;display:inline-block">${s.translation}</span></div>`).join('')}</div>`;
+    return`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${cached.map(s=>`<div style="margin-bottom:5px"><span style="font-size:11px;font-weight:700;color:var(--sky-deep)">${s.pronoun}:</span> <span style="font-size:12px;color:var(--text)">${s.sentence}</span><br><span style="font-size:11px;color:var(--text-muted);padding-left:4px;line-height:1.0;display:inline-block;margin-top:-1px">${s.translation}</span></div>`).join('')}</div>`;
   }
 
   function setFlashcardLeadWith(val){flashcardLeadWith=val;flashcardShowTranslation=false;renderFlashcardsScreen();}
@@ -1848,10 +1850,11 @@ const fcCounts={
       const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=true;
       apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:true});
       btn.textContent='↻ Refresh';btn.style.color='';btn.style.background='';btn.style.borderColor='';btn.style.fontWeight='';btn.disabled=false;
-      const now=new Date();
+const now=new Date();
       const ts=fmtDT(now);
       const lft=document.getElementById('last-fetch-time');if(lft){lft.textContent=`refresh: ${ts}`;lft.style.display='';}
       localStorage.setItem(`dailyme_last_fetch_time_${USER_ID}`,now.toISOString());
+      localStorage.setItem(`dailyme_last_fetch_recency_${USER_ID}`,String(recencyDays_value));
       const ytLft=document.getElementById('last-yt-fetch-time');
       if(ytLft&&!disableYoutube){ytLft.textContent=`youtube: ${ts}`;ytLft.style.display='';localStorage.setItem(`dailyme_last_yt_fetch_time_${USER_ID}`,now.toISOString());}
       const res2=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`);
@@ -2124,14 +2127,21 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     const state=e.state;if(!state){showScreen('headlines',false);return;}
     if(state.screen==='settings'){showScreen('settings',false);if(state.section)showSettingsSection(state.section,false);else showSettingsMenu(false);}
     else if(state.screen){
-      showScreen(state.screen,false);
       if(state.langFeature&&state.langID){
+        const screenEl=document.getElementById(`screen-lang-${state.langID}`);
+        document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+        if(screenEl)screenEl.classList.add('active');
+        const navEl=document.getElementById(`nav-lang-${state.langID}`);
+        if(navEl)navEl.classList.add('active');
         showLangFeature(state.langID,state.langFeature,state.langName).then(()=>{
           if(state.returnWordID){
             const row=document.querySelector(`.word-row[data-wordid="${state.returnWordID}"]`);
             if(row)row.scrollIntoView({behavior:'smooth',block:'center'});
           }
         });
+      } else {
+        showScreen(state.screen,false);
       }
     }
   });

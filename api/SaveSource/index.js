@@ -112,7 +112,7 @@ module.exports = async function(context, req) {
           .input('SourceID', sql.Int, sourceID)
           .query(`
             IF NOT EXISTS (SELECT 1 FROM [UserHeadlineSource] WHERE UserID=@UserID AND SourceID=@SourceID)
-            INSERT INTO [UserHeadlineSource] (UserID, SourceID, YoutubeUnfiltered) VALUES (@UserID, @SourceID, 0)
+            INSERT INTO [UserHeadlineSource] (UserID, SourceID) VALUES (@UserID, @SourceID)
           `);
         context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ success: true, sourceID }) };
