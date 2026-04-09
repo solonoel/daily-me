@@ -264,9 +264,6 @@
   <button class="nav-btn" onclick="showScreen('teams')" id="nav-teams">
     <span class="nav-icon">👥</span><span class="nav-label">Teams</span>
   </button>
-  <button class="nav-btn" onclick="showHealthScreen()" id="nav-health">
-    <span class="nav-icon">🏥</span><span class="nav-label">Health</span>
-  </button>
   <div id="nav-date" style="margin-left:auto;padding:0 20px;display:flex;align-items:center;font-size:12px;color:var(--text-muted);white-space:nowrap;flex-shrink:0"></div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:0 12px;border-left:1px solid var(--border);flex-shrink:0;gap:3px">
     <div style="display:flex;align-items:center;gap:6px">
@@ -280,18 +277,22 @@
   <div class="screen active" id="screen-headlines">
     <div class="category-bar">
       <div style="display:flex;flex-direction:column;width:100%;background:white">
-        <div style="display:flex;align-items:center;gap:8px;padding:4px 12px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:6px;padding:4px 12px;border-bottom:1px solid var(--border)">
           <span style="font-size:10px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="recency-val">7 days</span></span>
           <div id="last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
           <div id="last-yt-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
-          <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
-            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="expand" checked onchange="setGroupExpand(true)" style="accent-color:var(--sky-deep)"> Expanded</label>
-            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--sky-deep);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="collapse" onchange="setGroupExpand(false)" style="accent-color:var(--sky-deep)"> Collapsed</label>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
             <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn" style="flex-shrink:0">↻ Refresh</button>
             <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="checkbox" id="hl-unlimited" style="accent-color:var(--sky-deep)" onchange="loadHeadlines()"> Unlimited</label>
           </div>
         </div>
-        <div class="category-row" id="cat-row" style="display:flex;align-items:stretch;flex-wrap:wrap"></div>
+        <div style="display:flex;align-items:stretch;flex-wrap:wrap">
+          <div class="category-row" id="cat-row" style="display:flex;align-items:stretch;flex-wrap:wrap;flex:1"></div>
+          <div style="display:flex;align-items:center;gap:6px;padding:0 12px;flex-shrink:0;border-left:1px solid var(--border)">
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="expand" checked onchange="setGroupExpand(true)" style="accent-color:var(--sky-deep)"> Expanded</label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="collapse" onchange="setGroupExpand(false)" style="accent-color:var(--sky-deep)"> Collapsed</label>
+          </div>
+        </div>
       </div>
     </div>
     <div id="refresh-status" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep);margin-bottom:12px;padding:8px 14px;background:#f0f7ff;border-radius:8px;border:1px solid var(--border)"></div>
@@ -300,11 +301,6 @@
   <div class="screen" id="screen-teams">
     <div class="date-strip"><div class="date-main">Teams</div><div class="date-sub">Coming soon</div></div>
     <div class="empty-state" style="padding:60px">Teams feature is coming soon.</div>
-  </div>
-  <div class="screen" id="screen-health">
-    <div class="section-label" style="margin-top:8px">Health Headlines</div>
-    <div id="refresh-status-health" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep);margin-bottom:12px;padding:8px 14px;background:#f0f7ff;border-radius:8px;border:1px solid var(--border)"></div>
-    <div id="health-headlines-grouped"></div>
   </div>
   <div id="language-screens"></div>
   <div class="screen" id="screen-settings">
@@ -325,7 +321,7 @@
           <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px">
             <div>
               <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Recency Days</div>
-              <input type="number" id="us-recency" class="form-input" style="width:52px;font-size:12px;padding:3px 5px" min="1" max="14">
+              <input type="number" id="us-recency" class="form-input" style="width:52px;font-size:12px;padding:3px 5px" min="1" max="14" oninput="debounceSaveCatLimits()">
               <div style="font-size:10px;color:var(--text-muted);margin-top:2px">max 14</div>
             </div>
             <div>
@@ -677,6 +673,23 @@
     const lft=document.getElementById('last-fetch-time');if(lft&&savedTs){const d=new Date(savedTs);if(!isNaN(d)){lft.textContent=`refresh: ${fmtDT(d)}`;lft.style.display='';}}
     const savedYtTs=localStorage.getItem(`dailyme_last_yt_fetch_time_${USER_ID}`);
     const ytLft=document.getElementById('last-yt-fetch-time');if(ytLft&&savedYtTs){const d=new Date(savedYtTs);if(!isNaN(d)){ytLft.textContent=`youtube: ${fmtDT(d)}`;ytLft.style.display='';}}
+    // Sync YouTube timestamp from DB if scheduled fetch ran overnight
+    try{
+      const ytRes=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=1`);
+      const ytAll=await ytRes.json();
+      if(Array.isArray(ytAll)){
+        const ytItems=ytAll.filter(h=>h.ChannelName);
+        if(ytItems.length){
+          const newest=ytItems.reduce((max,h)=>new Date(h.CreatedDate)>new Date(max.CreatedDate)?h:max,ytItems[0]);
+          const newestDate=new Date(newest.CreatedDate);
+          const storedDate=savedYtTs?new Date(savedYtTs):null;
+          if(!storedDate||newestDate>storedDate){
+            localStorage.setItem(`dailyme_last_yt_fetch_time_${USER_ID}`,newestDate.toISOString());
+            if(ytLft){ytLft.textContent=`youtube: ${fmtDT(newestDate)}`;ytLft.style.display='';}
+          }
+        }
+      }
+    }catch(e){}
     renderLanguageNav();renderLanguageScreens();renderLanguageCheckList();
     renderCatSettingsTable(userSettings);renderCategoryTiles(null);
     const isFirstLogin=!localStorage.getItem(`dailyme_onboarded_${USER_ID}`);
@@ -1334,7 +1347,7 @@
     const cached=sentencesCache[wordID];
     if(cached===undefined||cached===null)return cached===null?`<div style="font-size:11px;color:var(--text-muted);margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">Loading sentences…</div>`:'';
     if(!cached.length)return'';
-    return`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${cached.map(s=>`<div style="margin-bottom:5px"><span style="font-size:11px;font-weight:700;color:var(--sky-deep)">${s.pronoun}:</span> <span style="font-size:12px;color:var(--text)">${s.sentence}</span><br><span style="font-size:11px;color:var(--text-muted);padding-left:4px">${s.translation}</span></div>`).join('')}</div>`;
+    return`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${cached.map(s=>`<div style="margin-bottom:5px"><span style="font-size:11px;font-weight:700;color:var(--sky-deep)">${s.pronoun}:</span> <span style="font-size:12px;color:var(--text)">${s.sentence}</span><br><span style="font-size:11px;color:var(--text-muted);padding-left:4px;line-height:1.1;display:inline-block">${s.translation}</span></div>`).join('')}</div>`;
   }
 
   function setFlashcardLeadWith(val){flashcardLeadWith=val;flashcardShowTranslation=false;renderFlashcardsScreen();}
@@ -1376,7 +1389,7 @@ const fcCounts={
           :`<div class="flashcard-translation">${displayTranslation}</div><div class="flashcard-hint">Tap to reveal</div>`;
       }else{
         const sentencesSection=sentencesHTML?`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${
-          (sentencesCache[card.UserLanguageWordsID]||[]).map(s=>`<div style="margin-bottom:3px"><span style="font-size:13px;font-weight:600;color:var(--text)">${s.sentence}</span><br><span style="font-size:11px;color:var(--text-muted);padding-left:4px">${s.translation}</span></div>`).join('')
+          (sentencesCache[card.UserLanguageWordsID]||[]).map(s=>`<div style="margin-bottom:3px"><span style="font-size:13px;font-weight:600;color:var(--text)">${s.sentence}</span><br><span style="font-size:11px;color:var(--text-muted);padding-left:4px;line-height:1.1;display:inline-block">${s.translation}</span></div>`).join('')
         }</div>`:'';
         const leftCol=`<div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0;min-width:110px">`+
           `<div class="flashcard-word" style="text-align:center">${card.WordsName}${genderLabel}</div>`+
@@ -1677,7 +1690,7 @@ const fcCounts={
     if(deck&&deck.WordCount>0)deck.WordCount--;
   }
 
-  async function studyDeck(deckID,deckName){
+  async function studyDeck(deckID,deckName,returnFeature='decks',returnWordID=null){
     currentDeckID=deckID;
     flashcardFilter='study';flashcardIndex=0;flashcardShowTranslation=false;sentencesCache={};
     const data=await apiGet('GetDeckWords',`&deckID=${deckID}`);
@@ -1686,10 +1699,8 @@ const fcCounts={
     if(panel){
       panel.innerHTML=renderFlashcardsHTML(currentLangID,currentLangName);
       document.querySelectorAll('[id^="langtab-"]').forEach(t=>t.classList.remove('lang-tab-active'));
-      const fcTab=document.getElementById(`langtab-fc-${currentLangID}`);
-      if(fcTab)fcTab.classList.add('lang-tab-active');
     }
-    history.pushState({screen:`lang-${currentLangID}`,langFeature:'decks',langID:currentLangID,langName:currentLangName},'','');
+    history.pushState({screen:`lang-${currentLangID}`,langFeature:returnFeature,langID:currentLangID,langName:currentLangName,returnWordID},'','');
   }
 
   function selectConjVerb(wordID){
@@ -1879,8 +1890,9 @@ const fcCounts={
     const subCount=allHeadlines?allHeadlines.filter(h=>h.IsSubscription===1||h.IsSubscription===true).length:null;
     const subEmpty=subCount!==null&&subCount===0;
     let subAction = subEmpty ? '' : "filterCat('Subscriptions',this)";
-    let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}" onclick="${subAction}" style="${subEmpty?'opacity:0.35;cursor:default':''}">📡 Subscriptions</div>`;
-    const cats=categories.filter(c=>c.Headlines==='Y'&&c.IsActive==='Y'&&c.Name.toLowerCase()!=='health').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999));
+    const subCountLabel = subCount !== null && subCount > 0 ? ` (${subCount})` : '';
+let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}" onclick="${subAction}" style="${subEmpty?'opacity:0.35;cursor:default':''}">📡 Subscriptions${subCountLabel}</div>`;
+    const cats=categories.filter(c=>c.Headlines==='Y'&&c.IsActive==='Y').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999));
     html+=cats.map(c=>{
       const count=allHeadlines?allHeadlines.filter(h=>h.CategoryID===c.CategoryID).length:null;
       const isEmpty=count!==null&&count===0;
@@ -1934,10 +1946,18 @@ const fcCounts={
       ? headlines
       : headlines.filter(h=>!(h.IsSubscription===1||h.IsSubscription===true));
 
+    // For Subscriptions, override group key to be per-source
+    const getGroupKey = (h) => {
+      if (currentFilter === 'Subscriptions') {
+        return h.ChannelName || h.SourceName || 'Unknown';
+      }
+      return resolveGroupLabel(h);
+    };
+
     const groups={};
     const groupSeq={};
     displayHeadlines.forEach(h=>{
-      const key=resolveGroupLabel(h);
+      const key=getGroupKey(h);
       if(!groups[key])groups[key]=[];
       groups[key].push(h);
       const seq=h.KeywordSequence||h.TopicSequence||999;
@@ -1957,7 +1977,7 @@ const fcCounts={
       const headerBg='#c2ddf0';
       const headerColor='#1a4a6e';
       const countLabel=items.length>1?` <span style="opacity:0.6;font-weight:500">(${items.length})</span>`:'';
-      const isSubscriptions=groupName==='Subscriptions';
+      const isSubscriptions=currentFilter==='Subscriptions';
       const rows=items.map(h=>`
         <div class="headline-row ${h.Retain==='Y'?'retained':''}" onclick="openHeadline('${h.Link.replace(/'/g,"\\'")}')">
           <img src="${h.ThumbnailURL||'images/newspaper.svg'}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">
@@ -2022,7 +2042,9 @@ const fcCounts={
       const youTubeMaxResults=parseInt(document.getElementById('us-youtubemaxresults')?.value)||3;
       const otherHeadlinesPerKeyword=parseInt(document.getElementById('us-otherperkey')?.value)||3;
       const categorySettings=categories.filter(c=>c.IsActive==='Y').map(c=>({categoryID:c.CategoryID,maxItems:Math.min(30,Math.max(1,parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value)||20))}));
-      await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,categorySettings});
+      const fetchHourVal=document.getElementById('us-fetchhour')?.value;
+      const fetchHour=fetchHourVal===''?null:parseInt(fetchHourVal);
+      await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,fetchHour,categorySettings});
     },800);
   }
   function updateOtherLimit(){
@@ -2065,56 +2087,6 @@ const fcCounts={
     document.getElementById('recency-val').textContent=recencyDays===1?'1 day':`${recencyDays} days`;
   }
 
-  // ── HEALTH SCREEN ──
-
-  let healthHeadlines=[];
-
-  async function showHealthScreen(){
-    showScreen('health');
-    await loadHealthHeadlines();
-  }
-
-  async function loadHealthHeadlines(){
-    try{
-      const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`);
-      let allData=await res.json();if(!Array.isArray(allData))allData=[];
-      const healthCat=categories.find(c=>c.Name.toLowerCase()==='health');
-      healthHeadlines=healthCat?allData.filter(h=>h.CategoryID===healthCat.CategoryID):allData.filter(h=>h.CategoryName?.toLowerCase()==='health');
-      renderHealthHeadlines();
-    }catch(e){console.error('Error loading health headlines:',e);}
-  }
-
-  function renderHealthHeadlines(){
-    const el=document.getElementById('health-headlines-grouped');if(!el)return;
-    if(!healthHeadlines.length){el.innerHTML='<div class="empty-state">No health headlines found.</div>';return;}
-    const rows=healthHeadlines.map(h=>`
-      <div class="headline-row ${h.Retain==='Y'?'retained':''}" onclick="openHeadline('${h.Link}')">
-        ${h.ThumbnailURL?`<img src="${h.ThumbnailURL}" alt="" class="headline-thumb">`:''}
-        <div class="headline-body">
-          <div class="headline-row-title">${h.HeadlineName}</div>
-          ${h.Summary?`<div class="headline-row-summary">${h.Summary}</div>`:''}
-          <div class="headline-row-meta">
-            <span class="headline-row-source">date: ${formatDate(h.CreatedDate)}</span>
-            <span class="headline-row-source">source: ${h.SourceName||'—'}</span>
-            <span class="headline-row-source">keyword: ${h.Keyword||h.Topic||'—'}</span>
-            ${h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:''}
-            ${h.Duration?`<span style="font-size:11px;color:var(--text-muted);background:#f0f7ff;border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-weight:600">⏱ ${h.Duration}</span>`:''}
-          </div>
-        </div>
-        <button class="retain-btn ${h.Retain==='Y'?'active':''}" onclick="toggleRetainHealth(${h.HeadlineID},event)"></button>
-      </div>`).join('');
-    const c=catColors['Health']||catColors['Other'];
-    el.innerHTML=`<div class="cat-group"><div class="cat-group-header" style="background:${c.bg};color:${c.color};border-bottom:1.5px solid ${c.color}44"><span>${c.icon||'🏥'}</span><span>Health <span style="opacity:0.6;font-weight:500">(${healthHeadlines.length})</span></span></div>${rows}</div>`;
-  }
-
-  async function toggleRetainHealth(headlineID,e){
-    e.stopPropagation();
-    const h=healthHeadlines.find(h=>h.HeadlineID===headlineID);if(!h)return;
-    const newRetain=h.Retain!=='Y';
-    await apiPost('SaveRetain',{headlineID,retain:newRetain});
-    h.Retain=newRetain?'Y':'N';renderHealthHeadlines();
-  }
-
   // ── SCREEN NAVIGATION ──
 
   function showScreen(name,pushState=true){
@@ -2151,7 +2123,17 @@ const fcCounts={
     if(conjReturnFn){cancelConjugation();return;}
     const state=e.state;if(!state){showScreen('headlines',false);return;}
     if(state.screen==='settings'){showScreen('settings',false);if(state.section)showSettingsSection(state.section,false);else showSettingsMenu(false);}
-    else if(state.screen)showScreen(state.screen,false);
+    else if(state.screen){
+      showScreen(state.screen,false);
+      if(state.langFeature&&state.langID){
+        showLangFeature(state.langID,state.langFeature,state.langName).then(()=>{
+          if(state.returnWordID){
+            const row=document.querySelector(`.word-row[data-wordid="${state.returnWordID}"]`);
+            if(row)row.scrollIntoView({behavior:'smooth',block:'center'});
+          }
+        });
+      }
+    }
   });
 
   async function renderSettingsSection(section){
@@ -2674,8 +2656,7 @@ const fcCounts={
   }
 
   async function goToDeckFromWord(deckID, deckName, wordID){
-    history.pushState({screen:`lang-${currentLangID}`,langFeature:'mywords',langID:currentLangID,langName:currentLangName,returnWordID:wordID},'','');
-    await studyDeck(deckID,deckName);
+    await studyDeck(deckID,deckName,'mywords',wordID);
   }
 
   // ── INIT ──

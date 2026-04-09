@@ -423,7 +423,7 @@ module.exports = async function(context, myTimer) {
       .input('FetchHour', sql.Int, centralHour)
       .query(`SELECT u.UserID FROM [User] u
               JOIN [HeadlineSetting] hs ON hs.UserID = u.UserID
-              WHERE hs.FetchHour = @FetchHour AND u.IsActive = 1`);
+              WHERE hs.FetchHour = @FetchHour AND u.IsActive = 'Y'`);
 
     const users = usersResult.recordset;
     context.log(`Users to fetch for: ${users.length}`);
