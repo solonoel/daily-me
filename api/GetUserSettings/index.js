@@ -28,7 +28,7 @@ module.exports = async function(context, req) {
 
     const userResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT UserID, Name, Email, IsActive FROM [User] WHERE UserID = @UserID`);
+      .query(`SELECT UserID, Name, Email, IsActive, ZipCode FROM [User] WHERE UserID = @UserID`);
 
     context.res = {
       status: 200,

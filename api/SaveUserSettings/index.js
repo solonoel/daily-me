@@ -11,7 +11,7 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, otherHeadlinesPerKeyword, categorySettings, disableYoutubeToday, fetchHour } = req.body;
+    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, otherHeadlinesPerKeyword, categorySettings, disableYoutubeToday, fetchHour, zipCode } = req.body;
 
     if (disableYoutubeToday !== undefined) {
       const resetYT = req.body.resetYouTubeFetch === true;
@@ -21,6 +21,13 @@ module.exports = async function(context, req) {
         .query(`UPDATE [HeadlineSetting] SET DisableYoutubeToday = @DisableYoutubeToday${resetYT ? ', LastYouTubeFetch = NULL' : ''} WHERE UserID = @UserID`);
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) };
       return;
+    }
+
+    if (zipCode !== undefined) {
+      await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('ZipCode', sql.VarChar(10), zipCode)
+        .query(`UPDATE [User] SET ZipCode = @ZipCode WHERE UserID = @UserID`);
     }
 
     if (recencyDays || maxHeadlines || fetchHour !== undefined) {
