@@ -860,6 +860,8 @@
 
   function clearWordSearch(){
     wordSearch='';
+    const el=document.getElementById('mw-search-'+currentLangID);
+    if(el)el.value='';
     renderMyWords();
   }
 
@@ -958,7 +960,7 @@
         </div>
         <input type="file" id="mw-import-input" accept=".txt,.csv" style="display:none" onchange="importWords(event)">
         <button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="document.getElementById('mw-import-input').click()">&#x2B06; Import</button>
-        <button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="retranslateAllWords()">&#x21bb; Re-translate All</button>
+        <button class="btn-secondary" style="padding:6px 12px;font-<button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="retranslateAllWords()">&#x21bb; Retranslate Current</button>size:12px;white-space:nowrap" onclick="retranslateAllWords()">&#x21bb; Re-translate All</button>
         <span id="mw-import-status" style="display:none;font-size:11px;color:var(--sky-deep);font-weight:600;white-space:nowrap"></span>
       </div>
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px;margin-bottom:10px">
@@ -1021,7 +1023,7 @@
     const deckFiltered=myWordsDeckFilter?verbFiltered.filter(w=>w.DeckIDs&&w.DeckIDs.includes(parseInt(myWordsDeckFilter))):verbFiltered;
     const statusFiltered=myWordsFilter==='active'?deckFiltered.filter(w=>!w.DateMastered):myWordsFilter==='flagged'?deckFiltered.filter(w=>w.Flag):myWordsFilter==='mastered'?deckFiltered.filter(w=>w.DateMastered):deckFiltered;
     const wordsToTranslate=wordSearch?statusFiltered.filter(w=>{const n=(w.WordsName||'').toLowerCase(),t=(w.WordsTranslation||'').toLowerCase();return n.includes(wordSearch)||t.includes(wordSearch);}):statusFiltered;
-    if(!confirm('Re-fetch translations for '+wordsToTranslate.length+' displayed words? This may take a while.'))return;
+    if(wordsToTranslate.length>=25&&!confirm('Re-fetch translations for '+wordsToTranslate.length+' displayed words? This may take a while.'))return;
     const statusEl=getImportStatusEl();
     if(statusEl){statusEl.textContent='Re-translating...';statusEl.style.display='inline';}
     let updated=0,failed=0;
@@ -1226,6 +1228,7 @@
     if(!screenEl){console.error('No newword screen for lang',currentLangID);return;}
     screenEl.innerHTML=wordFormHTML(false,null,null);
     showScreen(`newword-${currentLangID}`);
+    setTimeout(()=>{const inp=document.getElementById('nw-word');if(inp)inp.focus();},100);
   }
 
   async function editWord(wordID){
