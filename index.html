@@ -1644,16 +1644,20 @@ const fcCounts={
       const existingWords=myWords.map(w=>w.WordsName).join(', ')||'none yet';
       const prompt=`The user is learning Spanish. Their current word list includes: ${existingWords}. Suggest exactly 5 new Spanish words appropriate for their level that they don't already have. Return ONLY a JSON array of objects with fields: word (Spanish), translation (English), isVerb (boolean), gender (M, F, or null). No other text.`;
       const res=await apiPost('GetWordSuggestions',{prompt,userID:USER_ID});
-      const data=res;
-      const text=data.text||'';
+      const text=res.text||'';
       const clean=text.replace(/```json|```/g,'').trim();
       const words=JSON.parse(clean);
       if(!Array.isArray(words)||!words.length)throw new Error('No words returned');
       const latestDeck=userDecks.length?[...userDecks].sort((a,b)=>new Date(b.DateAdded)-new Date(a.DateAdded))[0]:null;
       let added=0;
       for(const w of words){
+        const trans=await translateWord(w.word);
+        const wordsName=trans.wordWithRegion||w.word;
+        const isVerbFlag=trans.isVerb===true||trans.isVerb==='true';
+        const gender=trans.gender||null;
+        const wordsTranslation=trans.translation||w.translation||'';
         const result=await apiPost('SaveUserLanguageWord',{action:'add',userID:USER_ID,languageID:currentLangID,
-          wordsName:w.word,wordsTranslation:w.translation,isVerb:w.isVerb||false,gender:w.gender||null,wordsImage:null});
+          wordsName,wordsTranslation,isVerb:isVerbFlag,gender,wordsImage:null});
         if(result?.wordID){
           added++;
           if(latestDeck)await apiPost('SaveUserDeck',{action:'addWord',userID:USER_ID,deckID:latestDeck.UserLanguageWordsDeckID,wordID:result.wordID});
@@ -1757,8 +1761,8 @@ const fcCounts={
       if(flashcardReturnWordID){
         setTimeout(()=>{
           const row=document.querySelector(`.word-row[data-wordid="${flashcardReturnWordID}"]`);
-          if(row)row.scrollIntoView({behavior:'smooth',block:'center'});
-        },100);
+          if(row)row.scrollIntoView({behavior:'instant',block:'center'});
+        },50);
       }
     });
   }
