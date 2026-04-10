@@ -580,7 +580,7 @@
   let conjVerbs=[],conjLangName='';
   let userDecks=[],deckStatusFilter='Active',currentDeckName='';
   let deckSortCol='DateAdded',deckSortDir='desc';
-  let currentDeckID=null;
+  let currentDeckID=null,flashcardReturnFeature='decks';
   let verbFilter='all';
   let wordSearch='';
 
@@ -1427,7 +1427,7 @@ const fcCounts={
     return `
       <div class="flashcard-container">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;margin-bottom:6px;padding:6px 12px;background:white;border:1.5px solid var(--border);border-radius:10px">
-          <button onclick="history.back()" style="padding:5px 12px;font-size:12px;font-weight:600;color:var(--sky-deep);background:white;border:1.5px solid var(--sky-deep);border-radius:6px;cursor:pointer;flex-shrink:0">← Back</button>
+          <button onclick="showLangFeature(currentLangID,flashcardReturnFeature,currentLangName,null,flashcardReturnFeature==='mywords')" style="padding:5px 12px;font-size:12px;font-weight:600;color:var(--sky-deep);background:white;border:1.5px solid var(--sky-deep);border-radius:6px;cursor:pointer;flex-shrink:0">← Back</button>
           <span style="font-family:'Playfair Display',serif;font-size:16px;font-weight:600;color:var(--text)">${currentDeckName}</span>
           <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-soft);cursor:pointer;flex-shrink:0">
             🔊 Auto Pronounce <input type="checkbox" id="fc-auto-pronounce" ${flashcardAutoPronounce?'checked':''} onchange="flashcardAutoPronounce=this.checked" style="accent-color:var(--sky-deep)">
@@ -1618,6 +1618,8 @@ const fcCounts={
         <span style="font-size:12px;font-weight:600;color:var(--text-soft)">Status:</span>
         ${statuses.map(s=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="deck-status-${langID}" value="${s}" ${deckStatusFilter===s?'checked':''} onchange="setDeckStatusFilter('${s}')" style="accent-color:var(--sky-deep)"> ${s} (${statusCounts[s]})</label>`).join('')}
         <button class="btn-primary" style="margin-left:auto;padding:5px 14px;font-size:12px" onclick="addDeck()">+ New Deck</button>
+        <button class="btn-primary" style="padding:5px 14px;font-size:12px;background:#22c55e" id="btn-add5words" onclick="addFiveWords()">✨ Add 5 Words</button>
+        <span id="add5words-status" style="font-size:11px;color:var(--sky-deep);font-weight:600;display:none"></span>
       </div>
       <table class="settings-table">
         <thead><tr>
@@ -1631,6 +1633,52 @@ const fcCounts={
         </tr></thead>
         <tbody id="tbl-decks-${langID}">${rows}</tbody>
       </table>`;
+  }
+
+  async function addFiveWords(){
+    const btn=document.getElementById('btn-add5words');
+    const status=document.getElementById('add5words-status');
+    if(btn){btn.disabled=true;btn.textContent='⏳ Finding words...';}
+    if(status){status.textContent='';status.style.display='none';}
+    try{
+      const existingWords=myWords.map(w=>w.WordsName).join(', ')||'none yet';
+      const prompt=`The user is learning Spanish. Their current word list includes: ${existingWords}. Suggest exactly 5 new Spanish words appropriate for their level that they don't already have. Return ONLY a JSON array of objects with fields: word (Spanish), translation (English), isVerb (boolean), gender (M, F, or null). No other text.`;
+      const res=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+      });
+      const data=await res.json();
+      const text=data.content?.find(b=>b.type==='text')?.text||'';
+      const clean=text.replace(/```json|```/g,'').trim();
+      const words=JSON.parse(clean);
+      if(!Array.isArray(words)||!words.length)throw new Error('No words returned');
+      const latestDeck=userDecks.length?[...userDecks].sort((a,b)=>new Date(b.DateAdded)-new Date(a.DateAdded))[0]:null;
+      let added=0;
+      for(const w of words){
+        const result=await apiPost('SaveUserLanguageWord',{action:'add',userID:USER_ID,languageID:currentLangID,
+          wordsName:w.word,wordsTranslation:w.translation,isVerb:w.isVerb||false,gender:w.gender||null,wordsImage:null});
+        if(result?.wordID){
+          added++;
+          if(latestDeck)await apiPost('SaveUserDeck',{action:'addWord',userID:USER_ID,deckID:latestDeck.UserLanguageWordsDeckID,wordID:result.wordID});
+        }
+      }
+      const freshData=await apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=all`);
+      myWords=Array.isArray(freshData)?freshData:[];
+      const ddata=await apiGet('GetUserDecks',`&languageID=${currentLangID}&status=all`);
+      userDecks=Array.isArray(ddata)?ddata:[];
+      if(btn){btn.disabled=false;btn.textContent='✨ Add 5 Words';}
+      if(status){
+        status.textContent=`✓ ${added} words added${latestDeck?' to '+latestDeck.UserLanguageWordsDeckName:''}`;
+        status.style.display='inline';
+        setTimeout(()=>{status.style.display='none';},6000);
+      }
+      const panel=document.getElementById(`lang-feature-${currentLangID}`);
+      if(panel)panel.innerHTML=renderDecksHTML(currentLangID,currentLangName);
+    }catch(e){
+      if(btn){btn.disabled=false;btn.textContent='✨ Add 5 Words';}
+      if(status){status.textContent='Failed: '+e.message;status.style.display='inline';}
+    }
   }
 
   function setDeckStatusFilter(status){
@@ -1708,7 +1756,7 @@ const fcCounts={
   }
 
   async function studyDeck(deckID,deckName,returnFeature='decks',returnWordID=null){
-    currentDeckID=deckID;currentDeckName=deckName||'';
+    currentDeckID=deckID;currentDeckName=deckName||'';flashcardReturnFeature=returnFeature;
     flashcardFilter='study';flashcardIndex=0;flashcardShowTranslation=false;sentencesCache={};
     const data=await apiGet('GetDeckWords',`&deckID=${deckID}`);
     flashcards=Array.isArray(data)?data:[];
@@ -1717,7 +1765,6 @@ const fcCounts={
       panel.innerHTML=renderFlashcardsHTML(currentLangID,currentLangName);
       document.querySelectorAll('[id^="langtab-"]').forEach(t=>t.classList.remove('lang-tab-active'));
     }
-    history.pushState({screen:`lang-${currentLangID}`,langFeature:returnFeature,langID:currentLangID,langName:currentLangName,returnWordID},'','');
   }
 
   function selectConjVerb(wordID){
