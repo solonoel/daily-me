@@ -256,7 +256,7 @@
       <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px" id="header-date"></div>
     </div>
   </div>
-  <div class="weather-block" id="weather-block"><div class="weather-loading">Loading weather...</div></div>
+  <div class="weather-block" id="weather-block"><div class="weather-loading" id="weather-initial">Loading weather...</div></div>
 </header>
 <nav class="nav" id="main-nav">
   <button class="nav-btn active" onclick="showScreen('headlines')" id="nav-headlines">
@@ -372,6 +372,14 @@
                 <input type="number" id="us-otherperkey" class="form-input" style="width:52px;font-size:12px;padding:3px 5px" min="1" max="20">
                 <div style="font-size:10px;color:var(--text-muted);margin-top:2px">per keyword, per source</div>
               </div>
+            </div>
+          </div>
+          <div style="margin-top:8px;margin-bottom:8px">
+            <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Zip Code</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" id="us-zipcode" class="form-input" style="width:80px;font-size:12px;padding:3px 5px" maxlength="5" placeholder="12345">
+              <button class="btn-primary" style="padding:4px 10px;font-size:12px" onclick="saveZipCode()">Save</button>
+              <span id="zip-status" style="font-size:11px;color:var(--sky-deep);font-weight:600"></span>
             </div>
           </div>
           <div class="catlimits-section" style="margin-top:8px">
@@ -584,6 +592,35 @@
   let verbFilter='all';
   let wordSearch='';
 
+  async function applyZipCodeWeather(zip){
+    if(!zip||zip.length!==5)return;
+    try{
+      const geo=await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${zip}&country=US&format=json&limit=1`);
+      const geoData=await geo.json();
+      if(!geoData?.length){return;}
+      const lat=parseFloat(geoData[0].lat),lon=parseFloat(geoData[0].lon);
+      const tzRes=await fetch(`https://timezonefinder.michelfe.it/api/0?lat=${lat}&lng=${lon}`);
+      const tzData=await tzRes.json();
+      const tz=encodeURIComponent(tzData?.timezone||'America/Chicago');
+      await loadWeather(lat,lon,tz);
+    }catch(e){
+      await loadWeather();
+    }
+  }
+
+  async function saveZipCode(){
+    const zip=(document.getElementById('us-zipcode')?.value||'').trim();
+    const status=document.getElementById('zip-status');
+    if(!zip||zip.length!==5||!/^\d{5}$/.test(zip)){
+      if(status)status.textContent='Enter a valid 5-digit zip.';
+      return;
+    }
+    if(status)status.textContent='Saving...';
+    await apiPost('SaveUserSettings',{userID:USER_ID,zipCode:zip});
+    if(status){status.textContent='✓ Saved';setTimeout(()=>status.textContent='',3000);}
+    await applyZipCodeWeather(zip);
+  }
+
   function setGreeting(){
     const h=new Date().getHours(),p=h<12?'morning':h<17?'afternoon':'evening';
     const n=storedUser?.name?.split(' ')[0]||'Noel';
@@ -602,14 +639,17 @@
     if(navDate)navDate.textContent=dateStr;
   }
 
-  async function loadWeather(){
+  let weatherLat=41.9945,weatherLon=-89.3334,weatherTz='America%2FChicago';
+  async function loadWeather(lat,lon,tz){
+    if(lat)weatherLat=lat;if(lon)weatherLon=lon;if(tz)weatherTz=tz;
+    const wb=document.getElementById('weather-block');
     try{
-      const res=await fetch('https://api.open-meteo.com/v1/forecast?latitude=41.9945&longitude=-89.3334&current=temperature_2m,weathercode,windspeed_10m&daily=temperature_2m_max,temperature_2m_min,weathercode&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FChicago&forecast_days=4');
+      const res=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${weatherLat}&longitude=${weatherLon}&current=temperature_2m,weathercode,windspeed_10m&daily=temperature_2m_max,temperature_2m_min,weathercode&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=${weatherTz}&forecast_days=6`);
       const data=await res.json(),c=data.current,d=data.daily;
       const wm={0:['☀️','Clear'],1:['🌤️','Mostly Clear'],2:['⛅','Partly Cloudy'],3:['☁️','Overcast'],45:['🌫️','Foggy'],48:['🌫️','Icy Fog'],51:['🌦️','Drizzle'],53:['🌦️','Drizzle'],55:['🌧️','Heavy Drizzle'],61:['🌧️','Light Rain'],63:['🌧️','Rain'],65:['🌧️','Heavy Rain'],71:['🌨️','Light Snow'],73:['🌨️','Snow'],75:['❄️','Heavy Snow'],80:['🌦️','Showers'],81:['🌧️','Showers'],82:['⛈️','Violent Showers'],95:['⛈️','Thunderstorm'],96:['⛈️','Thunderstorm'],99:['⛈️','Thunderstorm']};
       const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
       const [icon,desc]=wm[c.weathercode]||['🌡️','Unknown'];
-      const forecastBoxes=d.time.slice(1,4).map((dateStr,i)=>{
+      const forecastBoxes=d.time.slice(1,6).map((dateStr,i)=>{
         const [fIcon]=wm[d.weathercode[i+1]]||['🌡️'];
         const dow=days[new Date(dateStr+'T12:00:00').getDay()];
         return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:10px;padding:5px 8px;min-width:48px">
@@ -630,7 +670,7 @@
         </a>
         <div style="width:1px;height:40px;background:rgba(255,255,255,0.25);margin:0 4px"></div>
         <div style="display:flex;gap:6px">${forecastBoxes}</div>`;
-    }catch(e){document.getElementById('weather-block').innerHTML='<div class="weather-loading">Weather unavailable</div>';}
+    }catch(e){if(wb)wb.innerHTML='<div class="weather-loading">Weather unavailable</div>';}
   }
 
   async function apiPost(endpoint,body){
@@ -657,6 +697,14 @@
       document.getElementById('recency-val').textContent=displayRecency===1?'1 day':`${displayRecency} days`;
     }
     document.getElementById('us-recency').value=userSettings?.headlineSetting?.RecencyDays||7;
+    if(userSettings?.zipCode){
+      const zipEl=document.getElementById('us-zipcode');
+      if(zipEl)zipEl.value=userSettings.zipCode;
+      applyZipCodeWeather(userSettings.zipCode);
+    } else {
+      const wb=document.getElementById('weather-block');
+      if(wb)wb.innerHTML='<div class="weather-loading">Add your zip code in Settings to see weather.</div>';
+    }
     document.getElementById('us-maxheadlines').value=userSettings?.headlineSetting?.MaxHeadlines||50;
     document.getElementById('us-youtubemaxresults').value=userSettings?.headlineSetting?.YouTubeMaxResults||3;
     document.getElementById('us-otherperkey').value=userSettings?.headlineSetting?.OtherHeadlinesPerKeyword||3;
@@ -1003,8 +1051,11 @@
       try{
         const trans=await translateWord(word);
         const isVerbFlag=trans.isVerb===true||trans.isVerb==='true';
+        const gender=trans.gender||null;
+        let wordsName=trans.wordWithRegion||word;
+        if(gender&&!isVerbFlag){const art=langArticles[currentLangName]?.[gender];if(art&&!wordsName.toLowerCase().startsWith(art+' '))wordsName=art+' '+wordsName;}
         const result=await apiPost('SaveUserLanguageWord',{action:'add',userID:USER_ID,languageID:currentLangID,
-          wordsName:word,wordsTranslation:trans.translation||'',isVerb:isVerbFlag,gender:trans.gender||null,wordsImage:null});
+          wordsName,wordsTranslation:trans.translation||'',isVerb:isVerbFlag,gender,wordsImage:null});
         if(result?.duplicate){skipped++;}
         else if(result?.wordID){imported++;existingNames.add(word.toLowerCase());}else failed++;
       }catch(e){failed++;}
@@ -1031,10 +1082,11 @@
     for(const w of wordsToTranslate){
       try{
         const trans=await translateWord(w.WordsName);
-        const wordsName=trans.wordWithRegion||w.WordsName;
+        let wordsName=trans.wordWithRegion||w.WordsName;
         const isVerb=trans.isVerb===true||trans.isVerb==='true';
         const gender=trans.gender||w.Gender||null;
         const wordsTranslation=trans.translation||w.WordsTranslation||'';
+        if(gender&&!isVerb){const art=langArticles[currentLangName]?.[gender];if(art&&!wordsName.toLowerCase().startsWith(art+' '))wordsName=art+' '+wordsName;}
         await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:w.UserLanguageWordsID,
           wordsName,wordsTranslation,isVerb,gender,mastered:!!w.DateMastered,wordsImage:w.WordsImage||null});
         w.WordsName=wordsName;w.WordsTranslation=wordsTranslation;w.IsVerb=isVerb?'Y':'N';w.Gender=gender;
@@ -1096,7 +1148,7 @@
   // ── WORD FORM ──
 
   function renderWordDeckGrid(wordID,wordDecks){
-    const activeDecks=[...userDecks].filter(d=>d.Status==='Active').sort((a,b)=>a.UserLanguageWordsDeckName.localeCompare(b.UserLanguageWordsDeckName));
+    const activeDecks=[...userDecks].filter(d=>d.Status==='Active').sort((a,b)=>b.UserLanguageWordsDeckName.localeCompare(a.UserLanguageWordsDeckName));
     const deckRows=(wordDecks||[]).map(d=>`
       <div style="display:flex;align-items:center;gap:8px;padding:2px 0;border-bottom:1px solid #eef5fc" id="wdeck-row-${d.UserLanguageWordsDeckID}">
         <span style="flex:1;font-size:12px">${d.UserLanguageWordsDeckName}</span>
@@ -2747,7 +2799,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
 
   // ── INIT ──
   function logout(){localStorage.removeItem('dailyme_user');window.location.href='login.html';}
-  setGreeting();setDate();loadWeather();loadAll();
+  setGreeting();setDate();loadAll();
 </script>
 </body>
 </html>
