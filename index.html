@@ -793,7 +793,7 @@
       userDecks=Array.isArray(data)?data:[];
       panel.innerHTML=renderDecksHTML(langID,langName);
     }else if(feature==='mywords'){
-      myWordsFilter='active';showImages=true;wordSearch='';myWordsDeckFilter='';
+      if(!skipLoad){myWordsFilter='active';showImages=true;wordSearch='';myWordsDeckFilter='';}
       if(!skipLoad){
         const data=await apiGet('GetUserLanguageWords',`&languageID=${langID}&filter=all`);
         myWords=Array.isArray(data)?data:[];
@@ -835,7 +835,7 @@
     if(panel){
       panel.innerHTML=renderMyWordsHTML(currentLangID,currentLangName);
       const searchEl=document.getElementById(`mw-search-${currentLangID}`);
-      if(searchEl&&wordSearch){searchEl.value=wordSearch;setWordSearch(wordSearch);}
+      if(searchEl&&wordSearch)searchEl.value=wordSearch;
     }
   }
 
@@ -879,8 +879,7 @@
     const searchFiltered = wordSearch
       ? displayWords.filter(w=>{
           const name=(w.WordsName||'').toLowerCase();
-          const trans=(w.WordsTranslation||'').toLowerCase();
-          return name.includes(wordSearch)||trans.includes(wordSearch);
+          return name.includes(wordSearch);
         })
       : displayWords;
     const activeCount=deckFiltered.filter(w=>!w.DateMastered).length;
@@ -960,7 +959,7 @@
         </div>
         <input type="file" id="mw-import-input" accept=".txt,.csv" style="display:none" onchange="importWords(event)">
         <button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="document.getElementById('mw-import-input').click()">&#x2B06; Import</button>
-        <button class="btn-secondary" style="padding:6px 12px;font-<button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="retranslateAllWords()">&#x21bb; Retranslate Current</button>size:12px;white-space:nowrap" onclick="retranslateAllWords()">&#x21bb; Re-translate All</button>
+        <button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="retranslateAllWords()">&#x21bb; Retranslate Current</button>
         <span id="mw-import-status" style="display:none;font-size:11px;color:var(--sky-deep);font-weight:600;white-space:nowrap"></span>
       </div>
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px;margin-bottom:10px">
@@ -1277,7 +1276,7 @@
 
   function cancelWordForm(){
     editingWordID=null;showScreen(`lang-${currentLangID}`);
-    showLangFeature(currentLangID,'mywords',currentLangName);
+    showLangFeature(currentLangID,'mywords',currentLangName,null,true);
   }
 
   function handleNewWordImage(event){const file=event.target.files[0];if(file)resizeAndStoreImage(file);}
@@ -1428,6 +1427,7 @@ const fcCounts={
     return `
       <div class="flashcard-container">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;margin-bottom:6px;padding:6px 12px;background:white;border:1.5px solid var(--border);border-radius:10px">
+          <button onclick="history.back()" style="padding:5px 12px;font-size:12px;font-weight:600;color:var(--sky-deep);background:white;border:1.5px solid var(--sky-deep);border-radius:6px;cursor:pointer;flex-shrink:0">← Back</button>
           <span style="font-family:'Playfair Display',serif;font-size:16px;font-weight:600;color:var(--text)">${currentDeckName}</span>
           <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-soft);cursor:pointer;flex-shrink:0">
             🔊 Auto Pronounce <input type="checkbox" id="fc-auto-pronounce" ${flashcardAutoPronounce?'checked':''} onchange="flashcardAutoPronounce=this.checked" style="accent-color:var(--sky-deep)">
