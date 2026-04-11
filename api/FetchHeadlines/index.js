@@ -236,6 +236,7 @@ async function fetchYouTube(source, fromDate, isFiltered, keywords, topics, youT
   const articles = [];
   let fetched = 0, recencyFiltered = 0;
   try {
+    const publishedAfter = fromDate.toISOString();
     const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistID}&maxResults=50&key=${apiKey}`;
     const data = JSON.parse(await fetchUrl(url));
     quotaUsed.units += 1;
@@ -507,7 +508,7 @@ module.exports = async function(context, req) {
     });
 
     // Sort newest first
-    excluded.sort((a, b) => (b.pubDate || 0) - (aunique.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
+    unique.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
 
     // Select within limits
     const selected = [];
@@ -525,12 +526,12 @@ module.exports = async function(context, req) {
       if (cat !== 'none') catCounts[cat]++;
     }
 
-    context.log(`unique: ${excluded.length}, selected: ${selected.length}`);
+    context.log(`unique: ${unique.length}, selected: ${selected.length}`);
 
     // Build keyword match counts and unmatched list for log
     const keywordMatchCounts = {};
     const unmatchedBySource = {};
-    for (const a of excluded) {
+    for (const a of unique) {
       if (a.isSubscription) continue;
       if (a.keywordID) {
         const kw = kwResult.recordset.find(k => k.KeywordID === a.keywordID);
