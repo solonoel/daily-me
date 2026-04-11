@@ -2098,12 +2098,13 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       return resolveGroupLabel(h);
     };
 
+    const sortedDisplay=[...displayHeadlines].sort((a,b)=>new Date(b.PublishedDate||b.CreatedDate)-new Date(a.PublishedDate||a.CreatedDate));
     const groups={};
     const groupSeq={};
-    displayHeadlines.forEach(h=>{
+    sortedDisplay.forEach(h=>{
       const key=getGroupKey(h);
       if(!groups[key])groups[key]=[];
-      groups[key].push(h);
+      groups[key].push(h);  // already sorted above
       const seq=h.KeywordSequence||h.TopicSequence||999;
       if(groupSeq[key]===undefined||seq<groupSeq[key])groupSeq[key]=seq;
     });
