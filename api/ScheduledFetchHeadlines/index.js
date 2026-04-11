@@ -234,7 +234,7 @@ async function fetchForUser(pool, userID, context) {
   const sourcesResult = await pool.request()
     .input('UserID', sql.Int, userID)
     .query(`SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.CategoryID, h.IsActive,
-                   h.Sequence, h.YoutubeChannelID, uhs.YoutubeUnfiltered
+                   h.Sequence, h.YoutubeChannelID, uhs.YoutubeUnfiltered, uhs.Exclusions
             FROM [HeadlineSource] h
             INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
             WHERE uhs.UserID = @UserID AND h.IsActive = 'Y'
@@ -297,6 +297,22 @@ async function fetchForUser(pool, userID, context) {
           articles = await filterByLanguage(articles, uniqueLangCodes);
           break;
       }
+
+      articles = articles.filter(a => {
+        if (!source.Exclusions) return true;
+        const terms = [];
+        const regex = /"([^"]+)"|([^,]+)/g;
+        let m;
+        while ((m = regex.exec(source.Exclusions)) !== null) {
+          const term = (m[1] || m[2] || '').trim();
+          if (term) terms.push(term.toLowerCase());
+        }
+        const text = `${a.title||''} ${a.summary||''} ${a.channelName||''}`.toLowerCase();
+        return !terms.some(term => {
+          const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+        });
+      });
 
       articles.forEach(a => {
         a.sourceName = source.Name;
@@ -372,13 +388,13 @@ async function fetchForUser(pool, userID, context) {
     }
   }
 
-  unique.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
+  excluded.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
 
   const selected = [];
   const catCounts = {};
   const keywordSourceCounts = {};
 
-  for (const a of unique) {
+  for (const a of excluded) {
     const cat = a.categoryID !== null && a.categoryID !== undefined ? a.categoryID : 'none';
     if (!(cat in catCounts)) catCounts[cat] = 0;
 
@@ -426,7 +442,7 @@ async function fetchForUser(pool, userID, context) {
     }
   }
 
-  context.log(`User ${userID}: inserted ${totalInserted} of ${unique.length} unique articles`);
+  context.log(`User ${userID}: inserted ${totalInserted} of ${excluded.length} unique articles`);
   return totalInserted;
 }
 

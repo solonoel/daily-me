@@ -25,7 +25,7 @@ module.exports = async function(context, req) {
         .input('UserID', sql.Int, userID)
         .query(`
           SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.CategoryID, h.IsActive,
-                 h.Sequence, h.DateAdded, h.YoutubeChannelID, uhs.IsFiltered
+                 h.Sequence, h.DateAdded, h.YoutubeChannelID, uhs.IsFiltered, uhs.Exclusions
           FROM [HeadlineSource] h
           INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
           WHERE uhs.UserID = @UserID

@@ -337,12 +337,34 @@ module.exports = async function(context, req) {
     const sourcesResult = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.CategoryID, h.IsActive,
-                     h.Sequence, h.YoutubeChannelID, uhs.IsFiltered
+                     h.Sequence, h.YoutubeChannelID, uhs.IsFiltered, uhs.Exclusions
               FROM [HeadlineSource] h
               INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
               WHERE uhs.UserID = @UserID AND h.IsActive = 'Y'
               ORDER BY h.Sequence, h.SourceID`);
     const sources = sourcesResult.recordset;
+
+    // Parse source-level exclusions
+    function parseExclusions(str) {
+      if (!str) return [];
+      const terms = [];
+      const regex = /"([^"]+)"|([^,]+)/g;
+      let m;
+      while ((m = regex.exec(str)) !== null) {
+        const term = (m[1] || m[2] || '').trim();
+        if (term) terms.push(term.toLowerCase());
+      }
+      return terms;
+    }
+    function sourceExcludesArticle(source, article) {
+      const terms = parseExclusions(source.Exclusions);
+      if (!terms.length) return false;
+      const text = `${article.title || ''} ${article.summary || ''} ${article.channelName || ''}`.toLowerCase();
+      return terms.some(term => {
+        const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+      });
+    }
 
     const kwResult = await pool.request()
       .input('UserID', sql.Int, userID)
@@ -430,6 +452,8 @@ module.exports = async function(context, req) {
           }
         }
 
+        articles = articles.filter(a => !sourceExcludesArticle(source, a));
+
         articles.forEach(a => {
           a.sourceName = source.Name;
           a.sourceID = source.SourceID;
@@ -483,19 +507,14 @@ module.exports = async function(context, req) {
     });
 
     // Sort newest first
-    unique.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
+    excluded.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
 
     // Select within limits
-    const selected = [];
-    const catCou// Select within limits
     const selected = [];
     const catCounts = {};
     const catDropped = {};
 
-    for (const a of excluded) {nts = {};
-    const catDropped = {};
-
-    for (const a of unique) {
+    for (const a of excluded) {
       const cat = a.categoryID !== null && a.categoryID !== undefined ? a.categoryID : 'none';
       if (!(cat in catCounts)) catCounts[cat] = 0;
       if (cat !== 'none') {

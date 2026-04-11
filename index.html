@@ -610,6 +610,7 @@
       const tzRes=await fetch(`https://timezonefinder.michelfe.it/api/0?lat=${lat}&lng=${lon}`);
       const tzData=await tzRes.json();
       const tz=encodeURIComponent(tzData?.timezone||'America/Chicago');
+      userTimezone=tzData?.timezone||'America/Chicago';
       await loadWeather(lat,lon,tz);
     }catch(e){
       await loadWeather();
@@ -648,6 +649,7 @@
   }
 
   let weatherLat=41.9945,weatherLon=-89.3334,weatherTz='America%2FChicago';
+  let userTimezone='America/Chicago';
   async function loadWeather(lat,lon,tz){
     if(lat)weatherLat=lat;if(lon)weatherLon=lon;if(tz)weatherTz=tz;
     const wb=document.getElementById('weather-block');
@@ -704,11 +706,12 @@
       const displayRecency=lastFetchRecency?parseInt(lastFetchRecency):recencyDays_value;
       document.getElementById('recency-val').textContent=displayRecency===1?'1 day':`${displayRecency} days`;
     }
-    document.getElementById('us-recency').value=userSettings?.headlineSetting?.RecencyDays||7;
-    if(userSettings?.zipCode){
+    document.getElementById('us-recency').value=userSettings?.headlineSetting?.RecencyDays??7;
+    const storedZip=userSettings?.user?.ZipCode||userSettings?.zipCode||'';
+    if(storedZip){
       const zipEl=document.getElementById('us-zipcode');
-      if(zipEl)zipEl.value=userSettings.zipCode;
-      applyZipCodeWeather(userSettings.zipCode);
+      if(zipEl)zipEl.value=storedZip;
+      applyZipCodeWeather(storedZip);
     } else {
       const wb=document.getElementById('weather-block');
       if(wb)wb.innerHTML='<div class="weather-loading">Add your zip code in Settings to see weather.</div>';
@@ -2023,10 +2026,19 @@ const now=new Date();
     const diff=Date.now()-new Date(dateStr).getTime(),hrs=Math.floor(diff/3600000);
     if(hrs<1)return'<1h';if(hrs<24)return`${hrs}h`;return`${Math.floor(hrs/24)}d`;
   }
-  function formatDate(dateStr){
+  function formatDate(dateStr,includeTime=false){
     if(!dateStr)return'—';
     const d=new Date(dateStr);
-    return`${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
+    const base=`${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${String(d.getFullYear()).slice(2)}`;
+    if(!includeTime)return base;
+    try{
+      const parts=new Intl.DateTimeFormat('en-US',{timeZone:userTimezone,hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(d);
+      const hh=parts.find(p=>p.type==='hour')?.value||'00';
+      const mm=parts.find(p=>p.type==='minute')?.value||'00';
+      return`${base} ${hh}:${mm}`;
+    }catch(e){
+      return`${base} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
   }
 
   function renderCategoryTiles(allHeadlines){
@@ -2066,7 +2078,23 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   async function deleteHeadline(headlineID,e){
     e.stopPropagation();
     headlines=headlines.filter(h=>h.HeadlineID!==headlineID);
-    renderHeadlines();
+    // Remove row directly without full re-render
+    const row=document.querySelector(`.headline-row[data-headline-id="${headlineID}"]`);
+    if(row){
+      const group=row.closest('.cat-group');
+      row.remove();
+      // Update group count in header
+      if(group){
+        const body=group.querySelector('.cat-group-body');
+        const remaining=body?body.querySelectorAll('.headline-row').length:0;
+        const header=group.querySelector('.cat-group-header span:last-child');
+        if(header){
+          const groupName=header.textContent.replace(/\s*\(\d+\)$/,'').trim();
+          header.innerHTML=`${groupName}${remaining>1?` <span style="opacity:0.6;font-weight:500">(${remaining})</span>`:''}`;
+        }
+        if(remaining===0)group.remove();
+      }
+    }
     try{ await apiPost('SaveRetain',{headlineID,retain:false,deleteIt:true}); }catch(err){}
   }
 
@@ -2124,13 +2152,13 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       const countLabel=items.length>1?` <span style="opacity:0.6;font-weight:500">(${items.length})</span>`:'';
       const isSubscriptions=currentFilter==='Subscriptions';
       const rows=items.map(h=>`
-        <div class="headline-row ${h.Retain==='Y'?'retained':''}" onclick="openHeadline('${h.Link.replace(/'/g,"\\'")}')">
+        <div class="headline-row ${h.Retain==='Y'?'retained':''}" data-headline-id="${h.HeadlineID}" onclick="openHeadline('${h.Link.replace(/'/g,"\\'")}')">
           <img src="${h.ThumbnailURL||'images/newspaper.svg'}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">
           <div class="headline-body">
             <div class="headline-row-title">${h.HeadlineName}</div>
             ${h.Summary?`<div class="headline-row-summary">${h.Summary}</div>`:''}
             <div class="headline-row-meta">
-              <span class="headline-row-source">date: ${formatDate(h.PublishedDate || h.CreatedDate)}</span>
+              <span class="headline-row-source">date: ${formatDate(h.PublishedDate || h.CreatedDate, true)}</span>
               <span class="headline-row-source">source: ${h.SourceName||'—'}</span>
               ${!isSubscriptions?`<span class="headline-row-source">keyword: ${h.Keyword||h.Topic||'—'}</span>`:''}
               ${h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:''}
@@ -2218,6 +2246,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
 
   async function saveUserSettings(){
     if(!document.getElementById('us-recency'))return;
+    if(!document.getElementById('us-recency').value)return;
     const recencyDays=Math.min(14,Math.max(1,parseInt(document.getElementById('us-recency').value)||7));
     let maxHeadlines=parseInt(document.getElementById('us-maxheadlines').value);
     const youTubeMaxResults=parseInt(document.getElementById('us-youtubemaxresults').value)||3;
@@ -2340,9 +2369,14 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     const thead=tbody.closest('table')?.querySelector('thead tr');
     const kwCatFilter=document.getElementById('kw-cat-filter')?.value||'';
       const catOpts=`<option value="">All Categories</option>`+categories.map(c=>`<option value="${c.CategoryID}" ${kwCatFilter==c.CategoryID?'selected':''}>${c.Name}</option>`).join('');
-      if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th>Group Label</th><th><select id="kw-cat-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()">${catOpts}</select></th><th>Active</th><th></th>`;
+      const kwGroupFilter=document.getElementById('kw-group-filter')?.value||'';
+      const groupLabels=[...new Set(keywords.map(k=>k.GroupLabel).filter(Boolean))].sort();
+      const groupOpts=`<option value="">All Groups</option>`+groupLabels.map(g=>`<option value="${g}" ${kwGroupFilter===g?'selected':''}>${g}</option>`).join('');
+      if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th><select id="kw-group-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()">${groupOpts}</select></th><th><select id="kw-cat-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()">${catOpts}</select></th><th>Active</th><th></th>`;
     const kwCatFilterVal=document.getElementById('kw-cat-filter')?.value||'';
-    const kwFiltered=kwCatFilterVal?sorted.filter(k=>String(k.CategoryID)===String(kwCatFilterVal)):sorted;
+    const kwGroupFilterVal=document.getElementById('kw-group-filter')?.value||'';
+    const kwFiltered=(kwCatFilterVal?sorted.filter(k=>String(k.CategoryID)===String(kwCatFilterVal)):sorted)
+      .filter(k=>!kwGroupFilterVal||(k.GroupLabel===kwGroupFilterVal));
     tbody.innerHTML=kwFiltered.map(k=>`
       <tr draggable="true" data-id="${k.KeywordID}" data-type="keyword">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
@@ -2762,14 +2796,19 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       return srcSortDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
     });
     const thead=tbody.closest('table')?.querySelector('thead tr');
-    if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th>URL</th><th>Type</th><th>Filtered</th><th></th>`;
-    tbody.innerHTML=sorted.map(s=>`
+    const srcTypeFilter=document.getElementById('src-type-filter')?.value||'';
+    const srcTypeOpts=`<option value="">All Types</option>`+['Guardian','NYT','GNews','Currents','MediaStack','NewsAPI','RSS','Youtube'].map(t=>`<option value="${t}" ${srcTypeFilter===t?'selected':''}>${t}</option>`).join('');
+    if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th>URL</th><th><select id="src-type-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsSources()">${srcTypeOpts}</select></th><th>Filtered</th><th>Exclusions <span style="font-size:9px;font-weight:400;color:var(--text-muted)">CSV, use "quotes" for phrases</span></th><th></th>`;
+    const srcTypeFilterVal=document.getElementById('src-type-filter')?.value||'';
+    const srcFiltered=srcTypeFilterVal?sorted.filter(s=>s.SourceType===srcTypeFilterVal):sorted;
+    tbody.innerHTML=srcFiltered.map(s=>`
       <tr draggable="true" data-id="${s.SourceID}" data-type="source">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
         <td>${s.Name||'—'}</td>
         <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)">${s.URL}</td>
         <td><span class="badge">${s.SourceType||'RSS'}</span></td>
         <td><label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" ${s.IsFiltered?'checked':''} onchange="saveUserFiltered(${s.SourceID},this)" style="accent-color:var(--sky-deep)"></label></td>
+        <td><input type="text" value="${(s.Exclusions||'').replace(/"/g,'&quot;')}" placeholder='e.g. "Draft Kings", gossip' style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:180px;font-family:'DM Sans',sans-serif" onchange="saveUserExclusions(${s.SourceID},this)"></td>
         <td><button class="btn-icon danger" onclick="removeUserSource(${s.SourceID})" title="Remove">🗑️</button></td>
       </tr>`).join('');
     initDragDrop(tbody,'source');
@@ -2780,6 +2819,14 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     const src=sources.find(s=>s.SourceID===sourceID);
     if(src)src.IsFiltered=cb.checked?1:0;
     await apiPost('SaveSource',{action:'updateFiltered',sourceID,isFiltered:cb.checked,userID:USER_ID});
+  }
+
+  async function saveUserExclusions(sourceID,input){
+    const src=sources.find(s=>s.SourceID===sourceID);
+    if(src)src.Exclusions=input.value||null;
+    await apiPost('SaveSource',{action:'updateExclusions',sourceID,exclusions:input.value||null,userID:USER_ID});
+    input.style.borderColor='#22c55e';
+    setTimeout(()=>input.style.borderColor='var(--border)',1500);
   }
 
   async function removeUserSource(sourceID){

@@ -168,6 +168,19 @@ module.exports = async function(context, req) {
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ success: true }) };
 
+    } else if (action === 'updateExclusions') {
+      await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('SourceID', sql.Int, sourceID)
+        .input('Exclusions', sql.NVarChar(500), req.body.exclusions || null)
+        .query(`
+          UPDATE [UserHeadlineSource]
+          SET Exclusions = @Exclusions
+          WHERE UserID=@UserID AND SourceID=@SourceID
+        `);
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true }) };
+
     } else if (action === 'resequence') {
       if (Array.isArray(req.body.sequences)) {
         for (const s of req.body.sequences) {
