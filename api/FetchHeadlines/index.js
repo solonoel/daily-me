@@ -528,12 +528,13 @@ module.exports = async function(context, req) {
           .input('ChannelURL', sql.NVarChar(500), a.channelURL || null)
           .input('SourceID', sql.Int, a.sourceID || null)
           .input('Duration', sql.VarChar(20), a.duration || null)
+          .input('PublishedDate', sql.DateTime, a.pubDate || null)
           .query(`INSERT INTO [Headline]
                     (UserID, CategoryID, HeadlineName, Link, Summary, CreatedDate, Retain,
-                     KeywordID, TopicID, ThumbnailURL, ChannelName, ChannelURL, SourceID, Duration)
+                     KeywordID, TopicID, ThumbnailURL, ChannelName, ChannelURL, SourceID, Duration, PublishedDate)
                   VALUES
                     (@UserID, @CategoryID, @HeadlineName, @Link, @Summary, GETDATE(), 'N',
-                     @KeywordID, @TopicID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID, @Duration)`);
+                     @KeywordID, @TopicID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID, @Duration, @PublishedDate)`);
         totalInserted++;
         // Track per-source matched count for log
         if (logSources[a.sourceName]) {

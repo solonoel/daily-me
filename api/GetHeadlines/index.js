@@ -23,7 +23,7 @@ module.exports = async function(context, req) {
 
     let query = `
 SELECT h.HeadlineID, h.UserID, h.CategoryID, h.HeadlineName,
-             h.Link, h.Summary, h.CreatedDate, h.LastViewedDate, h.Retain,
+             h.Link, h.Summary, h.CreatedDate, h.PublishedDate, h.LastViewedDate, h.Retain,
              h.KeywordID, h.TopicID, h.ThumbnailURL, h.ChannelName, h.ChannelURL, h.Duration,
              CASE WHEN uhs.IsFiltered = 0 THEN 1 ELSE 0 END AS IsSubscription,
              c.Name AS CategoryName, k.Keyword, k.Sequence AS KeywordSequence,
@@ -37,14 +37,14 @@ SELECT h.HeadlineID, h.UserID, h.CategoryID, h.HeadlineName,
       LEFT JOIN [HeadlineSource] hs ON h.SourceID = hs.SourceID
       LEFT JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID AND uhs.UserID = @UserID
       WHERE h.UserID = @UserID
-      AND h.CreatedDate >= DATEADD(day, -@RecencyDays, GETDATE())
+      AND COALESCE(h.PublishedDate, h.CreatedDate) >= DATEADD(day, -@RecencyDays, GETDATE())
     `;
 
     if (categoryID) query += ` AND h.CategoryID = @CategoryID`;
     query += ` ORDER BY h.CategoryID,
                 COALESCE(k.Sequence, t.Sequence, 999),
                 CASE WHEN h.KeywordID IS NOT NULL THEN 0 ELSE 1 END,
-                h.CreatedDate DESC`;
+                COALESCE(h.PublishedDate, h.CreatedDate) DESC`;
 
     const request = pool.request()
       .input('UserID', sql.Int, userID)

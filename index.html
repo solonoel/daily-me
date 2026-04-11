@@ -312,7 +312,14 @@
       </div>
       <div class="settings-deck-grid">
         <div class="settings-deck">
-          <div class="settings-deck-title" style="justify-content:space-between"><span>📰 Headlines</span><label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="checkbox" id="us-disable-yt" onchange="saveYtDisableFlag()"> Disable Youtube Today</label></div>
+          <div class="settings-deck-title" style="justify-content:space-between">
+            <span>📰 Headlines</span>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span id="yt-quota-display" style="font-size:11px;font-weight:600;display:none"></span>
+              <a href="#" id="fetch-results-link" onclick="openFetchLog();return false;" style="font-size:12px;font-weight:600;color:var(--sky-deep);display:none">📋 Results</a>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="checkbox" id="us-disable-yt" onchange="saveYtDisableFlag()"> Disable Youtube Today</label>
+            </div>
+          </div>
           <div class="settings-btn-row">
             <button class="settings-nav-btn" onclick="showSettingsSection('categories')">📁 Categories</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('sources')">🌐 Sources</button>
@@ -416,7 +423,11 @@
         <span>🔍 Keywords <span style="font-size:13px;font-weight:400;color:var(--text-soft);font-family:'DM Sans',sans-serif"> — exact match</span></span>
         <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openModal('keyword')">+ Add Keyword</button>
       </div>
-      <div style="font-size:12px;color:var(--sky-deep);background:#f0f7ff;border:1px solid var(--border);border-radius:8px;padding:8px 14px;margin-bottom:12px">📺 Keywords are searched on YouTube. Drag to reorder — higher items prioritized in headline sorting.</div>
+      <div style="font-size:12px;color:var(--sky-deep);background:#f0f7ff;border:1px solid var(--border);border-radius:8px;padding:8px 14px;margin-bottom:12px">
+        📺 Keywords are searched on YouTube and filtered news sources. Drag to reorder — higher items prioritized in headline sorting.<br>
+        <span style="color:var(--text-soft)">💡 <strong>CSV:</strong> Enter multiple terms separated by commas — e.g. <em>Russia, Russian</em> — to match any of them.&nbsp;&nbsp;
+        💡 <strong>Phrases:</strong> Multi-word phrases work as-is — e.g. <em>White Sox</em> or <em>Stock Market</em>.</span>
+      </div>
       <table class="settings-table"><thead><tr><th>⠿</th><th>Keyword</th><th>Group Label</th><th>Category</th><th>Active</th><th></th></tr></thead><tbody id="tbl-keywords"></tbody></table>
     </div>
     <div id="settings-section-topics" style="display:none">
@@ -709,6 +720,11 @@
     if(fetchHourEl){
       const fh=userSettings?.headlineSetting?.FetchHour;
       fetchHourEl.value=(fh!==null&&fh!==undefined)?String(fh):'';
+    }
+    updateQuotaDisplay(userSettings?.headlineSetting?.QuotaUsed||0, userSettings?.headlineSetting?.QuotaDate||null);
+    if(userSettings?.headlineSetting?.LastFetchLog){
+      const link=document.getElementById('fetch-results-link');
+      if(link)link.style.display='inline';
     }
     const ytCb=document.getElementById('us-disable-yt');
     if(ytCb){
@@ -1968,11 +1984,13 @@ const fcCounts={
         await apiPost('CleanHeadlines',{userID:USER_ID});
         localStorage.removeItem(`dailyme_settings_changed_${USER_ID}`);
       }
-      await apiPost('FetchHeadlines',{userID:USER_ID,disableYoutube});
+      const fetchResult=await apiPost('FetchHeadlines',{userID:USER_ID,disableYoutube});
       localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
       const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=true;
       apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:true});
       btn.textContent='↻ Refresh';btn.style.color='';btn.style.background='';btn.style.borderColor='';btn.style.fontWeight='';btn.disabled=false;
+      if(fetchResult?.quotaRemaining!==undefined)updateQuotaDisplay(fetchResult.quotaUsed,new Date().toISOString());
+      const link=document.getElementById('fetch-results-link');if(link)link.style.display='inline';
 const now=new Date();
       const ts=fmtDT(now);
       const lft=document.getElementById('last-fetch-time');if(lft){lft.textContent=`refresh: ${ts}`;lft.style.display='';}
@@ -2111,7 +2129,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
             <div class="headline-row-title">${h.HeadlineName}</div>
             ${h.Summary?`<div class="headline-row-summary">${h.Summary}</div>`:''}
             <div class="headline-row-meta">
-              <span class="headline-row-source">date: ${formatDate(h.CreatedDate)}</span>
+              <span class="headline-row-source">date: ${formatDate(h.PublishedDate || h.CreatedDate)}</span>
               <span class="headline-row-source">source: ${h.SourceName||'—'}</span>
               ${!isSubscriptions?`<span class="headline-row-source">keyword: ${h.Keyword||h.Topic||'—'}</span>`:''}
               ${h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:''}
@@ -2774,8 +2792,120 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     await studyDeck(deckID,deckName,'mywords',wordID);
   }
 
+ function updateQuotaDisplay(quotaUsed, quotaDate){
+    const el=document.getElementById('yt-quota-display');
+    if(!el)return;
+    const today=new Date().toISOString().split('T')[0];
+    const qDate=quotaDate?new Date(quotaDate).toISOString().split('T')[0]:null;
+    const used=qDate===today?(quotaUsed||0):0;
+    const remaining=Math.max(0,10000-used);
+    el.style.display='inline';
+    el.textContent=`YT: ${remaining.toLocaleString()} remaining`;
+    el.style.color=remaining<500?'#e05050':remaining<2000?'#e8a020':'var(--text-soft)';
+  }
+
+  async function openFetchLog(){
+    try{
+      const data=await apiGet('GetFetchLog');
+      if(data?.error){alert('No fetch log available yet. Run a refresh first.');return;}
+      const log=data;
+      const fmt=n=>String(n||0).padStart(4,' ');
+      let html=`<div style="font-family:'DM Sans',sans-serif;font-size:12px;line-height:1.6">`;
+      // Summary
+      html+=`<div style="background:#f0f7ff;border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">📊 Fetch Summary</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 20px">
+          <div>🕐 Time: <strong>${new Date(log.timestamp).toLocaleString()}</strong></div>
+          <div>⏱ Duration: <strong>${log.durationSeconds}s</strong></div>
+          <div>📥 Fetched: <strong>${log.totalFetched}</strong></div>
+          <div>✅ Inserted: <strong>${log.totalInserted}</strong></div>
+          <div>🔁 Duplicates: <strong>${log.totalDuplicates}</strong></div>
+          <div>🌐 Lang filtered: <strong>${log.totalLangFiltered}</strong></div>
+          <div>📺 YT quota used: <strong>${log.youtubeQuotaUsed}</strong></div>
+          <div style="color:${log.youtubeQuotaRemaining<500?'#e05050':log.youtubeQuotaRemaining<2000?'#e8a020':'inherit'}">📺 YT remaining: <strong>${log.youtubeQuotaRemaining?.toLocaleString()}</strong></div>
+          <div>📅 Recency: <strong>${log.recencyDays} days</strong></div>
+          <div>📺 YT skipped: <strong>${log.youtubeSkipped?'Yes':'No'}</strong></div>
+        </div>
+      </div>`;
+      // Errors
+      if(log.errors?.length){
+        html+=`<div style="background:#fef0f0;border:1px solid #e05050;border-radius:8px;padding:10px 14px;margin-bottom:14px">
+          <div style="font-size:13px;font-weight:700;color:#e05050;margin-bottom:6px">⚠️ Errors (${log.errors.length})</div>
+          ${log.errors.map(e=>`<div>• <strong>${e.source}</strong>: ${e.error}</div>`).join('')}
+        </div>`;
+      }
+      // Sources
+      html+=`<div style="margin-bottom:14px">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">🌐 Sources (by fetch count)</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead><tr style="background:#f5f9ff;border-bottom:1.5px solid var(--border)">
+            <th style="text-align:left;padding:4px 8px">Source</th>
+            <th style="text-align:right;padding:4px 8px">Fetched</th>
+            <th style="text-align:right;padding:4px 8px">Matched</th>
+            <th style="text-align:right;padding:4px 8px">Lang▼</th>
+            <th style="text-align:right;padding:4px 8px">Old▼</th>
+            <th style="text-align:left;padding:4px 8px">Note</th>
+          </tr></thead>
+          <tbody>
+            ${log.sourceResults.map(s=>`<tr style="border-bottom:1px solid #eef5fc">
+              <td style="padding:3px 8px">${s.name}</td>
+              <td style="text-align:right;padding:3px 8px">${s.fetched}</td>
+              <td style="text-align:right;padding:3px 8px">${s.matched}</td>
+              <td style="text-align:right;padding:3px 8px">${s.langFiltered||0}</td>
+              <td style="text-align:right;padding:3px 8px">${s.recencyFiltered||0}</td>
+              <td style="padding:3px 8px;color:${s.error?'#e05050':s.skipped?'#e8a020':'var(--text-muted)'}">${s.error||s.skipped||''}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+      // Keywords
+      if(log.keywordResults?.length){
+        html+=`<div style="margin-bottom:14px">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">🔍 Keyword Hits (by count)</div>
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead><tr style="background:#f5f9ff;border-bottom:1.5px solid var(--border)">
+              <th style="text-align:left;padding:4px 8px">Keyword</th>
+              <th style="text-align:right;padding:4px 8px">Hits</th>
+            </tr></thead>
+            <tbody>
+              ${log.keywordResults.map(k=>`<tr style="border-bottom:1px solid #eef5fc">
+                <td style="padding:3px 8px">${k.keyword}</td>
+                <td style="text-align:right;padding:3px 8px;font-weight:700;color:var(--sky-deep)">${k.count}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+      }
+      // Zero hit keywords
+      if(log.zeroHitKeywords?.length){
+        html+=`<div style="background:#fff8e6;border:1px solid #e8a020;border-radius:8px;padding:10px 14px;margin-bottom:14px">
+          <div style="font-size:13px;font-weight:700;color:#b07000;margin-bottom:4px">⚠️ Zero-Hit Keywords</div>
+          <div style="color:var(--text-soft)">${log.zeroHitKeywords.join(', ')}</div>
+        </div>`;
+      }
+      // Unmatched by source
+      if(log.unmatchedBySource?.length){
+        html+=`<div style="margin-bottom:14px">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">❓ Unmatched Articles by Source</div>
+          ${log.unmatchedBySource.map(s=>`
+            <div style="margin-bottom:8px">
+              <div style="font-weight:700;color:var(--sky-deep);margin-bottom:2px">${s.source} (${s.count})</div>
+              ${s.titles.map(t=>`<div style="padding-left:12px;color:var(--text-soft);border-left:2px solid var(--border);margin-bottom:2px">• ${t}</div>`).join('')}
+            </div>`).join('')}
+        </div>`;
+      }
+      html+=`</div>`;
+      // Show in modal
+      document.getElementById('modal-title').textContent='📋 Fetch Results';
+      document.getElementById('modal-body').innerHTML=`<div style="max-height:65vh;overflow-y:auto">${html}</div>`;
+      document.getElementById('modal-actions').innerHTML=`<button class="btn-secondary" onclick="closeModal()">Close</button>`;
+      document.getElementById('modal').style.display='flex';
+    }catch(e){alert('Error loading fetch log: '+e.message);}
+  }
+
   // ── INIT ──
-  function logout(){localStorage.removeItem('dailyme_user');window.location.href='login.html';}
+  function logout()
+  {localStorage.removeItem('dailyme_user');window.location.href='login.html';}
   setGreeting();setDate();loadAll();
 </script>
 </body>

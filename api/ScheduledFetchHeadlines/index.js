@@ -390,12 +390,13 @@ async function fetchForUser(pool, userID, context) {
         .input('ChannelName', sql.NVarChar(200), a.channelName || null)
         .input('ChannelURL', sql.NVarChar(500), a.channelURL || null)
         .input('SourceID', sql.Int, a.sourceID || null)
+        .input('PublishedDate', sql.DateTime, a.pubDate || null)
         .query(`INSERT INTO [Headline]
                   (UserID, CategoryID, HeadlineName, Link, Summary, CreatedDate, Retain,
-                   KeywordID, TopicID, ThumbnailURL, ChannelName, ChannelURL, SourceID)
+                   KeywordID, TopicID, ThumbnailURL, ChannelName, ChannelURL, SourceID, PublishedDate)
                 VALUES
                   (@UserID, @CategoryID, @HeadlineName, @Link, @Summary, GETDATE(), 'N',
-                   @KeywordID, @TopicID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID)`);
+                   @KeywordID, @TopicID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID, @PublishedDate)`);
       totalInserted++;
     } catch(insertErr) {
       context.log(`Insert error: ${insertErr.message} | title: ${a.title?.substring(0,50)}`);
@@ -407,7 +408,8 @@ async function fetchForUser(pool, userID, context) {
 }
 
 module.exports = async function(context, myTimer) {
-  context.log('ScheduledFetchHeadlines triggered');
+  const isHttp = !!context.req;
+  context.log(`ScheduledFetchHeadlines triggered via ${isHttp ? 'HTTP' : 'timer'}`);
 
   // Current hour in UTC — FetchHour stored as Central time (UTC-6 standard, UTC-5 daylight)
   const nowUTC = new Date();
@@ -438,7 +440,9 @@ module.exports = async function(context, myTimer) {
     }
 
     context.log('ScheduledFetchHeadlines complete');
+    if (context.res) context.res = { status: 200, body: 'OK' };
   } catch(err) {
     context.log('Fatal error: ' + err.message);
+    if (context.res) context.res = { status: 500, body: err.message };
   }
 };
