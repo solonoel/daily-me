@@ -507,14 +507,14 @@ module.exports = async function(context, req) {
     });
 
     // Sort newest first
-    excluded.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
+    excluded.sort((a, b) => (b.pubDate || 0) - (aunique.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
 
     // Select within limits
     const selected = [];
     const catCounts = {};
     const catDropped = {};
 
-    for (const a of excluded) {
+    for (const a of unique) {
       const cat = a.categoryID !== null && a.categoryID !== undefined ? a.categoryID : 'none';
       if (!(cat in catCounts)) catCounts[cat] = 0;
       if (cat !== 'none') {

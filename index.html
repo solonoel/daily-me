@@ -607,10 +607,8 @@
       const geoData=await geo.json();
       if(!geoData?.length){return;}
       const lat=parseFloat(geoData[0].lat),lon=parseFloat(geoData[0].lon);
-      const tzRes=await fetch(`https://timezonefinder.michelfe.it/api/0?lat=${lat}&lng=${lon}`);
-      const tzData=await tzRes.json();
-      const tz=encodeURIComponent(tzData?.timezone||'America/Chicago');
-      userTimezone=tzData?.timezone||'America/Chicago';
+      const tz=encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone||'America/Chicago');
+      userTimezone=Intl.DateTimeFormat().resolvedOptions().timeZone||'America/Chicago';
       await loadWeather(lat,lon,tz);
     }catch(e){
       await loadWeather();
@@ -1989,10 +1987,13 @@ const fcCounts={
       }
       const fetchResult=await apiPost('FetchHeadlines',{userID:USER_ID,disableYoutube});
       localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
-      const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=true;
-      apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:true});
+const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=true;
+      await apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:true});
       btn.textContent='↻ Refresh';btn.style.color='';btn.style.background='';btn.style.borderColor='';btn.style.fontWeight='';btn.disabled=false;
-      if(fetchResult?.quotaRemaining!==undefined)updateQuotaDisplay(fetchResult.quotaUsed,new Date().toISOString());
+      const refreshedSettings=await apiGet('GetUserSettings');
+      if(refreshedSettings?.headlineSetting){
+        updateQuotaDisplay(refreshedSettings.headlineSetting.QuotaUsed,refreshedSettings.headlineSetting.QuotaDate);
+      }
       const link=document.getElementById('fetch-results-link');if(link)link.style.display='inline';
 const now=new Date();
       const ts=fmtDT(now);
