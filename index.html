@@ -262,6 +262,9 @@
   <button class="nav-btn active" onclick="showScreen('headlines')" id="nav-headlines">
     <span class="nav-icon">📰</span><span class="nav-label">Headlines</span>
   </button>
+  <button class="nav-btn" onclick="showScreen('mysites')" id="nav-mysites">
+    <span class="nav-icon">🌐</span><span class="nav-label">My Sites</span>
+  </button>
   <button class="nav-btn" onclick="showScreen('teams')" id="nav-teams">
     <span class="nav-icon">👥</span><span class="nav-label">Teams</span>
   </button>
@@ -299,6 +302,9 @@
     <div id="refresh-status" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep);margin-bottom:12px;padding:8px 14px;background:#f0f7ff;border-radius:8px;border:1px solid var(--border)"></div>
     <div id="headlines-grouped"></div>
   </div>
+  <div class="screen" id="screen-mysites">
+    <div id="mysites-list"></div>
+  </div>
   <div class="screen" id="screen-teams">
     <div class="date-strip"><div class="date-main">Teams</div><div class="date-sub">Coming soon</div></div>
     <div class="empty-state" style="padding:60px">Teams feature is coming soon.</div>
@@ -322,7 +328,8 @@
           </div>
           <div class="settings-btn-row">
             <button class="settings-nav-btn" onclick="showSettingsSection('categories')">📁 Categories</button>
-            <button class="settings-nav-btn" onclick="showSettingsSection('sources')">🌐 Sources</button>
+            <button class="settings-nav-btn" onclick="showSettingsSection('sources')">🌐 Shared Sources</button>
+            <button class="settings-nav-btn" onclick="showSettingsSection('mysources')">🔗 My Sources</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('keywords')">🔍 Keywords</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('topics')">💡 Topics</button>
           </div>
@@ -423,10 +430,12 @@
         <span>🔍 Keywords <span style="font-size:13px;font-weight:400;color:var(--text-soft);font-family:'DM Sans',sans-serif"> — exact match</span></span>
         <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openModal('keyword')">+ Add Keyword</button>
       </div>
-      <div style="font-size:12px;color:var(--sky-deep);background:#f0f7ff;border:1px solid var(--border);border-radius:8px;padding:8px 14px;margin-bottom:12px">
-        📺 Keywords are searched on YouTube and filtered news sources. Drag to reorder — higher items prioritized in headline sorting.<br>
-        <span style="color:var(--text-soft)">💡 <strong>CSV:</strong> Enter multiple terms separated by commas — e.g. <em>Russia, Russian</em> — to match any of them.&nbsp;&nbsp;
-        💡 <strong>Phrases:</strong> Multi-word phrases work as-is — e.g. <em>White Sox</em> or <em>Stock Market</em>.</span>
+      <div style="font-size:12px;color:var(--text);background:#f0f7ff;border:1px solid var(--sky-deep);border-radius:8px;padding:10px 16px;margin-bottom:12px;line-height:1.8">
+        <div style="font-weight:700;color:var(--sky-deep);margin-bottom:4px">📺 Keywords — How They Work</div>
+        <div>🔍 <strong>Exact match</strong> — searched on YouTube and filtered news sources. Drag to reorder — higher items are prioritized.</div>
+        <div>📋 <strong>Multiple terms:</strong> Separate with commas — e.g. <em>Russia, Russian</em> — matches any term in the list.</div>
+        <div>💬 <strong>Phrases:</strong> Multi-word phrases work as-is — e.g. <em>White Sox</em>, <em>Stock Market</em>.</div>
+        <div>🚫 <strong>Exclusions:</strong> Start with a minus sign to exclude — e.g. <em>-gossip</em> — removes any headline containing that word from the category.</div>
       </div>
       <table class="settings-table"><thead><tr><th>⠿</th><th>Keyword</th><th>Group Label</th><th>Category</th><th>Active</th><th></th></tr></thead><tbody id="tbl-keywords"></tbody></table>
     </div>
@@ -438,6 +447,25 @@
       </div>
       <div style="font-size:12px;color:var(--text-soft);background:#f5f9ff;border:1px solid var(--border);border-radius:8px;padding:8px 14px;margin-bottom:12px">📰 Topics are used for news categorization only — not searched on YouTube. Drag to reorder.</div>
       <table class="settings-table"><thead><tr><th>⠿</th><th>Topic</th><th>Group Label</th><th>Category</th><th>Active</th><th></th></tr></thead><tbody id="tbl-topics"></tbody></table>
+    </div>
+    <div id="settings-section-mysources" style="display:none">
+      <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
+      <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>🔗 My Sources</span>
+        <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openMySiteModal(null)">+ Add Source</button>
+      </div>
+      <table class="settings-table" id="tbl-mysources">
+        <thead><tr>
+          <th style="width:30px"></th>
+          <th>Name</th>
+          <th>Type</th>
+          <th>URL</th>
+          <th>Active</th>
+          <th>Exclusions</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="tbl-mysources-body"></tbody>
+      </table>
     </div>
     <div id="settings-section-global-sources" style="display:none">
       <button class="settings-back" onclick="closeGlobalSources()">← Back to Settings</button>
@@ -491,6 +519,52 @@
       <strong>💡 Topics — Fuzzy Match:</strong> Used for news categorization only (not YouTube). A topic like <em>"electric vehicles"</em> will match articles about EVs, electric cars, and related terms — even if those exact words don't appear.
     </div>
     <button class="onboard-btn" onclick="closeOnboarding()">Got it — let's set up my account</button>
+  </div>
+</div>
+<div class="modal-overlay" id="mysite-modal" style="display:none" onclick="if(event.target===this)closeMySiteModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="mysite-modal-title">Add Source</div>
+    <div class="form-group">
+      <label class="form-label">Name</label>
+      <input class="form-input" id="ms-name">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Type</label>
+      <div style="display:flex;gap:16px;margin-top:6px">
+        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="Website" checked> Website</label>
+        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="RSS"> RSS</label>
+        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="Youtube"> YouTube</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">URL</label>
+      <input class="form-input" id="ms-url">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <textarea class="form-textarea" id="ms-description" style="min-height:60px"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Thumbnail</label>
+      <input class="form-input" id="ms-thumbnail-url" placeholder="Paste image URL">
+      <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+        <input type="file" id="ms-thumbnail-file" accept="image/*" style="display:none" onchange="handleMsThumbnail(event)">
+        <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="document.getElementById('ms-thumbnail-file').click()">Upload Image</button>
+        <div id="ms-thumbnail-preview" style="width:60px;height:60px;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8fbff;font-size:20px;color:var(--text-muted)">🌐</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Exclusions <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(CSV, use "quotes" for phrases)</span></label>
+      <input class="form-input" id="ms-exclusions">
+    </div>
+    <div class="form-group">
+      <label class="form-checkbox-row"><input type="checkbox" id="ms-inactive"> Inactive</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeMySiteModal()">Cancel</button>
+      <button class="btn-primary" style="background:#22c55e" onclick="saveMySite(true)">Save & New</button>
+      <button class="btn-primary" onclick="saveMySite()">Save</button>
+    </div>
   </div>
 </div>
 <div class="modal-overlay" id="gs-password-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
@@ -1617,10 +1691,21 @@ const fcCounts={
   }
   function showConjugationFromFlashcard(wordID){
     const savedIdx=flashcardIndex;
-    showConjugation(wordID,async()=>{
-      await showLangFeature(currentLangID,'flashcards',currentLangName);
-      flashcardIndex=savedIdx;renderFlashcardsScreen();
-    });
+    const savedDeckID=currentDeckID;
+    const savedDeckName=currentDeckName;
+    const savedCards=[...flashcards];
+    const savedFilter=flashcardFilter;
+    conjReturnFn=async()=>{
+      currentDeckID=savedDeckID;currentDeckName=savedDeckName;
+      flashcards=savedCards;flashcardFilter=savedFilter;
+      flashcardIndex=savedIdx;flashcardShowTranslation=false;
+      showScreen(`lang-${currentLangID}`,false);
+      const panel=document.getElementById(`lang-feature-${currentLangID}`);
+      if(panel)panel.innerHTML=renderFlashcardsHTML(currentLangID,currentLangName);
+      document.querySelectorAll('[id^="langtab-"]').forEach(t=>t.classList.remove('lang-tab-active'));
+    };
+    history.pushState({view:'conjugation'},'');
+    showLangFeature(currentLangID,'conjugation',currentLangName,wordID);
   }
 
   function filterConjVerbs(query){
@@ -2011,6 +2096,8 @@ const now=new Date();
           for(const cat of orderedCats){if(all2.some(h=>h.CategoryID===cat.CategoryID)){currentFilter=cat.Name;break;}}
         }
       }
+      groupsExpanded=false;
+      document.querySelectorAll('input[name="hl-expand"]').forEach(r=>r.checked=(r.value==='collapse'));
       await loadHeadlines();
     }catch(e){
       const btn=document.getElementById('refresh-btn');
@@ -2093,7 +2180,10 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
           const groupName=header.textContent.replace(/\s*\(\d+\)$/,'').trim();
           header.innerHTML=`${groupName}${remaining>1?` <span style="opacity:0.6;font-weight:500">(${remaining})</span>`:''}`;
         }
-        if(remaining===0)group.remove();
+        if(remaining===0){group.remove();}else{
+          const headerSpan=group.querySelector('.cat-group-header span:last-child');
+          if(headerSpan){const t=headerSpan.textContent.replace(/\s*\(\d+\)$/,'');headerSpan.innerHTML=remaining>1?`${t} <span style="opacity:0.6;font-weight:500">(${remaining})</span>`:t;}
+        }
       }
     }
     try{ await apiPost('SaveRetain',{headlineID,retain:false,deleteIt:true}); }catch(err){}
@@ -2275,13 +2365,14 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     const navEl=document.getElementById('nav-'+name);
     if(screenEl)screenEl.classList.add('active');if(navEl)navEl.classList.add('active');
     if(name==='settings')showSettingsMenu(false);
+    if(name==='mysites')loadMySites();
     if(pushState)history.pushState({screen:name,section:null},'','');
   }
 
   function showSettingsMenu(pushState=true){
     currentSettingsSection=null;
     document.getElementById('settings-menu-view').style.display='block';
-    ['categories','sources','keywords','topics','global-sources'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
+    ['categories','sources','mysources','keywords','topics','global-sources'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
     if(pushState)history.pushState({screen:'settings',section:null},'','');
   }
 
@@ -2323,6 +2414,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   async function renderSettingsSection(section){
     if(section==='categories'){categories=await apiGet('GetCategories');renderSettingsCategories();renderCategoryTiles(null);}
     if(section==='sources'){sources=await apiGet('GetHeadlineSources');renderSettingsSources();}
+    if(section==='mysources'){await loadMySources();}
     if(section==='keywords'){keywords=await apiGet('GetHeadlineKeywords');renderSettingsKeywords();}
     if(section==='topics'){topics=await apiGet('GetHeadlineTopics');renderSettingsTopics();}
   }
@@ -2798,7 +2890,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     });
     const thead=tbody.closest('table')?.querySelector('thead tr');
     const srcTypeFilter=document.getElementById('src-type-filter')?.value||'';
-    const srcTypeOpts=`<option value="">All Types</option>`+['Guardian','NYT','GNews','Currents','MediaStack','NewsAPI','RSS','Youtube'].map(t=>`<option value="${t}" ${srcTypeFilter===t?'selected':''}>${t}</option>`).join('');
+    const srcTypeOpts=`<option value="">All Types</option>`+['API','RSS','Youtube'].map(t=>`<option value="${t}" ${srcTypeFilter===t?'selected':''}>${t}</option>`).join('');
     if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th>URL</th><th><select id="src-type-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsSources()">${srcTypeOpts}</select></th><th>Filtered</th><th>Exclusions <span style="font-size:9px;font-weight:400;color:var(--text-muted)">CSV, use "quotes" for phrases</span></th><th></th>`;
     const srcTypeFilterVal=document.getElementById('src-type-filter')?.value||'';
     const srcFiltered=srcTypeFilterVal?sorted.filter(s=>s.SourceType===srcTypeFilterVal):sorted;
@@ -2809,7 +2901,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)">${s.URL}</td>
         <td><span class="badge">${s.SourceType||'RSS'}</span></td>
         <td><label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" ${s.IsFiltered?'checked':''} onchange="saveUserFiltered(${s.SourceID},this)" style="accent-color:var(--sky-deep)"></label></td>
-        <td><input type="text" value="${(s.Exclusions||'').replace(/"/g,'&quot;')}" placeholder='e.g. "Draft Kings", gossip' style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:180px;font-family:'DM Sans',sans-serif" onchange="saveUserExclusions(${s.SourceID},this)"></td>
+        <td><input type="text" value="${(s.Exclusions||'').replace(/"/g,'&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:180px;font-family:'DM Sans',sans-serif" onchange="saveUserExclusions(${s.SourceID},this)"></td>
         <td><button class="btn-icon danger" onclick="removeUserSource(${s.SourceID})" title="Remove">🗑️</button></td>
       </tr>`).join('');
     initDragDrop(tbody,'source');
@@ -2950,6 +3042,169 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       document.getElementById('modal-actions').innerHTML=`<button class="btn-secondary" onclick="closeModal()">Close</button>`;
       document.getElementById('modal').style.display='flex';
     }catch(e){alert('Error loading fetch log: '+e.message);}
+  }
+
+  // ── MY SITES ──
+
+  let userOwnedSources = [];
+  let msEditingID = null;
+  let msThumbnailData = null;
+  let msSortCol = 'Sequence', msSortDir = 'asc';
+
+  async function loadMySites() {
+    const data = await apiGet('GetUserOwnedSources');
+    userOwnedSources = Array.isArray(data) ? data : [];
+    renderMySites();
+  }
+
+  function renderMySites() {
+    const container = document.getElementById('mysites-list');
+    if (!container) return;
+    const active = userOwnedSources.filter(s => !s.IsInactive);
+    if (!active.length) {
+      container.innerHTML = '<div class="empty-state" style="padding:60px">No sites added yet. Add some in Settings → My Sources.</div>';
+      return;
+    }
+    container.innerHTML = active.map(s => {
+      const thumb = s.ThumbnailURL
+        ? `<img src="${s.ThumbnailURL}" style="width:100px;height:62px;object-fit:cover;border-radius:6px;flex-shrink:0" onerror="this.style.display='none'">`
+        : `<div style="width:100px;height:62px;border-radius:6px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">🌐</div>`;
+      return `<div class="headline-row" onclick="window.open('${s.URL}','_blank','noopener')" style="cursor:pointer">
+        ${thumb}
+        <div class="headline-body">
+          <div class="headline-row-title">${s.SourceName}</div>
+          ${s.Description ? `<div class="headline-row-summary">${s.Description}</div>` : ''}
+          <div class="headline-row-meta">
+            <span class="badge">${s.SourceType}</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function loadMySources() {
+    const data = await apiGet('GetUserOwnedSources', '&includeInactive=true');
+    userOwnedSources = Array.isArray(data) ? data : [];
+    renderMySourcesTable();
+  }
+
+  function renderMySourcesTable() {
+    const tbody = document.getElementById('tbl-mysources-body');
+    if (!tbody) return;
+    const sorted = [...userOwnedSources].sort((a, b) => (a.Sequence || 99) - (b.Sequence || 99));
+    tbody.innerHTML = sorted.map(s => `
+      <tr draggable="true" data-id="${s.UserOwnedSourceID}">
+        <td style="width:30px;color:var(--text-muted)">⠿</td>
+        <td><strong>${s.SourceName}</strong></td>
+        <td><span class="badge">${s.SourceType}</span></td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)">${s.URL}</td>
+        <td><button class="toggle ${!s.IsInactive ? 'on' : ''}" onclick="toggleMySite(${s.UserOwnedSourceID},this)"></button></td>
+        <td><input type="text" value="${(s.Exclusions || '').replace(/"/g, '&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:160px;font-family:'DM Sans',sans-serif" onchange="saveMySiteExclusions(${s.UserOwnedSourceID},this)"></td>
+        <td style="display:flex;gap:6px">
+          <button class="btn-icon" onclick="openMySiteModal(${s.UserOwnedSourceID})">✏️</button>
+          <button class="btn-icon danger" onclick="deleteMySite(${s.UserOwnedSourceID})">🗑️</button>
+        </td>
+      </tr>`).join('');
+    initMySitesDragDrop(tbody);
+  }
+
+  function initMySitesDragDrop(tbody) {
+    let dragSrc = null, dragMoved = false;
+    tbody.querySelectorAll('tr[draggable]').forEach(row => {
+      row.addEventListener('dragstart', e => { dragSrc = row; dragMoved = false; row.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+      row.addEventListener('dragend', () => {
+        tbody.querySelectorAll('tr').forEach(r => r.classList.remove('dragging', 'drag-over'));
+        if (!dragMoved) return;
+        const rows = [...tbody.querySelectorAll('tr[draggable]')];
+        const sequences = rows.map((r, i) => ({ sourceID: parseInt(r.dataset.id), sequence: i + 1 }));
+        sequences.forEach(s => { const src = userOwnedSources.find(u => u.UserOwnedSourceID === s.sourceID); if (src) src.Sequence = s.sequence; });
+        apiPost('SaveUserOwnedSource', { action: 'reorder', userID: USER_ID, sequences });
+      });
+      row.addEventListener('dragover', e => { e.preventDefault(); tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over')); if (row !== dragSrc) row.classList.add('drag-over'); });
+      row.addEventListener('drop', e => { e.preventDefault(); if (dragSrc && dragSrc !== row) { dragMoved = true; const rows = [...tbody.querySelectorAll('tr')]; if (rows.indexOf(dragSrc) < rows.indexOf(row)) row.after(dragSrc); else row.before(dragSrc); } });
+    });
+  }
+
+  function openMySiteModal(sourceID) {
+    msEditingID = sourceID;
+    msThumbnailData = null;
+    const src = sourceID ? userOwnedSources.find(s => s.UserOwnedSourceID === sourceID) : null;
+    document.getElementById('mysite-modal-title').textContent = sourceID ? 'Edit Source' : 'Add Source';
+    document.getElementById('ms-name').value = src?.SourceName || '';
+    document.getElementById('ms-url').value = src?.URL || '';
+    document.getElementById('ms-description').value = src?.Description || '';
+    document.getElementById('ms-thumbnail-url').value = src?.ThumbnailURL || '';
+    document.getElementById('ms-exclusions').value = src?.Exclusions || '';
+    document.getElementById('ms-inactive').checked = !!src?.IsInactive;
+    const type = src?.SourceType || 'Website';
+    document.querySelectorAll('input[name="ms-type"]').forEach(r => r.checked = r.value === type);
+    const preview = document.getElementById('ms-thumbnail-preview');
+    if (src?.ThumbnailURL) preview.innerHTML = `<img src="${src.ThumbnailURL}" style="width:100%;height:100%;object-fit:cover">`;
+    else preview.innerHTML = '🌐';
+    document.getElementById('mysite-modal').style.display = 'flex';
+  }
+
+  function closeMySiteModal() {
+    document.getElementById('mysite-modal').style.display = 'none';
+    msEditingID = null; msThumbnailData = null;
+  }
+
+  function handleMsThumbnail(event) {
+    const file = event.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      msThumbnailData = e.target.result;
+      document.getElementById('ms-thumbnail-url').value = '';
+      const preview = document.getElementById('ms-thumbnail-preview');
+      preview.innerHTML = `<img src="${msThumbnailData}" style="width:100%;height:100%;object-fit:cover">`;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function saveMySite(addAnother = false) {
+    const sourceName = document.getElementById('ms-name').value.trim();
+    const url = document.getElementById('ms-url').value.trim();
+    if (!sourceName) return alert('Name is required');
+    if (!url) return alert('URL is required');
+    const sourceType = document.querySelector('input[name="ms-type"]:checked')?.value || 'Website';
+    const description = document.getElementById('ms-description').value.trim() || null;
+    const exclusions = document.getElementById('ms-exclusions').value.trim() || null;
+    const isInactive = document.getElementById('ms-inactive').checked;
+    const thumbnailURL = msThumbnailData || document.getElementById('ms-thumbnail-url').value.trim() || null;
+    if (msEditingID) {
+      await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive });
+      const src = userOwnedSources.find(s => s.UserOwnedSourceID === msEditingID);
+      if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; }
+    } else {
+      const result = await apiPost('SaveUserOwnedSource', { action: 'add', userID: USER_ID, sourceName, url, sourceType, description, thumbnailURL, exclusions });
+      userOwnedSources.push({ UserOwnedSourceID: result.sourceID, SourceName: sourceName, URL: url, SourceType: sourceType, Description: description, ThumbnailURL: thumbnailURL, Exclusions: exclusions, IsInactive: 0, Sequence: 99 });
+    }
+    renderMySourcesTable();
+    if (addAnother) { msEditingID = null; msThumbnailData = null; openMySiteModal(null); }
+    else closeMySiteModal();
+  }
+
+  async function toggleMySite(sourceID, btn) {
+    const src = userOwnedSources.find(s => s.UserOwnedSourceID === sourceID); if (!src) return;
+    const newInactive = btn.classList.contains('on') ? 1 : 0;
+    btn.classList.toggle('on');
+    src.IsInactive = newInactive;
+    await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID, sourceName: src.SourceName, url: src.URL, sourceType: src.SourceType, description: src.Description, thumbnailURL: src.ThumbnailURL, exclusions: src.Exclusions, isInactive: newInactive });
+  }
+
+  async function saveMySiteExclusions(sourceID, input) {
+    const src = userOwnedSources.find(s => s.UserOwnedSourceID === sourceID); if (!src) return;
+    src.Exclusions = input.value || null;
+    await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID, sourceName: src.SourceName, url: src.URL, sourceType: src.SourceType, description: src.Description, thumbnailURL: src.ThumbnailURL, exclusions: src.Exclusions, isInactive: src.IsInactive });
+    input.style.borderColor = '#22c55e';
+    setTimeout(() => input.style.borderColor = 'var(--border)', 1500);
+  }
+
+  async function deleteMySite(sourceID) {
+    if (!confirm('Delete this source?')) return;
+    await apiPost('SaveUserOwnedSource', { action: 'delete', userID: USER_ID, sourceID });
+    userOwnedSources = userOwnedSources.filter(s => s.UserOwnedSourceID !== sourceID);
+    renderMySourcesTable();
   }
 
   // ── INIT ──
