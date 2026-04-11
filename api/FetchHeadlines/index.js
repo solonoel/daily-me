@@ -91,6 +91,9 @@ function matchesKeyword(text, keywordText) {
   return false;
 }
 
+function isExclusionKeyword(kw) { return kw.Keyword && kw.Keyword.trim().startsWith('-'); }
+function exclusionTerm(kw) { return kw.Keyword.trim().substring(1).trim(); }
+
 function applyKeywordMatching(articles, keywords, topics) {
   for (const a of articles) {
     if (a.categoryID) continue;
@@ -463,6 +466,15 @@ module.exports = async function(context, req) {
       }
     }
 
+    // Build exclusion map: categoryID -> [term, term, ...]
+    const exclusionMap = {};
+    for (const kw of kwResult.recordset) {
+      if (isExclusionKeyword(kw) && kw.CategoryID) {
+        if (!exclusionMap[kw.CategoryID]) exclusionMap[kw.CategoryID] = [];
+        exclusionMap[kw.CategoryID].push(exclusionTerm(kw).toLowerCase());
+      }
+    }
+
     // Deduplicate
     const seen = new Set();
     const unique = allArticles.filter(a => {
@@ -475,7 +487,12 @@ module.exports = async function(context, req) {
 
     // Select within limits
     const selected = [];
+    const catCou// Select within limits
+    const selected = [];
     const catCounts = {};
+    const catDropped = {};
+
+    for (const a of excluded) {nts = {};
     const catDropped = {};
 
     for (const a of unique) {
@@ -489,12 +506,12 @@ module.exports = async function(context, req) {
       if (cat !== 'none') catCounts[cat]++;
     }
 
-    context.log(`unique: ${unique.length}, selected: ${selected.length}`);
+    context.log(`unique: ${excluded.length}, selected: ${selected.length}`);
 
     // Build keyword match counts and unmatched list for log
     const keywordMatchCounts = {};
     const unmatchedBySource = {};
-    for (const a of unique) {
+    for (const a of excluded) {
       if (a.isSubscription) continue;
       if (a.keywordID) {
         const kw = kwResult.recordset.find(k => k.KeywordID === a.keywordID);

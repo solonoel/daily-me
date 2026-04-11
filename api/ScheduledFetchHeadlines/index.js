@@ -320,6 +320,15 @@ async function fetchForUser(pool, userID, context) {
     .input('UserID', sql.Int, userID)
     .query(`UPDATE [HeadlineSetting] SET DisableYoutubeToday = 1 WHERE UserID = @UserID`);
 
+  // Build exclusion map: categoryID -> [term, ...]
+  const exclusionMap = {};
+  for (const kw of kwResult.recordset) {
+    if (kw.text && kw.text.trim().startsWith('-') && kw.CategoryID) {
+      if (!exclusionMap[kw.CategoryID]) exclusionMap[kw.CategoryID] = [];
+      exclusionMap[kw.CategoryID].push(kw.text.trim().substring(1).trim().toLowerCase());
+    }
+  }
+
   const seen = new Set();
   const unique = allArticles.filter(a => {
     if (!a.link || seen.has(a.link) || existingLinks.has(a.link)) return false;
@@ -327,11 +336,25 @@ async function fetchForUser(pool, userID, context) {
     return true;
   });
 
-  for (const a of unique) {
+  // Apply category-specific exclusions
+  const excluded = unique.filter(a => {
+    if (!a.categoryID) return true;
+    const terms = exclusionMap[a.categoryID];
+    if (!terms || !terms.length) return true;
+    const text = `${a.title} ${a.summary}`.toLowerCase();
+    return !terms.some(term => {
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+    });
+  });
+  context.log(`Exclusion filter: ${unique.length - excluded.length} articles removed`);
+
+  for (const a of excluded) {
     if (a.categoryID) continue;
     const text = `${a.title} ${a.summary}`.toLowerCase();
     let matched = false;
     for (const kw of kwResult.recordset) {
+      if (kw.text && kw.text.trim().startsWith('-')) continue;
       const escaped = kw.text.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       if (new RegExp(`\\b${escaped}\\b`, 'i').test(text)) {
         a.categoryID = kw.CategoryID; a.keywordID = kw.KeywordID;
