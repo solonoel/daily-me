@@ -25,7 +25,7 @@ module.exports = async function(context, req) {
 SELECT h.HeadlineID, h.UserID, h.CategoryID, h.HeadlineName,
              h.Link, h.Summary, h.CreatedDate, h.LastViewedDate, h.Retain,
              h.KeywordID, h.TopicID, h.ThumbnailURL, h.ChannelName, h.ChannelURL, h.Duration,
-             h.IsSubscription,
+             CASE WHEN uhs.IsFiltered = 0 THEN 1 ELSE 0 END AS IsSubscription,
              c.Name AS CategoryName, k.Keyword, k.Sequence AS KeywordSequence,
              k.GroupLabel AS KeywordGroupLabel, t.GroupLabel AS TopicGroupLabel,
              t.Topic, t.Sequence AS TopicSequence,
@@ -35,6 +35,7 @@ SELECT h.HeadlineID, h.UserID, h.CategoryID, h.HeadlineName,
       LEFT JOIN [HeadlineKeyword] k ON h.KeywordID = k.KeywordID
       LEFT JOIN [HeadlineTopic] t ON h.TopicID = t.TopicID
       LEFT JOIN [HeadlineSource] hs ON h.SourceID = hs.SourceID
+      LEFT JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID AND uhs.UserID = @UserID
       WHERE h.UserID = @UserID
       AND h.CreatedDate >= DATEADD(day, -@RecencyDays, GETDATE())
     `;

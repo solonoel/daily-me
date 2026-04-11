@@ -408,7 +408,7 @@
         <span>🌐 Headline Sources</span>
         <button class="btn-primary" style="padding:7px 18px;font-size:12px" id="btn-add-source" onclick="openModal('source')">+ Add Source</button>
       </div>
-      <table class="settings-table"><thead><tr><th></th><th>Name</th><th>URL</th><th>Type</th><th>Unfiltered</th><th></th></tr></thead><tbody id="tbl-sources"></tbody></table>
+      <table class="settings-table"><thead><tr><th></th><th>Name</th><th>URL</th><th>Type</th><th>Filtered</th><th></th></tr></thead><tbody id="tbl-sources"></tbody></table>
     </div>
     <div id="settings-section-keywords" style="display:none">
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
@@ -441,7 +441,7 @@
           <th>Type</th>
           <th>URL</th>
           <th>Date Added</th>
-          <th>Other</th>
+          <th></th>
           <th></th>
         </tr></thead>
         <tbody id="tbl-global-sources-body"></tbody>
@@ -521,10 +521,7 @@
       </div>
       <div id="gs-channelid-display" style="display:none;margin-top:6px;font-size:12px;color:var(--sky-deep);font-weight:600"></div>
     </div>
-    <div id="gs-unfiltered-row" style="display:none" class="form-group">
-      <label class="form-checkbox-row"><input type="checkbox" id="gs-unfiltered-cb" style="accent-color:var(--sky-deep)"> Unfiltered (filters ignored for this channel)</label>
-    </div>
-    <div class="modal-actions">
+        <div class="modal-actions">
       <button class="btn-secondary" onclick="closeGlobalSourceModal()">Cancel</button>
       <button class="btn-primary" style="background:#22c55e" onclick="saveGlobalSource(true)">Save & New</button>
       <button class="btn-primary" onclick="saveGlobalSource()">Save</button>
@@ -1911,7 +1908,7 @@ const fcCounts={
 
   // Resolve the display group label for a headline
   function resolveGroupLabel(h) {
-    if (h.IsSubscription === 1 || h.IsSubscription === true) return 'Subscriptions';
+    if (h.IsSubscription === 1 || h.IsSubscription === true || h.isSubscription === 1 || h.isSubscription === true) return 'Subscriptions';
     const kwLabel = h.KeywordGroupLabel && h.KeywordGroupLabel.trim() !== '' ? h.KeywordGroupLabel.trim() : null;
     const kwName  = h.Keyword || null;
     const tpLabel = h.TopicGroupLabel && h.TopicGroupLabel.trim() !== '' ? h.TopicGroupLabel.trim() : null;
@@ -2581,9 +2578,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     });
     const tbody=document.getElementById('tbl-global-sources-body');
     tbody.innerHTML=sorted.map(s=>{
-      const otherCol=s.SourceType==='Youtube'
-        ?`<label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" ${s.YoutubeUnfiltered?'checked':''} onchange="saveGsUnfiltered(${s.SourceID},this)" style="accent-color:var(--sky-deep)"> Unfiltered</label>`
-        :'—';
+      const otherCol='';
       return `<tr draggable="true" data-id="${s.SourceID}" data-seq="${s.Sequence||999}">
         <td style="width:30px;text-align:center;color:var(--text-muted)">⠿</td>
         <td><strong>${s.Name}</strong></td>
@@ -2618,12 +2613,6 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     });
   }
 
-  async function saveGsUnfiltered(sourceID,cb){
-    const src=globalSources.find(s=>s.SourceID===sourceID);
-    if(src)src.YoutubeUnfiltered=cb.checked?1:0;
-    await apiPost('SaveSource',{action:'updateUnfiltered',sourceID,youtubeUnfiltered:cb.checked,userID:USER_ID});
-  }
-
   function openGlobalSourceModal(sourceID){
     gsEditingID=sourceID;
     gsResolvedChannelID=null;
@@ -2642,12 +2631,6 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       document.getElementById('gs-channelid-display').textContent=`Channel ID: ${src.YoutubeChannelID}`;
       document.getElementById('gs-channelid-display').style.display='block';
     }
-    const unfilteredRow=document.getElementById('gs-unfiltered-row');
-    if(unfilteredRow){
-      unfilteredRow.style.display=type==='Youtube'?'block':'none';
-      const unfilteredCb=document.getElementById('gs-unfiltered-cb');
-      if(unfilteredCb)unfilteredCb.checked=src?.YoutubeUnfiltered?true:false;
-    }
     document.getElementById('gs-source-modal').style.display='flex';
   }
 
@@ -2659,8 +2642,6 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   function updateGsTypeFields(){
     const type=document.querySelector('input[name="gs-type"]:checked')?.value||'RSS';
     document.getElementById('gs-channel-lookup').style.display=type==='Youtube'?'block':'none';
-    const unfilteredRow=document.getElementById('gs-unfiltered-row');
-    if(unfilteredRow)unfilteredRow.style.display=type==='Youtube'?'block':'none';
     if(type!=='Youtube'){
       document.getElementById('gs-channelid-display').style.display='none';
       gsResolvedChannelID=null;
@@ -2712,12 +2693,10 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         return;
       }
     }
-    const gsUnfiltered=document.getElementById('gs-unfiltered-cb')?.checked||false;
     if(gsEditingID){
       await apiPost('SaveSource',{action:'update',sourceID:gsEditingID,name,url,sourceType,isActive:true,userID:USER_ID});
-      if(sourceType==='Youtube')await apiPost('SaveSource',{action:'updateUnfiltered',sourceID:gsEditingID,youtubeUnfiltered:gsUnfiltered,userID:USER_ID});
       const src=globalSources.find(s=>s.SourceID===gsEditingID);
-      if(src){src.Name=name;src.URL=url;src.SourceType=sourceType;src.YoutubeUnfiltered=gsUnfiltered;}
+      if(src){src.Name=name;src.URL=url;src.SourceType=sourceType;}
     }else{
       const nextSeq=(Math.max(...globalSources.map(s=>s.Sequence||0),0))+1;
       const result=await apiPost('SaveSource',{action:'add',name,url,sourceType,sequence:nextSeq,userID:USER_ID});
@@ -2764,26 +2743,24 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       return srcSortDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
     });
     const thead=tbody.closest('table')?.querySelector('thead tr');
-    if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th>URL</th><th>Type</th><th>Unfiltered</th><th></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th>URL</th><th>Type</th><th>Filtered</th><th></th>`;
     tbody.innerHTML=sorted.map(s=>`
       <tr draggable="true" data-id="${s.SourceID}" data-type="source">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
         <td>${s.Name||'—'}</td>
         <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)">${s.URL}</td>
         <td><span class="badge">${s.SourceType||'RSS'}</span></td>
-        ${s.SourceIsSubscription
-          ?`<td><label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" ${s.YoutubeUnfiltered?'checked':''} onchange="saveUserUnfiltered(${s.SourceID},this)" style="accent-color:var(--sky-deep)"> Unfiltered</label></td>`
-          :'<td>—</td>'}
+        <td><label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" ${s.IsFiltered?'checked':''} onchange="saveUserFiltered(${s.SourceID},this)" style="accent-color:var(--sky-deep)"></label></td>
         <td><button class="btn-icon danger" onclick="removeUserSource(${s.SourceID})" title="Remove">🗑️</button></td>
       </tr>`).join('');
     initDragDrop(tbody,'source');
     if(document.getElementById('btn-add-source'))document.getElementById('btn-add-source').style.display='inline-flex';
   }
 
-  async function saveUserUnfiltered(sourceID,cb){
+  async function saveUserFiltered(sourceID,cb){
     const src=sources.find(s=>s.SourceID===sourceID);
-    if(src)src.YoutubeUnfiltered=cb.checked?1:0;
-    await apiPost('SaveSource',{action:'updateUnfiltered',sourceID,youtubeUnfiltered:cb.checked,userID:USER_ID});
+    if(src)src.IsFiltered=cb.checked?1:0;
+    await apiPost('SaveSource',{action:'updateFiltered',sourceID,isFiltered:cb.checked,userID:USER_ID});
   }
 
   async function removeUserSource(sourceID){

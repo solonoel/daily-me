@@ -74,7 +74,7 @@ module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
     const { action, sourceID, name, url, sourceType, categoryID, isActive,
-            sequence, youtubeUnfiltered, userID = 1 } = req.body;
+            sequence, isFiltered, userID = 1 } = req.body;
 
     if (action === 'add') {
       if (sourceType === 'Youtube') {
@@ -112,7 +112,7 @@ module.exports = async function(context, req) {
           .input('SourceID', sql.Int, sourceID)
           .query(`
             IF NOT EXISTS (SELECT 1 FROM [UserHeadlineSource] WHERE UserID=@UserID AND SourceID=@SourceID)
-            INSERT INTO [UserHeadlineSource] (UserID, SourceID) VALUES (@UserID, @SourceID)
+            INSERT INTO [UserHeadlineSource] (UserID, SourceID, IsFiltered) VALUES (@UserID, @SourceID, 1)
           `);
         context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ success: true, sourceID }) };
@@ -155,14 +155,14 @@ module.exports = async function(context, req) {
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ success: true }) };
 
-    } else if (action === 'updateUnfiltered') {
+    } else if (action === 'updateFiltered') {
       await pool.request()
         .input('UserID', sql.Int, userID)
         .input('SourceID', sql.Int, sourceID)
-        .input('YoutubeUnfiltered', sql.Bit, youtubeUnfiltered ? 1 : 0)
+        .input('IsFiltered', sql.Bit, req.body.isFiltered ? 1 : 0)
         .query(`
           UPDATE [UserHeadlineSource]
-          SET YoutubeUnfiltered = @YoutubeUnfiltered
+          SET IsFiltered = @IsFiltered
           WHERE UserID=@UserID AND SourceID=@SourceID
         `);
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' },

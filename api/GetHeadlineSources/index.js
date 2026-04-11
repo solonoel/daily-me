@@ -16,7 +16,7 @@ module.exports = async function(context, req) {
       result = await pool.request()
         .query(`
           SELECT SourceID, Name, URL, SourceType, CategoryID, IsActive,
-                 Sequence, DateAdded, YoutubeChannelID, IsSubscription
+                 Sequence, DateAdded, YoutubeChannelID
           FROM [HeadlineSource]
           ORDER BY Sequence, Name
         `);
@@ -25,9 +25,7 @@ module.exports = async function(context, req) {
         .input('UserID', sql.Int, userID)
         .query(`
           SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.CategoryID, h.IsActive,
-                 h.Sequence, h.DateAdded, h.YoutubeChannelID,
-                 uhs.IsSubscription AS YoutubeUnfiltered,
-                 h.IsSubscription AS SourceIsSubscription
+                 h.Sequence, h.DateAdded, h.YoutubeChannelID, uhs.IsFiltered
           FROM [HeadlineSource] h
           INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
           WHERE uhs.UserID = @UserID
