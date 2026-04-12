@@ -285,7 +285,7 @@
           <span style="font-size:10px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="recency-val">7 days</span></span>
           <div id="last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
           <div id="last-yt-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
-          <div id="yt-quota-warning" style="font-size:10px;font-weight:700;color:#e05050;display:none">⚠️ YT quota exhausted</div>
+          <div id="yt-quota-warning" style="font-size:10px;font-weight:700;color:#e05050;display:none">⚠️ Youtube quota exhausted for today</div>
           <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
             <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="expand" checked onchange="setGroupExpand(true)" style="accent-color:var(--sky-deep)"> Expanded</label>
             <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="collapse" onchange="setGroupExpand(false)" style="accent-color:var(--sky-deep)"> Collapsed</label>
@@ -309,7 +309,7 @@
         <div style="display:flex;align-items:center;gap:6px;padding:4px 12px">
           <span style="font-size:10px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="teams-recency-val">7 days</span></span>
           <div id="teams-last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
-          <div id="teams-yt-quota-warning" style="font-size:10px;font-weight:700;color:#e05050;display:none">⚠️ YT quota exhausted</div>
+          <div id="teams-yt-quota-warning" style="font-size:10px;font-weight:700;color:#e05050;display:none">⚠️ Youtube quota exhausted for today</div>
           <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
             <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="tm-expand" value="expand" checked onchange="setTeamsExpand(true)" style="accent-color:var(--sky-deep)"> Expanded</label>
             <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="tm-expand" value="collapse" onchange="setTeamsExpand(false)" style="accent-color:var(--sky-deep)"> Collapsed</label>
@@ -821,8 +821,9 @@
       else localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
       const ytWarn=document.getElementById('yt-quota-warning');
       const teamsYtWarn=document.getElementById('teams-yt-quota-warning');
-      if(ytWarn)ytWarn.style.display=dbDisabled?'':'none';
-      if(teamsYtWarn)teamsYtWarn.style.display=dbDisabled?'':'none';
+      const quotaLow=(userSettings?.headlineSetting?.QuotaUsed||0)>=9500;
+      if(ytWarn)ytWarn.style.display=quotaLow?'':'none';
+      if(teamsYtWarn)teamsYtWarn.style.display=quotaLow?'':'none';
     }
     const savedTs=localStorage.getItem(`dailyme_last_fetch_time_${USER_ID}`);
     const lft=document.getElementById('last-fetch-time');if(lft&&savedTs){const d=new Date(savedTs);if(!isNaN(d)){lft.textContent=`refresh: ${fmtDT(d)}`;lft.style.display='';}}
@@ -2108,7 +2109,7 @@ const now=new Date();
       const tlft=document.getElementById('teams-last-fetch-time');if(tlft){tlft.textContent=`refresh: ${ts}`;tlft.style.display='';}
       const ytWarn=document.getElementById('yt-quota-warning');
       const teamsYtWarn=document.getElementById('teams-yt-quota-warning');
-      const showYtWarn=disableYoutube||(fetchResult?.quotaRemaining<=500)||(!disableYoutube&&fetchResult?.youtubeSkipped);
+      const showYtWarn=(fetchResult?.quotaRemaining!==undefined&&fetchResult.quotaRemaining<=500);
       if(ytWarn)ytWarn.style.display=showYtWarn?'':'none';
       if(teamsYtWarn)teamsYtWarn.style.display=showYtWarn?'':'none';
       const trv=document.getElementById('teams-recency-val');if(trv)trv.textContent=recencyDays_value===1?'1 day':`${recencyDays_value} days`;
