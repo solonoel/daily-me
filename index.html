@@ -2079,7 +2079,8 @@ const fcCounts={
   async function refreshHeadlines(){
     try{
       const btn=document.getElementById('refresh-btn'),status=document.getElementById('refresh-status');
-      btn.textContent='Refreshing...';btn.style.color='white';btn.style.background='#1a5fa8';btn.style.borderColor='#1a5fa8';btn.style.fontWeight='700';btn.disabled=true;
+      const teamsBtn=document.getElementById('teams-refresh-btn');
+      [btn,teamsBtn].forEach(b=>{if(b){b.textContent='Refreshing...';b.style.color='white';b.style.background='#1a5fa8';b.style.borderColor='#1a5fa8';b.style.fontWeight='700';b.disabled=true;}});
       status.style.display='none';
       const userSettings=await apiGet('GetUserSettings');
       if(userSettings?.headlineSetting?.RecencyDays){recencyDays_value=userSettings.headlineSetting.RecencyDays;document.getElementById('recency-val').textContent=recencyDays_value===1?'1 day':`${recencyDays_value} days`;}
@@ -2094,9 +2095,7 @@ const fcCounts={
         const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=true;
         localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
       }
-      localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
-const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=true;
-      btn.textContent='↻ Refresh';btn.style.color='';btn.style.background='';btn.style.borderColor='';btn.style.fontWeight='';btn.disabled=false;
+      [btn,teamsBtn].forEach(b=>{if(b){b.textContent='↻ Refresh';b.style.color='';b.style.background='';b.style.borderColor='';b.style.fontWeight='';b.disabled=false;}});
       const refreshedSettings=await apiGet('GetUserSettings');
       if(refreshedSettings?.headlineSetting){
         updateQuotaDisplay(refreshedSettings.headlineSetting.QuotaUsed,refreshedSettings.headlineSetting.QuotaDate);
@@ -2130,7 +2129,8 @@ const now=new Date();
       await loadHeadlines();
     }catch(e){
       const btn=document.getElementById('refresh-btn');
-      btn.textContent='↻ Refresh';btn.style.color='';btn.style.background='';btn.style.borderColor='';btn.style.fontWeight='';btn.disabled=false;
+      const teamsBtn=document.getElementById('teams-refresh-btn');
+      [btn,teamsBtn].forEach(b=>{if(b){b.textContent='↻ Refresh';b.style.color='';b.style.background='';b.style.borderColor='';b.style.fontWeight='';b.disabled=false;}});
     }
   }
 
