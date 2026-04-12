@@ -2096,7 +2096,6 @@ const fcCounts={
       }
       localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
 const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=true;
-      await apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:true});
       btn.textContent='↻ Refresh';btn.style.color='';btn.style.background='';btn.style.borderColor='';btn.style.fontWeight='';btn.disabled=false;
       const refreshedSettings=await apiGet('GetUserSettings');
       if(refreshedSettings?.headlineSetting){

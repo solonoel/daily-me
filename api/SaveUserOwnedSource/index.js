@@ -39,7 +39,7 @@ module.exports = async function(context, req) {
         .input('Description', sql.NVarChar(1000), description || null)
         .input('SourceType', sql.VarChar(20), sourceType || 'Website')
         .input('URL', sql.NVarChar(500), url)
-        .input('ThumbnailURL', sql.NVarChar(500), thumbnailURL || null)
+        .input('ThumbnailURL', sql.NVarChar(sql.MAX), thumbnailURL || null)
         .input('Exclusions', sql.NVarChar(500), exclusions || null)
         .input('IsInactive', sql.Bit, isInactive ? 1 : 0)
         .query(`UPDATE UserOwnedSource SET SourceName=@SourceName, Description=@Description,

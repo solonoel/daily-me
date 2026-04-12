@@ -83,6 +83,15 @@ module.exports = async function(context, req) {
       .input('UserID', sql.Int, userID)
       .query(`INSERT INTO [HeadlineSetting] (UserID, RecencyDays, MaxHeadlines) VALUES (@UserID, 7, 50)`);
 
+    await pool.request()
+      .input('UserID', sql.Int, userID)
+      .query(`
+        INSERT INTO [Category] (UserID, Name, IsActive, Headlines, MyWords, Sequence)
+        VALUES
+          (@UserID, 'Teams',  'Y', 'Y', 'N', 100),
+          (@UserID, 'Other',  'Y', 'Y', 'N', 101)
+      `);
+
     const emailStatus = await sendVerificationEmail(email, verifyToken, name);
     context.log(`Email send status: ${emailStatus}`);
 
