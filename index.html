@@ -266,7 +266,7 @@
     <span class="nav-icon">🌐</span><span class="nav-label">My Sites</span>
   </button>
   <button class="nav-btn" onclick="showScreen('teams')" id="nav-teams">
-    <span class="nav-icon">👥</span><span class="nav-label">Teams</span>
+    <span class="nav-icon">⚾</span><span class="nav-label">Teams</span>
   </button>
   <div id="nav-date" style="margin-left:auto;padding:0 20px;display:flex;align-items:center;font-size:12px;color:var(--text-muted);white-space:nowrap;flex-shrink:0"></div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:0 12px;border-left:1px solid var(--border);flex-shrink:0;gap:3px">
@@ -285,17 +285,15 @@
           <span style="font-size:10px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="recency-val">7 days</span></span>
           <div id="last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
           <div id="last-yt-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
+          <div id="yt-quota-warning" style="font-size:10px;font-weight:700;color:#e05050;display:none">⚠️ YT quota exhausted</div>
           <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="expand" checked onchange="setGroupExpand(true)" style="accent-color:var(--sky-deep)"> Expanded</label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="collapse" onchange="setGroupExpand(false)" style="accent-color:var(--sky-deep)"> Collapsed</label>
             <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn" style="flex-shrink:0">↻ Refresh</button>
-            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="checkbox" id="hl-unlimited" style="accent-color:var(--sky-deep)" onchange="loadHeadlines()"> Unlimited</label>
           </div>
         </div>
         <div style="display:flex;align-items:stretch;flex-wrap:wrap">
           <div class="category-row" id="cat-row" style="display:flex;align-items:stretch;flex-wrap:wrap;flex:1"></div>
-          <div style="display:flex;align-items:center;gap:6px;padding:0 12px;flex-shrink:0;border-left:1px solid var(--border)">
-            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="expand" checked onchange="setGroupExpand(true)" style="accent-color:var(--sky-deep)"> Expanded</label>
-            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="collapse" onchange="setGroupExpand(false)" style="accent-color:var(--sky-deep)"> Collapsed</label>
-          </div>
         </div>
       </div>
     </div>
@@ -306,8 +304,22 @@
     <div id="mysites-list"></div>
   </div>
   <div class="screen" id="screen-teams">
-    <div class="date-strip"><div class="date-main">Teams</div><div class="date-sub">Coming soon</div></div>
-    <div class="empty-state" style="padding:60px">Teams feature is coming soon.</div>
+    <div class="category-bar">
+      <div style="display:flex;flex-direction:column;width:100%;background:white">
+        <div style="display:flex;align-items:center;gap:6px;padding:4px 12px">
+          <span style="font-size:10px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="teams-recency-val">7 days</span></span>
+          <div id="teams-last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
+          <div id="teams-yt-quota-warning" style="font-size:10px;font-weight:700;color:#e05050;display:none">⚠️ YT quota exhausted</div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="tm-expand" value="expand" checked onchange="setTeamsExpand(true)" style="accent-color:var(--sky-deep)"> Expanded</label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="tm-expand" value="collapse" onchange="setTeamsExpand(false)" style="accent-color:var(--sky-deep)"> Collapsed</label>
+            <button class="refresh-btn" onclick="refreshHeadlines()" id="teams-refresh-btn" style="flex-shrink:0">↻ Refresh</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="teams-status" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep);margin-bottom:12px;padding:8px 14px;background:#f0f7ff;border-radius:8px;border:1px solid var(--border)"></div>
+    <div id="teams-grouped"></div>
   </div>
   <div id="language-screens"></div>
   <div class="screen" id="screen-settings">
@@ -807,6 +819,10 @@
       ytCb.checked=!!dbDisabled;
       if(dbDisabled)localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
       else localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
+      const ytWarn=document.getElementById('yt-quota-warning');
+      const teamsYtWarn=document.getElementById('teams-yt-quota-warning');
+      if(ytWarn)ytWarn.style.display=dbDisabled?'':'none';
+      if(teamsYtWarn)teamsYtWarn.style.display=dbDisabled?'':'none';
     }
     const savedTs=localStorage.getItem(`dailyme_last_fetch_time_${USER_ID}`);
     const lft=document.getElementById('last-fetch-time');if(lft&&savedTs){const d=new Date(savedTs);if(!isNaN(d)){lft.textContent=`refresh: ${fmtDT(d)}`;lft.style.display='';}}
@@ -2032,8 +2048,7 @@ const fcCounts={
 
   async function loadHeadlines(){
     try{
-      const unlimited=document.getElementById('hl-unlimited')?.checked?'&unlimited=true':'';
-      const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}${unlimited}`);
+      const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`);
       let allData=await res.json();if(!Array.isArray(allData))allData=[];
       if(currentFilter==='Subscriptions'){
         headlines=allData.filter(h=>h.ChannelName&&!h.KeywordID&&!h.TopicID&&!h.CategoryID);
@@ -2074,6 +2089,10 @@ const fcCounts={
         localStorage.removeItem(`dailyme_settings_changed_${USER_ID}`);
       }
       const fetchResult=await apiPost('FetchHeadlines',{userID:USER_ID,disableYoutube});
+      if(fetchResult?.quotaRemaining<=500&&!disableYoutube){
+        const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=true;
+        localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
+      }
       localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
 const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=true;
       await apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:true});
@@ -2086,6 +2105,13 @@ const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=true;
 const now=new Date();
       const ts=fmtDT(now);
       const lft=document.getElementById('last-fetch-time');if(lft){lft.textContent=`refresh: ${ts}`;lft.style.display='';}
+      const tlft=document.getElementById('teams-last-fetch-time');if(tlft){tlft.textContent=`refresh: ${ts}`;tlft.style.display='';}
+      const ytWarn=document.getElementById('yt-quota-warning');
+      const teamsYtWarn=document.getElementById('teams-yt-quota-warning');
+      const showYtWarn=disableYoutube||(fetchResult?.quotaRemaining<=500)||(!disableYoutube&&fetchResult?.youtubeSkipped);
+      if(ytWarn)ytWarn.style.display=showYtWarn?'':'none';
+      if(teamsYtWarn)teamsYtWarn.style.display=showYtWarn?'':'none';
+      const trv=document.getElementById('teams-recency-val');if(trv)trv.textContent=recencyDays_value===1?'1 day':`${recencyDays_value} days`;
       localStorage.setItem(`dailyme_last_fetch_time_${USER_ID}`,now.toISOString());
       localStorage.setItem(`dailyme_last_fetch_recency_${USER_ID}`,String(recencyDays_value));
       const ytLft=document.getElementById('last-yt-fetch-time');
@@ -2291,6 +2317,112 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
 
   function openHeadline(link){if(link&&link!=='#')window.open(link,'_blank','noopener');}
 
+  // ── TEAMS ──
+
+  let teamsHeadlines=[], teamsGroupsExpanded=true;
+
+  async function loadTeamsHeadlines(){
+    try{
+      const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}&screen=teams`);
+      let data=await res.json(); if(!Array.isArray(data))data=[];
+      teamsHeadlines=data;
+      const rv=document.getElementById('teams-recency-val');
+      if(rv)rv.textContent=recencyDays_value===1?'1 day':`${recencyDays_value} days`;
+      const lft=document.getElementById('teams-last-fetch-time');
+      const savedTs=localStorage.getItem(`dailyme_last_fetch_time_${USER_ID}`);
+      if(lft&&savedTs){const d=new Date(savedTs);if(!isNaN(d)){lft.textContent=`refresh: ${fmtDT(d)}`;lft.style.display='';}}
+      renderTeamsHeadlines();
+    }catch(e){console.error('Error loading teams headlines:',e);}
+  }
+
+  function setTeamsExpand(val){
+    teamsGroupsExpanded=val;
+    document.querySelectorAll('.teams-group-body').forEach(b=>b.style.display=val?'block':'none');
+    document.querySelectorAll('.teams-group-arrow').forEach(a=>a.textContent=val?'▼':'▶');
+  }
+
+  function toggleTeamsGroup(header){
+    const body=header.nextElementSibling;
+    const open=body.style.display!=='none';
+    body.style.display=open?'none':'block';
+    const arrow=header.querySelector('.teams-group-arrow');
+    if(arrow)arrow.textContent=open?'▶':'▼';
+  }
+
+  function renderTeamsHeadlines(){
+    const container=document.getElementById('teams-grouped');
+    if(!container)return;
+    if(!teamsHeadlines.length){
+      container.innerHTML='<div class="empty-state">No Teams headlines found. Add keywords or topics with Category set to "Teams", then click ↻ Refresh.</div>';
+      return;
+    }
+    // Group by GroupLabel → keyword/topic text
+    const groups={};
+    const groupSeq={};
+    [...teamsHeadlines].sort((a,b)=>new Date(b.PublishedDate||b.CreatedDate)-new Date(a.PublishedDate||a.CreatedDate)).forEach(h=>{
+      const kwLabel=h.KeywordGroupLabel&&h.KeywordGroupLabel.trim()!==''?h.KeywordGroupLabel.trim():null;
+      const tpLabel=h.TopicGroupLabel&&h.TopicGroupLabel.trim()!==''?h.TopicGroupLabel.trim():null;
+      const groupLabel=kwLabel||tpLabel||h.Keyword||h.Topic||'Other';
+      if(!groups[groupLabel])groups[groupLabel]=[];
+      groups[groupLabel].push(h);
+      const seq=h.KeywordSequence||h.TopicSequence||999;
+      if(groupSeq[groupLabel]===undefined||seq<groupSeq[groupLabel])groupSeq[groupLabel]=seq;
+    });
+    const orderedKeys=Object.keys(groups).sort((a,b)=>(groupSeq[a]||999)-(groupSeq[b]||999));
+    container.innerHTML=orderedKeys.map(groupName=>{
+      const items=groups[groupName];
+      const countLabel=items.length>1?` <span style="opacity:0.6;font-weight:500">(${items.length})</span>`:'';
+      const rows=items.map(h=>`
+        <div class="headline-row ${h.Retain==='Y'?'retained':''}" data-headline-id="${h.HeadlineID}" onclick="openHeadline('${h.Link.replace(/'/g,"\\'")}')">
+          <img src="${h.ThumbnailURL||'images/newspaper.svg'}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">
+          <div class="headline-body">
+            <div class="headline-row-title">${h.HeadlineName}</div>
+            ${h.Summary?`<div class="headline-row-summary">${h.Summary}</div>`:''}
+            <div class="headline-row-meta">
+              <span class="headline-row-source">date: ${formatDate(h.PublishedDate||h.CreatedDate,true)}</span>
+              <span class="headline-row-source">source: ${h.SourceName||'—'}</span>
+              <span class="headline-row-source">keyword: ${h.Keyword||h.Topic||'—'}</span>
+              ${h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:''}
+              ${h.Duration?`<span class="headline-row-source">length: ${h.Duration}</span>`:''}
+            </div>
+          </div>
+          <button class="retain-btn ${h.Retain==='Y'?'active':''}" onclick="toggleTeamsRetain(${h.HeadlineID},event)" title="Retain"></button>
+          <button class="retain-btn" onclick="deleteTeamsHeadline(${h.HeadlineID},event)" title="Delete" style="margin-top:2px;flex-shrink:0;font-size:12px;color:var(--text-muted)" data-delete="1">✕</button>
+        </div>`).join('');
+      return `<div class="cat-group">
+        <div class="cat-group-header" style="background:#c2ddf0;color:#1a4a6e;border-bottom:1.5px solid #1a4a6e44;cursor:pointer" onclick="toggleTeamsGroup(this)">
+          <span class="teams-group-arrow" style="font-size:10px;margin-right:4px">${teamsGroupsExpanded?'▼':'▶'}</span>
+          <span>⚾</span><span style="margin-left:6px">${groupName}${countLabel}</span>
+        </div>
+        <div class="teams-group-body" style="display:${teamsGroupsExpanded?'block':'none'}">${rows}</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function toggleTeamsRetain(headlineID,e){
+    e.stopPropagation();
+    const h=teamsHeadlines.find(h=>h.HeadlineID===headlineID);if(!h)return;
+    const newRetain=h.Retain!=='Y';
+    await apiPost('SaveRetain',{headlineID,retain:newRetain});
+    h.Retain=newRetain?'Y':'N';renderTeamsHeadlines();
+  }
+
+  async function deleteTeamsHeadline(headlineID,e){
+    e.stopPropagation();
+    teamsHeadlines=teamsHeadlines.filter(h=>h.HeadlineID!==headlineID);
+    const row=document.querySelector(`#teams-grouped .headline-row[data-headline-id="${headlineID}"]`);
+    if(row){
+      const group=row.closest('.cat-group');
+      row.remove();
+      if(group){
+        const body=group.querySelector('.teams-group-body');
+        const remaining=body?body.querySelectorAll('.headline-row').length:0;
+        if(remaining===0)group.remove();
+      }
+    }
+    try{await apiPost('SaveRetain',{headlineID,retain:false,deleteIt:true});}catch(err){}
+  }
+
   async function toggleRetain(headlineID,e){
     e.stopPropagation();
     const h=headlines.find(h=>h.HeadlineID===headlineID);if(!h)return;
@@ -2386,6 +2518,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     if(screenEl)screenEl.classList.add('active');if(navEl)navEl.classList.add('active');
     if(name==='settings')showSettingsMenu(false);
     if(name==='mysites')loadMySites();
+    if(name==='teams')loadTeamsHeadlines();
     if(pushState)history.pushState({screen:name,section:null},'','');
   }
 
