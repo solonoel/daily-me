@@ -19,7 +19,7 @@ module.exports = async function(context, req) {
     const userID = parseInt(req.query.userID || '1');
     const categoryID = req.query.categoryID;
     const recencyDays = parseInt(req.query.recencyDays || '7');
-    const unlimited = req.query.unlimited === 'true';
+    const screen = req.query.screen || 'headlines';
 
     let query = `
 SELECT h.HeadlineID, h.UserID, h.CategoryID, h.HeadlineName,
@@ -40,7 +40,13 @@ SELECT h.HeadlineID, h.UserID, h.CategoryID, h.HeadlineName,
       AND COALESCE(h.PublishedDate, h.CreatedDate) >= DATEADD(day, -@RecencyDays, GETDATE())
     `;
 
-    if (categoryID) query += ` AND h.CategoryID = @CategoryID`;
+    if (screen === 'teams') {
+      query += ` AND (k.CategoryName = 'Teams' OR t.CategoryName = 'Teams')`;
+    } else if (screen === 'other') {
+      query += ` AND (k.CategoryName = 'Other' OR t.CategoryName = 'Other')`;
+    } else if (categoryID) {
+      query += ` AND h.CategoryID = @CategoryID`;
+    }
     query += ` ORDER BY h.CategoryID,
                 COALESCE(k.Sequence, t.Sequence, 999),
                 CASE WHEN h.KeywordID IS NOT NULL THEN 0 ELSE 1 END,
@@ -56,7 +62,7 @@ SELECT h.HeadlineID, h.UserID, h.CategoryID, h.HeadlineName,
     let headlines = result.recordset;
 
     // Apply per-category display limits when not filtering by a single category
-    if (!categoryID && !unlimited) {
+    if (!categoryID && screen === 'headlines') {
       const catLimitsResult = await pool.request()
         .input('UserID', sql.Int, userID)
         .query(`SELECT CategoryID, MaxItems FROM [UserCategorySetting] WHERE UserID = @UserID`);

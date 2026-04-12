@@ -321,8 +321,7 @@ module.exports = async function(context, req) {
     const quotaDate = settings.QuotaDate ? new Date(settings.QuotaDate).toISOString().split('T')[0] : null;
     const quotaUsed = { units: quotaDate === today ? (settings.QuotaUsed || 0) : 0 };
 
-    const lastFetchDate = lastYouTubeFetch ? new Date(lastYouTubeFetch).toISOString().split('T')[0] : null;
-    const youtubeAlreadyFetched = lastFetchDate === today;
+    const youtubeAlreadyFetched = false;
 
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - recencyDays);
@@ -410,7 +409,7 @@ module.exports = async function(context, req) {
 
         if (source.SourceType === 'Youtube') {
           if (disableYoutube) { context.log(`YouTube skipped [${source.Name}] — disabled`); srcLog.skipped = 'disabled'; continue; }
-          if (youtubeAlreadyFetched) { context.log(`YouTube skipped [${source.Name}] — already fetched today`); srcLog.skipped = 'already fetched today'; continue; }
+          if (youtubeAlreadyFetched) { context.log(`YouTube skipped [${source.Name}] - already fetched today`); srcLog.skipped = 'already fetched today'; continue; }
           if (!source.YoutubeChannelID) { context.log(`YouTube skipped [${source.Name}] — no channel ID`); srcLog.skipped = 'no channel ID'; continue; }
           const ytResult = await fetchYouTube(source, fromDate, isFiltered, keywords, topics, youTubeMaxResults, context, quotaUsed);
           articles = ytResult.articles;
@@ -609,6 +608,15 @@ module.exports = async function(context, req) {
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([source, titles]) => ({ source, count: titles.length, titles }))
     };
+
+    // Auto-disable YouTube if quota at or below 500
+    const quotaRemaining = Math.max(0, 10000 - quotaUsed.units);
+    if (youtubeFetched && quotaRemaining <= 500) {
+      await pool.request()
+        .input('UserID', sql.Int, userID)
+        .query(`UPDATE [HeadlineSetting] SET DisableYoutubeToday=1 WHERE UserID=@UserID`);
+      fetchLog.youtubeQuotaAutoDisabled = true;
+    }
 
     // Save quota and log
     await pool.request()
