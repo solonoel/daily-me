@@ -2051,6 +2051,7 @@ const fcCounts={
     try{
       const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`);
       let allData=await res.json();if(!Array.isArray(allData))allData=[];
+      allData=allData.filter(h=>h.CategoryName!=='Teams');
       if(currentFilter==='Subscriptions'){
         headlines=allData.filter(h=>h.ChannelName&&!h.KeywordID&&!h.TopicID&&!h.CategoryID);
       } else if(currentFilter==='Other'){
@@ -2165,7 +2166,7 @@ const now=new Date();
     let subAction = subEmpty ? '' : "filterCat('Subscriptions',this)";
     const subCountLabel = subCount !== null && subCount > 0 ? ` (${subCount})` : '';
 let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}" onclick="${subAction}" style="${subEmpty?'opacity:0.35;cursor:default':''}">📡 Subscriptions${subCountLabel}</div>`;
-    const cats=categories.filter(c=>c.Headlines==='Y'&&c.IsActive==='Y').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999));
+    const cats=categories.filter(c=>c.Headlines==='Y'&&c.IsActive==='Y'&&c.Name!=='Teams'&&c.Name!=='Other').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999));
     html+=cats.map(c=>{
       const count=allHeadlines?allHeadlines.filter(h=>h.CategoryID===c.CategoryID).length:null;
       const isEmpty=count!==null&&count===0;
@@ -2439,7 +2440,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   // ── SETTINGS ──
 
   function renderCatSettingsTable(userSettings){
-    const catRows=categories.filter(c=>c.IsActive==='Y').map(c=>{
+    const catRows=categories.filter(c=>c.IsActive==='Y'&&c.Name!=='Teams'&&c.Name!=='Other').map(c=>{
       const existing=userSettings?.categorySettings?.find(cs=>cs.CategoryID===c.CategoryID);
       return `<tr style="line-height:1.2"><td style="padding:3px 10px;font-size:12px">${c.Name}</td><td style="padding:3px 10px"><input type="number" class="form-input" style="width:40px;font-size:12px;padding:2px 4px" min="1" max="30" id="cs-${c.CategoryID}" value="${Math.min(existing?.MaxItems||20,30)}" oninput="updateOtherLimit();debounceSaveCatLimits()"></td></tr>`;
     }).join('');
@@ -2574,13 +2575,24 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
 
   function renderSettingsCategories(){
     const tbody=document.getElementById('tbl-categories');
-    tbody.innerHTML=[...categories].filter(c=>c.Name.toLowerCase()!=='health').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999)).map(c=>`
+    const special=['teams','other','health'];
+    const regular=[...categories].filter(c=>!special.includes(c.Name.toLowerCase())).sort((a,b)=>(a.Sequence||999)-(b.Sequence||999));
+    const specialRows=['Teams','Other'].map(name=>{
+      const c=categories.find(cat=>cat.Name===name);if(!c)return'';
+      return `<tr style="background:#f8fbff">
+        <td style="width:30px;color:var(--text-muted)"></td>
+        <td><strong style="color:var(--text-soft)">${c.Name}</strong> <span style="font-size:10px;color:var(--text-muted);font-weight:400">(system)</span></td>
+        <td><button class="toggle ${c.IsActive==='Y'?'on':''}" disabled style="opacity:0.5;cursor:default"></button></td>
+        <td></td>
+      </tr>`;
+    }).join('');
+    tbody.innerHTML=regular.map(c=>`
       <tr draggable="true" data-id="${c.CategoryID}" data-type="category">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
         <td><strong>${c.Name}</strong></td>
         <td><button class="toggle ${c.IsActive==='Y'?'on':''}" onclick="toggleCategory(${c.CategoryID},this)"></button></td>
         <td style="display:flex;gap:6px"><button class="btn-icon" onclick="openModal('category',${c.CategoryID})">✏️</button><button class="btn-icon danger" onclick="deleteCategory(${c.CategoryID})">🗑️</button></td>
-      </tr>`).join('');
+      </tr>`).join('')+specialRows;
     initDragDrop(tbody,'category');
   }
 
@@ -3175,6 +3187,24 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         html+=`<div style="background:#fff8e6;border:1px solid #e8a020;border-radius:8px;padding:10px 14px;margin-bottom:14px">
           <div style="font-size:13px;font-weight:700;color:#b07000;margin-bottom:4px">⚠️ Zero-Hit Keywords</div>
           <div style="color:var(--text-soft)">${log.zeroHitKeywords.join(', ')}</div>
+        </div>`;
+      }
+      // Gerdes videos
+      if(log.gerdesVideos?.length){
+        html+=`<div style="margin-bottom:14px">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">📺 Professor Gerdes Videos Fetched (${log.gerdesVideos.length})</div>
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead><tr style="background:#f5f9ff;border-bottom:1.5px solid var(--border)">
+              <th style="text-align:left;padding:4px 8px">Date</th>
+              <th style="text-align:left;padding:4px 8px">Title</th>
+            </tr></thead>
+            <tbody>
+              ${log.gerdesVideos.map(v=>`<tr style="border-bottom:1px solid #eef5fc">
+                <td style="padding:3px 8px;white-space:nowrap">${v.pubDate}</td>
+                <td style="padding:3px 8px">${v.title}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
         </div>`;
       }
       // Unmatched by source
