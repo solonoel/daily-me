@@ -2027,6 +2027,10 @@ const fcCounts={
   document.addEventListener('paste', e => {
     handlePasteImage(e);
     if (document.getElementById('mysite-modal')?.style.display !== 'none') handleMsPasteImage(e);
+    if (document.getElementById('modal')?.style.display !== 'none' && (modalType==='keyword'||modalType==='topic')) {
+      const items = e.clipboardData?.items; if (!items) return;
+      for (const item of items) { if (item.type.startsWith('image/')) { resizeKwTpImage(item.getAsFile(), (imageURL) => { window._modalKwImage=imageURL; const p=document.getElementById('m-kw-img-preview'); if(p)p.innerHTML=`<img src="${imageURL}" style="width:100%;height:100%;object-fit:cover">`; }); break; } }
+    }
   });
   document.addEventListener('click',e=>{
     const dd=document.getElementById('conj-verb-dropdown');
@@ -2748,18 +2752,36 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       }
     }else if(type==='keyword'){
       const kw=id?keywords.find(k=>k.KeywordID===id):null;title=id?'Edit Keyword':'Add Keyword';
-      const currentGroupLabel=kw?.GroupLabel&&kw.GroupLabel.toLowerCase()!==kw.Keyword?.toLowerCase()?kw.GroupLabel:'';
+      const currentGroupLabel=kw?.GroupLabel||'';
       body=`<div class="form-group"><label class="form-label">Keyword (exact match)</label><input class="form-input" id="m-keyword" value="${kw?.Keyword||''}"></div>
         <div class="form-group"><label class="form-label">Group Label <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(optional — groups headlines with same label)</span></label><input class="form-input" id="m-grouplabel" value="${currentGroupLabel}" placeholder="Leave blank to use keyword name"></div>
-        <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>`;
+        <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>
+        <div class="form-group"><label class="form-label">Image <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(upload or paste)</span></label>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+            <div id="m-kw-img-preview" style="width:100px;height:62px;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8fbff;font-size:20px;cursor:pointer" onclick="document.getElementById('m-kw-img-file').click()">${kw?.ImageURL?`<img src="${kw.ImageURL}" style="width:100%;height:100%;object-fit:cover">`:'🖼'}</div>
+            <input type="file" id="m-kw-img-file" accept="image/*" style="display:none" onchange="handleModalKwImage(event)">
+            <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="document.getElementById('m-kw-img-file').click()">Upload</button>
+            <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="clearModalKwImage()">Clear</button>
+          </div>
+        </div>`;
       if(kw?.CategoryID)setTimeout(()=>document.getElementById('m-cat').value=kw.CategoryID,0);
+      setTimeout(()=>{ window._modalKwImage = kw?.ImageURL||null; },0);
     }else if(type==='topic'){
       const tp=id?topics.find(t=>t.TopicID===id):null;title=id?'Edit Topic':'Add Topic';
-      const currentGroupLabel=tp?.GroupLabel&&tp.GroupLabel.toLowerCase()!==tp.Topic?.toLowerCase()?tp.GroupLabel:'';
+      const currentGroupLabel=tp?.GroupLabel||'';
       body=`<div class="form-group"><label class="form-label">Topic (fuzzy match)</label><input class="form-input" id="m-topic" value="${tp?.Topic||''}"></div>
         <div class="form-group"><label class="form-label">Group Label <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(optional — groups headlines with same label)</span></label><input class="form-input" id="m-grouplabel" value="${currentGroupLabel}" placeholder="Leave blank to use topic name"></div>
-        <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>`;
+        <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>
+        <div class="form-group"><label class="form-label">Image <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(upload or paste)</span></label>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+            <div id="m-kw-img-preview" style="width:100px;height:62px;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8fbff;font-size:20px;cursor:pointer" onclick="document.getElementById('m-kw-img-file').click()">${tp?.ImageURL?`<img src="${tp.ImageURL}" style="width:100%;height:100%;object-fit:cover">`:'🖼'}</div>
+            <input type="file" id="m-kw-img-file" accept="image/*" style="display:none" onchange="handleModalKwImage(event)">
+            <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="document.getElementById('m-kw-img-file').click()">Upload</button>
+            <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="clearModalKwImage()">Clear</button>
+          </div>
+        </div>`;
       if(tp?.CategoryID)setTimeout(()=>document.getElementById('m-cat').value=tp.CategoryID,0);
+      setTimeout(()=>{ window._modalKwImage = tp?.ImageURL||null; },0);
     }
     document.getElementById('modal-title').textContent=title;
     document.getElementById('modal-body').innerHTML=body;
@@ -2799,32 +2821,34 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       const keyword=document.getElementById('m-keyword').value.trim();
       const categoryID=document.getElementById('m-cat').value||null;
       const rawLabel=document.getElementById('m-grouplabel')?.value.trim()||'';
-      const groupLabel=rawLabel.toLowerCase()===keyword.toLowerCase()?null:(rawLabel||null);
+      const groupLabel=rawLabel||null;
       const sequence=modalID?(keywords.find(k=>k.KeywordID===modalID)?.Sequence||99):(Math.max(...keywords.map(k=>k.Sequence||0),0)+1);
       if(!keyword)return alert('Keyword is required');
       if(modalID){
-        await apiPost('SaveKeyword',{action:'update',keywordID:modalID,keyword,categoryID,sequence,isActive:true,groupLabel,userID:USER_ID});
         const kw=keywords.find(k=>k.KeywordID===modalID);
+        await apiPost('SaveKeyword',{action:'update',keywordID:modalID,keyword,categoryID,sequence,isActive:true,groupLabel,imageURL:(window._modalKwImage!==undefined?window._modalKwImage:kw?.ImageURL)||null,userID:USER_ID});
+        if(kw)kw.ImageURL=(window._modalKwImage!==undefined?window._modalKwImage:kw?.ImageURL)||null;
         if(kw){kw.Keyword=keyword;kw.CategoryID=categoryID;kw.GroupLabel=groupLabel;kw.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}
       }else{
-        const result=await apiPost('SaveKeyword',{action:'add',keyword,categoryID,sequence,groupLabel,userID:USER_ID});
-        keywords.push({KeywordID:result.keywordID,Keyword:keyword,CategoryID:categoryID,GroupLabel:groupLabel,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
+        const result=await apiPost('SaveKeyword',{action:'add',keyword,categoryID,sequence,groupLabel,imageURL:null,userID:USER_ID});
+        keywords.push({KeywordID:result.keywordID,Keyword:keyword,CategoryID:categoryID,GroupLabel:groupLabel,ImageURL:null,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
       }
       renderSettingsKeywords();
     }else if(modalType==='topic'){
       const topic=document.getElementById('m-topic').value.trim();
       const categoryID=document.getElementById('m-cat').value||null;
       const rawLabel=document.getElementById('m-grouplabel')?.value.trim()||'';
-      const groupLabel=rawLabel.toLowerCase()===topic.toLowerCase()?null:(rawLabel||null);
+      const groupLabel=rawLabel||null;
       const sequence=modalID?(topics.find(t=>t.TopicID===modalID)?.Sequence||99):(Math.max(...topics.map(t=>t.Sequence||0),0)+1);
       if(!topic)return alert('Topic is required');
       if(modalID){
-        await apiPost('SaveTopic',{action:'update',topicID:modalID,topic,categoryID,sequence,isActive:true,groupLabel,userID:USER_ID});
         const tp=topics.find(t=>t.TopicID===modalID);
+        await apiPost('SaveTopic',{action:'update',topicID:modalID,topic,categoryID,sequence,isActive:true,groupLabel,imageURL:(window._modalKwImage!==undefined?window._modalKwImage:tp?.ImageURL)||null,userID:USER_ID});
+        if(tp)tp.ImageURL=(window._modalKwImage!==undefined?window._modalKwImage:tp?.ImageURL)||null;
         if(tp){tp.Topic=topic;tp.CategoryID=categoryID;tp.GroupLabel=groupLabel;tp.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}
       }else{
-        const result=await apiPost('SaveTopic',{action:'add',topic,categoryID,sequence,groupLabel,userID:USER_ID});
-        topics.push({TopicID:result.topicID,Topic:topic,CategoryID:categoryID,GroupLabel:groupLabel,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
+        const result=await apiPost('SaveTopic',{action:'add',topic,categoryID,sequence,groupLabel,imageURL:null,userID:USER_ID});
+        topics.push({TopicID:result.topicID,Topic:topic,CategoryID:categoryID,GroupLabel:groupLabel,ImageURL:null,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
       }
       renderSettingsTopics();
     }
@@ -3443,6 +3467,23 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     await apiPost('SaveUserOwnedSource', { action: 'delete', userID: USER_ID, sourceID });
     userOwnedSources = userOwnedSources.filter(s => s.UserOwnedSourceID !== sourceID);
     renderMySourcesTable();
+  }
+
+  // ── MODAL KEYWORD/TOPIC IMAGE ──
+
+  function handleModalKwImage(event) {
+    const file = event.target.files[0]; if (!file) return;
+    resizeKwTpImage(file, (imageURL) => {
+      window._modalKwImage = imageURL;
+      const preview = document.getElementById('m-kw-img-preview');
+      if (preview) preview.innerHTML = `<img src="${imageURL}" style="width:100%;height:100%;object-fit:cover">`;
+    });
+  }
+
+  function clearModalKwImage() {
+    window._modalKwImage = null;
+    const preview = document.getElementById('m-kw-img-preview');
+    if (preview) preview.innerHTML = '🖼';
   }
 
   // ── KEYWORD/TOPIC IMAGE UPLOAD ──
