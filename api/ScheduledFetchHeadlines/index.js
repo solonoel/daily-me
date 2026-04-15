@@ -331,10 +331,10 @@ async function fetchForUser(pool, userID, context) {
     }
   }
 
-  // Always set DisableYoutubeToday after scheduled fetch
+  // Always clear DisableYoutubeToday after scheduled fetch
   await pool.request()
     .input('UserID', sql.Int, userID)
-    .query(`UPDATE [HeadlineSetting] SET DisableYoutubeToday = 1 WHERE UserID = @UserID`);
+    .query(`UPDATE [HeadlineSetting] SET DisableYoutubeToday = 0 WHERE UserID = @UserID`);
 
   // Build exclusion map: categoryID -> [term, ...]
   const exclusionMap = {};
