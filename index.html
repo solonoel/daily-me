@@ -449,7 +449,7 @@
         <div>💬 <strong>Phrases:</strong> Multi-word phrases work as-is — e.g. <em>White Sox</em>, <em>Stock Market</em>.</div>
         <div>🚫 <strong>Exclusions:</strong> Start with a minus sign to exclude — e.g. <em>-gossip</em> — removes any headline containing that word from the category.</div>
       </div>
-      <table class="settings-table"><thead><tr><th>⠿</th><th>Keyword</th><th>Group Label</th><th>Category</th><th>Active</th><th></th></tr></thead><tbody id="tbl-keywords"></tbody></table>
+      <table class="settings-table"><thead><tr><th>⠿</th><th>Keyword</th><th>Group Label</th><th>Category</th><th>Active</th><th>Image</th><th></th></tr></thead><tbody id="tbl-keywords"></tbody></table>
     </div>
     <div id="settings-section-topics" style="display:none">
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
@@ -458,7 +458,7 @@
         <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openModal('topic')">+ Add Topic</button>
       </div>
       <div style="font-size:12px;color:var(--text-soft);background:#f5f9ff;border:1px solid var(--border);border-radius:8px;padding:8px 14px;margin-bottom:12px">📰 Topics are used for news categorization only — not searched on YouTube. Drag to reorder.</div>
-      <table class="settings-table"><thead><tr><th>⠿</th><th>Topic</th><th>Group Label</th><th>Category</th><th>Active</th><th></th></tr></thead><tbody id="tbl-topics"></tbody></table>
+      <table class="settings-table"><thead><tr><th>⠿</th><th>Topic</th><th>Group Label</th><th>Category</th><th>Active</th><th>Image</th><th></th></tr></thead><tbody id="tbl-topics"></tbody></table>
     </div>
     <div id="settings-section-mysources" style="display:none">
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
@@ -777,6 +777,7 @@
   }
 
   async function loadAll(){
+    const loadStart=performance.now();
     const [cats,srcs,kwds,tpcs,userSettings,langs,ulangs]=await Promise.all([
       apiGet('GetCategories'),apiGet('GetHeadlineSources'),apiGet('GetHeadlineKeywords'),
       apiGet('GetHeadlineTopics'),apiGet('GetUserSettings'),apiGet('GetLanguages'),apiGet('GetUserLanguages')
@@ -848,6 +849,15 @@
     }catch(e){}
     renderLanguageNav();renderLanguageScreens();renderLanguageCheckList();
     renderCatSettingsTable(userSettings);renderCategoryTiles(null);
+    const loadMs=Math.round(performance.now()-loadStart);
+    if(loadMs>3000){
+      const loadMsg=document.getElementById('refresh-status');
+      if(loadMsg){
+        loadMsg.textContent=`⏱ Loaded in ${(loadMs/1000).toFixed(1)}s — ${loadMs>15000?'DB or function host was cold':'Slow network or cold start'}`;
+        loadMsg.style.display='block';
+        setTimeout(()=>loadMsg.style.display='none',8000);
+      }
+    }
     const isFirstLogin=!localStorage.getItem(`dailyme_onboarded_${USER_ID}`);
     if(isFirstLogin){
       showScreen('settings',false);
@@ -2291,7 +2301,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       const isSubscriptions=currentFilter==='Subscriptions';
       const rows=items.map(h=>`
         <div class="headline-row ${h.Retain==='Y'?'retained':''}" data-headline-id="${h.HeadlineID}" onclick="openHeadline('${h.Link.replace(/'/g,"\\'")}')">
-          <img src="${h.ThumbnailURL||'images/newspaper.svg'}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">
+          <img src="${resolveHeadlineImage(h)||'images/newspaper.svg'}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">
           <div class="headline-body">
             <div class="headline-row-title">${h.HeadlineName}</div>
             ${h.Summary?`<div class="headline-row-summary">${h.Summary}</div>`:''}
@@ -2375,7 +2385,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       const countLabel=items.length>1?` <span style="opacity:0.6;font-weight:500">(${items.length})</span>`:'';
       const rows=items.map(h=>`
         <div class="headline-row ${h.Retain==='Y'?'retained':''}" data-headline-id="${h.HeadlineID}" onclick="openHeadline('${h.Link.replace(/'/g,"\\'")}')">
-          <img src="${h.ThumbnailURL||'images/newspaper.svg'}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">
+          <img src="${resolveHeadlineImage(h)||'images/newspaper.svg'}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">
           <div class="headline-body">
             <div class="headline-row-title">${h.HeadlineName}</div>
             ${h.Summary?`<div class="headline-row-summary">${h.Summary}</div>`:''}
@@ -2642,6 +2652,15 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         <td style="font-size:11px;color:var(--text-soft)">${k.GroupLabel&&k.GroupLabel.toLowerCase()!==k.Keyword.toLowerCase()?k.GroupLabel:'—'}</td>
         <td>${k.CategoryName||'—'}</td>
         <td><button class="toggle ${k.IsActive==='Y'?'on':''}" onclick="toggleKeyword(${k.KeywordID},this)"></button></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:50px;height:32px;border-radius:4px;overflow:hidden;border:1px solid var(--border);background:#f8fbff;display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="triggerKwImageUpload(${k.KeywordID})" title="Click to change image">
+              ${k.ImageURL?`<img src="${k.ImageURL}" style="width:100%;height:100%;object-fit:cover">`:`<span style="font-size:14px;color:var(--text-muted)">🖼</span>`}
+            </div>
+            ${k.ImageURL?`<button class="btn-icon danger" onclick="clearKwImage(${k.KeywordID})" title="Remove image" style="width:20px;height:20px;font-size:10px">✕</button>`:''}
+            <input type="file" id="kw-img-${k.KeywordID}" accept="image/*" style="display:none" onchange="handleKwImageUpload(${k.KeywordID},event)">
+          </div>
+        </td>
         <td style="display:flex;gap:6px"><button class="btn-icon" onclick="openModal('keyword',${k.KeywordID})">✏️</button><button class="btn-icon danger" onclick="deleteKeyword(${k.KeywordID})">🗑️</button></td></tr>`).join('');
     initDragDrop(tbody,'keyword');
   }
@@ -2673,6 +2692,15 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         <td style="font-size:11px;color:var(--text-soft)">${t.GroupLabel&&t.GroupLabel.toLowerCase()!==t.Topic.toLowerCase()?t.GroupLabel:'—'}</td>
         <td>${t.CategoryName||'—'}</td>
         <td><button class="toggle ${t.IsActive==='Y'?'on':''}" onclick="toggleTopic(${t.TopicID},this)"></button></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:50px;height:32px;border-radius:4px;overflow:hidden;border:1px solid var(--border);background:#f8fbff;display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="triggerTpImageUpload(${t.TopicID})" title="Click to change image">
+              ${t.ImageURL?`<img src="${t.ImageURL}" style="width:100%;height:100%;object-fit:cover">`:`<span style="font-size:14px;color:var(--text-muted)">🖼</span>`}
+            </div>
+            ${t.ImageURL?`<button class="btn-icon danger" onclick="clearTpImage(${t.TopicID})" title="Remove image" style="width:20px;height:20px;font-size:10px">✕</button>`:''}
+            <input type="file" id="tp-img-${t.TopicID}" accept="image/*" style="display:none" onchange="handleTpImageUpload(${t.TopicID},event)">
+          </div>
+        </td>
         <td style="display:flex;gap:6px"><button class="btn-icon" onclick="openModal('topic',${t.TopicID})">✏️</button><button class="btn-icon danger" onclick="deleteTopic(${t.TopicID})">🗑️</button></td></tr>`).join('');
     initDragDrop(tbody,'topic');
   }
@@ -3148,8 +3176,8 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
             <th style="text-align:left;padding:4px 8px">Source</th>
             <th style="text-align:right;padding:4px 8px">Fetched</th>
             <th style="text-align:right;padding:4px 8px">Matched</th>
-            <th style="text-align:right;padding:4px 8px">Lang▼</th>
-            <th style="text-align:right;padding:4px 8px">Old▼</th>
+            <th style="text-align:right;padding:4px 8px">-Lang</th>
+            <th style="text-align:right;padding:4px 8px">-Recency</th>
             <th style="text-align:left;padding:4px 8px">Note</th>
           </tr></thead>
           <tbody>
@@ -3415,6 +3443,73 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     await apiPost('SaveUserOwnedSource', { action: 'delete', userID: USER_ID, sourceID });
     userOwnedSources = userOwnedSources.filter(s => s.UserOwnedSourceID !== sourceID);
     renderMySourcesTable();
+  }
+
+  // ── KEYWORD/TOPIC IMAGE UPLOAD ──
+
+  function resizeKwTpImage(file, callback) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxW = 200, maxH = 120;
+        const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        callback(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function triggerKwImageUpload(keywordID) {
+    document.getElementById(`kw-img-${keywordID}`)?.click();
+  }
+
+  function handleKwImageUpload(keywordID, event) {
+    const file = event.target.files[0]; if (!file) return;
+    resizeKwTpImage(file, async (imageURL) => {
+      const kw = keywords.find(k => k.KeywordID === keywordID); if (!kw) return;
+      kw.ImageURL = imageURL;
+      await apiPost('SaveKeyword', { action: 'update', keywordID, keyword: kw.Keyword, categoryID: kw.CategoryID, sequence: kw.Sequence, isActive: kw.IsActive === 'Y', groupLabel: kw.GroupLabel, imageURL, userID: USER_ID });
+      renderSettingsKeywords();
+    });
+  }
+
+  async function clearKwImage(keywordID) {
+    const kw = keywords.find(k => k.KeywordID === keywordID); if (!kw) return;
+    kw.ImageURL = null;
+    await apiPost('SaveKeyword', { action: 'update', keywordID, keyword: kw.Keyword, categoryID: kw.CategoryID, sequence: kw.Sequence, isActive: kw.IsActive === 'Y', groupLabel: kw.GroupLabel, imageURL: null, userID: USER_ID });
+    renderSettingsKeywords();
+  }
+
+  function triggerTpImageUpload(topicID) {
+    document.getElementById(`tp-img-${topicID}`)?.click();
+  }
+
+  function handleTpImageUpload(topicID, event) {
+    const file = event.target.files[0]; if (!file) return;
+    resizeKwTpImage(file, async (imageURL) => {
+      const tp = topics.find(t => t.TopicID === topicID); if (!tp) return;
+      tp.ImageURL = imageURL;
+      await apiPost('SaveTopic', { action: 'update', topicID, topic: tp.Topic, categoryID: tp.CategoryID, sequence: tp.Sequence, isActive: tp.IsActive === 'Y', groupLabel: tp.GroupLabel, imageURL, userID: USER_ID });
+      renderSettingsTopics();
+    });
+  }
+
+  async function clearTpImage(topicID) {
+    const tp = topics.find(t => t.TopicID === topicID); if (!tp) return;
+    tp.ImageURL = null;
+    await apiPost('SaveTopic', { action: 'update', topicID, topic: tp.Topic, categoryID: tp.CategoryID, sequence: tp.Sequence, isActive: tp.IsActive === 'Y', groupLabel: tp.GroupLabel, imageURL: null, userID: USER_ID });
+    renderSettingsTopics();
+  }
+
+  function resolveHeadlineImage(h) {
+    // Keyword image takes priority, then group image fallback, then topic, then thumbnail
+    return h.KeywordImage || h.KeywordGroupImage || h.TopicImage || h.TopicGroupImage || h.ThumbnailURL || null;
   }
 
   // ── INIT ──
