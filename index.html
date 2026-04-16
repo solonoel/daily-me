@@ -2725,6 +2725,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
 
   async function openModal(type,id=null){
     modalType=type;modalID=id;
+    window._modalKwImage=undefined;
     const catOptions=categories.map(c=>`<option value="${c.CategoryID}">${c.Name}</option>`).join('');
     const sourceTypeOptions=['Guardian','NYT','GNews','Currents','MediaStack','NewsAPI','RSS','YouTube'].map(t=>`<option value="${t}">${t}</option>`).join('');
     let title='',body='';
@@ -2830,7 +2831,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         if(kw)kw.ImageURL=(window._modalKwImage!==undefined?window._modalKwImage:kw?.ImageURL)||null;
         if(kw){kw.Keyword=keyword;kw.CategoryID=categoryID;kw.GroupLabel=groupLabel;kw.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}
       }else{
-        const result=await apiPost('SaveKeyword',{action:'add',keyword,categoryID,sequence,groupLabel,imageURL:null,userID:USER_ID});
+        const result=await apiPost('SaveKeyword',{action:'add',keyword,categoryID,sequence,groupLabel,imageURL:window._modalKwImage||null,userID:USER_ID});
         keywords.push({KeywordID:result.keywordID,Keyword:keyword,CategoryID:categoryID,GroupLabel:groupLabel,ImageURL:null,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
       }
       renderSettingsKeywords();
@@ -2847,7 +2848,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         if(tp)tp.ImageURL=(window._modalKwImage!==undefined?window._modalKwImage:tp?.ImageURL)||null;
         if(tp){tp.Topic=topic;tp.CategoryID=categoryID;tp.GroupLabel=groupLabel;tp.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}
       }else{
-        const result=await apiPost('SaveTopic',{action:'add',topic,categoryID,sequence,groupLabel,imageURL:null,userID:USER_ID});
+        const result=await apiPost('SaveTopic',{action:'add',topic,categoryID,sequence,groupLabel,imageURL:window._modalKwImage||null,userID:USER_ID});
         topics.push({TopicID:result.topicID,Topic:topic,CategoryID:categoryID,GroupLabel:groupLabel,ImageURL:null,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
       }
       renderSettingsTopics();
