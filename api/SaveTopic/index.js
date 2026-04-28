@@ -16,7 +16,7 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { action, topicID, topic, categoryID, isActive, sequence, sequences, groupLabel, userID = 1 } = req.body;
+    const { action, topicID, topic, categoryID, isActive, sequence, sequences, groupLabel, imageURL, userID = 1 } = req.body;
 
     const resetYouTube = async () => {
       await pool.request()
@@ -31,9 +31,10 @@ module.exports = async function(context, req) {
         .input('Topic', sql.NVarChar(500), topic)
         .input('Sequence', sql.Int, sequence || 99)
         .input('GroupLabel', sql.VarChar(100), groupLabel || null)
+        .input('ImageURL', sql.NVarChar(sql.MAX), imageURL || null)
         .query(`
-          INSERT INTO [HeadlineTopic] (UserID, CategoryID, Topic, IsActive, Sequence, GroupLabel, CreatedDate)
-          VALUES (@UserID, @CategoryID, @Topic, 'Y', @Sequence, @GroupLabel, GETDATE());
+          INSERT INTO [HeadlineTopic] (UserID, CategoryID, Topic, IsActive, Sequence, GroupLabel, ImageURL, CreatedDate)
+          VALUES (@UserID, @CategoryID, @Topic, 'Y', @Sequence, @GroupLabel, @ImageURL, GETDATE());
           SELECT SCOPE_IDENTITY() AS TopicID;
         `);
       await resetYouTube();
@@ -51,11 +52,12 @@ module.exports = async function(context, req) {
         .input('IsActive', sql.Char(1), isActive ? 'Y' : 'N')
         .input('Sequence', sql.Int, sequence || 99)
         .input('GroupLabel', sql.VarChar(100), groupLabel || null)
+        .input('ImageURL', sql.NVarChar(sql.MAX), imageURL || null)
         .input('UserID', sql.Int, userID)
         .query(`
           UPDATE [HeadlineTopic]
           SET Topic = @Topic, CategoryID = @CategoryID, IsActive = @IsActive,
-              Sequence = @Sequence, GroupLabel = @GroupLabel
+              Sequence = @Sequence, GroupLabel = @GroupLabel, ImageURL = @ImageURL
           WHERE TopicID = @TopicID AND UserID = @UserID
         `);
       await resetYouTube();

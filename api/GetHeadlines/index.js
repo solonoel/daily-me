@@ -28,8 +28,11 @@ SELECT h.HeadlineID, h.UserID, h.CategoryID, h.HeadlineName,
              CASE WHEN uhs.IsFiltered = 0 THEN 1 ELSE 0 END AS IsSubscription,
              c.Name AS CategoryName, k.Keyword, k.Sequence AS KeywordSequence,
              k.GroupLabel AS KeywordGroupLabel, t.GroupLabel AS TopicGroupLabel,
+             k.ImageURL AS KeywordImage, t.ImageURL AS TopicImage,
              t.Topic, t.Sequence AS TopicSequence,
-             hs.Name AS SourceName
+             hs.Name AS SourceName,
+             (SELECT TOP 1 k2.ImageURL FROM [HeadlineKeyword] k2 WHERE k2.UserID = @UserID AND k2.GroupLabel = k.GroupLabel AND k2.GroupLabel IS NOT NULL AND k2.ImageURL IS NOT NULL) AS KeywordGroupImage,
+             (SELECT TOP 1 t2.ImageURL FROM [HeadlineTopic] t2 WHERE t2.UserID = @UserID AND t2.GroupLabel = t.GroupLabel AND t2.GroupLabel IS NOT NULL AND t2.ImageURL IS NOT NULL) AS TopicGroupImage
       FROM [Headline] h
       LEFT JOIN [Category] c ON h.CategoryID = c.CategoryID
       LEFT JOIN [HeadlineKeyword] k ON h.KeywordID = k.KeywordID
@@ -40,10 +43,8 @@ SELECT h.HeadlineID, h.UserID, h.CategoryID, h.HeadlineName,
       AND COALESCE(h.PublishedDate, h.CreatedDate) >= DATEADD(day, -@RecencyDays, GETDATE())
     `;
 
-    if (screen === 'teams') {
-      query += ` AND (k.CategoryName = 'Teams' OR t.CategoryName = 'Teams')`;
-    } else if (screen === 'other') {
-      query += ` AND (k.CategoryName = 'Other' OR t.CategoryName = 'Other')`;
+if (screen === 'teams') {
+      query += ` AND (c.Name = 'Teams' OR k.CategoryID IN (SELECT CategoryID FROM Category WHERE UserID=@UserID AND Name='Teams') OR t.CategoryID IN (SELECT CategoryID FROM Category WHERE UserID=@UserID AND Name='Teams'))`;
     } else if (categoryID) {
       query += ` AND h.CategoryID = @CategoryID`;
     }

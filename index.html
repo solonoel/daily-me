@@ -2832,7 +2832,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         if(kw){kw.Keyword=keyword;kw.CategoryID=categoryID;kw.GroupLabel=groupLabel;kw.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}
       }else{
         const result=await apiPost('SaveKeyword',{action:'add',keyword,categoryID,sequence,groupLabel,imageURL:window._modalKwImage||null,userID:USER_ID});
-        keywords.push({KeywordID:result.keywordID,Keyword:keyword,CategoryID:categoryID,GroupLabel:groupLabel,ImageURL:null,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
+        keywords.push({KeywordID:result.keywordID,Keyword:keyword,CategoryID:categoryID,GroupLabel:groupLabel,ImageURL:window._modalKwImage||null,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
       }
       renderSettingsKeywords();
     }else if(modalType==='topic'){
@@ -2849,7 +2849,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         if(tp){tp.Topic=topic;tp.CategoryID=categoryID;tp.GroupLabel=groupLabel;tp.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}
       }else{
         const result=await apiPost('SaveTopic',{action:'add',topic,categoryID,sequence,groupLabel,imageURL:window._modalKwImage||null,userID:USER_ID});
-        topics.push({TopicID:result.topicID,Topic:topic,CategoryID:categoryID,GroupLabel:groupLabel,ImageURL:null,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
+        topics.push({TopicID:result.topicID,Topic:topic,CategoryID:categoryID,GroupLabel:groupLabel,ImageURL:window._modalKwImage||null,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
       }
       renderSettingsTopics();
     }
