@@ -1,5 +1,6 @@
 {
   "navigationFallback": {
-    "rewrite": "/index.html"
+    "rewrite": "/index.html",
+    "exclude": ["/login.html", "/verify.html", "/*.{css,js,png,jpg,ico,svg,woff,woff2}"]
   }
 }
