@@ -67,6 +67,37 @@ module.exports = async function(context, req) {
         body: JSON.stringify({ success: true })
       };
 
+    } else if (action === 'toggle') {
+      await pool.request()
+        .input('KeywordID', sql.Int, keywordID)
+        .input('IsActive', sql.Char(1), isActive ? 'Y' : 'N')
+        .input('UserID', sql.Int, userID)
+        .query(`
+          UPDATE [HeadlineKeyword]
+          SET IsActive = @IsActive
+          WHERE KeywordID = @KeywordID AND UserID = @UserID
+        `);
+      context.res = {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true })
+      };
+
+    } else if (action === 'toggleAll') {
+      await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('IsActive', sql.Char(1), isActive ? 'Y' : 'N')
+        .query(`
+          UPDATE [HeadlineKeyword]
+          SET IsActive = @IsActive
+          WHERE UserID = @UserID
+        `);
+      context.res = {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true })
+      };
+
     } else if (action === 'reorder') {
       for (const s of sequences) {
         await pool.request()
@@ -92,7 +123,12 @@ module.exports = async function(context, req) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ success: true })
       };
+
+    } else {
+      context.res = { status: 400, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Unknown action: ' + action }) };
     }
+
   } catch(err) {
     context.res = { status: 500, body: 'Error: ' + err.message };
   }

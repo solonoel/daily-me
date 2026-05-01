@@ -19,7 +19,6 @@ async function resolveYoutubeChannelID(url, apiKey) {
       const client = fetchUrl.startsWith('https') ? https : require('http');
       const options = { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36' } };
       client.get(fetchUrl, options, (res) => {
-        // Follow redirects
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           return fetchText(res.headers.location).then(resolve).catch(reject);
         }
@@ -40,19 +39,16 @@ async function resolveYoutubeChannelID(url, apiKey) {
     });
   }
 
-  // Method 1: forHandle API
   try {
     const d1 = await fetchJson(`https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=${encodeURIComponent(handle)}&key=${apiKey}`);
     if (d1?.items?.[0]?.id) return d1.items[0].id;
   } catch(e) {}
 
-  // Method 2: forUsername API
   try {
     const d2 = await fetchJson(`https://www.googleapis.com/youtube/v3/channels?part=id&forUsername=${encodeURIComponent(handle)}&key=${apiKey}`);
     if (d2?.items?.[0]?.id) return d2.items[0].id;
   } catch(e) {}
 
-  // Method 3: scrape channelId from YouTube page HTML (most reliable)
   try {
     const html = await fetchText(`https://www.youtube.com/@${handle}`);
     const match = html.match(/"channelId"\s*:\s*"(UC[\w-]+)"/) ||
@@ -61,7 +57,6 @@ async function resolveYoutubeChannelID(url, apiKey) {
     if (match) return match[1];
   } catch(e) {}
 
-  // Method 4: search.list fallback (100 units)
   try {
     const d4 = await fetchJson(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(handle)}&type=channel&maxResults=1&key=${apiKey}`);
     if (d4?.items?.[0]?.id?.channelId) return d4.items[0].id.channelId;
@@ -99,20 +94,29 @@ module.exports = async function(context, req) {
           .input('YoutubeChannelID', sql.NVarChar(50), youtubeChannelID)
           .query(`
             INSERT INTO [HeadlineSource] (Name, URL, SourceType, IsActive, CategoryID, Sequence, DateAdded, YoutubeChannelID)
-            VALUES (@Name, @URL, @SourceType, 'Y', @CategoryID, @Sequence, CAST(GETDATE() AS DATE), @YoutubeChannelID);
+            VALUES (@Name, @URL, @SourceType, 1, @CategoryID, @Sequence, CAST(GETDATE() AS DATE), @YoutubeChannelID);
             SELECT SCOPE_IDENTITY() AS SourceID;
           `);
         const newSourceID = result.recordset[0].SourceID;
+        // Also add to UserHeadlineSource with IsActive=1
+        await pool.request()
+          .input('UserID', sql.Int, userID)
+          .input('SourceID', sql.Int, newSourceID)
+          .query(`
+            IF NOT EXISTS (SELECT 1 FROM [UserHeadlineSource] WHERE UserID=@UserID AND SourceID=@SourceID)
+            INSERT INTO [UserHeadlineSource] (UserID, SourceID, IsFiltered, IsActive) VALUES (@UserID, @SourceID, 0, 1)
+          `);
         context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ success: true, sourceID: newSourceID, youtubeChannelID }) };
 
       } else if (sourceID) {
+        // User adding existing global source to their list
         await pool.request()
           .input('UserID', sql.Int, userID)
           .input('SourceID', sql.Int, sourceID)
           .query(`
             IF NOT EXISTS (SELECT 1 FROM [UserHeadlineSource] WHERE UserID=@UserID AND SourceID=@SourceID)
-            INSERT INTO [UserHeadlineSource] (UserID, SourceID, IsFiltered) VALUES (@UserID, @SourceID, 1)
+            INSERT INTO [UserHeadlineSource] (UserID, SourceID, IsFiltered, IsActive) VALUES (@UserID, @SourceID, 1, 1)
           `);
         context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ success: true, sourceID }) };
@@ -129,10 +133,18 @@ module.exports = async function(context, req) {
           .input('Sequence', sql.Int, sequence || nextSeq)
           .query(`
             INSERT INTO [HeadlineSource] (Name, URL, SourceType, IsActive, CategoryID, Sequence, DateAdded)
-            VALUES (@Name, @URL, @SourceType, 'Y', @CategoryID, @Sequence, CAST(GETDATE() AS DATE));
+            VALUES (@Name, @URL, @SourceType, 1, @CategoryID, @Sequence, CAST(GETDATE() AS DATE));
             SELECT SCOPE_IDENTITY() AS SourceID;
           `);
         const newSourceID = result.recordset[0].SourceID;
+        // Also add to UserHeadlineSource with IsActive=1
+        await pool.request()
+          .input('UserID', sql.Int, userID)
+          .input('SourceID', sql.Int, newSourceID)
+          .query(`
+            IF NOT EXISTS (SELECT 1 FROM [UserHeadlineSource] WHERE UserID=@UserID AND SourceID=@SourceID)
+            INSERT INTO [UserHeadlineSource] (UserID, SourceID, IsFiltered, IsActive) VALUES (@UserID, @SourceID, 1, 1)
+          `);
         context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ success: true, sourceID: newSourceID }) };
       }
@@ -145,7 +157,7 @@ module.exports = async function(context, req) {
         .input('SourceType', sql.NVarChar(20), sourceType)
         .input('CategoryID', sql.Int, categoryID || null)
         .input('Sequence', sql.Int, sequence || null)
-        .input('IsActive', sql.Char(1), isActive ? 'Y' : 'N')
+        .input('IsActive', sql.Bit, isActive ? 1 : 0)
         .query(`
           UPDATE [HeadlineSource]
           SET Name=@Name, URL=@URL, SourceType=@SourceType, CategoryID=@CategoryID,
@@ -155,14 +167,44 @@ module.exports = async function(context, req) {
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ success: true }) };
 
+    } else if (action === 'toggleGlobalActive') {
+      // Admin only — toggle global source IsActive
+      await pool.request()
+        .input('SourceID', sql.Int, sourceID)
+        .input('IsActive', sql.Bit, isActive ? 1 : 0)
+        .query(`UPDATE [HeadlineSource] SET IsActive=@IsActive WHERE SourceID=@SourceID`);
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true }) };
+
+    } else if (action === 'toggleUserActive') {
+      // User-level toggle — their personal on/off for this source
+      await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('SourceID', sql.Int, sourceID)
+        .input('IsActive', sql.Bit, isActive ? 1 : 0)
+        .query(`
+          UPDATE [UserHeadlineSource] SET IsActive=@IsActive
+          WHERE UserID=@UserID AND SourceID=@SourceID
+        `);
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true }) };
+
+    } else if (action === 'toggleAllUserActive') {
+      // Bulk toggle all user sources on or off
+      await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('IsActive', sql.Bit, isActive ? 1 : 0)
+        .query(`UPDATE [UserHeadlineSource] SET IsActive=@IsActive WHERE UserID=@UserID`);
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true }) };
+
     } else if (action === 'updateFiltered') {
       await pool.request()
         .input('UserID', sql.Int, userID)
         .input('SourceID', sql.Int, sourceID)
         .input('IsFiltered', sql.Bit, req.body.isFiltered ? 1 : 0)
         .query(`
-          UPDATE [UserHeadlineSource]
-          SET IsFiltered = @IsFiltered
+          UPDATE [UserHeadlineSource] SET IsFiltered=@IsFiltered
           WHERE UserID=@UserID AND SourceID=@SourceID
         `);
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
@@ -174,8 +216,7 @@ module.exports = async function(context, req) {
         .input('SourceID', sql.Int, sourceID)
         .input('Exclusions', sql.NVarChar(500), req.body.exclusions || null)
         .query(`
-          UPDATE [UserHeadlineSource]
-          SET Exclusions = @Exclusions
+          UPDATE [UserHeadlineSource] SET Exclusions=@Exclusions
           WHERE UserID=@UserID AND SourceID=@SourceID
         `);
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
