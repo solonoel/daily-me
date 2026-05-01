@@ -353,7 +353,7 @@ module.exports = async function(context, req) {
                      h.Sequence, h.YoutubeChannelID, uhs.IsFiltered, uhs.Exclusions, uhs.IsActive AS UserIsActive
               FROM [HeadlineSource] h
               INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
-              WHERE uhs.UserID = @UserID AND h.IsActive = 1 AND uhs.IsActive = 1
+              WHERE uhs.UserID = @UserID AND h.IsActive = 'Y' AND uhs.IsActive = 1
               ORDER BY h.Sequence, h.SourceID`);
     const sources = sourcesResult.recordset;
 
