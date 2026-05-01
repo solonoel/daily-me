@@ -2089,11 +2089,8 @@ const fcCounts={
       const userSettings=await apiGet('GetUserSettings');
       if(userSettings?.headlineSetting?.RecencyDays){recencyDays_value=userSettings.headlineSetting.RecencyDays;document.getElementById('recency-val').textContent=recencyDays_value===1?'1 day':`${recencyDays_value} days`;}
       const disableYoutube=localStorage.getItem(`dailyme_yt_disabled_${USER_ID}`)==='1';
-      const settingsChanged=localStorage.getItem(`dailyme_settings_changed_${USER_ID}`)==='1';
-      if(settingsChanged){
-        await apiPost('CleanHeadlines',{userID:USER_ID});
-        localStorage.removeItem(`dailyme_settings_changed_${USER_ID}`);
-      }
+      await apiPost('CleanHeadlines',{userID:USER_ID});
+      localStorage.removeItem(`dailyme_settings_changed_${USER_ID}`);
       const fetchResult=await apiPost('FetchHeadlines',{userID:USER_ID,disableYoutube});
       if(fetchResult?.quotaRemaining<=500&&!disableYoutube){
         const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=true;
@@ -2267,7 +2264,16 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       return resolveGroupLabel(h);
     };
 
-    const sortedDisplay=[...displayHeadlines].sort((a,b)=>new Date(b.PublishedDate||b.CreatedDate)-new Date(a.PublishedDate||a.CreatedDate));
+    const sortedDisplay=[...displayHeadlines].sort((a,b)=>{
+      if(currentFilter==='Subscriptions'){
+        const srcA=sources.find(s=>s.SourceID===a.SourceID);
+        const srcB=sources.find(s=>s.SourceID===b.SourceID);
+        const seqA=srcA?.Sequence||999;
+        const seqB=srcB?.Sequence||999;
+        if(seqA!==seqB)return seqA-seqB;
+      }
+      return new Date(b.PublishedDate||b.CreatedDate)-new Date(a.PublishedDate||a.CreatedDate);
+    });
     const groups={};
     const groupSeq={};
     sortedDisplay.forEach(h=>{
@@ -2878,7 +2884,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
           const idKey=type==='keyword'?'keywordID':type==='source'?'sourceID':type==='category'?'categoryID':'topicID';
           const sequences=rows.map((r,i)=>({[idKey]:parseInt(r.dataset.id),sequence:i+1}));
           if(type==='keyword'){apiPost('SaveKeyword',{action:'reorder',sequences,userID:USER_ID});keywords.forEach(k=>{const s=sequences.find(s=>s.keywordID===k.KeywordID);if(s)k.Sequence=s.sequence;});}
-          else if(type==='source'){apiPost('SaveSource',{action:'reorder',sequences,userID:USER_ID});sources.forEach(src=>{const s=sequences.find(s=>s.sourceID===src.SourceID);if(s)src.Sequence=s.sequence;});}
+          else if(type==='source'){apiPost('SaveSource',{action:'reorder',sequences,userID:USER_ID});sources.forEach(src=>{const s=sequences.find(seq=>seq.sourceID===src.SourceID);if(s)src.Sequence=s.sequence;});}
           else if(type==='category'){apiPost('SaveCategory',{action:'reorder',sequences,userID:USER_ID});categories.forEach(c=>{const s=sequences.find(s=>s.categoryID===c.CategoryID);if(s)c.Sequence=s.sequence;});}
           else{apiPost('SaveTopic',{action:'reorder',sequences,userID:USER_ID});topics.forEach(t=>{const s=sequences.find(s=>s.topicID===t.TopicID);if(s)t.Sequence=s.sequence;});}
         },50);
