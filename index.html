@@ -781,7 +781,7 @@
     ]);
     categories=Array.isArray(cats)?cats:[];sources=Array.isArray(srcs)?srcs:[];
     keywords=Array.isArray(kwds)?kwds:[];topics=[];
-    allLanguages=Array.isArray(langs)?laallLanguages=Array.isArray(langs)?langs:[];ngsf:[];userLanguages=Array.isArray(ulangs)?ulangs:[];
+    allLanguages=Array.isArray(langs)?langs:[];userLanguages=Array.isArray(ulangs)?ulangs:[];
     if(userSettings?.headlineSetting?.RecencyDays){
       recencyDays_value=userSettings.headlineSetting.RecencyDays;
       const lastFetchRecency=localStorage.getItem(`dailyme_last_fetch_recency_${USER_ID}`);
