@@ -343,7 +343,6 @@
             <button class="settings-nav-btn" onclick="showSettingsSection('sources')">🌐 Shared Sources</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('mysources')">🔗 My Sources</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('keywords')">🔍 Keywords</button>
-            <button class="settings-nav-btn" onclick="showSettingsSection('topics')">💡 Topics</button>
           </div>
           <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px">
             <div>
@@ -432,33 +431,31 @@
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
       <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>🌐 Headline Sources</span>
-        <button class="btn-primary" style="padding:7px 18px;font-size:12px" id="btn-add-source" onclick="openModal('source')">+ Add Source</button>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:12px;color:var(--sky-deep)"><a href="#" onclick="toggleAllSources(true);return false;">Activate All</a> &nbsp;|&nbsp; <a href="#" onclick="toggleAllSources(false);return false;">None</a></span>
+          <button class="btn-primary" style="padding:7px 18px;font-size:12px" id="btn-add-source" onclick="openModal('source')">+ Add Source</button>
+        </div>
       </div>
-      <table class="settings-table"><thead><tr><th></th><th>Name</th><th>URL</th><th>Type</th><th>Filtered</th><th></th></tr></thead><tbody id="tbl-sources"></tbody></table>
+      <table class="settings-table"><thead><tr><th></th><th>Name</th><th>URL</th><th>Type</th><th>Active</th><th>Filtered</th><th>Exclusions</th><th></th></tr></thead><tbody id="tbl-sources"></tbody></table>
     </div>
     <div id="settings-section-keywords" style="display:none">
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
       <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>🔍 Keywords <span style="font-size:13px;font-weight:400;color:var(--text-soft);font-family:'DM Sans',sans-serif"> — exact match</span></span>
-        <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openModal('keyword')">+ Add Keyword</button>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:12px;color:var(--sky-deep)"><a href="#" onclick="toggleAllKeywords(true);return false;">Activate All</a> &nbsp;|&nbsp; <a href="#" onclick="toggleAllKeywords(false);return false;">None</a></span>
+          <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openModal('keyword')">+ Add Keyword</button>
+        </div>
       </div>
       <div style="font-size:12px;color:var(--text);background:#f0f7ff;border:1px solid var(--sky-deep);border-radius:8px;padding:10px 16px;margin-bottom:12px;line-height:1.8">
-        <div style="font-weight:700;color:var(--sky-deep);margin-bottom:4px">📺 Keywords — How They Work</div>
+        <div style="font-weight:700;color:var(--sky-deep);margin-bottom:4px">🔍 Keywords — How They Work</div>
         <div>🔍 <strong>Exact match</strong> — searched on YouTube and filtered news sources. Drag to reorder — higher items are prioritized.</div>
-        <div>📋 <strong>Multiple terms:</strong> Separate with commas — e.g. <em>Russia, Russian</em> — matches any term in the list.</div>
-        <div>💬 <strong>Phrases:</strong> Multi-word phrases work as-is — e.g. <em>White Sox</em>, <em>Stock Market</em>.</div>
-        <div>🚫 <strong>Exclusions:</strong> Start with a minus sign to exclude — e.g. <em>-gossip</em> — removes any headline containing that word from the category.</div>
+        <div>📋 <strong>Multiple terms:</strong> Separate with commas — e.g. <em>Russia, Russian</em> — headline is selected if it contains <em>any</em> term in the list.</div>
+        <div>💬 <strong>Phrases:</strong> Multi-word phrases <strong>must use quotes</strong> — e.g. <em>"White Sox"</em>, <em>"Stock Market"</em>. Without quotes, each word is matched independently.</div>
+        <div>🚫 <strong>Exclusions:</strong> Start with <strong>-</strong> to exclude — e.g. <em>-Hormuz</em> removes headlines containing that word. Use quotes for phrases: <em>-"Chicago Cubs"</em>.</div>
+        <div>⚪ <strong>Inactive keywords</strong> do not participate in any filtering. If all keywords are inactive, only Subscription entries are shown.</div>
       </div>
       <table class="settings-table"><thead><tr><th>⠿</th><th>Keyword</th><th>Group Label</th><th>Category</th><th>Active</th><th>Image</th><th></th></tr></thead><tbody id="tbl-keywords"></tbody></table>
-    </div>
-    <div id="settings-section-topics" style="display:none">
-      <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
-      <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
-        <span>💡 Topics <span style="font-size:13px;font-weight:400;color:var(--text-soft);font-family:'DM Sans',sans-serif"> — fuzzy match</span></span>
-        <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openModal('topic')">+ Add Topic</button>
-      </div>
-      <div style="font-size:12px;color:var(--text-soft);background:#f5f9ff;border:1px solid var(--border);border-radius:8px;padding:8px 14px;margin-bottom:12px">📰 Topics are used for news categorization only — not searched on YouTube. Drag to reorder.</div>
-      <table class="settings-table"><thead><tr><th>⠿</th><th>Topic</th><th>Group Label</th><th>Category</th><th>Active</th><th>Image</th><th></th></tr></thead><tbody id="tbl-topics"></tbody></table>
     </div>
     <div id="settings-section-mysources" style="display:none">
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
@@ -522,14 +519,13 @@
     <div class="onboard-step">
       <div class="onboard-num">3</div>
       <div class="onboard-step-body">
-        <div class="onboard-step-title">🔍 Add Keywords or 💡 Topics <span style="color:#e05050;font-size:12px;font-weight:600">(at least one required)</span></div>
-        <div class="onboard-step-desc">Keywords and topics tell Daily Me what to look for in headlines.</div>
+        <div class="onboard-step-title">🔍 Add Keywords <span style="color:#e05050;font-size:12px;font-weight:600">(at least one required)</span></div>
+        <div class="onboard-step-desc">Keywords tell Daily Me what to look for in headlines. Multi-word phrases must use quotes, e.g. "White Sox".</div>
       </div>
     </div>
     <div class="onboard-tip">
       <strong>🔍 Keywords — Exact Match:</strong> Used to search YouTube and filter news. A keyword of <em>"Tesla"</em> will only match articles that contain the word "Tesla" exactly.<br><br>
-      <strong>💡 Topics — Fuzzy Match:</strong> Used for news categorization only (not YouTube). A topic like <em>"electric vehicles"</em> will match articles about EVs, electric cars, and related terms — even if those exact words don't appear.
-    </div>
+          </div>
     <button class="onboard-btn" onclick="closeOnboarding()">Got it — let's set up my account</button>
   </div>
 </div>
@@ -669,6 +665,7 @@
   const langStreaks = {};
 
   let headlines=[],recencyDays_value=7,categories=[],sources=[],keywords=[],topics=[];
+  // topics retained as empty array for legacy compatibility only
   let allLanguages=[],userLanguages=[];
   let currentFilter='Subscriptions',currentSettingsSection=null,groupsExpanded=true;
   let currentLangID=null,currentLangName=null;
@@ -778,13 +775,13 @@
 
   async function loadAll(){
     const loadStart=performance.now();
-    const [cats,srcs,kwds,tpcs,userSettings,langs,ulangs]=await Promise.all([
+    const [cats,srcs,kwds,userSettings,langs,ulangs]=await Promise.all([
       apiGet('GetCategories'),apiGet('GetHeadlineSources'),apiGet('GetHeadlineKeywords'),
-      apiGet('GetHeadlineTopics'),apiGet('GetUserSettings'),apiGet('GetLanguages'),apiGet('GetUserLanguages')
+      apiGet('GetUserSettings'),apiGet('GetLanguages'),apiGet('GetUserLanguages')
     ]);
     categories=Array.isArray(cats)?cats:[];sources=Array.isArray(srcs)?srcs:[];
-    keywords=Array.isArray(kwds)?kwds:[];topics=Array.isArray(tpcs)?tpcs:[];
-    allLanguages=Array.isArray(langs)?langs:[];userLanguages=Array.isArray(ulangs)?ulangs:[];
+    keywords=Array.isArray(kwds)?kwds:[];topics=[];
+    allLanguages=Array.isArray(langs)?laallLanguages=Array.isArray(langs)?langs:[];ngsf:[];userLanguages=Array.isArray(ulangs)?ulangs:[];
     if(userSettings?.headlineSetting?.RecencyDays){
       recencyDays_value=userSettings.headlineSetting.RecencyDays;
       const lastFetchRecency=localStorage.getItem(`dailyme_last_fetch_recency_${USER_ID}`);
@@ -2044,19 +2041,11 @@ const fcCounts={
 
   // Resolve the display group label for a headline
   function resolveGroupLabel(h) {
-    if (h.ChannelName && !h.KeywordID && !h.TopicID && !h.CategoryID) return 'Subscriptions';
+    if (h.ChannelName && !h.KeywordID && !h.CategoryID) return 'Subscriptions';
     const kwLabel = h.KeywordGroupLabel && h.KeywordGroupLabel.trim() !== '' ? h.KeywordGroupLabel.trim() : null;
     const kwName  = h.Keyword || null;
-    const tpLabel = h.TopicGroupLabel && h.TopicGroupLabel.trim() !== '' ? h.TopicGroupLabel.trim() : null;
-    const tpName  = h.Topic || null;
-    // Keyword takes priority over topic
     if (kwName) {
-      const label = kwLabel && kwLabel.toLowerCase() !== kwName.toLowerCase() ? kwLabel : kwName;
-      return label;
-    }
-    if (tpName) {
-      const label = tpLabel && tpLabel.toLowerCase() !== tpName.toLowerCase() ? tpLabel : tpName;
-      return label;
+      return kwLabel && kwLabel.toLowerCase() !== kwName.toLowerCase() ? kwLabel : kwName;
     }
     return 'Other';
   }
@@ -2067,7 +2056,7 @@ const fcCounts={
       let allData=await res.json();if(!Array.isArray(allData))allData=[];
       allData=allData.filter(h=>h.CategoryName!=='Teams');
       if(currentFilter==='Subscriptions'){
-        headlines=allData.filter(h=>h.ChannelName&&!h.KeywordID&&!h.TopicID&&!h.CategoryID);
+        headlines=allData.filter(h=>h.ChannelName&&!h.KeywordID&&!h.CategoryID);
       } else if(currentFilter==='Other'){
         headlines=allData.filter(h=>resolveGroupLabel(h)==='Other');
       } else if(currentFilter==='all'){
@@ -2133,7 +2122,7 @@ const now=new Date();
       const res2=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`);
       const all2=await res2.json();
       if(Array.isArray(all2)&&all2.length){
-        if(all2.some(h=>h.ChannelName&&!h.KeywordID&&!h.TopicID&&!h.CategoryID)){currentFilter='Subscriptions';}
+        if(all2.some(h=>h.ChannelName&&!h.KeywordID&&!h.CategoryID)){currentFilter='Subscriptions';}
         else{
           const orderedCats=[...categories].filter(c=>c.IsActive==='Y'&&c.Headlines==='Y').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999));
           for(const cat of orderedCats){if(all2.some(h=>h.CategoryID===cat.CategoryID)){currentFilter=cat.Name;break;}}
@@ -2175,7 +2164,7 @@ const now=new Date();
 
   function renderCategoryTiles(allHeadlines){
     const row=document.getElementById('cat-row');
-    const subCount=allHeadlines?allHeadlines.filter(h=>h.ChannelName&&!h.KeywordID&&!h.TopicID&&!h.CategoryID).length:null;
+    const subCount=allHeadlines?allHeadlines.filter(h=>h.ChannelName&&!h.KeywordID&&!h.CategoryID).length:null;
     const subEmpty=subCount!==null&&subCount===0;
     let subAction = subEmpty ? '' : "filterCat('Subscriptions',this)";
     const subCountLabel = subCount !== null && subCount > 0 ? ` (${subCount})` : '';
@@ -2234,7 +2223,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         const isOther=label==='Other';
         let count=0;
         if(isSubscriptions){
-          count=headlines.filter(h=>h.ChannelName&&!h.KeywordID&&!h.TopicID&&!h.CategoryID).length;
+          count=headlines.filter(h=>h.ChannelName&&!h.KeywordID&&!h.CategoryID).length;
         }else if(isOther){
           count=headlines.filter(h=>resolveGroupLabel(h)==='Other').length;
         }else{
@@ -2254,9 +2243,9 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     if(headlines.length===0&&currentFilter!=='all'&&currentFilter!=='Other'){
       fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`).then(r=>r.json()).then(all=>{
         if(!Array.isArray(all)||!all.length){document.getElementById('headlines-grouped').innerHTML='<div class="empty-state">No headlines found. Click ↻ Refresh to fetch latest headlines.</div>';return;}
-        if(all.some(h=>h.ChannelName&&!h.KeywordID&&!h.TopicID&&!h.CategoryID)){
+        if(all.some(h=>h.ChannelName&&!h.KeywordID&&!h.CategoryID)){
           currentFilter='Subscriptions';renderCategoryTiles(all);
-          headlines=all.filter(h=>h.ChannelName&&!h.KeywordID&&!h.TopicID&&!h.CategoryID);renderHeadlines();return;
+          headlines=all.filter(h=>h.ChannelName&&!h.KeywordID&&!h.CategoryID);renderHeadlines();return;
         }
         const orderedCats=[...categories].filter(c=>c.IsActive==='Y'&&c.Headlines==='Y').sort((a,b)=>(a.Sequence||999)-(b.Sequence||999));
         for(const cat of orderedCats){if(all.some(h=>h.CategoryID===cat.CategoryID)){currentFilter=cat.Name;renderCategoryTiles(all);headlines=all.filter(h=>h.CategoryID===cat.CategoryID);renderHeadlines();return;}}
@@ -2268,7 +2257,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     // Subscriptions filter: exclude IsSubscription headlines from keyword groups
     const displayHeadlines = currentFilter==='Subscriptions'
       ? headlines
-      : headlines.filter(h=>!(h.ChannelName&&!h.KeywordID&&!h.TopicID&&!h.CategoryID));
+      : headlines.filter(h=>!(h.ChannelName&&!h.KeywordID&&!h.CategoryID));
 
     // For Subscriptions, override group key to be per-source
     const getGroupKey = (h) => {
@@ -2540,14 +2529,14 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   function showSettingsMenu(pushState=true){
     currentSettingsSection=null;
     document.getElementById('settings-menu-view').style.display='block';
-    ['categories','sources','mysources','keywords','topics','global-sources'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
+    ['categories','sources','mysources','keywords','global-sources'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
     if(pushState)history.pushState({screen:'settings',section:null},'','');
   }
 
   function showSettingsSection(section,pushState=true){
     currentSettingsSection=section;
     document.getElementById('settings-menu-view').style.display='none';
-    ['categories','sources','keywords','topics','global-sources'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
+    ['categories','sources','keywords','global-sources'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
     document.getElementById(`settings-section-${section}`).style.display='block';
     renderSettingsSection(section);
     if(pushState)history.pushState({screen:'settings',section},'','');
@@ -2584,7 +2573,6 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     if(section==='sources'){sources=await apiGet('GetHeadlineSources');renderSettingsSources();}
     if(section==='mysources'){await loadMySources();}
     if(section==='keywords'){keywords=await apiGet('GetHeadlineKeywords');renderSettingsKeywords();}
-    if(section==='topics'){topics=await apiGet('GetHeadlineTopics');renderSettingsTopics();}
   }
 
   function renderSettingsCategories(){
@@ -2711,7 +2699,13 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
 
   async function toggleCategory(categoryID,btn){const isActive=!btn.classList.contains('on');btn.classList.toggle('on');await apiPost('SaveCategory',{action:'toggle',categoryID,isActive,userID:USER_ID});const cat=categories.find(c=>c.CategoryID===categoryID);if(cat)cat.IsActive=isActive?'Y':'N';}
   async function toggleSource(sourceID,btn){markSettingsChanged();const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const src=sources.find(s=>s.SourceID===sourceID);await apiPost('SaveSource',{action:'update',sourceID,isActive,name:src?.Name,url:src?.URL,sourceType:src?.SourceType,userID:USER_ID});if(src)src.IsActive=isActive?'Y':'N';}
-  async function toggleKeyword(keywordID,btn){markSettingsChanged();const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const kw=keywords.find(k=>k.KeywordID===keywordID);await apiPost('SaveKeyword',{action:'update',keywordID,isActive,keyword:kw?.Keyword,categoryID:kw?.CategoryID,userID:USER_ID});if(kw)kw.IsActive=isActive?'Y':'N';}
+  async function toggleKeyword(keywordID,btn){markSettingsChanged();const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const kw=keywords.find(k=>k.KeywordID===keywordID);await apiPost('SaveKeyword',{action:'toggle',keywordID,isActive,userID:USER_ID});if(kw)kw.IsActive=isActive?'Y':'N';}
+  async function toggleAllKeywords(isActive){
+    await apiPost('SaveKeyword',{action:'toggleAll',isActive,userID:USER_ID});
+    keywords.forEach(k=>k.IsActive=isActive?'Y':'N');
+    renderSettingsKeywords();
+    markSettingsChanged();
+  }
   async function toggleTopic(topicID,btn){markSettingsChanged();const isActive=!btn.classList.contains('on');btn.classList.toggle('on');const tp=topics.find(t=>t.TopicID===topicID);await apiPost('SaveTopic',{action:'update',topicID,isActive,topic:tp?.Topic,categoryID:tp?.CategoryID,userID:USER_ID});if(tp)tp.IsActive=isActive?'Y':'N';}
   async function deleteSource(sourceID){if(!confirm('Remove this source?'))return;await apiPost('SaveSource',{action:'delete',sourceID,userID:USER_ID});sources=sources.filter(s=>s.SourceID!==sourceID);renderSettingsSources();}
   async function deleteCategory(categoryID){const cat=categories.find(c=>c.CategoryID===categoryID);if(cat&&cat.Name.toLowerCase()==='health'){alert('The Health category cannot be removed.');return;}if(!confirm('Remove this category?'))return;await apiPost('SaveCategory',{action:'delete',categoryID,userID:USER_ID});categories=categories.filter(c=>c.CategoryID!==categoryID);renderSettingsCategories();renderCategoryTiles(null);}
@@ -2825,6 +2819,15 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       const groupLabel=rawLabel||null;
       const sequence=modalID?(keywords.find(k=>k.KeywordID===modalID)?.Sequence||99):(Math.max(...keywords.map(k=>k.Sequence||0),0)+1);
       if(!keyword)return alert('Keyword is required');
+      // Validate: multi-word terms without quotes must be quoted
+      const terms=keyword.split(',').map(t=>t.trim()).filter(Boolean);
+      for(const term of terms){
+        const raw=term.startsWith('-')?term.substring(1).trim():term;
+        const isQuoted=raw.startsWith('"')&&raw.endsWith('"');
+        if(!isQuoted&&raw.includes(' ')){
+          return alert(`Multi-word phrase must be in quotes: "${raw}"\n\nExample: "${raw}"`);
+        }
+      }
       if(modalID){
         const kw=keywords.find(k=>k.KeywordID===modalID);
         await apiPost('SaveKeyword',{action:'update',keywordID:modalID,keyword,categoryID,sequence,isActive:true,groupLabel,imageURL:(window._modalKwImage!==undefined?window._modalKwImage:kw?.ImageURL)||null,userID:USER_ID});
@@ -2913,7 +2916,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
 
   async function showGlobalSourcesScreen(){
     document.getElementById('settings-menu-view').style.display='none';
-    ['categories','sources','keywords','topics'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
+    ['categories','sources','keywords'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
     document.getElementById('settings-section-global-sources').style.display='block';
     const data=await fetch(`${API_BASE}/GetHeadlineSources?code=${API_KEY}&userID=${USER_ID}&all=true`).then(r=>r.json());
     globalSources=Array.isArray(data)?data:[];
@@ -3109,23 +3112,44 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     const thead=tbody.closest('table')?.querySelector('thead tr');
     const srcTypeFilter=document.getElementById('src-type-filter')?.value||'';
     const srcTypeOpts=`<option value="">All Types</option>`+['API','RSS','Youtube'].map(t=>`<option value="${t}" ${srcTypeFilter===t?'selected':''}>${t}</option>`).join('');
-    if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th>URL</th><th><select id="src-type-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsSources()">${srcTypeOpts}</select></th><th>Filtered</th><th>Exclusions <span style="font-size:9px;font-weight:400;color:var(--text-muted)">CSV, use "quotes" for phrases</span></th><th></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th>URL</th><th><select id="src-type-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsSources()">${srcTypeOpts}</select></th><th>Active</th><th>Filtered</th><th>Exclusions <span style="font-size:9px;font-weight:400;color:var(--text-muted)">CSV, use "quotes" for phrases</span></th><th></th>`;
     const srcTypeFilterVal=document.getElementById('src-type-filter')?.value||'';
     const srcFiltered=srcTypeFilterVal?sorted.filter(s=>s.SourceType===srcTypeFilterVal):sorted;
-    tbody.innerHTML=srcFiltered.map(s=>`
-      <tr draggable="true" data-id="${s.SourceID}" data-type="source">
+    tbody.innerHTML=srcFiltered.map(s=>{
+      const userIsActive=s.UserIsActive===1||s.UserIsActive===true||s.UserIsActive===null||s.UserIsActive===undefined;
+      return `<tr draggable="true" data-id="${s.SourceID}" data-type="source">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
-        <td>${s.Name||'—'}</td>
-        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)">${s.URL}</td>
+        <td style="${!userIsActive?'opacity:0.5':''}">${s.Name||'—'}</td>
+        <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)">${s.URL}</td>
         <td><span class="badge">${s.SourceType||'RSS'}</span></td>
+        <td><button class="toggle ${userIsActive?'on':''}" onclick="toggleUserSourceActive(${s.SourceID},this)"></button></td>
         <td><label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" ${s.IsFiltered?'checked':''} onchange="saveUserFiltered(${s.SourceID},this)" style="accent-color:var(--sky-deep)"></label></td>
-        <td><input type="text" value="${(s.Exclusions||'').replace(/"/g,'&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:180px;font-family:'DM Sans',sans-serif" onchange="saveUserExclusions(${s.SourceID},this)"></td>
+        <td><input type="text" value="${(s.Exclusions||'').replace(/"/g,'&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:160px;font-family:'DM Sans',sans-serif" onchange="saveUserExclusions(${s.SourceID},this)"></td>
         <td><button class="btn-icon danger" onclick="removeUserSource(${s.SourceID})" title="Remove">🗑️</button></td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
     initDragDrop(tbody,'source');
     if(document.getElementById('btn-add-source'))document.getElementById('btn-add-source').style.display='inline-flex';
   }
 
+  async function toggleUserSourceActive(sourceID,btn){
+    const isActive=!btn.classList.contains('on');
+    btn.classList.toggle('on');
+    const src=sources.find(s=>s.SourceID===sourceID);
+    if(src)src.UserIsActive=isActive?1:0;
+    await apiPost('SaveSource',{action:'toggleUserActive',sourceID,isActive,userID:USER_ID});
+    markSettingsChanged();
+    // Dim the name cell
+    const row=btn.closest('tr');
+    const nameCell=row?.querySelector('td:nth-child(2)');
+    if(nameCell)nameCell.style.opacity=isActive?'1':'0.5';
+  }
+  async function toggleAllSources(isActive){
+    await apiPost('SaveSource',{action:'toggleAllUserActive',isActive,userID:USER_ID});
+    sources.forEach(s=>s.UserIsActive=isActive?1:0);
+    renderSettingsSources();
+    markSettingsChanged();
+  }
   async function saveUserFiltered(sourceID,cb){
     const src=sources.find(s=>s.SourceID===sourceID);
     if(src)src.IsFiltered=cb.checked?1:0;
