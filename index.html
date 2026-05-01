@@ -2884,7 +2884,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
           const idKey=type==='keyword'?'keywordID':type==='source'?'sourceID':type==='category'?'categoryID':'topicID';
           const sequences=rows.map((r,i)=>({[idKey]:parseInt(r.dataset.id),sequence:i+1}));
           if(type==='keyword'){apiPost('SaveKeyword',{action:'reorder',sequences,userID:USER_ID});keywords.forEach(k=>{const s=sequences.find(s=>s.keywordID===k.KeywordID);if(s)k.Sequence=s.sequence;});}
-          else if(type==='source'){apiPost('SaveSource',{action:'reorder',sequences,userID:USER_ID});sources.forEach(src=>{const s=sequences.find(seq=>seq.sourceID===src.SourceID);if(s)src.Sequence=s.sequence;});}
+          else if(type==='source'){apiPost('SaveSource',{action:'resequence',sequences,userID:USER_ID});sources.forEach(src=>{const s=sequences.find(seq=>seq.sourceID===src.SourceID);if(s)src.Sequence=s.sequence;});}
           else if(type==='category'){apiPost('SaveCategory',{action:'reorder',sequences,userID:USER_ID});categories.forEach(c=>{const s=sequences.find(s=>s.categoryID===c.CategoryID);if(s)c.Sequence=s.sequence;});}
           else{apiPost('SaveTopic',{action:'reorder',sequences,userID:USER_ID});topics.forEach(t=>{const s=sequences.find(s=>s.topicID===t.TopicID);if(s)t.Sequence=s.sequence;});}
         },50);
