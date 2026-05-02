@@ -465,9 +465,9 @@ module.exports = async function(context, req) {
           srcLog.recencyFiltered = beforeRecency - articles.length;
           if (isFiltered) {
             articles = applyKeywordMatching(articles, keywords, teamsCategoryID);
-            articles.forEach(a => { if (!a.categoryID && source.CategoryID) a.categoryID = source.CategoryID; });
+            articles.forEach(a => { });
           } else {
-            articles.forEach(a => { a.isSubscription = false; if (source.CategoryID) a.categoryID = source.CategoryID; });
+            articles.forEach(a => { a.isSubscription = false; });
           }
         }
 

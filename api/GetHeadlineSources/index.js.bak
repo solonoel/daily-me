@@ -18,13 +18,13 @@ module.exports = async function(context, req) {
     if (allSources) {
       // Return all global sources regardless of user
       result = await pool.request()
-        .query(`SELECT SourceID, Name, URL, SourceType, CategoryID, IsActive, UserID FROM [HeadlineSource] WHERE IsActive = 'Y' ORDER BY Name`);
+        .query(`SELECT SourceID, Name, URL, SourceType, IsActive, UserID FROM [HeadlineSource] WHERE IsActive = 'Y' ORDER BY Name`);
     } else {
       // Return only sources assigned to this user, ordered by user-defined sequence
       result = await pool.request()
         .input('UserID', sql.Int, userID)
         .query(`
-          SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.CategoryID, h.IsActive, h.UserID,
+          SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.IsActive, h.UserID,
                  ISNULL(uhs.Sequence, 999) AS Sequence
           FROM [HeadlineSource] h
           INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID

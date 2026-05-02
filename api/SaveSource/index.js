@@ -68,7 +68,7 @@ async function resolveYoutubeChannelID(url, apiKey) {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { action, sourceID, name, url, sourceType, categoryID, isActive,
+    const { action, sourceID, name, url, sourceType, isActive,
             sequence, isFiltered, userID = 1 } = req.body;
 
     if (action === 'add') {
@@ -89,16 +89,14 @@ module.exports = async function(context, req) {
           .input('Name', sql.NVarChar(200), name)
           .input('URL', sql.NVarChar(500), url)
           .input('SourceType', sql.NVarChar(20), 'Youtube')
-          .input('CategoryID', sql.Int, categoryID || null)
           .input('Sequence', sql.Int, nextSeq)
           .input('YoutubeChannelID', sql.NVarChar(50), youtubeChannelID)
           .query(`
-            INSERT INTO [HeadlineSource] (Name, URL, SourceType, IsActive, CategoryID, Sequence, DateAdded, YoutubeChannelID)
-            VALUES (@Name, @URL, @SourceType, 1, @CategoryID, @Sequence, CAST(GETDATE() AS DATE), @YoutubeChannelID);
+            INSERT INTO [HeadlineSource] (Name, URL, SourceType, IsActive, Sequence, DateAdded, YoutubeChannelID)
+            VALUES (@Name, @URL, @SourceType, 1, @Sequence, CAST(GETDATE() AS DATE), @YoutubeChannelID);
             SELECT SCOPE_IDENTITY() AS SourceID;
           `);
         const newSourceID = result.recordset[0].SourceID;
-        // Also add to UserHeadlineSource with IsActive=1
         await pool.request()
           .input('UserID', sql.Int, userID)
           .input('SourceID', sql.Int, newSourceID)
@@ -110,7 +108,6 @@ module.exports = async function(context, req) {
           body: JSON.stringify({ success: true, sourceID: newSourceID, youtubeChannelID }) };
 
       } else if (sourceID) {
-        // User adding existing global source to their list
         await pool.request()
           .input('UserID', sql.Int, userID)
           .input('SourceID', sql.Int, sourceID)
@@ -129,15 +126,13 @@ module.exports = async function(context, req) {
           .input('Name', sql.NVarChar(200), name)
           .input('URL', sql.NVarChar(500), url)
           .input('SourceType', sql.NVarChar(20), sourceType || 'RSS')
-          .input('CategoryID', sql.Int, categoryID || null)
           .input('Sequence', sql.Int, sequence || nextSeq)
           .query(`
-            INSERT INTO [HeadlineSource] (Name, URL, SourceType, IsActive, CategoryID, Sequence, DateAdded)
-            VALUES (@Name, @URL, @SourceType, 1, @CategoryID, @Sequence, CAST(GETDATE() AS DATE));
+            INSERT INTO [HeadlineSource] (Name, URL, SourceType, IsActive, Sequence, DateAdded)
+            VALUES (@Name, @URL, @SourceType, 1, @Sequence, CAST(GETDATE() AS DATE));
             SELECT SCOPE_IDENTITY() AS SourceID;
           `);
         const newSourceID = result.recordset[0].SourceID;
-        // Also add to UserHeadlineSource with IsActive=1
         await pool.request()
           .input('UserID', sql.Int, userID)
           .input('SourceID', sql.Int, newSourceID)
@@ -155,12 +150,11 @@ module.exports = async function(context, req) {
         .input('Name', sql.NVarChar(200), name)
         .input('URL', sql.NVarChar(500), url)
         .input('SourceType', sql.NVarChar(20), sourceType)
-        .input('CategoryID', sql.Int, categoryID || null)
         .input('Sequence', sql.Int, sequence || null)
         .input('IsActive', sql.Bit, isActive ? 1 : 0)
         .query(`
           UPDATE [HeadlineSource]
-          SET Name=@Name, URL=@URL, SourceType=@SourceType, CategoryID=@CategoryID,
+          SET Name=@Name, URL=@URL, SourceType=@SourceType,
               Sequence=ISNULL(@Sequence, Sequence), IsActive=@IsActive
           WHERE SourceID=@SourceID
         `);
@@ -168,7 +162,6 @@ module.exports = async function(context, req) {
         body: JSON.stringify({ success: true }) };
 
     } else if (action === 'toggleGlobalActive') {
-      // Admin only — toggle global source IsActive
       await pool.request()
         .input('SourceID', sql.Int, sourceID)
         .input('IsActive', sql.Bit, isActive ? 1 : 0)
@@ -177,7 +170,6 @@ module.exports = async function(context, req) {
         body: JSON.stringify({ success: true }) };
 
     } else if (action === 'toggleUserActive') {
-      // User-level toggle — their personal on/off for this source
       await pool.request()
         .input('UserID', sql.Int, userID)
         .input('SourceID', sql.Int, sourceID)
@@ -190,7 +182,6 @@ module.exports = async function(context, req) {
         body: JSON.stringify({ success: true }) };
 
     } else if (action === 'toggleAllUserActive') {
-      // Bulk toggle all user sources on or off
       await pool.request()
         .input('UserID', sql.Int, userID)
         .input('IsActive', sql.Bit, isActive ? 1 : 0)
