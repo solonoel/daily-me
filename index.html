@@ -3598,8 +3598,8 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   }
 
   function resolveHeadlineImage(h) {
-    // Keyword image takes priority, then group image fallback, then topic, then thumbnail
-    return h.KeywordImage || h.KeywordGroupImage || h.TopicImage || h.TopicGroupImage || h.ThumbnailURL || null;
+    // Thumbnail (article/video image) takes priority, then keyword image fallback
+    return h.ThumbnailURL || h.KeywordImage || h.KeywordGroupImage || h.TopicImage || h.TopicGroupImage || null;
   }
 
   // ── INIT ──
