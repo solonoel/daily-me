@@ -442,14 +442,16 @@ module.exports = async function(context, req) {
           youtubeFetched = true;
         } else {
           switch(source.SourceType) {
-            case 'API':
-              if (source.Name.includes('Guardian'))       articles = await fetchGuardian(source, keywords, fromDateStr);
+            case 'API': {
+              const nonTeamsKws = keywords.filter(kw => kw.CategoryID !== teamsCategoryID && (!kw.SourceID || kw.SourceID === source.SourceID));
+              if (source.Name.includes('Guardian'))       articles = await fetchGuardian(source, nonTeamsKws, fromDateStr);
               else if (source.Name.includes('NYT'))        articles = await fetchNYT(source);
               else if (source.Name.includes('GNews'))      articles = await fetchGNews(source, uniqueLangCodes);
               else if (source.Name.includes('Currents'))   articles = await fetchCurrents(source);
               else if (source.Name.includes('MediaStack')) articles = await fetchMediaStack(source);
-              else if (source.Name.includes('NewsAPI'))    articles = await fetchNewsAPI(source, keywords, fromDateStr, uniqueLangCodes);
+              else if (source.Name.includes('NewsAPI'))    articles = await fetchNewsAPI(source, nonTeamsKws, fromDateStr, uniqueLangCodes);
               break;
+            }
             case 'RSS':
               articles = await fetchRSS(source);
               break;
@@ -464,8 +466,12 @@ module.exports = async function(context, req) {
           articles = articles.filter(a => !a.pubDate || a.pubDate >= fromDate);
           srcLog.recencyFiltered = beforeRecency - articles.length;
           if (isFiltered) {
-            articles = applyKeywordMatching(articles, keywords, teamsCategoryID);
-            articles.forEach(a => { });
+            articles.forEach(a => { a.sourceID = source.SourceID; });
+            const applicableKeywords = keywords.filter(kw => {
+              if (kw.CategoryID === teamsCategoryID) return kw.SourceID === source.SourceID;
+              return !kw.SourceID || kw.SourceID === source.SourceID;
+            });
+            articles = applyKeywordMatching(articles, applicableKeywords, teamsCategoryID);
           } else {
             articles.forEach(a => { a.isSubscription = false; });
           }
