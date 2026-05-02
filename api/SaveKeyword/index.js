@@ -16,7 +16,7 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { action, keywordID, keyword, categoryID, isActive, sequence, sequences, groupLabel, imageURL, userID = 1 } = req.body;
+    const { action, keywordID, keyword, categoryID, isActive, sequence, sequences, groupLabel, imageURL, sourceID, userID = 1 } = req.body;
 
     const resetYouTube = async () => {
       await pool.request()
@@ -32,9 +32,10 @@ module.exports = async function(context, req) {
         .input('Sequence', sql.Int, sequence || 99)
         .input('GroupLabel', sql.VarChar(100), groupLabel || null)
         .input('ImageURL', sql.NVarChar(sql.MAX), imageURL || null)
+        .input('SourceID', sql.Int, sourceID || null)
         .query(`
-          INSERT INTO [HeadlineKeyword] (UserID, CategoryID, Keyword, IsActive, Sequence, GroupLabel, ImageURL, CreatedDate)
-          VALUES (@UserID, @CategoryID, @Keyword, 'Y', @Sequence, @GroupLabel, @ImageURL, GETDATE());
+          INSERT INTO [HeadlineKeyword] (UserID, CategoryID, Keyword, IsActive, Sequence, GroupLabel, ImageURL, SourceID, CreatedDate)
+          VALUES (@UserID, @CategoryID, @Keyword, 'Y', @Sequence, @GroupLabel, @ImageURL, @SourceID, GETDATE());
           SELECT SCOPE_IDENTITY() AS KeywordID;
         `);
       await resetYouTube();
@@ -53,11 +54,12 @@ module.exports = async function(context, req) {
         .input('Sequence', sql.Int, sequence || 99)
         .input('GroupLabel', sql.VarChar(100), groupLabel || null)
         .input('ImageURL', sql.NVarChar(sql.MAX), imageURL || null)
+        .input('SourceID', sql.Int, sourceID || null)
         .input('UserID', sql.Int, userID)
         .query(`
           UPDATE [HeadlineKeyword]
           SET Keyword = @Keyword, CategoryID = @CategoryID, IsActive = @IsActive,
-              Sequence = @Sequence, GroupLabel = @GroupLabel, ImageURL = @ImageURL
+              Sequence = @Sequence, GroupLabel = @GroupLabel, ImageURL = @ImageURL, SourceID = @SourceID
           WHERE KeywordID = @KeywordID AND UserID = @UserID
         `);
       await resetYouTube();

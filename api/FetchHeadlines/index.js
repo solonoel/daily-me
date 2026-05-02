@@ -120,6 +120,8 @@ function applyKeywordMatching(articles, keywords, teamsCategoryID) {
       if (a.categoryID) continue;
       const text = `${a.title} ${a.summary} ${a.fullText||''}`.toLowerCase();
       for (const kw of teamsKeywords) {
+        // If keyword has a SourceID, only match against that specific source
+        if (kw.SourceID && kw.SourceID !== a.sourceID) continue;
         if (matchesKeyword(text, kw.text)) {
           a.categoryID = kw.CategoryID; a.keywordID = kw.KeywordID;
           a.teamsOnly = true; break;
@@ -133,6 +135,8 @@ function applyKeywordMatching(articles, keywords, teamsCategoryID) {
     if (a.categoryID) continue;
     const text = `${a.title} ${a.summary} ${a.fullText||''}`.toLowerCase();
     for (const kw of nonTeamsKeywords) {
+      // If keyword has a SourceID, only match against that specific source
+      if (kw.SourceID && kw.SourceID !== a.sourceID) continue;
       if (matchesKeyword(text, kw.text)) {
         a.categoryID = kw.CategoryID; a.keywordID = kw.KeywordID;
         break;
@@ -295,6 +299,8 @@ async function fetchYouTube(source, fromDate, isFiltered, keywords, youTubeMaxRe
     for (const a of articles) {
       const text = `${a.title} ${a.summary}`.toLowerCase();
       for (const kw of orderedKws) {
+        // If keyword has a SourceID, only match against that specific source
+        if (kw.SourceID && kw.SourceID !== source.SourceID) continue;
         if (matchesKeyword(text, kw.text)) {
           const key = kw.KeywordID;
           if (!kwCounts[key]) kwCounts[key] = 0;
@@ -381,7 +387,7 @@ module.exports = async function(context, req) {
 
     const kwResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT KeywordID, Keyword AS text, CategoryID FROM [HeadlineKeyword] WHERE UserID=@UserID AND IsActive='Y'`);
+      .query(`SELECT KeywordID, Keyword AS text, CategoryID, SourceID, GroupLabel FROM [HeadlineKeyword] WHERE UserID=@UserID AND IsActive='Y'`);
     const keywords = kwResult.recordset.map(k => ({ ...k, keywordID: k.KeywordID, topicID: null }));
     const topics = [];
     const hasActiveKeywords = keywords.length > 0;

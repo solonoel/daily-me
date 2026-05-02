@@ -287,8 +287,8 @@
           <div id="last-yt-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
           <div id="yt-quota-warning" style="font-size:10px;font-weight:700;color:#e05050;display:none">⚠️ Youtube quota exhausted for today</div>
           <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
-            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="expand" checked onchange="setGroupExpand(true)" style="accent-color:var(--sky-deep)"> Expanded</label>
-            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="hl-expand" value="collapse" onchange="setGroupExpand(false)" style="accent-color:var(--sky-deep)"> Collapsed</label>
+            <a href="#" onclick="setGroupExpand(true);return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);white-space:nowrap">Expand</a>
+            <a href="#" onclick="setGroupExpand(false);return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);white-space:nowrap">Collapse</a>
             <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn" style="flex-shrink:0">↻ Refresh</button>
           </div>
         </div>
@@ -311,8 +311,8 @@
           <div id="teams-last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
           <div id="teams-yt-quota-warning" style="font-size:10px;font-weight:700;color:#e05050;display:none">⚠️ Youtube quota exhausted for today</div>
           <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
-            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="tm-expand" value="expand" checked onchange="setTeamsExpand(true)" style="accent-color:var(--sky-deep)"> Expanded</label>
-            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;white-space:nowrap"><input type="radio" name="tm-expand" value="collapse" onchange="setTeamsExpand(false)" style="accent-color:var(--sky-deep)"> Collapsed</label>
+            <a href="#" onclick="setGroupExpand(true);return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);white-space:nowrap">Expand</a>
+            <a href="#" onclick="setGroupExpand(false);return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);white-space:nowrap">Collapse</a>
             <button class="refresh-btn" onclick="refreshHeadlines()" id="teams-refresh-btn" style="flex-shrink:0">↻ Refresh</button>
           </div>
         </div>
@@ -430,7 +430,7 @@
     <div id="settings-section-sources" style="display:none">
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
       <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
-        <span>🌐 Headline Sources</span>
+        <span>🌐 Shared Sources</span>
         <div style="display:flex;align-items:center;gap:12px">
           <span style="font-size:12px;color:var(--sky-deep)"><a href="#" onclick="toggleAllSources(true);return false;">Activate All</a> &nbsp;|&nbsp; <a href="#" onclick="toggleAllSources(false);return false;">None</a></span>
           <button class="btn-primary" style="padding:7px 18px;font-size:12px" id="btn-add-source" onclick="openModal('source')">+ Add Source</button>
@@ -455,7 +455,7 @@
         <div>🚫 <strong>Exclusions:</strong> Start with <strong>-</strong> to exclude — e.g. <em>-Hormuz</em> removes headlines containing that word. Use quotes for phrases: <em>-"Chicago Cubs"</em>.</div>
         <div>⚪ <strong>Inactive keywords</strong> do not participate in any filtering. If all keywords are inactive, only Subscription entries are shown.</div>
       </div>
-      <table class="settings-table"><thead><tr><th>⠿</th><th>Keyword</th><th>Group Label</th><th>Category</th><th>Active</th><th>Image</th><th></th></tr></thead><tbody id="tbl-keywords"></tbody></table>
+      <table class="settings-table"><thead><tr><th>⠿</th><th>Keyword</th><th>Source</th><th>Group Label</th><th>Category</th><th>Active</th><th>Image</th><th></th></tr></thead><tbody id="tbl-keywords"></tbody></table>
     </div>
     <div id="settings-section-mysources" style="display:none">
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
@@ -665,6 +665,7 @@
   const langStreaks = {};
 
   let headlines=[],recencyDays_value=7,categories=[],sources=[],keywords=[],topics=[];
+  const deletedLinks=new Set();
   // topics retained as empty array for legacy compatibility only
   let allLanguages=[],userLanguages=[];
   let currentFilter='Subscriptions',currentSettingsSection=null,groupsExpanded=true;
@@ -2054,7 +2055,7 @@ const fcCounts={
     try{
       const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`);
       let allData=await res.json();if(!Array.isArray(allData))allData=[];
-      allData=allData.filter(h=>h.CategoryName!=='Teams');
+      allData=allData.filter(h=>h.CategoryName!=='Teams'&&!deletedLinks.has(h.Link));
       if(currentFilter==='Subscriptions'){
         headlines=allData.filter(h=>h.ChannelName&&!h.KeywordID&&!h.CategoryID);
       } else if(currentFilter==='Other'){
@@ -2125,8 +2126,7 @@ const now=new Date();
           for(const cat of orderedCats){if(all2.some(h=>h.CategoryID===cat.CategoryID)){currentFilter=cat.Name;break;}}
         }
       }
-      groupsExpanded=false;
-      document.querySelectorAll('input[name="hl-expand"]').forEach(r=>r.checked=(r.value==='collapse'));
+      groupsExpanded=false;teamsGroupsExpanded=false;
       await loadHeadlines();
     }catch(e){
       const btn=document.getElementById('refresh-btn');
@@ -2180,9 +2180,9 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   }
 
   function setGroupExpand(val){
-    groupsExpanded=val;
-    document.querySelectorAll('.cat-group-body').forEach(b=>b.style.display=val?'block':'none');
-    document.querySelectorAll('.group-arrow').forEach(a=>a.textContent=val?'▼':'▶');
+    groupsExpanded=val;teamsGroupsExpanded=val;
+    document.querySelectorAll('.cat-group-body,.teams-group-body').forEach(b=>b.style.display=val?'block':'none');
+    document.querySelectorAll('.group-arrow,.teams-group-arrow').forEach(a=>a.textContent=val?'▼':'▶');
   }
 
   function toggleGroup(header){
@@ -2195,6 +2195,8 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
 
   async function deleteHeadline(headlineID,e){
     e.stopPropagation();
+    const deleted=headlines.find(h=>h.HeadlineID===headlineID);
+    if(deleted?.Link)deletedLinks.add(deleted.Link);
     headlines=headlines.filter(h=>h.HeadlineID!==headlineID);
     // Remove row directly without full re-render
     const row=document.querySelector(`.headline-row[data-headline-id="${headlineID}"]`);
@@ -2335,7 +2337,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     try{
       const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}&screen=teams`);
       let data=await res.json(); if(!Array.isArray(data))data=[];
-      teamsHeadlines=data;
+      teamsHeadlines=data.filter(h=>!deletedLinks.has(h.Link));
       const rv=document.getElementById('teams-recency-val');
       if(rv)rv.textContent=recencyDays_value===1?'1 day':`${recencyDays_value} days`;
       const lft=document.getElementById('teams-last-fetch-time');
@@ -2419,6 +2421,8 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
 
   async function deleteTeamsHeadline(headlineID,e){
     e.stopPropagation();
+    const deleted=teamsHeadlines.find(h=>h.HeadlineID===headlineID);
+    if(deleted?.Link)deletedLinks.add(deleted.Link);
     teamsHeadlines=teamsHeadlines.filter(h=>h.HeadlineID!==headlineID);
     const row=document.querySelector(`#teams-grouped .headline-row[data-headline-id="${headlineID}"]`);
     if(row){
@@ -2638,15 +2642,21 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       const kwGroupFilter=document.getElementById('kw-group-filter')?.value||'';
       const groupLabels=[...new Set(keywords.map(k=>k.GroupLabel).filter(Boolean))].sort();
       const groupOpts=`<option value="">All Groups</option>`+groupLabels.map(g=>`<option value="${g}" ${kwGroupFilter===g?'selected':''}>${g}</option>`).join('');
-      if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th><select id="kw-group-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()">${groupOpts}</select></th><th><select id="kw-cat-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()">${catOpts}</select></th><th>Active</th><th></th>`;
+      const kwSrcFilter=document.getElementById('kw-src-filter')?.value||'';
+      const sourceNames=[...new Set(keywords.map(k=>k.SourceName).filter(Boolean))].sort();
+      const srcOpts=`<option value="">All Sources</option>`+sourceNames.map(s=>`<option value="${s}" ${kwSrcFilter===s?'selected':''}>${s}</option>`).join('');
+      if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th><select id="kw-src-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()">${srcOpts}</select></th><th><select id="kw-group-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()">${groupOpts}</select></th><th><select id="kw-cat-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()">${catOpts}</select></th><th>Active</th><th></th>`;
     const kwCatFilterVal=document.getElementById('kw-cat-filter')?.value||'';
     const kwGroupFilterVal=document.getElementById('kw-group-filter')?.value||'';
+    const kwSrcFilterVal=document.getElementById('kw-src-filter')?.value||'';
     const kwFiltered=(kwCatFilterVal?sorted.filter(k=>String(k.CategoryID)===String(kwCatFilterVal)):sorted)
-      .filter(k=>!kwGroupFilterVal||(k.GroupLabel===kwGroupFilterVal));
+      .filter(k=>!kwGroupFilterVal||(k.GroupLabel===kwGroupFilterVal))
+      .filter(k=>!kwSrcFilterVal||(k.SourceName===kwSrcFilterVal));
     tbody.innerHTML=kwFiltered.map(k=>`
       <tr draggable="true" data-id="${k.KeywordID}" data-type="keyword">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
         <td>${k.Keyword}</td>
+        <td style="font-size:11px;color:var(--text-soft)">${k.SourceName||'—'}</td>
         <td style="font-size:11px;color:var(--text-soft)">${k.GroupLabel&&k.GroupLabel.toLowerCase()!==k.Keyword.toLowerCase()?k.GroupLabel:'—'}</td>
         <td>${k.CategoryName||'—'}</td>
         <td><button class="toggle ${k.IsActive==='Y'?'on':''}" onclick="toggleKeyword(${k.KeywordID},this)"></button></td>
@@ -2754,9 +2764,11 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     }else if(type==='keyword'){
       const kw=id?keywords.find(k=>k.KeywordID===id):null;title=id?'Edit Keyword':'Add Keyword';
       const currentGroupLabel=kw?.GroupLabel||'';
+      const sourceOptions=sources.map(s=>`<option value="${s.SourceID}" ${kw?.SourceID===s.SourceID?'selected':''}>${s.Name}</option>`).join('');
       body=`<div class="form-group"><label class="form-label">Keyword (exact match)</label><input class="form-input" id="m-keyword" value="${kw?.Keyword||''}"></div>
-        <div class="form-group"><label class="form-label">Group Label <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(optional — groups headlines with same label)</span></label><input class="form-input" id="m-grouplabel" value="${currentGroupLabel}" placeholder="Leave blank to use keyword name"></div>
+        <div class="form-group"><label class="form-label">Group Label <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(optional — groups headlines with same label) — use "Teams" to assign to the Teams screen (Teams keywords must specify a Shared Source)</span></label><input class="form-input" id="m-grouplabel" value="${currentGroupLabel}" placeholder="Leave blank to use keyword name"></div>
         <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>
+        <div class="form-group"><label class="form-label">Shared Source <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(optional — restricts matching to this source only; required for Teams)</span></label><select class="form-select" id="m-source"><option value="">— Any Source —</option>${sourceOptions}</select></div>
         <div class="form-group"><label class="form-label">Image <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(upload or paste)</span></label>
           <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
             <div id="m-kw-img-preview" style="width:100px;height:62px;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8fbff;font-size:20px;cursor:pointer" onclick="document.getElementById('m-kw-img-file').click()">${kw?.ImageURL?`<img src="${kw.ImageURL}" style="width:100%;height:100%;object-fit:cover">`:'🖼'}</div>
@@ -2834,14 +2846,19 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
           return alert(`Multi-word phrase must be in quotes: "${raw}"\n\nExample: "${raw}"`);
         }
       }
+      const sourceIDVal=parseInt(document.getElementById('m-source')?.value)||null;
+      const rawGroupLabel=document.getElementById('m-grouplabel')?.value.trim()||'';
+      if(rawGroupLabel.toLowerCase()==='teams'&&!sourceIDVal){
+        return alert('Teams keywords must specify a Shared Source.');
+      }
       if(modalID){
         const kw=keywords.find(k=>k.KeywordID===modalID);
-        await apiPost('SaveKeyword',{action:'update',keywordID:modalID,keyword,categoryID,sequence,isActive:true,groupLabel,imageURL:(window._modalKwImage!==undefined?window._modalKwImage:kw?.ImageURL)||null,userID:USER_ID});
+        await apiPost('SaveKeyword',{action:'update',keywordID:modalID,keyword,categoryID,sequence,isActive:true,groupLabel,sourceID:sourceIDVal,imageURL:(window._modalKwImage!==undefined?window._modalKwImage:kw?.ImageURL)||null,userID:USER_ID});
         if(kw)kw.ImageURL=(window._modalKwImage!==undefined?window._modalKwImage:kw?.ImageURL)||null;
-        if(kw){kw.Keyword=keyword;kw.CategoryID=categoryID;kw.GroupLabel=groupLabel;kw.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}
+        if(kw){kw.Keyword=keyword;kw.CategoryID=categoryID;kw.GroupLabel=groupLabel;kw.SourceID=sourceIDVal;kw.SourceName=sources.find(s=>s.SourceID===sourceIDVal)?.Name||null;kw.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}
       }else{
-        const result=await apiPost('SaveKeyword',{action:'add',keyword,categoryID,sequence,groupLabel,imageURL:window._modalKwImage||null,userID:USER_ID});
-        keywords.push({KeywordID:result.keywordID,Keyword:keyword,CategoryID:categoryID,GroupLabel:groupLabel,ImageURL:window._modalKwImage||null,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
+        const result=await apiPost('SaveKeyword',{action:'add',keyword,categoryID,sequence,groupLabel,sourceID:sourceIDVal,imageURL:window._modalKwImage||null,userID:USER_ID});
+        keywords.push({KeywordID:result.keywordID,Keyword:keyword,CategoryID:categoryID,GroupLabel:groupLabel,SourceID:sourceIDVal,SourceName:sources.find(s=>s.SourceID===sourceIDVal)?.Name||null,ImageURL:window._modalKwImage||null,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
       }
       renderSettingsKeywords();
     }else if(modalType==='topic'){

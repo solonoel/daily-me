@@ -29,7 +29,7 @@ module.exports = async function(context, req) {
              c.Name AS CategoryName, k.Keyword, k.Sequence AS KeywordSequence,
              k.GroupLabel AS KeywordGroupLabel,
              k.ImageURL AS KeywordImage,
-             hs.Name AS SourceName,
+             h.SourceID, hs.Name AS SourceName,
              (SELECT TOP 1 k2.ImageURL FROM [HeadlineKeyword] k2 WHERE k2.UserID = @UserID AND k2.GroupLabel = k.GroupLabel AND k2.GroupLabel IS NOT NULL AND k2.ImageURL IS NOT NULL) AS KeywordGroupImage
       FROM [Headline] h
       LEFT JOIN [Category] c ON h.CategoryID = c.CategoryID
