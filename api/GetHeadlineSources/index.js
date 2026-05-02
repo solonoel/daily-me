@@ -4,18 +4,16 @@ const config = {
   password: process.env.DB_PASSWORD,
   options: { encrypt: true, trustServerCertificate: false, connectTimeout: 60000, requestTimeout: 60000 }
 };
-
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
     const userID = parseInt(req.query.userID || '1');
     const allSources = req.query.all === 'true';
-
     let result;
     if (allSources) {
       result = await pool.request()
         .query(`
-          SELECT SourceID, Name, URL, SourceType, CategoryID, IsActive,
+          SELECT SourceID, Name, URL, SourceType, IsActive,
                  Sequence, DateAdded, YoutubeChannelID
           FROM [HeadlineSource]
           ORDER BY Sequence, Name
@@ -24,7 +22,7 @@ module.exports = async function(context, req) {
       result = await pool.request()
         .input('UserID', sql.Int, userID)
         .query(`
-          SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.CategoryID, h.IsActive AS GlobalIsActive,
+          SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.IsActive AS GlobalIsActive,
                  h.Sequence, h.DateAdded, h.YoutubeChannelID, uhs.IsFiltered, uhs.Exclusions,
                  uhs.IsActive AS UserIsActive
           FROM [HeadlineSource] h
@@ -33,7 +31,6 @@ module.exports = async function(context, req) {
           ORDER BY h.Sequence, h.Name
         `);
     }
-
     context.res = {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

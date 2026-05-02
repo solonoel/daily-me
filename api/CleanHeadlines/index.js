@@ -2,7 +2,7 @@ const sql = require('mssql');
 
 const config = {
   server: 'brunsusa-sql.database.windows.net',
-  database: 'DailyMeDB',f
+  database: 'DailyMeDB',
   user: 'noeladmin',
   password: process.env.DB_PASSWORD,
   options: {

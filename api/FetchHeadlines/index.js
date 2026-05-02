@@ -355,7 +355,7 @@ module.exports = async function(context, req) {
 
     const sourcesResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.CategoryID, h.IsActive,
+      .query(`SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.IsActive,
                      h.Sequence, h.YoutubeChannelID, uhs.IsFiltered, uhs.Exclusions, uhs.IsActive AS UserIsActive
               FROM [HeadlineSource] h
               INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
