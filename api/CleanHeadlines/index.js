@@ -18,6 +18,21 @@ module.exports = async function(context, req) {
     const pool = await sql.connect(config);
     const userID = req.body?.userID || 1;
 
+    await pool.request()
+      .input('UserID', sql.Int, userID)
+      .query(`
+        INSERT INTO HeadlineExclusion (UserID, Link, DeletedDate)
+        SELECT @UserID, Link, GETDATE()
+        FROM [Headline]
+        WHERE UserID = @UserID
+          AND ISNULL(Retain, 'N') != 'Y'
+          AND Link IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM HeadlineExclusion
+            WHERE UserID = @UserID AND Link = Headline.Link
+          )
+      `);
+
     const result = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`

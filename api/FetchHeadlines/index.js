@@ -52,7 +52,7 @@ function parseRSS(xml) {
         title: title.trim().replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#039;/g,"'").replace(/&quot;/g,'"'),
         link: link.trim(), summary,
         fullText: fullText.substring(0, 2000),
-        pubDate: pubDate ? new Date(pubDate) : new Date()
+        pubDate: pubDate ? new Date(pubDate.replace(/\b(EDT|EST|CDT|CST|MDT|MST|PDT|PST)\b/, d => ({EDT:'-0400',EST:'-0500',CDT:'-0500',CST:'-0600',MDT:'-0600',MST:'-0700',PDT:'-0700',PST:'-0800'})[d])) : new Date()
       });
     }
   }
@@ -397,6 +397,19 @@ module.exports = async function(context, req) {
       .query(`SELECT Link FROM [Headline] WHERE UserID=@UserID`);
     const existingLinks = new Set(existingResult.recordset.map(r => r.Link));
 
+    // Purge stale exclusions, then load active ones
+    await pool.request()
+      .input('UserID', sql.Int, userID)
+      .input('RecencyDays', sql.Int, recencyDays)
+      .query(`DELETE FROM HeadlineExclusion
+              WHERE UserID = @UserID
+                AND DeletedDate < DATEADD(day, -@RecencyDays, GETDATE())`);
+
+    const exclusionResult = await pool.request()
+      .input('UserID', sql.Int, userID)
+      .query(`SELECT Link FROM HeadlineExclusion WHERE UserID = @UserID`);
+    const excludedLinks = new Set(exclusionResult.recordset.map(r => r.Link));
+
     const catLimitsResult = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`SELECT CategoryID, MaxItems FROM [UserCategorySetting] WHERE UserID=@UserID`);
@@ -526,7 +539,7 @@ module.exports = async function(context, req) {
     // Deduplicate
     const seen = new Set();
     const unique = allArticles.filter(a => {
-      if (!a.link || seen.has(a.link) || existingLinks.has(a.link)) { totalDuplicates++; return false; }
+      if (!a.link || seen.has(a.link) || existingLinks.has(a.link) || excludedLinks.has(a.link)) { totalDuplicates++; return false; }
       seen.add(a.link); return true;
     });
 
