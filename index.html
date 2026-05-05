@@ -1980,32 +1980,132 @@ const fcCounts={
     loadConjugation(wordID,conjLangName);
   }
 
-  async function loadConjugation(wordID,langName){
-    const out=document.getElementById('conj-output');
-    if(!out)return;
-    out.innerHTML='<div style="padding:12px;font-size:13px;color:var(--text-muted)">Loading conjugations...</div>';
-    try{
-      const data=await apiPost('GetConjugation',{userID:USER_ID,userLanguageWordsID:parseInt(wordID)});
-      if(!data||!data.moods||!data.moods.length){out.innerHTML='<div class="empty-state">No conjugation data found.</div>';return;}
-      const filteredMoods=data.moods.filter(m=>!m.moodEng?.toLowerCase().includes('infinitiv'));
-      const verbTrans=conjVerbs.find(v=>v.UserLanguageWordsID===parseInt(wordID))?.WordsTranslation||'';
-      const verbTransDisp=verbTrans?` <span style="font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:400;opacity:0.85">(${verbTrans})</span>`:'';
-      let html=`<div class="conj-verb-header"><button onclick="speakWord('${(data.verb||'').replace(/'/g,"\\'")}','${data.language||''}')" style="background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);border-radius:6px;cursor:pointer;padding:4px 8px;font-size:16px;color:white;flex-shrink:0">🔊</button><div class="conj-verb-name">${data.verb||''}${verbTransDisp}</div><div class="conj-verb-meaning">${data.language||''}</div></div>`;
-      filteredMoods.forEach((mood,mi)=>{
-        const expanded=mi===0;
-        html+=`<div class="conj-mood"><div class="conj-mood-header ${expanded?'expanded':''}" onclick="toggleConjMood(this)"><div class="conj-mood-title">${mood.moodEng} <span style="font-size:12px;opacity:0.75;font-weight:400">(${mood.moodName})</span></div><span class="conj-mood-arrow">${expanded?'▲':'▼'}</span></div><div style="display:${expanded?'block':'none'}"><div class="conj-tenses-grid">`;
-        mood.tenses.forEach(tense=>{
-          const rows=Math.ceil(tense.forms.length/2);
-          html+=`<div class="conj-tense-box"><div class="conj-tense-header">${tense.tenseEng} <span style="font-weight:400;opacity:0.7">(${tense.tenseName})</span></div><div class="conj-grid" style="grid-template-rows:repeat(${rows},auto)">`;
-          tense.forms.forEach(f=>{
-            html+=`<div class="conj-cell"><span class="conj-pronoun">${f.pronounName}</span><span class="conj-form">${f.form}</span></div>`;
-          });
-          html+=`</div></div>`;
+  let _conjMode = 'learn';
+  let _conjData = null;
+  let _conjWordID = null;
+
+  function setConjMode(mode) {
+    _conjMode = mode;
+    renderConjOutput();
+  }
+
+  function resetConjTest() {
+    document.querySelectorAll('.conj-test-input').forEach(inp => {
+      inp.value = '';
+      inp.style.background = '';
+      inp.style.color = '';
+    });
+    document.querySelectorAll('.conj-correct-answer').forEach(el => el.remove());
+    const scoreEl = document.getElementById('conj-score-display');
+    if (scoreEl) scoreEl.innerHTML = '';
+  }
+
+  function scoreConjTest() {
+    const inputs = [...document.querySelectorAll('.conj-test-input')];
+    const answered = inputs.filter(inp => inp.value.trim() !== '');
+    if (!answered.length) { alert('Enter at least one answer first.'); return; }
+    let correct = 0, incorrect = 0;
+    inputs.forEach(inp => {
+      const val = inp.value.trim();
+      if (!val) return;
+      const expected = inp.dataset.answer;
+      // Remove existing correction
+      inp.nextElementSibling?.classList.contains('conj-correct-answer') && inp.nextElementSibling.remove();
+      const normalize = s => s.toLowerCase().trim().replace(/\s+/g, ' ');
+      if (normalize(val) === normalize(expected)) {
+        correct++;
+        inp.style.background = '#f0fdf4';
+        inp.style.color = '#16a34a';
+        inp.style.borderColor = '#22c55e';
+      } else {
+        incorrect++;
+        inp.style.background = '#fef2f2';
+        inp.style.color = '#dc2626';
+        inp.style.borderColor = '#e05050';
+        const correction = document.createElement('span');
+        correction.className = 'conj-correct-answer';
+        correction.style.cssText = 'font-size:12px;color:#0f1e2e;font-weight:600;margin-left:6px;white-space:nowrap';
+        correction.textContent = expected;
+        inp.insertAdjacentElement('afterend', correction);
+      }
+    });
+    const total = correct + incorrect;
+    const pct = Math.round((correct / total) * 100);
+    const grade = pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'F';
+    const gradeColor = pct >= 90 ? '#16a34a' : pct >= 80 ? '#2b7fd4' : pct >= 70 ? '#e8a020' : '#e05050';
+    const scoreEl = document.getElementById('conj-score-display');
+    if (scoreEl) scoreEl.innerHTML = `<span style="font-size:13px;font-weight:700;color:${gradeColor}">${correct}/${total} &nbsp;${pct}% &nbsp;<span style="font-size:18px">${grade}</span></span>`;
+  }
+
+  function renderConjOutput() {
+    const out = document.getElementById('conj-output');
+    if (!out || !_conjData) return;
+    const data = _conjData;
+    const mode = _conjMode;
+    const filteredMoods = data.moods.filter(m => !m.moodEng?.toLowerCase().includes('infinitiv'));
+    const verbTrans = conjVerbs.find(v => v.UserLanguageWordsID === parseInt(_conjWordID))?.WordsTranslation || '';
+    const verbTransDisp = verbTrans ? ` <span style="font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:400;opacity:0.85">(${verbTrans})</span>` : '';
+    const participleHTML = (data.presentParticiple || data.pastParticiple)
+      ? `<div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:4px;display:flex;gap:16px">
+          ${data.presentParticiple ? `<span><span style="opacity:0.7">Present:</span> <strong>${data.presentParticiple}</strong></span>` : ''}
+          ${data.pastParticiple ? `<span><span style="opacity:0.7">Past:</span> <strong>${data.pastParticiple}</strong></span>` : ''}
+        </div>` : '';
+    const testControls = `
+      <div style="display:flex;align-items:center;gap:12px;margin-left:auto">
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:white;cursor:pointer">
+          <input type="radio" name="conj-mode" value="learn" ${mode==='learn'?'checked':''} onchange="setConjMode('learn')" style="accent-color:white"> Learn
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:white;cursor:pointer">
+          <input type="radio" name="conj-mode" value="test" ${mode==='test'?'checked':''} onchange="setConjMode('test')" style="accent-color:white"> Test
+        </label>
+        ${mode==='test' ? `
+          <a href="#" onclick="scoreConjTest();return false;" style="font-size:12px;font-weight:700;color:white;text-decoration:underline;white-space:nowrap">Score</a>
+          <a href="#" onclick="resetConjTest();return false;" style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.75);text-decoration:underline;white-space:nowrap">Reset</a>
+        ` : ''}
+        <span id="conj-score-display" style="min-width:120px;text-align:right"></span>
+      </div>`;
+    let html = `<div class="conj-verb-header" style="flex-wrap:wrap;gap:8px">
+      <button onclick="speakWord('${(data.verb||'').replace(/'/g,"\\'")}','${data.language||''}')" style="background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);border-radius:6px;cursor:pointer;padding:4px 8px;font-size:16px;color:white;flex-shrink:0">🔊</button>
+      <div>
+        <div class="conj-verb-name">${data.verb||''}${verbTransDisp}</div>
+        ${participleHTML}
+      </div>
+      <div class="conj-verb-meaning">${data.language||''}</div>
+      ${testControls}
+    </div>`;
+    filteredMoods.forEach((mood, mi) => {
+      const expanded = mi === 0;
+      html += `<div class="conj-mood"><div class="conj-mood-header ${expanded?'expanded':''}" onclick="toggleConjMood(this)"><div class="conj-mood-title">${mood.moodEng} <span style="font-size:12px;opacity:0.75;font-weight:400">(${mood.moodName})</span></div><span class="conj-mood-arrow">${expanded?'▲':'▼'}</span></div><div style="display:${expanded?'block':'none'}"><div class="conj-tenses-grid">`;
+      mood.tenses.forEach(tense => {
+        const rows = Math.ceil(tense.forms.length / 2);
+        html += `<div class="conj-tense-box"><div class="conj-tense-header">${tense.tenseEng} <span style="font-weight:400;opacity:0.7">(${tense.tenseName})</span></div><div class="conj-grid" style="grid-template-rows:repeat(${rows},auto)">`;
+        tense.forms.forEach(f => {
+          if (mode === 'test') {
+            html += `<div class="conj-cell"><span class="conj-pronoun">${f.pronounName}</span><input class="conj-test-input" data-answer="${f.form.replace(/"/g,'&quot;')}" type="text" style="width:90px;font-size:12px;padding:2px 5px;border:1.5px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif;color:var(--text)" autocomplete="off" autocorrect="off" spellcheck="false"></div>`;
+          } else {
+            html += `<div class="conj-cell"><span class="conj-pronoun">${f.pronounName}</span><span class="conj-form">${f.form}</span></div>`;
+          }
         });
-        html+=`</div></div></div>`;
+        html += `</div></div>`;
       });
-      out.innerHTML=html;
-    }catch(e){out.innerHTML='<div class="empty-state">Error: '+e.message+'</div>';}
+      html += `</div></div></div>`;
+    });
+    out.innerHTML = html;
+  }
+
+  async function loadConjugation(wordID, langName) {
+    const out = document.getElementById('conj-output');
+    if (!out) return;
+    _conjMode = 'learn';
+    _conjData = null;
+    _conjWordID = wordID;
+    out.innerHTML = '<div style="padding:12px;font-size:13px;color:var(--text-muted)">Loading conjugations...</div>';
+    try {
+      const data = await apiPost('GetConjugation', {userID: USER_ID, userLanguageWordsID: parseInt(wordID)});
+      if (!data || !data.moods || !data.moods.length) { out.innerHTML = '<div class="empty-state">No conjugation data found.</div>'; return; }
+      _conjData = data;
+      renderConjOutput();
+    } catch(e) { out.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
   }
 
   function toggleConjMood(header){
@@ -3644,6 +3744,14 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   function logout()
   {localStorage.removeItem('dailyme_user');window.location.href='login.html';}
   setGreeting();setDate();loadAll();
+
+  // Auto-logout after 30 minutes of inactivity
+  let _lastActivity = Date.now();
+  function resetActivityTimer() { _lastActivity = Date.now(); }
+  ['click','keydown','mousemove','touchstart'].forEach(e => document.addEventListener(e, resetActivityTimer, {passive:true}));
+  setInterval(() => {
+    if (Date.now() - _lastActivity > 30 * 60 * 1000) logout();
+  }, 60 * 1000);
 </script>
 </body>
 </html>
