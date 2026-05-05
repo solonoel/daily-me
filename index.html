@@ -1994,6 +1994,7 @@ const fcCounts={
       inp.value = '';
       inp.style.background = '';
       inp.style.color = '';
+      inp.style.borderColor = '';
     });
     document.querySelectorAll('.conj-correct-answer').forEach(el => el.remove());
     const scoreEl = document.getElementById('conj-score-display');
@@ -2014,14 +2015,14 @@ const fcCounts={
       const normalize = s => s.toLowerCase().trim().replace(/\s+/g, ' ');
       if (normalize(val) === normalize(expected)) {
         correct++;
-        inp.style.background = '#f0fdf4';
-        inp.style.color = '#16a34a';
+        inp.style.background = '#16a34a';
+        inp.style.color = 'white';
         inp.style.borderColor = '#22c55e';
       } else {
         incorrect++;
-        inp.style.background = '#fef2f2';
-        inp.style.color = '#dc2626';
-        inp.style.borderColor = '#e05050';
+        inp.style.background = '#e05050';
+        inp.style.color = 'white';
+        inp.style.borderColor = '#dc2626';
         const correction = document.createElement('span');
         correction.className = 'conj-correct-answer';
         correction.style.cssText = 'font-size:12px;color:#0f1e2e;font-weight:600;margin-left:6px;white-space:nowrap';
@@ -2072,6 +2073,10 @@ const fcCounts={
       </div>
       <div class="conj-verb-meaning">${data.language||''}</div>
       ${testControls}
+      <div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.2);width:100%;display:flex;align-items:center;gap:10px">
+        <a href="#" onclick="regenerateConjugation();return false;" style="font-size:11px;color:rgba(255,255,255,0.7);text-decoration:underline">↻ Regenerate</a>
+        <span id="conj-regen-status" style="font-size:11px;color:rgba(255,255,255,0.8)"></span>
+      </div>
     </div>`;
     filteredMoods.forEach((mood, mi) => {
       const expanded = mi === 0;
@@ -2091,6 +2096,21 @@ const fcCounts={
       html += `</div></div></div>`;
     });
     out.innerHTML = html;
+  }
+
+  async function regenerateConjugation() {
+    const statusEl = document.getElementById('conj-regen-status');
+    if (statusEl) statusEl.textContent = 'Regenerating...';
+    try {
+      const data = await apiPost('GetConjugation', {userID: USER_ID, userLanguageWordsID: parseInt(_conjWordID), regenerate: true});
+      if (!data || !data.moods || !data.moods.length) { if(statusEl) statusEl.textContent = 'No data returned.'; return; }
+      _conjData = data;
+      _conjMode = 'learn';
+      renderConjOutput();
+      if (statusEl) { statusEl.textContent = '✓ Done'; setTimeout(() => statusEl.textContent = '', 3000); }
+    } catch(e) {
+      if (statusEl) statusEl.textContent = 'Error: ' + e.message;
+    }
   }
 
   async function loadConjugation(wordID, langName) {
