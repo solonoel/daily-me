@@ -49,7 +49,7 @@ function parseRSS(xml) {
         title: title.trim().replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#039;/g,"'").replace(/&quot;/g,'"'),
         link: link.trim(),
         summary: description.replace(/<[^>]+>/g,'').trim().substring(0, 500),
-        pubDate: pubDate ? new Date(pubDate) : new Date()
+        pubDate: pubDate ? new Date(pubDate.replace(/\b(EDT|EST|CDT|CST|MDT|MST|PDT|PST)\b/, d => ({EDT:'-0400',EST:'-0500',CDT:'-0500',CST:'-0600',MDT:'-0600',MST:'-0700',PDT:'-0700',PST:'-0800'})[d])) : new Date()
       });
     }
   }
@@ -255,6 +255,12 @@ async function fetchForUser(pool, userID, context) {
     .query(`SELECT Link FROM [Headline] WHERE UserID=@UserID`);
   const existingLinks = new Set(existingResult.recordset.map(r => r.Link));
 
+  // Load exclusion list
+  const exclusionResult = await pool.request()
+    .input('UserID', sql.Int, userID)
+    .query(`SELECT Link FROM HeadlineExclusion WHERE UserID = @UserID`);
+  const excludedLinks = new Set(exclusionResult.recordset.map(r => r.Link));
+
   const catNamesResult = await pool.request()
     .input('UserID', sql.Int, userID)
     .query(`SELECT CategoryID, Name FROM [Category] WHERE UserID=@UserID AND IsActive='Y' AND Headlines='Y'`);
@@ -266,6 +272,22 @@ async function fetchForUser(pool, userID, context) {
   const numCats = catNamesResult.recordset.length || 5;
   const defaultPerCat = Math.ceil(maxHeadlines / numCats);
 
+  // Clean old headlines before fetching
+  await pool.request()
+    .input('UserID', sql.Int, userID)
+    .query(`DELETE FROM [Headline] WHERE UserID = @UserID AND ISNULL(Retain,'N') != 'Y'`);
+
+  // Purge stale exclusions
+  await pool.request()
+    .input('UserID', sql.Int, userID)
+    .input('RecencyDays', sql.Int, recencyDays)
+    .query(`DELETE FROM HeadlineExclusion WHERE UserID = @UserID AND DeletedDate < DATEADD(day, -@RecencyDays, GETDATE())`);
+
+  // Reset YouTube flags
+  await pool.request()
+    .input('UserID', sql.Int, userID)
+    .query(`UPDATE [HeadlineSetting] SET DisableYoutubeToday = 0, LastYouTubeFetch = NULL WHERE UserID = @UserID`);
+
   let allArticles = [];
 
   for (const source of sources) {
@@ -273,12 +295,12 @@ async function fetchForUser(pool, userID, context) {
       let articles = [];
       switch(source.SourceType) {
         case 'API':
-          if (source.Name.includes('Guardian'))       articles = await fetchGuardian(source, keywords, topics, fromDateStr, uniqueLangCodes, otherPerKeyword);
-          else if (source.Name.includes('NYT'))       articles = await fetchNYT(source);
-          else if (source.Name.includes('GNews'))     articles = await fetchGNews(source, uniqueLangCodes);
-          else if (source.Name.includes('Currents'))  articles = await fetchCurrents(source);
+          if (source.Name.includes('Guardian'))        articles = await fetchGuardian(source, keywords, topics, fromDateStr, uniqueLangCodes, otherPerKeyword);
+          else if (source.Name.includes('NYT'))        articles = await fetchNYT(source);
+          else if (source.Name.includes('GNews'))      articles = await fetchGNews(source, uniqueLangCodes);
+          else if (source.Name.includes('Currents'))   articles = await fetchCurrents(source);
           else if (source.Name.includes('MediaStack')) articles = await fetchMediaStack(source);
-          else if (source.Name.includes('NewsAPI'))   articles = await fetchNewsAPI(source, uniqueLangCodes);
+          else if (source.Name.includes('NewsAPI'))    articles = await fetchNewsAPI(source, uniqueLangCodes);
           break;
         case 'RSS':
           articles = await fetchRSS(source);
@@ -331,11 +353,6 @@ async function fetchForUser(pool, userID, context) {
     }
   }
 
-  // Always clear DisableYoutubeToday after scheduled fetch
-  await pool.request()
-    .input('UserID', sql.Int, userID)
-    .query(`UPDATE [HeadlineSetting] SET DisableYoutubeToday = 0 WHERE UserID = @UserID`);
-
   // Build exclusion map: categoryID -> [term, ...]
   const exclusionMap = {};
   for (const kw of kwResult.recordset) {
@@ -347,12 +364,11 @@ async function fetchForUser(pool, userID, context) {
 
   const seen = new Set();
   const unique = allArticles.filter(a => {
-    if (!a.link || seen.has(a.link) || existingLinks.has(a.link)) return false;
+    if (!a.link || seen.has(a.link) || existingLinks.has(a.link) || excludedLinks.has(a.link)) return false;
     seen.add(a.link);
     return true;
   });
 
-  // Apply category-specific exclusions
   const excluded = unique.filter(a => {
     if (!a.categoryID) return true;
     const terms = exclusionMap[a.categoryID];
@@ -363,7 +379,6 @@ async function fetchForUser(pool, userID, context) {
       return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
     });
   });
-  context.log(`Exclusion filter: ${unique.length - excluded.length} articles removed`);
 
   for (const a of excluded) {
     if (a.categoryID) continue;
@@ -397,19 +412,16 @@ async function fetchForUser(pool, userID, context) {
   for (const a of excluded) {
     const cat = a.categoryID !== null && a.categoryID !== undefined ? a.categoryID : 'none';
     if (!(cat in catCounts)) catCounts[cat] = 0;
-
     if (cat !== 'none') {
       const limit = catLimits[cat] || defaultPerCat;
       if (catCounts[cat] >= limit) continue;
     }
-
     if (a.sourceType !== 'Youtube' && (a.keywordID || a.topicID)) {
       const termKey = `${a.keywordID || 'tp' + a.topicID}-${a.sourceID}`;
       keywordSourceCounts[termKey] = (keywordSourceCounts[termKey] || 0);
       if (keywordSourceCounts[termKey] >= otherPerKeyword) continue;
       keywordSourceCounts[termKey]++;
     }
-
     selected.push(a);
     if (cat !== 'none') catCounts[cat]++;
   }
@@ -442,6 +454,11 @@ async function fetchForUser(pool, userID, context) {
     }
   }
 
+  // Mark fetch as done for today
+  await pool.request()
+    .input('UserID', sql.Int, userID)
+    .query(`UPDATE [HeadlineSetting] SET LastScheduledFetch = CAST(GETDATE() AS DATE) WHERE UserID = @UserID`);
+
   context.log(`User ${userID}: inserted ${totalInserted} of ${excluded.length} unique articles`);
   return totalInserted;
 }
@@ -450,21 +467,27 @@ module.exports = async function(context, myTimer) {
   const isHttp = !!context.req;
   context.log(`ScheduledFetchHeadlines triggered via ${isHttp ? 'HTTP' : 'timer'}`);
 
-  // Current hour in UTC — FetchHour stored as Central time (UTC-6 standard, UTC-5 daylight)
+  // Current time in Central (UTC-5 CDT / UTC-6 CST)
   const nowUTC = new Date();
-  const offsetHours = 5; // CDT — change to 6 for CST in winter
+  const offsetHours = nowUTC.getMonth() >= 2 && nowUTC.getMonth() <= 10 ? 5 : 6; // CDT vs CST
   const centralHour = (nowUTC.getUTCHours() - offsetHours + 24) % 24;
+  const todayCST = new Date(nowUTC.getTime() - offsetHours * 3600000).toISOString().split('T')[0];
 
-  context.log(`Central hour: ${centralHour}`);
+  context.log(`Central hour: ${centralHour}, today: ${todayCST}`);
 
   try {
     const pool = await sql.connect(config);
 
+    // Find users whose FetchHour has passed today and haven't been fetched yet today
     const usersResult = await pool.request()
-      .input('FetchHour', sql.Int, centralHour)
+      .input('CentralHour', sql.Int, centralHour)
+      .input('Today', sql.Date, todayCST)
       .query(`SELECT u.UserID FROM [User] u
               JOIN [HeadlineSetting] hs ON hs.UserID = u.UserID
-              WHERE hs.FetchHour = @FetchHour AND u.IsActive = 'Y'`);
+              WHERE hs.FetchHour IS NOT NULL
+                AND hs.FetchHour <= @CentralHour
+                AND u.IsActive = 'Y'
+                AND (hs.LastScheduledFetch IS NULL OR hs.LastScheduledFetch < @Today)`);
 
     const users = usersResult.recordset;
     context.log(`Users to fetch for: ${users.length}`);
@@ -479,7 +502,7 @@ module.exports = async function(context, myTimer) {
     }
 
     context.log('ScheduledFetchHeadlines complete');
-    if (context.res) context.res = { status: 200, body: 'OK' };
+    if (context.res) context.res = { status: 200, body: `OK — processed ${users.length} user(s)` };
   } catch(err) {
     context.log('Fatal error: ' + err.message);
     if (context.res) context.res = { status: 500, body: err.message };
