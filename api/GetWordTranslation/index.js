@@ -1,5 +1,4 @@
 const https = require('https');
-
 function fetchUrl(url, options, body) {
   return new Promise((resolve, reject) => {
     const req = https.request(url, options, (res) => {
@@ -12,12 +11,10 @@ function fetchUrl(url, options, body) {
     req.end();
   });
 }
-
 module.exports = async function(context, req) {
   try {
     const { word, languageCode } = req.body;
     const apiKey = process.env.DEEPL_API_KEY;
-
     const langMap = {
       'Spanish':    'ES',
       'French':     'FR',
@@ -26,13 +23,11 @@ module.exports = async function(context, req) {
       'Romanian':   'RO'
     };
     const targetLang = langMap[languageCode] || 'ES';
-
     const body = JSON.stringify({
       text: [word],
       target_lang: 'EN-US',
       source_lang: targetLang
     });
-
     const options = {
       hostname: 'api-free.deepl.com',
       path: '/v2/translate',
@@ -43,23 +38,23 @@ module.exports = async function(context, req) {
         'Content-Length': Buffer.byteLength(body)
       }
     };
-
     const response = await fetchUrl('https://api-free.deepl.com/v2/translate', options, body);
     const data = JSON.parse(response);
     let translation = data.translations?.[0]?.text || '';
-
-    // Ask Claude to determine gender, verb status, and synonyms
-    let gender = null, isVerb = false;
+    let gender = null, isVerb = false, presentParticiple = null, pastParticiple = null, wordWithRegion = null;
     try {
       const anthropicBody = JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 200,
+        max_tokens: 300,
         messages: [{
           role: 'user',
           content: `For the ${languageCode} word or phrase "${word}", respond with JSON only, no markdown:
-{"isVerb": true|false, "gender": "M"|"F"|"N"|null, "synonyms": ["word1","word2"]}
+{"isVerb": true|false, "gender": "M"|"F"|"N"|null, "synonyms": ["word1","word2"], "presentParticiple": "<present participle if verb, else null>", "pastParticiple": "<past participle if verb, else null>", "wordWithRegion": "<word with article if noun, else the word as-is>"}
 - gender: M=masculine, F=feminine, N=neuter, null=not applicable (verbs, plurals, proper nouns)
-- synonyms: 2-3 additional English translations most relevant to this word. For verbs, include "to " prefix on each (e.g. "to run"). For nouns, no prefix. Empty array if none.`
+- synonyms: 2-3 additional English translations most relevant to this word. For verbs, include "to " prefix on each. For nouns, no prefix. Empty array if none.
+- presentParticiple: the gerund/present participle form if this is a verb (e.g. Spanish "hablando"), null otherwise
+- pastParticiple: the past participle form if this is a verb (e.g. Spanish "hablado"), null otherwise
+- wordWithRegion: for nouns include the definite article (e.g. "el libro"), for verbs return the infinitive as-is`
         }]
       });
       const anthropicOptions = {
@@ -79,9 +74,10 @@ module.exports = async function(context, req) {
       const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
       gender = parsed.gender || null;
       isVerb = !!parsed.isVerb;
+      presentParticiple = parsed.presentParticiple || null;
+      pastParticiple = parsed.pastParticiple || null;
+      wordWithRegion = parsed.wordWithRegion || null;
       const synonyms = Array.isArray(parsed.synonyms) ? parsed.synonyms : [];
-
-      // Build combined translation: DeepL base + Claude synonyms, deduped
       const seen = new Set();
       const parts = [translation, ...synonyms].map(t => t.trim()).filter(t => {
         const key = t.toLowerCase().replace(/^to\s+/, '');
@@ -89,7 +85,6 @@ module.exports = async function(context, req) {
         seen.add(key);
         return true;
       });
-
       if (isVerb) {
         translation = parts.map(t => t.toLowerCase().startsWith('to ') ? t : 'to ' + t).join(', ');
       } else {
@@ -98,11 +93,10 @@ module.exports = async function(context, req) {
     } catch(e) {
       // Claude call failed — return DeepL translation only
     }
-
     context.res = {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ success: true, translation, gender, isVerb })
+      body: JSON.stringify({ success: true, translation, gender, isVerb, presentParticiple, pastParticiple, wordWithRegion })
     };
   } catch(err) {
     context.res = { status: 500, body: 'Error: ' + err.message };

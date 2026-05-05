@@ -636,6 +636,19 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="conj-tips-modal" style="display:none" onclick="if(event.target===this)closeConjTips()">
+  <div style="background:white;border-radius:20px;width:620px;max-width:94vw;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 12px 48px rgba(43,127,212,0.22);overflow:hidden" onclick="event.stopPropagation()">
+    <div id="conj-tips-header" style="background:linear-gradient(135deg,#2b7fd4 0%,#1a9fd4 100%);padding:18px 24px;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0">
+      <div>
+        <div id="conj-tips-title" style="font-family:'Playfair Display',serif;font-size:20px;font-weight:600;color:white"></div>
+        <div id="conj-tips-subtitle" style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:4px"></div>
+      </div>
+      <button onclick="closeConjTips()" style="background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);border-radius:8px;color:white;font-size:16px;cursor:pointer;padding:4px 10px;flex-shrink:0;margin-left:12px">✕</button>
+    </div>
+    <div id="conj-tips-body" style="overflow-y:auto;padding:20px 24px;flex:1"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal" style="display:none" onclick="closeModalOverlay(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title" id="modal-title">Add Item</div>
@@ -1451,6 +1464,10 @@
           const sorted=[...userDecks].sort((a,b)=>new Date(b.DateAdded)-new Date(a.DateAdded));
           if(sorted.length)await apiPost('SaveUserDeck',{action:'addWord',userID:USER_ID,deckID:sorted[0].UserLanguageWordsDeckID,wordID:newWordID});
         }
+        if(newWordID&&isVerb&&(window._fetchedPresentParticiple||window._fetchedPastParticiple)){
+          await apiPost('SaveParticiples',{userID:USER_ID,userLanguageWordsID:newWordID,presentParticiple:window._fetchedPresentParticiple||null,pastParticiple:window._fetchedPastParticiple||null});
+          window._fetchedPresentParticiple=null;window._fetchedPastParticiple=null;
+        }
       }
       newWordImageChanged=false;editingWordID=null;
       if(addAnother){newWordImage=null;showNewWord();apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=all`).then(d=>{myWords=Array.isArray(d)?d:[];});}
@@ -1515,6 +1532,10 @@
         document.getElementById('nw-translation').value=result.translation;
         if(result.isVerb===true||result.isVerb==='true'){const cb=document.getElementById('nw-isverb');if(cb)cb.checked=true;}
         if(result.gender){const sel=document.getElementById('nw-gender');if(sel)sel.value=result.gender;}
+        if(result.presentParticiple||result.pastParticiple){
+          window._fetchedPresentParticiple=result.presentParticiple||null;
+          window._fetchedPastParticiple=result.pastParticiple||null;
+        }
         const wordInput=document.getElementById('nw-word');
         if(wordInput&&result.gender){
           const art=langArticles[currentLangName]?.[result.gender];
@@ -1983,6 +2004,7 @@ const fcCounts={
   let _conjMode = 'learn';
   let _conjData = null;
   let _conjWordID = null;
+  let _conjTipsCache = {};
 
   function setConjMode(mode) {
     _conjMode = mode;
@@ -2047,7 +2069,7 @@ const fcCounts={
     const verbTrans = conjVerbs.find(v => v.UserLanguageWordsID === parseInt(_conjWordID))?.WordsTranslation || '';
     const verbTransDisp = verbTrans ? ` <span style="font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:400;opacity:0.85">(${verbTrans})</span>` : '';
     const participleHTML = (data.presentParticiple || data.pastParticiple)
-      ? `<div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:4px;display:flex;gap:16px">
+      ? `<div style="font-size:13px;color:rgba(255,255,255,0.9);margin-top:6px;display:flex;gap:16px;font-weight:500">
           ${data.presentParticiple ? `<span><span style="opacity:0.7">Present:</span> <strong>${data.presentParticiple}</strong></span>` : ''}
           ${data.pastParticiple ? `<span><span style="opacity:0.7">Past:</span> <strong>${data.pastParticiple}</strong></span>` : ''}
         </div>` : '';
@@ -2073,17 +2095,14 @@ const fcCounts={
       </div>
       <div class="conj-verb-meaning">${data.language||''}</div>
       ${testControls}
-      <div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.2);width:100%;display:flex;align-items:center;gap:10px">
-        <a href="#" onclick="regenerateConjugation();return false;" style="font-size:11px;color:rgba(255,255,255,0.7);text-decoration:underline">↻ Regenerate</a>
-        <span id="conj-regen-status" style="font-size:11px;color:rgba(255,255,255,0.8)"></span>
-      </div>
     </div>`;
     filteredMoods.forEach((mood, mi) => {
       const expanded = mi === 0;
       html += `<div class="conj-mood"><div class="conj-mood-header ${expanded?'expanded':''}" onclick="toggleConjMood(this)"><div class="conj-mood-title">${mood.moodEng} <span style="font-size:12px;opacity:0.75;font-weight:400">(${mood.moodName})</span></div><span class="conj-mood-arrow">${expanded?'▲':'▼'}</span></div><div style="display:${expanded?'block':'none'}"><div class="conj-tenses-grid">`;
       mood.tenses.forEach(tense => {
         const rows = Math.ceil(tense.forms.length / 2);
-        html += `<div class="conj-tense-box"><div class="conj-tense-header">${tense.tenseEng} <span style="font-weight:400;opacity:0.7">(${tense.tenseName})</span></div><div class="conj-grid" style="grid-template-rows:repeat(${rows},auto)">`;
+        const tipsCacheKey = `${_conjData?.language||''}|${mood.moodEng}|${tense.tenseEng}`;
+        html += `<div class="conj-tense-box"><div class="conj-tense-header" style="display:flex;align-items:center;justify-content:space-between">${tense.tenseEng} <span style="font-weight:400;opacity:0.7">(${tense.tenseName})</span><a href="#" onclick="openConjTips('${mood.moodEng.replace(/'/g,"\\'")}','${mood.moodName.replace(/'/g,"\\'")}','${tense.tenseEng.replace(/'/g,"\\'")}','${tense.tenseName.replace(/'/g,"\\'")}');return false;" style="font-size:10px;font-weight:600;color:#1a5a90;text-decoration:none;border-bottom:1px dashed #1a5a90;white-space:nowrap;margin-left:8px">Notes</a></div><div class="conj-grid" style="grid-template-rows:repeat(${rows},auto)">`;
         tense.forms.forEach(f => {
           if (mode === 'test') {
             html += `<div class="conj-cell"><span class="conj-pronoun">${f.pronounName}</span><input class="conj-test-input" data-answer="${f.form.replace(/"/g,'&quot;')}" type="text" style="width:90px;font-size:12px;padding:2px 5px;border:1.5px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif;color:var(--text)" autocomplete="off" autocorrect="off" spellcheck="false"></div>`;
@@ -2096,6 +2115,111 @@ const fcCounts={
       html += `</div></div></div>`;
     });
     out.innerHTML = html;
+  }
+
+  async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
+    const language = _conjData?.language || conjLangName || 'Spanish';
+    const cacheKey = `${language}|${moodEng}|${tenseEng}`;
+    const modal = document.getElementById('conj-tips-modal');
+    const titleEl = document.getElementById('conj-tips-title');
+    const subtitleEl = document.getElementById('conj-tips-subtitle');
+    const bodyEl = document.getElementById('conj-tips-body');
+    if (titleEl) titleEl.textContent = `${moodEng} — ${tenseEng}`;
+    if (subtitleEl) subtitleEl.textContent = `${moodName} / ${tenseName} · ${language}`;
+    if (bodyEl) bodyEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:24px;margin-bottom:12px">⏳</div>Loading notes...</div>';
+    if (modal) modal.style.display = 'flex';
+
+    if (_conjTipsCache[cacheKey]) {
+      renderConjTips(_conjTipsCache[cacheKey]);
+      return;
+    }
+
+    try {
+      const result = await apiPost('GetConjugationTips', { language, moodEng, moodName, tenseEng, tenseName });
+      if (result?.tips) {
+        _conjTipsCache[cacheKey] = result.tips;
+        renderConjTips(result.tips);
+      } else {
+        if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">No tips available.</div>';
+      }
+    } catch(e) {
+      if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+    }
+  }
+
+  function closeConjTips() {
+    const modal = document.getElementById('conj-tips-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function renderConjTips(tips) {
+    const bodyEl = document.getElementById('conj-tips-body');
+    if (!bodyEl) return;
+
+    let html = '';
+
+    // Usage
+    if (tips.usage) {
+      html += `<div style="background:#f0f7ff;border-left:4px solid var(--sky-deep);border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:18px;font-size:13px;color:var(--text);line-height:1.6">${tips.usage}</div>`;
+    }
+
+    // Tips
+    if (tips.tips?.length) {
+      html += `<div style="margin-bottom:18px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-soft);margin-bottom:8px">💡 Tips & Shortcuts</div>
+        ${tips.tips.map(t => `<div style="display:flex;gap:8px;margin-bottom:6px;font-size:13px;color:var(--text);line-height:1.5"><span style="color:var(--sky-deep);font-weight:700;flex-shrink:0">→</span>${t}</div>`).join('')}
+      </div>`;
+    }
+
+    // Verb groups / endings
+    if (tips.verbGroups?.length) {
+      html += `<div style="margin-bottom:18px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-soft);margin-bottom:10px">📋 Conjugation Endings</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
+          ${tips.verbGroups.map(g => `
+            <div style="border:1.5px solid var(--border);border-radius:10px;overflow:hidden">
+              <div style="background:#cce5ff;padding:6px 10px;font-size:11px;font-weight:700;color:#1a5a90;border-bottom:1px solid #a8d0f0">
+                ${g.group} <span style="font-weight:400;opacity:0.8">(e.g. ${g.example})</span>
+              </div>
+              <table style="width:100%;border-collapse:collapse">
+                ${g.endings.map((e,i) => `<tr style="background:${i%2===0?'white':'#f8fbff'}">
+                  <td style="padding:4px 10px;font-size:12px;font-weight:700;color:#1a5a90;width:40%">${e.pronoun}</td>
+                  <td style="padding:4px 10px;font-size:13px;font-weight:600;color:var(--text)">${e.ending}</td>
+                </tr>`).join('')}
+              </table>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    // Irregulars
+    if (tips.irregulars?.length) {
+      html += `<div style="margin-bottom:18px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-soft);margin-bottom:8px">⚠️ Common Irregulars</div>
+        <div style="border:1.5px solid var(--border);border-radius:10px;overflow:hidden">
+          ${tips.irregulars.map((irr,i) => `
+            <div style="display:flex;align-items:baseline;gap:10px;padding:7px 12px;background:${i%2===0?'white':'#f8fbff'};border-bottom:${i<tips.irregulars.length-1?'1px solid #eef5fc':'none'}">
+              <span style="font-size:13px;font-weight:700;color:var(--sky-deep);min-width:70px;flex-shrink:0">${irr.verb}</span>
+              <span style="font-size:12px;color:var(--text);flex:1">${irr.forms}</span>
+              ${irr.note?`<span style="font-size:11px;color:var(--text-muted);font-style:italic;flex-shrink:0">${irr.note}</span>`:''}
+            </div>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    // Examples
+    if (tips.examples?.length) {
+      html += `<div style="margin-bottom:4px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-soft);margin-bottom:8px">💬 Examples</div>
+        ${tips.examples.map(ex => `
+          <div style="padding:10px 14px;border-left:3px solid var(--sky-deep);margin-bottom:8px;background:#f8fbff;border-radius:0 8px 8px 0">
+            <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px">${ex.sentence}</div>
+            <div style="font-size:12px;color:var(--text-muted);font-style:italic">${ex.translation}</div>
+          </div>`).join('')}
+      </div>`;
+    }
+
+    bodyEl.innerHTML = html;
   }
 
   async function regenerateConjugation() {
