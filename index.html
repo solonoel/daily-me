@@ -637,7 +637,7 @@
 </div>
 
 <div class="modal-overlay" id="conj-tips-modal" style="display:none" onclick="if(event.target===this)closeConjTips()">
-  <div style="background:white;border-radius:20px;width:620px;max-width:94vw;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 12px 48px rgba(43,127,212,0.22);overflow:hidden" onclick="event.stopPropagation()">
+  <div style="background:white;border-radius:20px;width:780px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 12px 48px rgba(43,127,212,0.22);overflow:hidden" onclick="event.stopPropagation()">
     <div id="conj-tips-header" style="background:linear-gradient(135deg,#2b7fd4 0%,#1a9fd4 100%);padding:18px 24px;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0">
       <div>
         <div id="conj-tips-title" style="font-family:'Playfair Display',serif;font-size:20px;font-weight:600;color:white"></div>
@@ -1452,6 +1452,7 @@
       if(editingWordID){
         const mastered=document.getElementById('nw-mastered')?.checked;
         await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:editingWordID,wordsName,wordsTranslation,isVerb,gender,mastered,wordsImage:newWordImage});
+        console.log('saving participles for edit:', editingWordID, window._fetchedPresentParticiple, window._fetchedPastParticiple);
         if(isVerb&&(window._fetchedPresentParticiple||window._fetchedPastParticiple)){
           await apiPost('SaveParticiples',{userID:USER_ID,userLanguageWordsID:editingWordID,presentParticiple:window._fetchedPresentParticiple||null,pastParticiple:window._fetchedPastParticiple||null});
           window._fetchedPresentParticiple=null;window._fetchedPastParticiple=null;
@@ -1468,6 +1469,7 @@
           const sorted=[...userDecks].sort((a,b)=>new Date(b.DateAdded)-new Date(a.DateAdded));
           if(sorted.length)await apiPost('SaveUserDeck',{action:'addWord',userID:USER_ID,deckID:sorted[0].UserLanguageWordsDeckID,wordID:newWordID});
         }
+        console.log('saving participles for new word:', newWordID, window._fetchedPresentParticiple, window._fetchedPastParticiple);
         if(newWordID&&isVerb&&(window._fetchedPresentParticiple||window._fetchedPastParticiple)){
           await apiPost('SaveParticiples',{userID:USER_ID,userLanguageWordsID:newWordID,presentParticiple:window._fetchedPresentParticiple||null,pastParticiple:window._fetchedPastParticiple||null});
           window._fetchedPresentParticiple=null;window._fetchedPastParticiple=null;
@@ -1539,6 +1541,10 @@
         if(result.presentParticiple||result.pastParticiple){
           window._fetchedPresentParticiple=result.presentParticiple||null;
           window._fetchedPastParticiple=result.pastParticiple||null;
+          if(editingWordID){
+            await apiPost('SaveParticiples',{userID:USER_ID,userLanguageWordsID:editingWordID,presentParticiple:window._fetchedPresentParticiple,pastParticiple:window._fetchedPastParticiple});
+            window._fetchedPresentParticiple=null;window._fetchedPastParticiple=null;
+          }
         }
         const wordInput=document.getElementById('nw-word');
         if(wordInput&&result.gender){
@@ -2106,7 +2112,7 @@ const fcCounts={
       mood.tenses.forEach(tense => {
         const rows = Math.ceil(tense.forms.length / 2);
         const tipsCacheKey = `${_conjData?.language||''}|${mood.moodEng}|${tense.tenseEng}`;
-        html += `<div class="conj-tense-box"><div class="conj-tense-header" style="display:flex;align-items:center;justify-content:space-between">${tense.tenseEng} <span style="font-weight:400;opacity:0.7">(${tense.tenseName})</span><a href="#" onclick="openConjTips('${mood.moodEng.replace(/'/g,"\\'")}','${mood.moodName.replace(/'/g,"\\'")}','${tense.tenseEng.replace(/'/g,"\\'")}','${tense.tenseName.replace(/'/g,"\\'")}');return false;" style="font-size:10px;font-weight:600;color:#1a5a90;text-decoration:none;border-bottom:1px dashed #1a5a90;white-space:nowrap;margin-left:8px">Notes</a></div><div class="conj-grid" style="grid-template-rows:repeat(${rows},auto)">`;
+        html += `<div class="conj-tense-box"><div class="conj-tense-header" style="display:flex;align-items:center;justify-content:space-between">${tense.tenseEng} <span style="font-weight:400;opacity:0.7">(${tense.tenseName})</span><a href="#" onclick="openConjTips('${mood.moodEng.replace(/'/g,"\\'")}','${mood.moodName.replace(/'/g,"\\'")}','${tense.tenseEng.replace(/'/g,"\\'")}','${tense.tenseName.replace(/'/g,"\\'")}');return false;" style="font-size:10px;font-weight:600;color:#1a5a90;text-decoration:none;border-bottom:1px dashed #1a5a90;white-space:nowrap;margin-left:8px">Conjugation Tips</a></div><div class="conj-grid" style="grid-template-rows:repeat(${rows},auto)">`;
         tense.forms.forEach(f => {
           if (mode === 'test') {
             html += `<div class="conj-cell"><span class="conj-pronoun">${f.pronounName}</span><input class="conj-test-input" data-answer="${f.form.replace(/"/g,'&quot;')}" type="text" style="width:90px;font-size:12px;padding:2px 5px;border:1.5px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif;color:var(--text)" autocomplete="off" autocorrect="off" spellcheck="false"></div>`;
@@ -2130,18 +2136,28 @@ const fcCounts={
     const bodyEl = document.getElementById('conj-tips-body');
     if (titleEl) titleEl.textContent = `${moodEng} — ${tenseEng}`;
     if (subtitleEl) subtitleEl.textContent = `${moodName} / ${tenseName} · ${language}`;
-    if (bodyEl) bodyEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:24px;margin-bottom:12px">⏳</div>Loading notes...</div>';
+    if (bodyEl) bodyEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:24px;margin-bottom:12px">⏳</div><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">Loading Conjugation Tips...</div><div style="font-size:12px;line-height:1.6">The first load may take 15–20 seconds while tips are generated.<br>Future visits to these tips will load instantly.</div></div>';
     if (modal) modal.style.display = 'flex';
 
     if (_conjTipsCache[cacheKey]) {
       renderConjTips(_conjTipsCache[cacheKey]);
       return;
     }
+    const stored = localStorage.getItem(`conjTips_${cacheKey}`);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        _conjTipsCache[cacheKey] = parsed;
+        renderConjTips(parsed);
+        return;
+      } catch(e) {}
+    }
 
     try {
       const result = await apiPost('GetConjugationTips', { language, moodEng, moodName, tenseEng, tenseName });
       if (result?.tips) {
         _conjTipsCache[cacheKey] = result.tips;
+        try { localStorage.setItem(`conjTips_${cacheKey}`, JSON.stringify(result.tips)); } catch(e) {}
         renderConjTips(result.tips);
       } else {
         if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">No tips available.</div>';
@@ -2182,7 +2198,7 @@ const fcCounts={
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
           ${tips.verbGroups.map(g => `
             <div style="border:1.5px solid var(--border);border-radius:10px;overflow:hidden">
-              <div style="background:#cce5ff;padding:6px 10px;font-size:11px;font-weight:700;color:#1a5a90;border-bottom:1px solid #a8d0f0">
+              <div style="background:#cce5ff;padding:6px 10px;font-size:11px;font-weight:700;color:#1a5a90;border-bottom:1px solid #a8d0f0;word-break:break-word">
                 ${g.group} <span style="font-weight:400;opacity:0.8">(e.g. ${g.example})</span>
               </div>
               <table style="width:100%;border-collapse:collapse">
