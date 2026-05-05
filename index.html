@@ -3534,13 +3534,13 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     const newInactive = btn.classList.contains('on') ? 1 : 0;
     btn.classList.toggle('on');
     src.IsInactive = newInactive;
-    await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID, sourceName: src.SourceName, url: src.URL, sourceType: src.SourceType, description: src.Description, thumbnailURL: src.ThumbnailURL, exclusions: src.Exclusions, isInactive: newInactive });
+    await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID, sourceName: src.SourceName, url: src.URL, sourceType: src.SourceType, description: src.Description, thumbnailURL: src.ThumbnailURL, exclusions: src.Exclusions, isInactive: newInactive, siteType: src.SiteType || 'Opener' });
   }
 
   async function saveMySiteExclusions(sourceID, input) {
     const src = userOwnedSources.find(s => s.UserOwnedSourceID === sourceID); if (!src) return;
     src.Exclusions = input.value || null;
-    await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID, sourceName: src.SourceName, url: src.URL, sourceType: src.SourceType, description: src.Description, thumbnailURL: src.ThumbnailURL, exclusions: src.Exclusions, isInactive: src.IsInactive });
+    await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID, sourceName: src.SourceName, url: src.URL, sourceType: src.SourceType, description: src.Description, thumbnailURL: src.ThumbnailURL, exclusions: src.Exclusions, isInactive: src.IsInactive, siteType: src.SiteType || 'Opener' });
     input.style.borderColor = '#22c55e';
     setTimeout(() => input.style.borderColor = 'var(--border)', 1500);
   }
