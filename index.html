@@ -1452,6 +1452,10 @@
       if(editingWordID){
         const mastered=document.getElementById('nw-mastered')?.checked;
         await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:editingWordID,wordsName,wordsTranslation,isVerb,gender,mastered,wordsImage:newWordImage});
+        if(isVerb&&(window._fetchedPresentParticiple||window._fetchedPastParticiple)){
+          await apiPost('SaveParticiples',{userID:USER_ID,userLanguageWordsID:editingWordID,presentParticiple:window._fetchedPresentParticiple||null,pastParticiple:window._fetchedPastParticiple||null});
+          window._fetchedPresentParticiple=null;window._fetchedPastParticiple=null;
+        }
       }else{
         const result=await apiPost('SaveUserLanguageWord',{action:'add',userID:USER_ID,languageID:currentLangID,wordsName,wordsTranslation,isVerb,gender,wordsImage:newWordImage});
         if(result?.duplicate){
