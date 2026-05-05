@@ -50,18 +50,24 @@ ${moodTenseList}
 For each valid combination, return conjugated forms — one per pronoun in this exact order: ${pronounList}
 PronounIDs in order: ${pronounIDs}
 
-Return ONLY a raw JSON array (no markdown, no explanation) in this format:
-[
-  {
-    "mood": "<mood in English>",
-    "tense": "<tense in English>",
-    "forms": [
-      {"pronounID": <number>, "form": "<conjugated form>"},
-      ...
-    ]
-  },
-  ...
-]`;
+Also return the present participle (gerund) and past participle for this verb.
+
+Return ONLY a raw JSON object (no markdown, no explanation) in this format:
+{
+  "presentParticiple": "<present participle form>",
+  "pastParticiple": "<past participle form>",
+  "conjugations": [
+    {
+      "mood": "<mood in English>",
+      "tense": "<tense in English>",
+      "forms": [
+        {"pronounID": <number>, "form": "<conjugated form>"},
+        ...
+      ]
+    },
+    ...
+  ]
+}`;
 
   const anthropicBody = JSON.stringify({
     model: 'claude-sonnet-4-20250514',
@@ -82,15 +88,20 @@ Return ONLY a raw JSON array (no markdown, no explanation) in this format:
 
   const response = await fetchUrl('https://api.anthropic.com/v1/messages', options, anthropicBody);
   const data = JSON.parse(response);
-  const raw = data.content?.[0]?.text || '[]';
-  const results = JSON.parse(raw.replace(/```json|```/g, '').trim());
+  const raw = data.content?.[0]?.text || '{}';
+  const result = JSON.parse(raw.replace(/```json|```/g, '').trim());
 
+  const conjugations = result.conjugations || [];
+  const presentParticiple = result.presentParticiple || null;
+  const pastParticiple = result.pastParticiple || null;
+
+  // Save conjugations
   await pool.request()
     .input('UserID', sql.Int, userID)
     .input('WordID', sql.Int, wordID)
     .query(`DELETE FROM UserVerbConjugation WHERE UserID=@UserID AND UserLanguageWordsID=@WordID`);
 
-  for (const combo of results) {
+  for (const combo of conjugations) {
     const mood = moods.find(m => m.LanguageMoodEng === combo.mood);
     const tense = tenses.find(t => t.LanguageTenseEng === combo.tense);
     if (!mood || !tense) continue;
@@ -107,6 +118,23 @@ Return ONLY a raw JSON array (no markdown, no explanation) in this format:
                 VALUES (@UserID, @WordID, @MoodID, @TenseID, @PronounID, @Form, GETDATE())`);
     }
   }
+
+  // Save participles
+  if (presentParticiple || pastParticiple) {
+    await pool.request()
+      .input('UserID', sql.Int, userID)
+      .input('WordID', sql.Int, wordID)
+      .input('PresentParticiple', sql.NVarChar(200), presentParticiple)
+      .input('PastParticiple', sql.NVarChar(200), pastParticiple)
+      .query(`MERGE UserVerbParticiple AS target
+              USING (SELECT @UserID AS UserID, @WordID AS UserLanguageWordsID) AS source
+              ON target.UserID = source.UserID AND target.UserLanguageWordsID = source.UserLanguageWordsID
+              WHEN MATCHED THEN UPDATE SET PresentParticiple=@PresentParticiple, PastParticiple=@PastParticiple
+              WHEN NOT MATCHED THEN INSERT (UserID, UserLanguageWordsID, PresentParticiple, PastParticiple)
+                VALUES (@UserID, @WordID, @PresentParticiple, @PastParticiple);`);
+  }
+
+  return { presentParticiple, pastParticiple };
 }
 
 module.exports = async function(context, req) {
@@ -135,8 +163,23 @@ module.exports = async function(context, req) {
 
     const hasCached = cacheCheck.recordset[0].cnt > 0;
 
+    let presentParticiple = null, pastParticiple = null;
+
     if (!hasCached || regenerate) {
-      await generateAllConjugations(pool, userID, userLanguageWordsID, WordsName, LanguageID, LanguageNameEng);
+      const participles = await generateAllConjugations(pool, userID, userLanguageWordsID, WordsName, LanguageID, LanguageNameEng);
+      presentParticiple = participles.presentParticiple;
+      pastParticiple = participles.pastParticiple;
+    } else {
+      // Load participles from cache
+      const partResult = await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('WordID', sql.Int, userLanguageWordsID)
+        .query(`SELECT PresentParticiple, PastParticiple FROM UserVerbParticiple
+                WHERE UserID=@UserID AND UserLanguageWordsID=@WordID`);
+      if (partResult.recordset.length) {
+        presentParticiple = partResult.recordset[0].PresentParticiple;
+        pastParticiple = partResult.recordset[0].PastParticiple;
+      }
     }
 
     const allResult = await pool.request()
@@ -177,7 +220,12 @@ module.exports = async function(context, req) {
     context.res = {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ success: true, verb: WordsName, language: LanguageNameEng, fromCache: hasCached && !regenerate, moods: moodsArr })
+      body: JSON.stringify({
+        success: true, verb: WordsName, language: LanguageNameEng,
+        fromCache: hasCached && !regenerate,
+        presentParticiple, pastParticiple,
+        moods: moodsArr
+      })
     };
   } catch(err) {
     context.res = { status: 500, body: 'Error: ' + err.message };
