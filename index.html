@@ -259,14 +259,17 @@
   <div class="weather-block" id="weather-block"><div class="weather-loading" id="weather-initial">Loading weather...</div></div>
 </header>
 <nav class="nav" id="main-nav">
+  <button class="nav-btn" onclick="showScreen('openers')" id="nav-openers" style="display:none">
+    <span class="nav-icon">🌅</span><span class="nav-label">Openers</span>
+  </button>
   <button class="nav-btn active" onclick="showScreen('headlines')" id="nav-headlines">
     <span class="nav-icon">📰</span><span class="nav-label">Headlines</span>
   </button>
   <button class="nav-btn" onclick="showScreen('teams')" id="nav-teams">
     <span class="nav-icon">⚾</span><span class="nav-label">Teams</span>
   </button>
-  <button class="nav-btn" onclick="showScreen('mysites')" id="nav-mysites">
-    <span class="nav-icon">🌐</span><span class="nav-label">My Sites</span>
+  <button class="nav-btn" onclick="showScreen('closers')" id="nav-closers" style="display:none">
+    <span class="nav-icon">🌙</span><span class="nav-label">Closers</span>
   </button>
   <div id="nav-date" style="margin-left:auto;padding:0 20px;display:flex;align-items:center;font-size:12px;color:var(--text-muted);white-space:nowrap;flex-shrink:0"></div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:0 12px;border-left:1px solid var(--border);flex-shrink:0;gap:3px">
@@ -300,8 +303,11 @@
     <div id="refresh-status" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep);margin-bottom:12px;padding:8px 14px;background:#f0f7ff;border-radius:8px;border:1px solid var(--border)"></div>
     <div id="headlines-grouped"></div>
   </div>
-  <div class="screen" id="screen-mysites">
-    <div id="mysites-list"></div>
+  <div class="screen" id="screen-openers">
+    <div id="openers-list"></div>
+  </div>
+  <div class="screen" id="screen-closers">
+    <div id="closers-list"></div>
   </div>
   <div class="screen" id="screen-teams">
     <div class="category-bar">
@@ -468,6 +474,7 @@
           <th style="width:30px"></th>
           <th>Name</th>
           <th>Type</th>
+          <th>Section</th>
           <th>URL</th>
           <th>Active</th>
           <th>Exclusions</th>
@@ -542,6 +549,13 @@
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="Website" checked> Website</label>
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="RSS"> RSS</label>
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="Youtube"> YouTube</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Section</label>
+      <div style="display:flex;gap:16px;margin-top:6px">
+        <label class="form-checkbox-row"><input type="radio" name="ms-sitetype" value="Opener" checked> Opener</label>
+        <label class="form-checkbox-row"><input type="radio" name="ms-sitetype" value="Closer"> Closer</label>
       </div>
     </div>
     <div class="form-group">
@@ -846,6 +860,7 @@
       }
     }catch(e){}
     renderLanguageNav();renderLanguageScreens();renderLanguageCheckList();
+    loadMySites('Opener');
     renderCatSettingsTable(userSettings);renderCategoryTiles(null);
     const loadMs=Math.round(performance.now()-loadStart);
     if(loadMs>3000){
@@ -2532,7 +2547,8 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     const navEl=document.getElementById('nav-'+name);
     if(screenEl)screenEl.classList.add('active');if(navEl)navEl.classList.add('active');
     if(name==='settings')showSettingsMenu(false);
-    if(name==='mysites')loadMySites();
+    if(name==='openers')loadMySites('Opener');
+    if(name==='closers')loadMySites('Closer');
     if(name==='teams')loadTeamsHeadlines();
     if(pushState)history.pushState({screen:name,section:null},'','');
   }
@@ -3335,18 +3351,31 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   let msThumbnailData = null;
   let msSortCol = 'Sequence', msSortDir = 'asc';
 
-  async function loadMySites() {
+  async function loadMySites(siteType) {
     const data = await apiGet('GetUserOwnedSources');
     userOwnedSources = Array.isArray(data) ? data : [];
-    renderMySites();
+    updateSiteTypeNavVisibility();
+    renderMySitesByType(siteType);
   }
 
-  function renderMySites() {
-    const container = document.getElementById('mysites-list');
-    if (!container) return;
+  function updateSiteTypeNavVisibility() {
     const active = userOwnedSources.filter(s => !s.IsInactive);
+    const hasOpeners = active.some(s => s.SiteType === 'Opener');
+    const hasClosers = active.some(s => s.SiteType === 'Closer');
+    const openerNav = document.getElementById('nav-openers');
+    const closerNav = document.getElementById('nav-closers');
+    if (openerNav) openerNav.style.display = hasOpeners ? '' : 'none';
+    if (closerNav) closerNav.style.display = hasClosers ? '' : 'none';
+  }
+
+  function renderMySitesByType(siteType) {
+    const containerID = siteType === 'Closer' ? 'closers-list' : 'openers-list';
+    const container = document.getElementById(containerID);
+    if (!container) return;
+    const active = userOwnedSources.filter(s => !s.IsInactive && s.SiteType === siteType)
+      .sort((a, b) => (a.Sequence || 99) - (b.Sequence || 99));
     if (!active.length) {
-      container.innerHTML = '<div class="empty-state" style="padding:60px">No sites added yet. Add some in Settings → My Sources.</div>';
+      container.innerHTML = '<div class="empty-state" style="padding:60px">No entries. Add some in Settings → My Sources.</div>';
       return;
     }
     container.innerHTML = active.map(s => {
@@ -3381,6 +3410,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         <td style="width:30px;color:var(--text-muted)">⠿</td>
         <td><strong>${s.SourceName}</strong></td>
         <td><span class="badge">${s.SourceType}</span></td>
+        <td><span class="badge" style="background:${s.SiteType==='Closer'?'#ede6ff':'#d6f5ef'};color:${s.SiteType==='Closer'?'#3d1580':'#0a5c4e'}">${s.SiteType||'Opener'}</span></td>
         <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)">${s.URL}</td>
         <td><button class="toggle ${!s.IsInactive ? 'on' : ''}" onclick="toggleMySite(${s.UserOwnedSourceID},this)"></button></td>
         <td><input type="text" value="${(s.Exclusions || '').replace(/"/g, '&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:160px;font-family:'DM Sans',sans-serif" onchange="saveMySiteExclusions(${s.UserOwnedSourceID},this)"></td>
@@ -3422,6 +3452,8 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     document.getElementById('ms-inactive').checked = !!src?.IsInactive;
     const type = src?.SourceType || 'Website';
     document.querySelectorAll('input[name="ms-type"]').forEach(r => r.checked = r.value === type);
+    const siteType = src?.SiteType || 'Opener';
+    document.querySelectorAll('input[name="ms-sitetype"]').forEach(r => r.checked = r.value === siteType);
     const preview = document.getElementById('ms-thumbnail-preview');
     if (src?.ThumbnailURL) preview.innerHTML = `<img src="${src.ThumbnailURL}" style="width:100%;height:100%;object-fit:cover">`;
     else { msThumbnailData = null; preview.innerHTML = '🌐'; }
@@ -3478,18 +3510,20 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     if (!sourceName) return alert('Name is required');
     if (!url) return alert('URL is required');
     const sourceType = document.querySelector('input[name="ms-type"]:checked')?.value || 'Website';
+    const siteType = document.querySelector('input[name="ms-sitetype"]:checked')?.value || 'Opener';
     const description = document.getElementById('ms-description').value.trim() || null;
     const exclusions = document.getElementById('ms-exclusions').value.trim() || null;
     const isInactive = document.getElementById('ms-inactive').checked;
     const thumbnailURL = msThumbnailData || null;
     if (msEditingID) {
-      await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive });
+      await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, siteType });
       const src = userOwnedSources.find(s => s.UserOwnedSourceID === msEditingID);
-      if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; }
+      if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; src.SiteType = siteType; }
     } else {
-      const result = await apiPost('SaveUserOwnedSource', { action: 'add', userID: USER_ID, sourceName, url, sourceType, description, thumbnailURL, exclusions });
-      userOwnedSources.push({ UserOwnedSourceID: result.sourceID, SourceName: sourceName, URL: url, SourceType: sourceType, Description: description, ThumbnailURL: thumbnailURL, Exclusions: exclusions, IsInactive: 0, Sequence: 99 });
+      const result = await apiPost('SaveUserOwnedSource', { action: 'add', userID: USER_ID, sourceName, url, sourceType, description, thumbnailURL, exclusions, siteType });
+      userOwnedSources.push({ UserOwnedSourceID: result.sourceID, SourceName: sourceName, URL: url, SourceType: sourceType, Description: description, ThumbnailURL: thumbnailURL, Exclusions: exclusions, IsInactive: 0, Sequence: 99, SiteType: siteType });
     }
+    updateSiteTypeNavVisibility();
     renderMySourcesTable();
     if (addAnother) { msEditingID = null; msThumbnailData = null; openMySiteModal(null); }
     else closeMySiteModal();
