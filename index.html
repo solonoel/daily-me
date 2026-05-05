@@ -860,7 +860,9 @@
       }
     }catch(e){}
     renderLanguageNav();renderLanguageScreens();renderLanguageCheckList();
-    loadMySites('Opener');
+    const mySitesData = await apiGet('GetUserOwnedSources');
+    userOwnedSources = Array.isArray(mySitesData) ? mySitesData : [];
+    updateSiteTypeNavVisibility();
     renderCatSettingsTable(userSettings);renderCategoryTiles(null);
     const loadMs=Math.round(performance.now()-loadStart);
     if(loadMs>3000){
@@ -3506,6 +3508,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
 
   async function saveMySite(addAnother = false) {
     const sourceName = document.getElementById('ms-name').value.trim();
+    console.log('saveMySite siteType:', document.querySelector('input[name="ms-sitetype"]:checked')?.value);
     const url = document.getElementById('ms-url').value.trim();
     if (!sourceName) return alert('Name is required');
     if (!url) return alert('URL is required');
@@ -3516,6 +3519,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     const isInactive = document.getElementById('ms-inactive').checked;
     const thumbnailURL = msThumbnailData || null;
     if (msEditingID) {
+      console.log('saving siteType to DB:', siteType, 'for sourceID:', msEditingID);
       await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, siteType });
       const src = userOwnedSources.find(s => s.UserOwnedSourceID === msEditingID);
       if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; src.SiteType = siteType; }

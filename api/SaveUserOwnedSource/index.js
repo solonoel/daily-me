@@ -10,7 +10,7 @@ module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
     const { action, userID, sourceID, sourceName, description, sourceType, url,
-            thumbnailURL, exclusions, sequence, isInactive, sequences } = req.body;
+            thumbnailURL, exclusions, sequence, isInactive, siteType, sequences } = req.body;
 
     if (action === 'add') {
       const maxSeq = await pool.request()
@@ -26,8 +26,9 @@ module.exports = async function(context, req) {
         .input('ThumbnailURL', sql.NVarChar(sql.MAX), thumbnailURL || null)
         .input('Exclusions', sql.NVarChar(500), exclusions || null)
         .input('Sequence', sql.Int, nextSeq)
-        .query(`INSERT INTO UserOwnedSource (UserID,SourceName,Description,SourceType,URL,ThumbnailURL,Exclusions,Sequence,IsInactive)
-                VALUES (@UserID,@SourceName,@Description,@SourceType,@URL,@ThumbnailURL,@Exclusions,@Sequence,0);
+        .input('SiteType', sql.NVarChar(10), siteType || 'Opener')
+        .query(`INSERT INTO UserOwnedSource (UserID,SourceName,Description,SourceType,URL,ThumbnailURL,Exclusions,Sequence,IsInactive,SiteType)
+                VALUES (@UserID,@SourceName,@Description,@SourceType,@URL,@ThumbnailURL,@Exclusions,@Sequence,0,@SiteType);
                 SELECT SCOPE_IDENTITY() AS sourceID`);
       context.res = { status: 200, body: JSON.stringify({ sourceID: result.recordset[0].sourceID }) };
 
@@ -42,9 +43,10 @@ module.exports = async function(context, req) {
         .input('ThumbnailURL', sql.NVarChar(sql.MAX), thumbnailURL || null)
         .input('Exclusions', sql.NVarChar(500), exclusions || null)
         .input('IsInactive', sql.Bit, isInactive ? 1 : 0)
+        .input('SiteType', sql.NVarChar(10), siteType || 'Opener')
         .query(`UPDATE UserOwnedSource SET SourceName=@SourceName, Description=@Description,
                 SourceType=@SourceType, URL=@URL, ThumbnailURL=@ThumbnailURL,
-                Exclusions=@Exclusions, IsInactive=@IsInactive
+                Exclusions=@Exclusions, IsInactive=@IsInactive, SiteType=@SiteType
                 WHERE UserOwnedSourceID=@SourceID AND UserID=@UserID`);
       context.res = { status: 200, body: JSON.stringify({ success: true }) };
 
