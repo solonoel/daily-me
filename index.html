@@ -262,11 +262,11 @@
   <button class="nav-btn" onclick="showScreen('openers')" id="nav-openers" style="display:none">
     <span class="nav-icon">☀️</span><span class="nav-label">Openers</span>
   </button>
-  <button class="nav-btn active" onclick="showScreen('headlines')" id="nav-headlines">
-    <span class="nav-icon">📰</span><span class="nav-label">Headlines</span>
-  </button>
   <button class="nav-btn" onclick="showScreen('teams')" id="nav-teams">
     <span class="nav-icon">⚾</span><span class="nav-label">Teams</span>
+  </button>
+  <button class="nav-btn active" onclick="showScreen('headlines')" id="nav-headlines">
+    <span class="nav-icon">📰</span><span class="nav-label">Headlines</span>
   </button>
   <button class="nav-btn" onclick="showScreen('closers')" id="nav-closers" style="display:none">
     <span class="nav-icon">🌙</span><span class="nav-label">Closers</span>
@@ -1573,22 +1573,26 @@
           const art=langArticles[currentLangName]?.[result.gender];
           if(art){const cur=wordInput.value.trim();if(!cur.toLowerCase().startsWith(art+' '))wordInput.value=art+' '+cur;}
         }
-        if((result.isVerb===true||result.isVerb==='true')&&editingWordID){
-          status.textContent='⏳ Regenerating conjugations...';
-          try{await apiPost('GetConjugation',{userID:USER_ID,userLanguageWordsID:editingWordID,regenerate:true});}catch(e2){}
+        if(result.isVerb===true||result.isVerb==='true'){
+          if(editingWordID){
+            status.textContent='⏳ Regenerating conjugations...';
+            try{await apiPost('GetConjugation',{userID:USER_ID,userLanguageWordsID:editingWordID,regenerate:true});}catch(e2){}
+          }
           status.textContent='⏳ Generating sentences...';
           try{
             const sentResult=await apiPost('GetWordSentences',{word,langName:currentLangName});
             if(Array.isArray(sentResult.sentences)&&sentResult.sentences.length){
               const s=sentResult.sentences;
               const s1=s[0]?.sentence||null,s2=s[1]?.sentence||null,s3=s[2]?.sentence||null;
-              const w=myWords.find(w=>w.UserLanguageWordsID===editingWordID);
-              if(w){w.SampleSentence1=s1;w.SampleSentence2=s2;w.SampleSentence3=s3;}
-              await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:editingWordID,
-                wordsName:document.getElementById('nw-word')?.value.trim(),
-                wordsTranslation:document.getElementById('nw-translation')?.value.trim(),
-                isVerb:true,gender:result.gender||null,
-                sampleSentence1:s1,sampleSentence2:s2,sampleSentence3:s3});
+              if(editingWordID){
+                const w=myWords.find(w=>w.UserLanguageWordsID===editingWordID);
+                if(w){w.SampleSentence1=s1;w.SampleSentence2=s2;w.SampleSentence3=s3;}
+                await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:editingWordID,
+                  wordsName:document.getElementById('nw-word')?.value.trim(),
+                  wordsTranslation:document.getElementById('nw-translation')?.value.trim(),
+                  isVerb:true,gender:result.gender||null,
+                  sampleSentence1:s1,sampleSentence2:s2,sampleSentence3:s3});
+              }
               const f1=document.getElementById('nw-sentence1');
               const f2=document.getElementById('nw-sentence2');
               const f3=document.getElementById('nw-sentence3');
@@ -2142,28 +2146,26 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
           <input type="radio" name="conj-mode" value="learn" ${mode==='learn'?'checked':''} onchange="setConjMode('learn')" style="accent-color:white"> Learn
         </label>
         <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:white;cursor:pointer">
-          <input type="radio" name="conj-mode" value="test" ${mode==='test'?'checked':''} onchange="setConjMode('test')" style="accent-color:white"> Test
-        </label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:white;cursor:pointer">
           <input type="radio" name="conj-mode" value="english" ${mode==='english'?'checked':''} onchange="setConjMode('english')" style="accent-color:white"> English
         </label>
-        ${mode==='test' ? `
-          <a href="#" onclick="scoreConjTest();return false;" style="font-size:12px;font-weight:700;color:white;text-decoration:underline;white-space:nowrap">Score</a>
-          <a href="#" onclick="resetConjTest();return false;" style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.75);text-decoration:underline;white-space:nowrap">Reset</a>
-        ` : ''}
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:white;cursor:pointer">
+          <input type="radio" name="conj-mode" value="test" ${mode==='test'?'checked':''} onchange="setConjMode('test')" style="accent-color:white"> Test
+        </label>
+        <a href="#" onclick="scoreConjTest();return false;" style="font-size:12px;font-weight:700;color:white;text-decoration:underline;white-space:nowrap;visibility:${mode==='test'?'visible':'hidden'}">Score</a>
+        <a href="#" onclick="resetConjTest();return false;" style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.75);text-decoration:underline;white-space:nowrap;visibility:${mode==='test'?'visible':'hidden'}">Reset</a>
         <span id="conj-score-display" style="min-width:120px;text-align:right"></span>
       </div>`;
     let html = `<div class="conj-verb-header" style="flex-wrap:wrap;gap:8px;align-items:center">
       <button onclick="speakWord('${(data.verb||'').replace(/'/g,"\\'")}','${data.language||''}')" style="background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);border-radius:6px;cursor:pointer;padding:4px 8px;font-size:16px;color:white;flex-shrink:0">🔊</button>
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-          <div>
+          <div style="flex-shrink:0">
             <div class="conj-verb-name">${data.verb||''}</div>
             ${verbTrans?`<div style="font-size:0.9rem;font-weight:400;color:rgba(255,255,255,0.85);margin-top:2px;text-align:left">${verbTrans}</div>`:''}
           </div>
+          <div style="flex:1;display:flex;justify-content:center;padding:0 12px">${participleHTML}</div>
           ${testControls}
         </div>
-        <div style="display:flex;justify-content:flex-end">${participleHTML}</div>
       </div>
     </div>`;
     filteredMoods.forEach((mood, mi) => {
