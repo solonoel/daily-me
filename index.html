@@ -1410,6 +1410,13 @@
           <label class="form-label">Translation(s)</label>
           <textarea class="form-textarea" id="nw-translation" placeholder="Enter one or more translations, one per line">${word?word.WordsTranslation||'':''}</textarea>
         </div>
+        ${isEdit&&word?.IsVerb==='Y'?`
+        <div class="form-group" id="sample-sentences-section">
+          <label class="form-label">Sample Sentences <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(auto-generated on Fetch Translation)</span></label>
+          <input class="form-input" id="nw-sentence1" value="${(word?.SampleSentence1||'').replace(/"/g,'&quot;')}" placeholder="Present tense example" style="margin-bottom:6px">
+          <input class="form-input" id="nw-sentence2" value="${(word?.SampleSentence2||'').replace(/"/g,'&quot;')}" placeholder="Past tense example" style="margin-bottom:6px">
+          <input class="form-input" id="nw-sentence3" value="${(word?.SampleSentence3||'').replace(/"/g,'&quot;')}" placeholder="Future tense example">
+        </div>`:''}
         ${deckSection}
         <div style="display:flex;gap:10px;margin-top:16px">
           ${saveBtn}
@@ -1451,7 +1458,10 @@
       let newWordID=null;
       if(editingWordID){
         const mastered=document.getElementById('nw-mastered')?.checked;
-        await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:editingWordID,wordsName,wordsTranslation,isVerb,gender,mastered,wordsImage:newWordImage});
+        const sampleSentence1=document.getElementById('nw-sentence1')?.value.trim()||null;
+        const sampleSentence2=document.getElementById('nw-sentence2')?.value.trim()||null;
+        const sampleSentence3=document.getElementById('nw-sentence3')?.value.trim()||null;
+        await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:editingWordID,wordsName,wordsTranslation,isVerb,gender,mastered,wordsImage:newWordImage,sampleSentence1,sampleSentence2,sampleSentence3});
         console.log('saving participles for edit:', editingWordID, window._fetchedPresentParticiple, window._fetchedPastParticiple);
         if(isVerb&&(window._fetchedPresentParticiple||window._fetchedPastParticiple)){
           await apiPost('SaveParticiples',{userID:USER_ID,userLanguageWordsID:editingWordID,presentParticiple:window._fetchedPresentParticiple||null,pastParticiple:window._fetchedPastParticiple||null});
@@ -1551,7 +1561,34 @@
           const art=langArticles[currentLangName]?.[result.gender];
           if(art){const cur=wordInput.value.trim();if(!cur.toLowerCase().startsWith(art+' '))wordInput.value=art+' '+cur;}
         }
-        status.textContent='✓ Done';
+        if((result.isVerb===true||result.isVerb==='true')&&editingWordID){
+          status.textContent='⏳ Regenerating conjugations...';
+          try{await apiPost('GetConjugation',{userID:USER_ID,userLanguageWordsID:editingWordID,regenerate:true});}catch(e2){}
+          status.textContent='⏳ Generating sentences...';
+          try{
+            const sentResult=await apiPost('GetWordSentences',{word,langName:currentLangName});
+            if(Array.isArray(sentResult.sentences)&&sentResult.sentences.length){
+              const s=sentResult.sentences;
+              const s1=s[0]?.sentence||null,s2=s[1]?.sentence||null,s3=s[2]?.sentence||null;
+              const w=myWords.find(w=>w.UserLanguageWordsID===editingWordID);
+              if(w){w.SampleSentence1=s1;w.SampleSentence2=s2;w.SampleSentence3=s3;}
+              await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:editingWordID,
+                wordsName:document.getElementById('nw-word')?.value.trim(),
+                wordsTranslation:document.getElementById('nw-translation')?.value.trim(),
+                isVerb:true,gender:result.gender||null,
+                sampleSentence1:s1,sampleSentence2:s2,sampleSentence3:s3});
+              const f1=document.getElementById('nw-sentence1');
+              const f2=document.getElementById('nw-sentence2');
+              const f3=document.getElementById('nw-sentence3');
+              if(f1)f1.value=s1||'';
+              if(f2)f2.value=s2||'';
+              if(f3)f3.value=s3||'';
+            }
+          }catch(e3){}
+          status.textContent='✓ Done';
+        }else{
+          status.textContent='✓ Done';
+        }
       }else status.textContent='No translation found';
     }catch(e){status.textContent='Error: '+e.message;}
     btn.style.pointerEvents='';btn.textContent='🔍 Fetch Translation';
@@ -1567,25 +1604,22 @@
     return t;
   }
 
-  function renderSentencesHTML(wordID){
+function renderSentencesHTML(wordID){
     const cached=sentencesCache[wordID];
-    if(cached===undefined||cached===null)return cached===null?`<div style="font-size:11px;color:var(--text-muted);margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">Loading sentences…</div>`:'';
-    if(!cached.length)return'';
-    return`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${cached.map(s=>`<div style="margin-bottom:5px"><div style="font-size:11px;font-weight:700;color:var(--sky-deep);margin-bottom:0">${s.pronoun}: <span style="font-weight:400;color:var(--text);font-size:12px">${s.sentence}</span></div><div style="font-size:11px;color:var(--text-muted);padding-left:4px;margin-top:-2px">${s.translation}</div></div>`).join('')}</div>`;
+    if(!cached||!cached.length)return'';
+    return`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${cached.map(s=>`<div style="margin-bottom:5px;font-size:12px;color:var(--text);line-height:1.4">${s.sentence}</div>`).join('')}</div>`;
   }
 
   function setFlashcardLeadWith(val){flashcardLeadWith=val;flashcardShowTranslation=false;renderFlashcardsScreen();}
 
-  async function loadSentencesForCard(card){
+function loadSentencesForCard(card){
     const id=card.UserLanguageWordsID;
     if(sentencesCache[id]!==undefined)return;
-    sentencesCache[id]=null;
-    if(flashcardShowTranslation)renderFlashcardsScreen();
-    try{
-      const result=await apiPost('GetWordSentences',{word:card.WordsName,langName:currentLangName});
-      sentencesCache[id]=Array.isArray(result.sentences)?result.sentences:[];
-    }catch(e){sentencesCache[id]=[];}
-    if(flashcardShowTranslation)renderFlashcardsScreen();
+    const sentences=[];
+    if(card.SampleSentence1)sentences.push({sentence:card.SampleSentence1});
+    if(card.SampleSentence2)sentences.push({sentence:card.SampleSentence2});
+    if(card.SampleSentence3)sentences.push({sentence:card.SampleSentence3});
+    sentencesCache[id]=sentences;
   }
 
   function renderFlashcardsHTML(langID,langName){
@@ -1612,12 +1646,12 @@ const fcCounts={
           ?`<div class="flashcard-word">${card.WordsName}${genderLabel}</div><div class="flashcard-hint">Tap to reveal</div>`
           :`<div class="flashcard-translation">${displayTranslation}</div><div class="flashcard-hint">Tap to reveal</div>`;
       }else{
-        const sentencesSection=sentencesHTML?`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${
-          (sentencesCache[card.UserLanguageWordsID]||[]).map(s=>`<div style="margin-bottom:3px"><div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:0">${s.sentence}</div><div style="font-size:11px;color:var(--text-muted);padding-left:4px;margin-top:-2px">${s.translation}</div></div>`).join('')
-        }</div>`:'';
-        const leftCol=`<div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0;min-width:110px">`+
+        const sentencesSection=sentencesHTML;
+const leftCol=`<div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0;min-width:110px">`+
           `<div class="flashcard-word" style="text-align:center">${card.WordsName}${genderLabel}</div>`+
           (card.WordsImage?`<img src="${card.WordsImage}" class="flashcard-image" alt="">`:`<div style="width:100px;height:100px;border-radius:12px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--text-muted)">📖</div>`)+
+          `<a href="#" onclick="event.stopPropagation();editWord(${card.UserLanguageWordsID});return false;" style="font-size:11px;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep)">✏️ Edit</a>`+
+          sentencesSection+
           `</div>`;
         const rightCol=`<div style="flex:1;min-width:0;text-align:left;border-left:1px solid var(--border);padding-left:16px">`+
           `<div class="flashcard-translation" style="text-align:left">${displayTranslation}</div>`+

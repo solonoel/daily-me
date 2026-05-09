@@ -188,12 +188,18 @@ module.exports = async function(context, req) {
         .input('IsVerb', sql.Char(1), isVerb ? 'Y' : 'N')
         .input('Gender', sql.Char(1), gender || null)
         .input('DateMastered', sql.DateTime, mastered ? new Date() : null)
+        .input('SampleSentence1', sql.NVarChar(500), req.body.sampleSentence1 || null)
+        .input('SampleSentence2', sql.NVarChar(500), req.body.sampleSentence2 || null)
+        .input('SampleSentence3', sql.NVarChar(500), req.body.sampleSentence3 || null)
         .query(`UPDATE [UserLanguageWords]
                 SET WordsName=@WordsName, WordsTranslation=@WordsTranslation,
                     WordsTranslationAudio=@WordsTranslationAudio, WordsImage=@WordsImage,
                     IsVerb=@IsVerb, Gender=@Gender,
                     DateMastered=CASE WHEN @DateMastered IS NOT NULL THEN @DateMastered
-                                      ELSE NULL END
+                                      ELSE NULL END,
+                    SampleSentence1=COALESCE(@SampleSentence1, SampleSentence1),
+                    SampleSentence2=COALESCE(@SampleSentence2, SampleSentence2),
+                    SampleSentence3=COALESCE(@SampleSentence3, SampleSentence3)
                 WHERE UserLanguageWordsID=@WordID AND UserID=@UserID`);
       context.res = {
         status: 200,

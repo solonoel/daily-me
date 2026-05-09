@@ -1,4 +1,4 @@
-const sql = require('mssql');
+﻿const sql = require('mssql');
 const config = {
   server: 'brunsusa-sql.database.windows.net',
   database: 'DailyMeDB',
@@ -26,6 +26,7 @@ module.exports = async function(context, req) {
         SELECT w.UserLanguageWordsID, w.WordsName, w.WordsTranslation,
                w.WordsTranslationAudio, w.WordsImage, w.DateAdded,
                w.Flag, w.DateMastered, w.IsVerb, w.Gender,
+               w.SampleSentence1, w.SampleSentence2, w.SampleSentence3,
                STUFF((
                  SELECT ',' + d.UserLanguageWordsDeckName
                  FROM UserLanguageWordsDeckWords dw

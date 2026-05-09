@@ -17,11 +17,11 @@ module.exports = async function(context, req) {
   try {
     const { word, langName } = req.body;
 
-    const prompt = `Generate 3 short, natural example sentences in ${langName} using the word "${word}" in the indicative present tense. Use 3 different subject pronouns (e.g., yo, tú, él/ella). Keep each sentence simple and under 10 words. Return ONLY a raw JSON array, no markdown:
+    const prompt = `Generate 3 short, natural example sentences in ${langName} using the word "${word}". Use present tense for the first, past tense for the second, and future tense for the third. Use a different subject pronoun for each. Keep each sentence simple and under 12 words. Return ONLY a raw JSON array, no markdown:
 [
-  {"pronoun": "Yo", "sentence": "...", "translation": "..."},
-  {"pronoun": "Tú", "sentence": "...", "translation": "..."},
-  {"pronoun": "Él", "sentence": "...", "translation": "..."}
+  {"sentence": "..."},
+  {"sentence": "..."},
+  {"sentence": "..."}
 ]`;
 
     const anthropicBody = JSON.stringify({
