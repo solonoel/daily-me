@@ -2159,11 +2159,11 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
           <div>
             <div class="conj-verb-name">${data.verb||''}</div>
-            ${verbTrans?`<div style="font-size:0.9rem;font-weight:400;color:rgba(255,255,255,0.85);margin-top:2px">${verbTrans}</div>`:''}
+            ${verbTrans?`<div style="font-size:0.9rem;font-weight:400;color:rgba(255,255,255,0.85);margin-top:2px;text-align:left">${verbTrans}</div>`:''}
           </div>
           ${testControls}
         </div>
-        ${participleHTML}
+        <div style="display:flex;justify-content:flex-end">${participleHTML}</div>
       </div>
     </div>`;
     filteredMoods.forEach((mood, mi) => {
