@@ -61,7 +61,7 @@ Return ONLY a raw JSON object (no markdown, no explanation) in this format:
       "mood": "<mood in English>",
       "tense": "<tense in English>",
       "forms": [
-        {"pronounID": <number>, "form": "<conjugated form>"},
+        {"pronounID": <number>, "form": "<conjugated form>", "englishForm": "<English translation e.g. I run, you run>"},
         ...
       ]
     },
@@ -113,9 +113,10 @@ Return ONLY a raw JSON object (no markdown, no explanation) in this format:
         .input('TenseID', sql.Int, tense.LanguageTenseID)
         .input('PronounID', sql.Int, form.pronounID)
         .input('Form', sql.NVarChar(200), form.form)
+        .input('EnglishForm', sql.NVarChar(200), form.englishForm || null)
         .query(`INSERT INTO UserVerbConjugation
-                (UserID, UserLanguageWordsID, LanguageMoodID, LanguageTenseID, PronounID, ConjugatedForm, CreatedDate)
-                VALUES (@UserID, @WordID, @MoodID, @TenseID, @PronounID, @Form, GETDATE())`);
+                (UserID, UserLanguageWordsID, LanguageMoodID, LanguageTenseID, PronounID, ConjugatedForm, EnglishForm, CreatedDate)
+                VALUES (@UserID, @WordID, @MoodID, @TenseID, @PronounID, @Form, @EnglishForm, GETDATE())`);
     }
   }
 
@@ -189,7 +190,7 @@ module.exports = async function(context, req) {
                 m.LanguageMoodID, m.LanguageMoodName, m.LanguageMoodEng,
                 t.LanguageTenseID, t.LanguageTenseName, t.LanguageTenseEng,
                 p.PronounID, p.PronounName, p.PronounEng,
-                c.ConjugatedForm
+                c.ConjugatedForm, c.EnglishForm
               FROM UserVerbConjugation c
               JOIN LanguageMood m ON m.LanguageMoodID = c.LanguageMoodID
               JOIN LanguageTense t ON t.LanguageTenseID = c.LanguageTenseID
@@ -211,7 +212,7 @@ module.exports = async function(context, req) {
         };
       }
       mood.tenses[row.LanguageTenseID].forms.push({
-        pronounID: row.PronounID, pronounName: row.PronounName, pronounEng: row.PronounEng, form: row.ConjugatedForm
+        pronounID: row.PronounID, pronounName: row.PronounName, pronounEng: row.PronounEng, form: row.ConjugatedForm, englishForm: row.EnglishForm || null
       });
     }
 
