@@ -318,10 +318,79 @@ async function fetchYouTube(source, fromDate, isFiltered, keywords, youTubeMaxRe
 
 module.exports = async function(context, req) {
   const fetchStart = Date.now();
+  const isPreview = req.body?.preview === true;
   try {
     const pool = await sql.connect(config);
     const userID = parseInt(req.body?.userID || req.query?.userID || 1);
     const disableYoutube = req.body?.disableYoutube === true;
+
+    // ── PREVIEW MODE ──
+    if (isPreview) {
+      const previewSourceType = req.body?.sourceType || 'RSS';
+      const previewURL = req.body?.url || '';
+      const previewKeyword = req.body?.keyword || '';
+      if (!previewURL) {
+        context.res = { status: 400, body: JSON.stringify({ error: 'URL is required' }) };
+        return;
+      }
+      let articles = [];
+      try {
+        if (previewSourceType === 'RSS') {
+          articles = await fetchRSS({ URL: previewURL });
+        } else if (previewSourceType === 'Guardian') {
+          const apiKey = process.env.GUARDIAN_API_KEY;
+          const fromDate = new Date(); fromDate.setDate(fromDate.getDate() - 7);
+          const fromDateStr = fromDate.toISOString().split('T')[0];
+          const searchText = previewKeyword || 'news';
+          const url = `https://content.guardianapis.com/search?q=${encodeURIComponent(searchText)}&from-date=${fromDateStr}&show-fields=trailText&order-by=newest&page-size=50&api-key=${apiKey}`;
+          const data = JSON.parse(await fetchUrl(url));
+          articles = (data.response?.results || []).map(a => ({
+            title: a.webTitle, link: a.webUrl,
+            summary: a.fields?.trailText?.replace(/<[^>]+>/g,'') || '',
+            pubDate: new Date(a.webPublicationDate)
+          }));
+        } else if (previewSourceType === 'NewsAPI') {
+          const apiKey = process.env.NEWSAPI_KEY;
+          const fromDate = new Date(); fromDate.setDate(fromDate.getDate() - 7);
+          const fromDateStr = fromDate.toISOString().split('T')[0];
+          const searchText = previewKeyword || '';
+          const url = searchText
+            ? `https://newsapi.org/v2/everything?q=${encodeURIComponent(searchText)}&language=en&sortBy=publishedAt&from=${fromDateStr}&pageSize=50&apiKey=${apiKey}`
+            : `https://newsapi.org/v2/top-headlines?language=en&pageSize=50&apiKey=${apiKey}`;
+          const data = JSON.parse(await fetchUrl(url));
+          articles = (data.articles || []).map(a => ({ title: a.title, link: a.url, summary: a.description || '', pubDate: new Date(a.publishedAt) }));
+        } else if (previewSourceType === 'GNews') {
+          const apiKey = process.env.GNEWS_API_KEY;
+          const url = previewKeyword
+            ? `https://gnews.io/api/v4/search?q=${encodeURIComponent(previewKeyword)}&lang=en&max=50&apikey=${apiKey}`
+            : `https://gnews.io/api/v4/top-headlines?lang=en&max=50&apikey=${apiKey}`;
+          const data = JSON.parse(await fetchUrl(url));
+          articles = (data.articles || []).map(a => ({ title: a.title, link: a.url, summary: a.description || '', pubDate: new Date(a.publishedAt) }));
+        } else {
+          // Default: treat as RSS
+          articles = await fetchRSS({ URL: previewURL });
+        }
+      } catch(e) {
+        context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: e.message, articles: [] }) };
+        return;
+      }
+      // Apply keyword filter if provided
+      if (previewKeyword && previewSourceType === 'RSS') {
+        articles = articles.filter(a => {
+          const text = `${a.title} ${a.summary} ${a.fullText||''}`.toLowerCase();
+          return matchesKeyword(text, previewKeyword);
+        });
+      }
+      // Return up to 50
+      const preview = articles.slice(0, 50).map(a => ({
+        title: a.title,
+        link: a.link,
+        summary: a.summary || '',
+        pubDate: a.pubDate ? new Date(a.pubDate).toISOString() : null
+      }));
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ articles: preview }) };
+      return;
+    }
 
     const settingResult = await pool.request()
       .input('UserID', sql.Int, userID)
