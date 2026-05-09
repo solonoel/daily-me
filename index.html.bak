@@ -2091,6 +2091,9 @@ const fcCounts={
         <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:white;cursor:pointer">
           <input type="radio" name="conj-mode" value="test" ${mode==='test'?'checked':''} onchange="setConjMode('test')" style="accent-color:white"> Test
         </label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:white;cursor:pointer">
+          <input type="radio" name="conj-mode" value="english" ${mode==='english'?'checked':''} onchange="setConjMode('english')" style="accent-color:white"> English
+        </label>
         ${mode==='test' ? `
           <a href="#" onclick="scoreConjTest();return false;" style="font-size:12px;font-weight:700;color:white;text-decoration:underline;white-space:nowrap">Score</a>
           <a href="#" onclick="resetConjTest();return false;" style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.75);text-decoration:underline;white-space:nowrap">Reset</a>
@@ -2117,7 +2120,8 @@ const fcCounts={
           if (mode === 'test') {
             html += `<div class="conj-cell"><span class="conj-pronoun">${f.pronounName}</span><input class="conj-test-input" data-answer="${f.form.replace(/"/g,'&quot;')}" type="text" style="width:90px;font-size:12px;padding:2px 5px;border:1.5px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif;color:var(--text)" autocomplete="off" autocorrect="off" spellcheck="false"></div>`;
           } else {
-            html += `<div class="conj-cell"><span class="conj-pronoun">${f.pronounName}</span><span class="conj-form">${f.form}</span></div>`;
+            const displayForm = mode === 'english' ? (f.englishForm || f.form) : f.form;
+            html += `<div class="conj-cell"><span class="conj-pronoun">${f.pronounName}</span><span class="conj-form">${displayForm}</span></div>`;
           }
         });
         html += `</div></div>`;
