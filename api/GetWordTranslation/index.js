@@ -44,17 +44,25 @@ module.exports = async function(context, req) {
     let gender = null, isVerb = false, presentParticiple = null, pastParticiple = null, wordWithRegion = null;
     try {
       const anthropicBody = JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 300,
         messages: [{
           role: 'user',
-          content: `For the ${languageCode} word or phrase "${word}", respond with JSON only, no markdown:
-{"isVerb": true|false, "gender": "M"|"F"|"N"|null, "synonyms": ["word1","word2"], "presentParticiple": "<present participle if verb, else null>", "pastParticiple": "<past participle if verb, else null>", "wordWithRegion": "<word with article if noun, else the word as-is>"}
-- gender: M=masculine, F=feminine, N=neuter, null=not applicable (verbs, plurals, proper nouns)
-- synonyms: 2-3 additional English translations most relevant to this word. For verbs, include "to " prefix on each. For nouns, no prefix. Empty array if none.
-- presentParticiple: the gerund/present participle form if this is a verb (e.g. Spanish "hablando"), null otherwise
-- pastParticiple: the past participle form if this is a verb (e.g. Spanish "hablado"), null otherwise
-- wordWithRegion: for nouns include the definite article (e.g. "el libro"), for verbs return the infinitive as-is`
+          content: `Classify this ${languageCode} word: "${word}"
+
+Respond with ONLY a JSON object, no markdown, no explanation. Example for a verb:
+{"isVerb":true,"gender":null,"synonyms":["to speak","to talk"],"presentParticiple":"hablando","pastParticiple":"hablado","wordWithRegion":"hablar"}
+
+Example for a noun:
+{"isVerb":false,"gender":"M","synonyms":["book","text"],"presentParticiple":null,"pastParticiple":null,"wordWithRegion":"el libro"}
+
+Rules:
+- isVerb: boolean true if this is a verb, false otherwise. A verb expresses an action or state (hablar, comer, ser, estar, etc.)
+- gender: "M" masculine noun, "F" feminine noun, "N" neuter, null for verbs and non-nouns
+- synonyms: 2-3 additional English translations. Prefix verbs with "to ". Empty array if none.
+- presentParticiple: gerund form for verbs only (e.g. "hablando"), null otherwise
+- pastParticiple: past participle for verbs only (e.g. "hablado"), null otherwise
+- wordWithRegion: nouns get definite article (e.g. "el libro"), verbs return infinitive as-is`
         }]
       });
       const anthropicOptions = {
@@ -71,9 +79,11 @@ module.exports = async function(context, req) {
       const anthropicResponse = await fetchUrl('https://api.anthropic.com/v1/messages', anthropicOptions, anthropicBody);
       const anthropicData = JSON.parse(anthropicResponse);
       const raw = anthropicData.content?.[0]?.text || '';
+      context.log(`GetWordTranslation Claude raw: ${raw}`);
       const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
       gender = parsed.gender || null;
-      isVerb = !!parsed.isVerb;
+      isVerb = parsed.isVerb === true || parsed.isVerb === 'true' || parsed.isVerb === 'Y';
+      if (!isVerb && (parsed.presentParticiple || parsed.pastParticiple)) isVerb = true;
       presentParticiple = parsed.presentParticiple || null;
       pastParticiple = parsed.pastParticiple || null;
       wordWithRegion = parsed.wordWithRegion || null;
@@ -91,7 +101,12 @@ module.exports = async function(context, req) {
         translation = parts.join(', ');
       }
     } catch(e) {
-      // Claude call failed — return DeepL translation only
+      context.log(`GetWordTranslation error: ${e.message}`);
+      const lower = translation.toLowerCase().trim();
+      const wordLower = word.toLowerCase().trim();
+      isVerb = lower.startsWith('to ') || lower.startsWith('to\u00a0') ||
+               /[aeiou]r$/i.test(wordLower) ||
+               /[aeiou]re$/i.test(wordLower);
     }
     context.res = {
       status: 200,

@@ -647,9 +647,8 @@
         <label class="form-label">Type</label>
         <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap">
           <label class="form-checkbox-row"><input type="radio" name="inv-type" value="RSS" checked onchange="updateInvestigateFields()"> RSS</label>
-          <label class="form-checkbox-row"><input type="radio" name="inv-type" value="Guardian" onchange="updateInvestigateFields()"> Guardian</label>
-          <label class="form-checkbox-row"><input type="radio" name="inv-type" value="NewsAPI" onchange="updateInvestigateFields()"> NewsAPI</label>
-          <label class="form-checkbox-row"><input type="radio" name="inv-type" value="GNews" onchange="updateInvestigateFields()"> GNews</label>
+          <label class="form-checkbox-row"><input type="radio" name="inv-type" value="API" onchange="updateInvestigateFields()"> API</label>
+          <label class="form-checkbox-row"><input type="radio" name="inv-type" value="Youtube" onchange="updateInvestigateFields()"> YouTube</label>
         </div>
       </div>
     </div>
@@ -1704,7 +1703,7 @@ const fcCounts={
 const leftCol=`<div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0;min-width:110px">`+
           `<div class="flashcard-word" style="text-align:center">${card.WordsName}${genderLabel}</div>`+
           (card.WordsImage?`<img src="${card.WordsImage}" class="flashcard-image" alt="">`:`<div style="width:100px;height:100px;border-radius:12px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--text-muted)">📖</div>`)+
-          `<a href="#" onclick="event.stopPropagation();editWord(${card.UserLanguageWordsID},()=>{showScreen('lang-${currentLangID}',false);studyDeck(currentDeckID,currentDeckName,flashcardReturnFeature,flashcardReturnWordID);});return false;" style="font-size:11px;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep)">✏️ Edit</a>`+
+          `<a href="#" onclick="event.stopPropagation();(function(){const savedIdx=flashcardIndex;const savedDeckID=currentDeckID;const savedDeckName=currentDeckName;const savedCards=[...flashcards];const savedFilter=flashcardFilter;editWord(${card.UserLanguageWordsID},()=>{currentDeckID=savedDeckID;currentDeckName=savedDeckName;flashcards=savedCards;flashcardFilter=savedFilter;flashcardIndex=savedIdx;flashcardShowTranslation=false;showScreen('lang-${currentLangID}',false);const panel=document.getElementById('lang-feature-${currentLangID}');if(panel)panel.innerHTML=renderFlashcardsHTML(${currentLangID},'${currentLangName}');document.querySelectorAll('[id^=\"langtab-\"]').forEach(t=>t.classList.remove('lang-tab-active'));});})();return false;" style="font-size:11px;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep)">✏️ Edit</a>`+
           sentencesSection+
           `</div>`;
         const rightCol=`<div style="flex:1;min-width:0;text-align:left;border-left:1px solid var(--border);padding-left:16px">`+
@@ -4030,11 +4029,14 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     const note=document.getElementById('inv-url-note');
     const urlInput=document.getElementById('inv-url');
     if(type==='RSS'){
-      if(note)note.textContent='(RSS feed URL)';
+      if(note)note.textContent='(RSS feed URL — required)';
       urlInput.placeholder='https://feeds.example.com/rss';
+    }else if(type==='Youtube'){
+      if(note)note.textContent='(YouTube channel URL — e.g. https://www.youtube.com/@ChannelName)';
+      urlInput.placeholder='https://www.youtube.com/@ChannelName';
     }else{
-      if(note)note.textContent='(API base URL or leave blank for default endpoint)';
-      urlInput.placeholder='https://...  (optional for API types)';
+      if(note)note.textContent='(leave blank — searches all active API sources with keyword)';
+      urlInput.placeholder='(optional)';
     }
   }
 
@@ -4045,10 +4047,11 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     const status=document.getElementById('inv-status');
     const results=document.getElementById('inv-results');
     const btn=document.getElementById('inv-search-btn');
-    if(type==='RSS'&&!url){alert('Enter a URL first.');return;}
     btn.disabled=true;btn.textContent='Searching...';
     status.textContent='';
     results.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">⏳ Fetching...</div>';
+    if(type==='RSS'&&!url){alert('Enter a URL first.');btn.disabled=false;btn.textContent='Search';return;}
+    if(type==='Youtube'&&!url){alert('Enter a YouTube channel URL first.');btn.disabled=false;btn.textContent='Search';return;}
     try{
       const res=await apiPost('FetchHeadlines',{preview:true,sourceType:type,url,keyword,userID:USER_ID});
       if(res.error){
@@ -4077,7 +4080,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   async function applyInvestigateSource(){
     const type=document.querySelector('input[name="inv-type"]:checked')?.value||'RSS';
     const url=document.getElementById('inv-url').value.trim();
-    if(type==='RSS'&&!url){alert('Enter a URL first.');return;}
+    if((type==='RSS'||type==='Youtube')&&!url){alert('Enter a URL first.');return;}
     const name=prompt('Source name:');
     if(!name?.trim())return;
     const status=document.getElementById('inv-status');
