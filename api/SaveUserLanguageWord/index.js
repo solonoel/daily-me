@@ -59,8 +59,10 @@ Skip any combination that is grammatically invalid or does not exist in ${langNa
 Mood/Tense combinations to attempt:
 ${moodTenseList}
 
-For each valid combination, return 6 conjugated forms — one per pronoun in this exact order: ${pronounList}
+For each valid combination, return conjugated forms — one per pronoun in this exact order: ${pronounList}
 PronounIDs in order: ${pronounIDs}
+
+Also include the English translation for each form (e.g. for "correr": "I run", "you run", "he/she runs", "we run", "you all run", "they run").
 
 Return ONLY a raw JSON array (no markdown, no explanation) in this format:
 [
@@ -68,7 +70,7 @@ Return ONLY a raw JSON array (no markdown, no explanation) in this format:
     "mood": "<mood in English>",
     "tense": "<tense in English>",
     "forms": [
-      {"pronounID": <number>, "form": "<conjugated form>"},
+      {"pronounID": <number>, "form": "<conjugated form>", "englishForm": "<English translation>"},
       ...
     ]
   },
@@ -111,9 +113,10 @@ Return ONLY a raw JSON array (no markdown, no explanation) in this format:
           .input('TenseID', sql.Int, tense.LanguageTenseID)
           .input('PronounID', sql.Int, form.pronounID)
           .input('Form', sql.NVarChar(200), form.form)
+          .input('EnglishForm', sql.NVarChar(200), form.englishForm || null)
           .query(`INSERT INTO UserVerbConjugation
-                  (UserID, UserLanguageWordsID, LanguageMoodID, LanguageTenseID, PronounID, ConjugatedForm, CreatedDate)
-                  VALUES (@UserID, @WordID, @MoodID, @TenseID, @PronounID, @Form, GETDATE())`);
+                  (UserID, UserLanguageWordsID, LanguageMoodID, LanguageTenseID, PronounID, ConjugatedForm, EnglishForm, CreatedDate)
+                  VALUES (@UserID, @WordID, @MoodID, @TenseID, @PronounID, @Form, @EnglishForm, GETDATE())`);
       }
     }
   } catch(e) {
