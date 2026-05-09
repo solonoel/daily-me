@@ -695,7 +695,7 @@
   const deletedLinks=new Set();
   // topics retained as empty array for legacy compatibility only
   let allLanguages=[],userLanguages=[];
-  let currentFilter='Subscriptions',currentSettingsSection=null,groupsExpanded=true;
+  let currentFilter='Subscriptions',currentSettingsSection=null,groupsExpanded=false;
   let currentLangID=null,currentLangName=null;
   let myWords=[],myWordsFilter='active',showImages=true;
   let mwSortCol='dateadded',mwSortDir='desc';
@@ -891,6 +891,9 @@
       showScreen('settings',false);
       document.getElementById('onboard-overlay').style.display='flex';
     } else {
+      if(userOwnedSources.some(s=>!s.IsInactive&&s.SiteType==='Opener')){
+        showScreen('openers',false);
+      }
       await loadHeadlines();
     }
   }
@@ -1434,9 +1437,12 @@
     setTimeout(()=>{const inp=document.getElementById('nw-word');if(inp)inp.focus();},100);
   }
 
-  async function editWord(wordID){
+  let _editReturnFn=null;
+
+  async function editWord(wordID, returnFn=null){
     const word=myWords.find(w=>w.UserLanguageWordsID===wordID);if(!word)return;
     editingWordID=wordID;newWordImage=word.WordsImage||null;newWordImageChanged=false;
+    _editReturnFn=returnFn||null;
     let wordDecks=[];
     try{ const d=await apiGet('GetWordDecks',`&wordID=${wordID}`); wordDecks=Array.isArray(d)?d:[]; }catch(e){}
     const screenEl=document.getElementById(`screen-newword-${currentLangID}`);
@@ -1487,12 +1493,18 @@
       }
       newWordImageChanged=false;editingWordID=null;
       if(addAnother){newWordImage=null;showNewWord();apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=all`).then(d=>{myWords=Array.isArray(d)?d:[];});}
-      else{showScreen(`lang-${currentLangID}`);showLangFeature(currentLangID,'mywords',currentLangName,null,true);apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=all`).then(d=>{myWords=Array.isArray(d)?d:[];renderMyWords();});}
+      else{
+        apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=all`).then(d=>{myWords=Array.isArray(d)?d:[];renderMyWords();});
+        if(_editReturnFn){const fn=_editReturnFn;_editReturnFn=null;fn();return;}
+        showScreen(`lang-${currentLangID}`);showLangFeature(currentLangID,'mywords',currentLangName,null,true);
+      }
     }finally{_wordFormSaving=false;}
   }
 
   function cancelWordForm(){
-    editingWordID=null;showScreen(`lang-${currentLangID}`);
+    editingWordID=null;
+    if(_editReturnFn){const fn=_editReturnFn;_editReturnFn=null;fn();return;}
+    showScreen(`lang-${currentLangID}`);
     showLangFeature(currentLangID,'mywords',currentLangName,null,true);
   }
 
@@ -1650,7 +1662,7 @@ const fcCounts={
 const leftCol=`<div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0;min-width:110px">`+
           `<div class="flashcard-word" style="text-align:center">${card.WordsName}${genderLabel}</div>`+
           (card.WordsImage?`<img src="${card.WordsImage}" class="flashcard-image" alt="">`:`<div style="width:100px;height:100px;border-radius:12px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--text-muted)">📖</div>`)+
-          `<a href="#" onclick="event.stopPropagation();editWord(${card.UserLanguageWordsID});return false;" style="font-size:11px;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep)">✏️ Edit</a>`+
+          `<a href="#" onclick="event.stopPropagation();editWord(${card.UserLanguageWordsID},()=>{showScreen('lang-${currentLangID}',false);studyDeck(currentDeckID,currentDeckName,flashcardReturnFeature,flashcardReturnWordID);});return false;" style="font-size:11px;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep)">✏️ Edit</a>`+
           sentencesSection+
           `</div>`;
         const rightCol=`<div style="flex:1;min-width:0;text-align:left;border-left:1px solid var(--border);padding-left:16px">`+
@@ -2104,6 +2116,13 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     if (scoreEl) scoreEl.innerHTML = `<span style="font-size:13px;font-weight:700;color:${gradeColor}">${correct}/${total} &nbsp;${pct}% &nbsp;<span style="font-size:18px">${grade}</span></span>`;
   }
 
+  function shortenPronoun(p, mode) {
+    if(!p) return p;
+    const s = p.replace(/él\/ella\/usted/gi,'él').replace(/ellos\/ellas\/ustedes/gi,'ellos').replace(/él\/ella/gi,'él').replace(/ellas\/ellos/gi,'ellos');
+    if(mode==='english') return s.replace(/\bél\b/gi,'he').replace(/\bellos\b/gi,'they').replace(/\byo\b/gi,'I').replace(/\btú\b/gi,'you').replace(/\bnosotros\b/gi,'we').replace(/\bvosotros\b/gi,'y\'all');
+    return s;
+  }
+
   function renderConjOutput() {
     const out = document.getElementById('conj-output');
     if (!out || !_conjData) return;
@@ -2134,14 +2153,18 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
         ` : ''}
         <span id="conj-score-display" style="min-width:120px;text-align:right"></span>
       </div>`;
-    let html = `<div class="conj-verb-header" style="flex-wrap:wrap;gap:8px">
+    let html = `<div class="conj-verb-header" style="flex-wrap:wrap;gap:8px;align-items:center">
       <button onclick="speakWord('${(data.verb||'').replace(/'/g,"\\'")}','${data.language||''}')" style="background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);border-radius:6px;cursor:pointer;padding:4px 8px;font-size:16px;color:white;flex-shrink:0">🔊</button>
-      <div>
-        <div class="conj-verb-name">${data.verb||''}${verbTransDisp}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+          <div>
+            <div class="conj-verb-name">${data.verb||''}</div>
+            ${verbTrans?`<div style="font-size:0.9rem;font-weight:400;color:rgba(255,255,255,0.85);margin-top:2px">${verbTrans}</div>`:''}
+          </div>
+          ${testControls}
+        </div>
         ${participleHTML}
       </div>
-      <div class="conj-verb-meaning">${data.language||''}</div>
-      ${testControls}
     </div>`;
     filteredMoods.forEach((mood, mi) => {
       const expanded = mi === 0;
@@ -2152,10 +2175,10 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
         html += `<div class="conj-tense-box"><div class="conj-tense-header" style="display:flex;align-items:center;justify-content:space-between">${tense.tenseEng} <span style="font-weight:400;opacity:0.7">(${tense.tenseName})</span><a href="#" onclick="openConjTips('${mood.moodEng.replace(/'/g,"\\'")}','${mood.moodName.replace(/'/g,"\\'")}','${tense.tenseEng.replace(/'/g,"\\'")}','${tense.tenseName.replace(/'/g,"\\'")}');return false;" style="font-size:10px;font-weight:600;color:#1a5a90;text-decoration:none;border-bottom:1px dashed #1a5a90;white-space:nowrap;margin-left:8px">Conjugation Tips</a></div><div class="conj-grid" style="grid-template-rows:repeat(${rows},auto)">`;
         tense.forms.forEach(f => {
           if (mode === 'test') {
-            html += `<div class="conj-cell"><span class="conj-pronoun">${f.pronounName}</span><input class="conj-test-input" data-answer="${f.form.replace(/"/g,'&quot;')}" type="text" style="width:90px;font-size:12px;padding:2px 5px;border:1.5px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif;color:var(--text)" autocomplete="off" autocorrect="off" spellcheck="false"></div>`;
+            html += `<div class="conj-cell"><span class="conj-pronoun" style="font-weight:700;color:#1a3a6a">${shortenPronoun(f.pronounName,mode)}</span><input class="conj-test-input" data-answer="${f.form.replace(/"/g,'&quot;')}" type="text" style="width:90px;font-size:12px;padding:2px 5px;border:1.5px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif;color:var(--text);font-weight:400" autocomplete="off" autocorrect="off" spellcheck="false"></div>`;
           } else {
             const displayForm = mode === 'english' ? (f.englishForm || f.form) : f.form;
-            html += `<div class="conj-cell"><span class="conj-pronoun">${f.pronounName}</span><span class="conj-form">${displayForm}</span></div>`;
+            html += `<div class="conj-cell"><span class="conj-pronoun" style="font-weight:700;color:#1a3a6a">${shortenPronoun(f.pronounName,mode)}</span><span class="conj-form" style="font-weight:400;color:#1a3a6a">${displayForm}</span></div>`;
           }
         });
         html += `</div></div>`;
@@ -2650,7 +2673,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
 
   // ── TEAMS ──
 
-  let teamsHeadlines=[], teamsGroupsExpanded=true;
+  let teamsHeadlines=[], teamsGroupsExpanded=false;
 
   async function loadTeamsHeadlines(){
     try{
