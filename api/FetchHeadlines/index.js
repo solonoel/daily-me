@@ -337,35 +337,49 @@ module.exports = async function(context, req) {
       try {
         if (previewSourceType === 'RSS') {
           articles = await fetchRSS({ URL: previewURL });
-        } else if (previewSourceType === 'Guardian') {
-          const apiKey = process.env.GUARDIAN_API_KEY;
+        } else if (previewSourceType === 'Youtube') {
+          const apiKey = process.env.YOUTUBE_API_KEY;
+          const handle = previewURL.split('@')[1]?.split('/')[0];
+          if (!handle) throw new Error('Invalid YouTube URL — must contain @ChannelName');
+          // Resolve handle to channel ID
+          const chanUrl = `https://www.googleapis.com/youtube/v3/channels?part=id,snippet&forHandle=${encodeURIComponent(handle)}&key=${apiKey}`;
+          const chanData = JSON.parse(await fetchUrl(chanUrl));
+          const channelID = chanData.items?.[0]?.id;
+          if (!channelID) throw new Error('YouTube channel not found for @' + handle);
+          // Store resolved channelID on context for Apply to use
+          context._resolvedYoutubeChannelID = channelID;
+          // Fetch recent videos
+          const videosUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelID}&type=video&order=date&maxResults=20&key=${apiKey}`;
+          const videosData = JSON.parse(await fetchUrl(videosUrl));
+          articles = (videosData.items || []).map(item => ({
+            title: item.snippet.title,
+            link: `https://www.youtube.com/watch?v=${item.id?.videoId}`,
+            summary: item.snippet.description?.substring(0, 300) || '',
+            pubDate: new Date(item.snippet.publishedAt)
+          })).filter(a => a.link.includes('watch?v='));
+        } else if (previewSourceType === 'API') {
+          if (!previewKeyword) throw new Error('A keyword is required to preview API sources');
+          const apiSourcesResult = await pool.request()
+            .input('UserID', sql.Int, userID)
+            .query(`SELECT * FROM [HeadlineSource] WHERE IsActive = 1 AND SourceType NOT IN ('RSS','YouTube')`);
           const fromDate = new Date(); fromDate.setDate(fromDate.getDate() - 7);
           const fromDateStr = fromDate.toISOString().split('T')[0];
-          const searchText = previewKeyword || 'news';
-          const url = `https://content.guardianapis.com/search?q=${encodeURIComponent(searchText)}&from-date=${fromDateStr}&show-fields=trailText&order-by=newest&page-size=50&api-key=${apiKey}`;
-          const data = JSON.parse(await fetchUrl(url));
-          articles = (data.response?.results || []).map(a => ({
-            title: a.webTitle, link: a.webUrl,
-            summary: a.fields?.trailText?.replace(/<[^>]+>/g,'') || '',
-            pubDate: new Date(a.webPublicationDate)
-          }));
-        } else if (previewSourceType === 'NewsAPI') {
-          const apiKey = process.env.NEWSAPI_KEY;
-          const fromDate = new Date(); fromDate.setDate(fromDate.getDate() - 7);
-          const fromDateStr = fromDate.toISOString().split('T')[0];
-          const searchText = previewKeyword || '';
-          const url = searchText
-            ? `https://newsapi.org/v2/everything?q=${encodeURIComponent(searchText)}&language=en&sortBy=publishedAt&from=${fromDateStr}&pageSize=50&apiKey=${apiKey}`
-            : `https://newsapi.org/v2/top-headlines?language=en&pageSize=50&apiKey=${apiKey}`;
-          const data = JSON.parse(await fetchUrl(url));
-          articles = (data.articles || []).map(a => ({ title: a.title, link: a.url, summary: a.description || '', pubDate: new Date(a.publishedAt) }));
-        } else if (previewSourceType === 'GNews') {
-          const apiKey = process.env.GNEWS_API_KEY;
-          const url = previewKeyword
-            ? `https://gnews.io/api/v4/search?q=${encodeURIComponent(previewKeyword)}&lang=en&max=50&apikey=${apiKey}`
-            : `https://gnews.io/api/v4/top-headlines?lang=en&max=50&apikey=${apiKey}`;
-          const data = JSON.parse(await fetchUrl(url));
-          articles = (data.articles || []).map(a => ({ title: a.title, link: a.url, summary: a.description || '', pubDate: new Date(a.publishedAt) }));
+          const previewKwArr = [{ text: previewKeyword, categoryID: null, keywordID: null }];
+          for (const src of apiSourcesResult.recordset) {
+            try {
+              let srcArticles = [];
+              if (src.Name.includes('Guardian'))  srcArticles = await fetchGuardian(src, previewKwArr, fromDateStr);
+              else if (src.Name.includes('NewsAPI')) srcArticles = await fetchNewsAPI(src, previewKwArr, fromDateStr, ['en']);
+              else if (src.Name.includes('GNews'))   srcArticles = await fetchGNews(src, ['en']);
+              if (src.Name.includes('GNews') && previewKeyword) {
+                const kw = previewKeyword.toLowerCase();
+                srcArticles = srcArticles.filter(a => `${a.title} ${a.summary}`.toLowerCase().includes(kw));
+              }
+              srcArticles.forEach(a => { a.sourceName = src.Name; });
+              articles = articles.concat(srcArticles);
+            } catch(e) { context.log(`API preview error for ${src.Name}: ${e.message}`); }
+          }
+          if (!articles.length) throw new Error('No results found across active API sources for keyword: ' + previewKeyword);
         } else {
           // Default: treat as RSS
           articles = await fetchRSS({ URL: previewURL });
@@ -388,7 +402,7 @@ module.exports = async function(context, req) {
         summary: a.summary || '',
         pubDate: a.pubDate ? new Date(a.pubDate).toISOString() : null
       }));
-      context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ articles: preview }) };
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ articles: preview, youtubeChannelID: context._resolvedYoutubeChannelID || null }) };
       return;
     }
 

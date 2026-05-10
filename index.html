@@ -488,8 +488,7 @@
       <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>🌐 Global Sources</span>
         <div style="display:flex;gap:8px">
-          <button class="btn-secondary" style="padding:7px 18px;font-size:12px" onclick="openInvestigateModal()">🔍 Investigate</button>
-          <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openGlobalSourceModal(null)">+ Add Source</button>
+          <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openInvestigateModal()">+ Add Source</button>
         </div>
       </div>
       <table class="settings-table" id="tbl-global-sources">
@@ -646,9 +645,9 @@
       <div class="form-group" style="margin-bottom:0">
         <label class="form-label">Type</label>
         <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap">
-          <label class="form-checkbox-row"><input type="radio" name="inv-type" value="RSS" checked onchange="updateInvestigateFields()"> RSS</label>
-          <label class="form-checkbox-row"><input type="radio" name="inv-type" value="API" onchange="updateInvestigateFields()"> API</label>
-          <label class="form-checkbox-row"><input type="radio" name="inv-type" value="Youtube" onchange="updateInvestigateFields()"> YouTube</label>
+        <label class="form-checkbox-row"><input type="radio" name="inv-type" value="API" checked onchange="updateInvestigateFields()"> API</label>
+        <label class="form-checkbox-row"><input type="radio" name="inv-type" value="Youtube" onchange="updateInvestigateFields()"> YouTube</label>
+        <label class="form-checkbox-row"><input type="radio" name="inv-type" value="RSS" onchange="updateInvestigateFields()"> RSS</label>
         </div>
       </div>
     </div>
@@ -1611,9 +1610,13 @@
         }
         const isVerbNow=(result.isVerb===true||result.isVerb==='true')||document.getElementById('nw-isverb')?.checked;
         if(isVerbNow){
-          if(editingWordID){
+if(editingWordID){
             status.textContent='⏳ Regenerating conjugations...';
-            try{await apiPost('GetConjugation',{userID:USER_ID,userLanguageWordsID:editingWordID,regenerate:true});}catch(e2){}
+            try{
+              const conjResult=await apiPost('GetConjugation',{userID:USER_ID,userLanguageWordsID:editingWordID,regenerate:true});
+              if(conjResult?.error){status.textContent=`⚠️ Conjugation failed: ${conjResult.error}`;btn.style.pointerEvents='';btn.textContent='🔍 Fetch Translation';return;}
+              if(!conjResult?.moods?.length){status.textContent='⚠️ Conjugation returned no data — check Azure logs';btn.style.pointerEvents='';btn.textContent='🔍 Fetch Translation';return;}
+            }catch(e2){status.textContent=`⚠️ Conjugation error: ${e2.message}`;btn.style.pointerEvents='';btn.textContent='🔍 Fetch Translation';return;}
           }
           status.textContent='⏳ Generating sentences...';
           try{
@@ -1699,16 +1702,14 @@ const fcCounts={
           ?`<div class="flashcard-word">${card.WordsName}${genderLabel}</div><div class="flashcard-hint">Tap to reveal</div>`
           :`<div class="flashcard-translation">${displayTranslation}</div><div class="flashcard-hint">Tap to reveal</div>`;
       }else{
-        const sentencesSection=sentencesHTML;
 const leftCol=`<div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0;min-width:110px">`+
           `<div class="flashcard-word" style="text-align:center">${card.WordsName}${genderLabel}</div>`+
           (card.WordsImage?`<img src="${card.WordsImage}" class="flashcard-image" alt="">`:`<div style="width:100px;height:100px;border-radius:12px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--text-muted)">📖</div>`)+
           `<a href="#" onclick="event.stopPropagation();(function(){const savedIdx=flashcardIndex;const savedDeckID=currentDeckID;const savedDeckName=currentDeckName;const savedCards=[...flashcards];const savedFilter=flashcardFilter;editWord(${card.UserLanguageWordsID},()=>{currentDeckID=savedDeckID;currentDeckName=savedDeckName;flashcards=savedCards;flashcardFilter=savedFilter;flashcardIndex=savedIdx;flashcardShowTranslation=false;showScreen('lang-${currentLangID}',false);const panel=document.getElementById('lang-feature-${currentLangID}');if(panel)panel.innerHTML=renderFlashcardsHTML(${currentLangID},'${currentLangName}');document.querySelectorAll('[id^=\"langtab-\"]').forEach(t=>t.classList.remove('lang-tab-active'));});})();return false;" style="font-size:11px;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep)">✏️ Edit</a>`+
-          sentencesSection+
           `</div>`;
         const rightCol=`<div style="flex:1;min-width:0;text-align:left;border-left:1px solid var(--border);padding-left:16px">`+
           `<div class="flashcard-translation" style="text-align:left">${displayTranslation}</div>`+
-          sentencesSection+
+          sentencesHTML+
           `</div>`;
         cardContent=`${fcConjugateLink}<div style="display:flex;gap:16px;align-items:flex-start;width:100%">${leftCol}${rightCol}</div>`;
       }
@@ -3596,6 +3597,19 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     el.style.color=remaining<500?'#e05050':remaining<2000?'#e8a020':'var(--text-soft)';
   }
 
+  function downloadFetchLog(){
+    const body=document.querySelector('#modal .modal-body, #modal [id="modal-body"]');
+    if(!body)return;
+    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fetch Results</title><style>body{font-family:Arial,sans-serif;font-size:13px;padding:24px;max-width:900px;margin:0 auto}table{width:100%;border-collapse:collapse;margin-bottom:16px}th,td{text-align:left;padding:4px 8px;border-bottom:1px solid #ddd}th{background:#f0f7ff}h3{margin:16px 0 8px}</style></head><body>${body.innerHTML}</body></html>`;
+    const blob=new Blob([html],{type:'text/html'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=`fetch-results-${new Date().toISOString().slice(0,10)}.html`;
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
+  }
+
   async function openFetchLog(){
     try{
       const data=await apiGet('GetFetchLog');
@@ -3708,7 +3722,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       // Show in modal
       document.getElementById('modal-title').textContent='📋 Fetch Results';
       document.getElementById('modal-body').innerHTML=`<div style="max-height:65vh;overflow-y:auto">${html}</div>`;
-      document.getElementById('modal-actions').innerHTML=`<button class="btn-secondary" onclick="closeModal()">Close</button>`;
+      document.getElementById('modal-actions').innerHTML=`<button class="btn-primary" onclick="downloadFetchLog()">⬇ Download</button><button class="btn-secondary" onclick="closeModal()">Close</button>`;
       document.getElementById('modal').style.display='flex';
     }catch(e){alert('Error loading fetch log: '+e.message);}
   }
@@ -4009,6 +4023,8 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
 
   // ── INVESTIGATE ──
 
+  let _investigateResolvedChannelID = null;
+
   function openInvestigateModal(){
     document.getElementById('inv-url').value='';
     document.getElementById('inv-keyword').value='';
@@ -4063,6 +4079,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         results.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">No articles found.</div>';
         return;
       }
+      _investigateResolvedChannelID = res.youtubeChannelID || null;
       status.textContent=`${articles.length} result${articles.length!==1?'s':''}`;
       results.innerHTML=articles.map(a=>`
         <div style="display:flex;flex-direction:column;gap:3px;padding:10px 14px;border-bottom:1px solid #eef5fc;background:white">
@@ -4087,7 +4104,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     status.textContent='Saving...';
     try{
       const nextSeq=(Math.max(...globalSources.map(s=>s.Sequence||0),0))+1;
-      const result=await apiPost('SaveSource',{action:'add',name:name.trim(),url,sourceType:type,sequence:nextSeq,userID:USER_ID});
+      const result=await apiPost('SaveSource',{action:'add',name:name.trim(),url,sourceType:type,sequence:nextSeq,youtubeChannelID:_investigateResolvedChannelID||null,userID:USER_ID});
       if(result.sourceID){
         globalSources.push({SourceID:result.sourceID,Name:name.trim(),URL:url,SourceType:type,Sequence:nextSeq,DateAdded:new Date().toISOString().split('T')[0]});
         renderGlobalSourcesTable();

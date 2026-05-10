@@ -70,7 +70,7 @@ Return ONLY a raw JSON object (no markdown, no explanation) in this format:
 }`;
 
   const anthropicBody = JSON.stringify({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-5',
     max_tokens: 4000,
     messages: [{ role: 'user', content: prompt }]
   });
@@ -88,8 +88,11 @@ Return ONLY a raw JSON object (no markdown, no explanation) in this format:
 
   const response = await fetchUrl('https://api.anthropic.com/v1/messages', options, anthropicBody);
   const data = JSON.parse(response);
-  const raw = data.content?.[0]?.text || '{}';
+  if (data.error) throw new Error(`Anthropic API error: ${data.error.type} — ${data.error.message}`);
+  const raw = data.content?.[0]?.text || '';
+  if (!raw) throw new Error('Anthropic returned empty response — model may be unavailable');
   const result = JSON.parse(raw.replace(/```json|```/g, '').trim());
+  if (!result.conjugations?.length) throw new Error('Conjugation generation returned no data');
 
   const conjugations = result.conjugations || [];
   const presentParticiple = result.presentParticiple || null;
@@ -229,6 +232,7 @@ module.exports = async function(context, req) {
       })
     };
   } catch(err) {
-    context.res = { status: 500, body: 'Error: ' + err.message };
+    context.log(`GetConjugation error: ${err.message}`);
+    context.res = { status: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: false, error: err.message }) };
   }
 };
