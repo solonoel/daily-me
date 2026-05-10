@@ -1709,7 +1709,7 @@ const fcCounts={
 const leftCol=`<div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0;min-width:110px">`+
           `<div class="flashcard-word" style="text-align:center">${card.WordsName}${genderLabel}</div>`+
           (card.WordsImage?`<img src="${card.WordsImage}" class="flashcard-image" alt="">`:`<div style="width:100px;height:100px;border-radius:12px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--text-muted)">📖</div>`)+
-          `<a href="#" onclick="event.stopPropagation();(function(){const savedIdx=flashcardIndex;const savedDeckID=currentDeckID;const savedDeckName=currentDeckName;const savedCards=[...flashcards];const savedFilter=flashcardFilter;editWord(${card.UserLanguageWordsID},()=>{currentDeckID=savedDeckID;currentDeckName=savedDeckName;flashcards=savedCards;flashcardFilter=savedFilter;flashcardIndex=savedIdx;flashcardShowTranslation=false;showScreen('lang-${currentLangID}',false);const panel=document.getElementById('lang-feature-${currentLangID}');if(panel)panel.innerHTML=renderFlashcardsHTML(${currentLangID},'${currentLangName}');document.querySelectorAll('[id^=\"langtab-\"]').forEach(t=>t.classList.remove('lang-tab-active'));});})();return false;" style="font-size:11px;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep)">✏️ Edit</a>`+
+          `<a href="#" onclick="event.stopPropagation();fcEditWord(${card.UserLanguageWordsID},${currentLangID},'${currentLangName}');return false;" style="font-size:11px;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep)">✏️ Edit</a>`+
           `</div>`;
         const rightCol=`<div style="flex:1;min-width:0;text-align:left;border-left:1px solid var(--border);padding-left:16px">`+
           `<div class="flashcard-translation" style="text-align:left">${displayTranslation}</div>`+
@@ -1765,6 +1765,23 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
   function renderFlashcardsScreen(){
     const panel=document.getElementById(`lang-feature-${currentLangID}`);
     if(panel)panel.innerHTML=renderFlashcardsHTML(currentLangID,currentLangName);
+  }
+
+  function fcEditWord(wordID,langID,langName){
+    const savedIdx=flashcardIndex;
+    const savedDeckID=currentDeckID;
+    const savedDeckName=currentDeckName;
+    const savedCards=[...flashcards];
+    const savedFilter=flashcardFilter;
+    editWord(wordID,()=>{
+      currentDeckID=savedDeckID;currentDeckName=savedDeckName;
+      flashcards=savedCards;flashcardFilter=savedFilter;
+      flashcardIndex=savedIdx;flashcardShowTranslation=false;
+      showScreen('lang-'+langID,false);
+      const panel=document.getElementById('lang-feature-'+langID);
+      if(panel)panel.innerHTML=renderFlashcardsHTML(langID,langName);
+      document.querySelectorAll('[id^="langtab-"]').forEach(t=>t.classList.remove('lang-tab-active'));
+    });
   }
 
   function speakWordFC(wordID){
@@ -3228,12 +3245,14 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       const sequence=modalID?(keywords.find(k=>k.KeywordID===modalID)?.Sequence||99):(Math.max(...keywords.map(k=>k.Sequence||0),0)+1);
       if(!keyword)return alert('Keyword is required');
       // Validate: multi-word terms without quotes must be quoted
-      const terms=keyword.split(',').map(t=>t.trim()).filter(Boolean);
-      for(const term of terms){
-        const raw=term.startsWith('-')?term.substring(1).trim():term;
-        const isQuoted=raw.startsWith('"')&&raw.endsWith('"');
-        if(!isQuoted&&raw.includes(' ')){
-          return alert(`Multi-word phrase must be in quotes: "${raw}"\n\nExample: "${raw}"`);
+      const clauses=keyword.split(',').map(c=>c.trim()).filter(Boolean);
+      for(const clause of clauses){
+        const stripped=clause.replace(/-?"[^"]+"/g,'').trim();
+        const tokens=stripped.split(/[+\/]/).map(t=>t.trim().replace(/^-/,'')).filter(Boolean);
+        for(const token of tokens){
+          if(token.includes(' ')){
+            return alert(`Multi-word phrase must be in quotes: "${token}"\n\nExample: "${token}"`);
+          }
         }
       }
       const sourceIDVal=parseInt(document.getElementById('m-source')?.value)||null;
