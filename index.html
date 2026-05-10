@@ -455,10 +455,12 @@
       </div>
       <div style="font-size:12px;color:var(--text);background:#f0f7ff;border:1px solid var(--sky-deep);border-radius:8px;padding:10px 16px;margin-bottom:12px;line-height:1.8">
         <div style="font-weight:700;color:var(--sky-deep);margin-bottom:4px">🔍 Keywords — How They Work</div>
-        <div>🔍 <strong>Exact match</strong> — searched on YouTube and filtered news sources. Drag to reorder — higher items are prioritized.</div>
-        <div>📋 <strong>Multiple terms:</strong> Separate with commas — e.g. <em>Russia, Russian</em> — headline is selected if it contains <em>any</em> term in the list.</div>
+        <div>🔍 <strong>Case-insensitive, whole-word match</strong> — searched on YouTube and filtered news sources. Drag to reorder — higher items are prioritized.</div>
+        <div>➕ <strong>AND ( + ):</strong> All terms must be present — e.g. <em>Bears+Stadium</em> requires both words.</div>
+        <div>➗ <strong>OR ( / ):</strong> Any term matches — e.g. <em>Russia/Russian</em> matches either word. OR is evaluated before AND, so <em>Russia/Russian+Ukraine</em> means (Russia OR Russian) AND Ukraine.</div>
+        <div>📋 <strong>Clauses ( , ):</strong> Comma separates independent clauses — a headline passes if it matches <em>any</em> clause. e.g. <em>Bears+Stadium, Cubs+Stadium</em> matches either team's stadium news.</div>
+        <div>🚫 <strong>Exclusions ( - ):</strong> Prefix a term with <strong>-</strong> to exclude headlines containing it — e.g. <em>Bears+Stadium-Indiana</em>. Exclusions apply per clause. Use quotes for phrases: <em>-"Indiana Pacers"</em>.</div>
         <div>💬 <strong>Phrases:</strong> Multi-word phrases <strong>must use quotes</strong> — e.g. <em>"White Sox"</em>, <em>"Stock Market"</em>. Without quotes, each word is matched independently.</div>
-        <div>🚫 <strong>Exclusions:</strong> Start with <strong>-</strong> to exclude — e.g. <em>-Hormuz</em> removes headlines containing that word. Use quotes for phrases: <em>-"Chicago Cubs"</em>.</div>
         <div>⚪ <strong>Inactive keywords</strong> do not participate in any filtering. If all keywords are inactive, only Subscription entries are shown.</div>
       </div>
       <table class="settings-table"><thead><tr><th>⠿</th><th>Keyword</th><th>Source</th><th>Group Label</th><th>Category</th><th>Active</th><th>Image</th><th></th></tr></thead><tbody id="tbl-keywords"></tbody></table>
@@ -928,8 +930,10 @@
     } else {
       if(userOwnedSources.some(s=>!s.IsInactive&&s.SiteType==='Opener')){
         showScreen('openers',false);
+        loadHeadlines();
+      } else {
+        await loadHeadlines();
       }
-      await loadHeadlines();
     }
   }
 
