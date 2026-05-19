@@ -17,75 +17,52 @@ module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
     const userID = parseInt(req.query.userID || '1');
-    const categoryID = req.query.categoryID;
     const recencyDays = parseInt(req.query.recencyDays || '7');
-    const screen = req.query.screen || 'headlines';
 
-    let query = `
-      SELECT h.HeadlineID, h.UserID, h.CategoryID, h.HeadlineName,
+    const query = `
+      SELECT h.HeadlineID, h.UserID, h.HeadlineName,
              h.Link, h.Summary, h.CreatedDate, h.PublishedDate, h.LastViewedDate, h.Retain,
              h.KeywordID, h.ThumbnailURL, h.ChannelName, h.ChannelURL, h.Duration,
              CASE WHEN uhs.IsFiltered = 0 THEN 1 ELSE 0 END AS IsSubscription,
-             c.Name AS CategoryName, k.Keyword, k.Sequence AS KeywordSequence,
+             k.Keyword, k.Sequence AS KeywordSequence,
              k.GroupLabel AS KeywordGroupLabel,
              k.ImageURL AS KeywordImage,
              h.SourceID, hs.Name AS SourceName,
-             (SELECT TOP 1 k2.ImageURL FROM [HeadlineKeyword] k2 WHERE k2.UserID = @UserID AND k2.GroupLabel = k.GroupLabel AND k2.GroupLabel IS NOT NULL AND k2.ImageURL IS NOT NULL) AS KeywordGroupImage
+             uhs.GroupLabel AS SourceGroupLabel,
+             uhs.UserMenuID AS SourceUserMenuID,
+             (SELECT TOP 1 k2.ImageURL FROM [HeadlineKeyword] k2
+              WHERE k2.UserID = @UserID AND k2.GroupLabel = k.GroupLabel
+              AND k2.GroupLabel IS NOT NULL AND k2.ImageURL IS NOT NULL) AS KeywordGroupImage
       FROM [Headline] h
-      LEFT JOIN [Category] c ON h.CategoryID = c.CategoryID
       LEFT JOIN [HeadlineKeyword] k ON h.KeywordID = k.KeywordID
       LEFT JOIN [HeadlineSource] hs ON h.SourceID = hs.SourceID
       LEFT JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID AND uhs.UserID = @UserID
       WHERE h.UserID = @UserID
       AND COALESCE(h.PublishedDate, h.CreatedDate) >= DATEADD(day, -@RecencyDays, GETDATE())
+      ORDER BY
+        COALESCE(k.Sequence, 999),
+        CASE WHEN h.KeywordID IS NOT NULL THEN 0 ELSE 1 END,
+        COALESCE(h.PublishedDate, h.CreatedDate) DESC
     `;
 
-    if (screen === 'teams') {
-      query += ` AND (c.Name = 'Teams' OR k.CategoryID IN (SELECT CategoryID FROM Category WHERE UserID=@UserID AND Name='Teams'))`;
-    } else if (categoryID) {
-      query += ` AND h.CategoryID = @CategoryID`;
-    }
-    query += ` ORDER BY h.CategoryID,
-                COALESCE(k.Sequence, 999),
-                CASE WHEN h.KeywordID IS NOT NULL THEN 0 ELSE 1 END,
-                COALESCE(h.PublishedDate, h.CreatedDate) DESC`;
-
-    const request = pool.request()
+    const result = await pool.request()
       .input('UserID', sql.Int, userID)
-      .input('RecencyDays', sql.Int, recencyDays);
+      .input('RecencyDays', sql.Int, recencyDays)
+      .query(query);
 
-    if (categoryID) request.input('CategoryID', sql.Int, parseInt(categoryID));
-
-    const result = await request.query(query);
     let headlines = result.recordset;
 
-    if (!categoryID && screen === 'headlines') {
-      const catLimitsResult = await pool.request()
-        .input('UserID', sql.Int, userID)
-        .query(`SELECT CategoryID, MaxItems FROM [UserCategorySetting] WHERE UserID = @UserID`);
-      const catLimits = {};
-      catLimitsResult.recordset.forEach(r => catLimits[r.CategoryID] = r.MaxItems);
+    const settingResult = await pool.request()
+      .input('UserID', sql.Int, userID)
+      .query(`SELECT MaxHeadlines FROM [HeadlineSetting] WHERE UserID = @UserID`);
+    const maxHeadlines = settingResult.recordset[0]?.MaxHeadlines || 50;
 
-      const settingResult = await pool.request()
-        .input('UserID', sql.Int, userID)
-        .query(`SELECT MaxHeadlines FROM [HeadlineSetting] WHERE UserID = @UserID`);
-      const maxHeadlines = settingResult.recordset[0]?.MaxHeadlines || 50;
-      const numCats = Object.keys(catLimits).length || 5;
-      const defaultPerCat = Math.ceil(maxHeadlines / numCats);
-
-      const catCounts = {};
-      headlines = headlines.filter(h => {
-        if (h.IsSubscription === true || h.IsSubscription === 1) return true;
-        const cat = h.CategoryID || 'none';
-        const limit = cat === 'none' ? defaultPerCat : (catLimits[cat] || defaultPerCat);
-        catCounts[cat] = (catCounts[cat] || 0);
-        if (catCounts[cat] < limit) {
-          catCounts[cat]++;
-          return true;
-        }
-        return false;
-      });
-    }
+    let kwCount = 0;
+    headlines = headlines.filter(h => {
+      if (h.IsSubscription === 1) return true;
+      if (kwCount < maxHeadlines) { kwCount++; return true; }
+      return false;
+    });
 
     context.res = {
       status: 200,

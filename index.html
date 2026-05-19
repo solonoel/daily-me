@@ -2466,22 +2466,19 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
       const kwName=h.Keyword||null;
       if(kwName)return kwLabel&&kwLabel.toLowerCase()!==kwName.toLowerCase()?kwLabel:kwName;
     }
-    if(!h.KeywordID&&h.SourceID){
-      const src=sources.find(s=>s.SourceID===h.SourceID);
-      if(src?.GroupLabel)return src.GroupLabel;
+    if(!h.KeywordID){
+      if(h.SourceGroupLabel)return h.SourceGroupLabel;
+      if(h.ChannelName)return 'Subscriptions';
     }
-    if(h.ChannelName&&!h.KeywordID)return 'Subscriptions';
     return 'Other';
   }
 
   function updateMenuNavCounts(allData){
     userMenu.filter(m=>!m.IsInactive).forEach(m=>{
       const menuKwIDs=new Set(keywords.filter(k=>k.UserMenuID===m.UserMenuID).map(k=>k.KeywordID));
-      const menuOwnedSrcIDs=new Set(userOwnedSources.filter(s=>s.UserMenuID===m.UserMenuID).map(s=>s.UserOwnedSourceID));
-      const menuSharedSrcIDs=new Set(sources.filter(s=>!s.IsFiltered&&s.UserMenuID===m.UserMenuID).map(s=>s.SourceID));
       const count=allData.filter(h=>
         (h.KeywordID&&menuKwIDs.has(h.KeywordID))||
-        (!h.KeywordID&&h.SourceID&&(menuOwnedSrcIDs.has(h.SourceID)||menuSharedSrcIDs.has(h.SourceID)))
+        (!h.KeywordID&&h.SourceUserMenuID===m.UserMenuID)
       ).length;
       const btn=document.getElementById(`nav-usermenu-${m.UserMenuID}`);
       if(!btn)return;
@@ -2501,11 +2498,9 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
       updateMenuNavCounts(allData);
       if(currentUserMenuFilter){
         const menuKwIDs=new Set(keywords.filter(k=>k.UserMenuID===currentUserMenuFilter).map(k=>k.KeywordID));
-        const menuOwnedSrcIDs=new Set(userOwnedSources.filter(s=>s.UserMenuID===currentUserMenuFilter).map(s=>s.UserOwnedSourceID));
-        const menuSharedSrcIDs=new Set(sources.filter(s=>!s.IsFiltered&&s.UserMenuID===currentUserMenuFilter).map(s=>s.SourceID));
         headlines=allData.filter(h=>
           (h.KeywordID&&menuKwIDs.has(h.KeywordID))||
-          (!h.KeywordID&&h.SourceID&&(menuOwnedSrcIDs.has(h.SourceID)||menuSharedSrcIDs.has(h.SourceID)))
+          (!h.KeywordID&&h.SourceUserMenuID===currentUserMenuFilter)
         );
       }else{
         headlines=allData;
