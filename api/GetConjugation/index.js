@@ -71,7 +71,7 @@ Return ONLY a raw JSON object (no markdown, no explanation) in this format:
 
   const anthropicBody = JSON.stringify({
     model: 'claude-sonnet-4-5',
-    max_tokens: 4000,
+    max_tokens: 8000,
     messages: [{ role: 'user', content: prompt }]
   });
   const options = {
@@ -91,7 +91,13 @@ Return ONLY a raw JSON object (no markdown, no explanation) in this format:
   if (data.error) throw new Error(`Anthropic API error: ${data.error.type} — ${data.error.message}`);
   const raw = data.content?.[0]?.text || '';
   if (!raw) throw new Error('Anthropic returned empty response — model may be unavailable');
-  const result = JSON.parse(raw.replace(/```json|```/g, '').trim());
+  if (data.stop_reason === 'max_tokens') throw new Error('Conjugation failed: response was too large to complete. May require increase to max_tokens in GetConjugation.');
+  let result;
+  try {
+    result = JSON.parse(raw.replace(/```json|```/g, '').trim());
+  } catch(e) {
+    throw new Error('Conjugation failed: response was cut off or malformed. Try regenerating.');
+  }
   if (!result.conjugations?.length) throw new Error('Conjugation generation returned no data');
 
   const conjugations = result.conjugations || [];

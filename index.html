@@ -349,6 +349,7 @@
             <button class="settings-nav-btn" onclick="showSettingsSection('sources')">🌐 Shared Sources</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('mysources')">🔗 My Sources</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('keywords')">🔍 Keywords</button>
+            <button class="settings-nav-btn" onclick="showSettingsSection('usermenu')">📋 Menu</button>
           </div>
           <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px">
             <div>
@@ -483,6 +484,23 @@
           <th></th>
         </tr></thead>
         <tbody id="tbl-mysources-body"></tbody>
+      </table>
+    </div>
+    <div id="settings-section-usermenu" style="display:none">
+      <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
+      <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>📋 Menu</span>
+        <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openModal('menu')">+ Add Item</button>
+      </div>
+      <table class="settings-table">
+        <thead><tr>
+          <th style="width:30px"></th>
+          <th>Name</th>
+          <th>Image</th>
+          <th>Active</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="tbl-usermenu-body"></tbody>
       </table>
     </div>
     <div id="settings-section-global-sources" style="display:none">
@@ -621,6 +639,7 @@
         <label class="form-checkbox-row"><input type="radio" name="gs-type" value="API" onchange="updateGsTypeFields()"> API</label>
         <label class="form-checkbox-row"><input type="radio" name="gs-type" value="Youtube" onchange="updateGsTypeFields()"> Youtube</label>
         <label class="form-checkbox-row"><input type="radio" name="gs-type" value="RSS" onchange="updateGsTypeFields()"> RSS</label>
+        <label class="form-checkbox-row"><input type="radio" name="gs-type" value="URL" onchange="updateGsTypeFields()"> URL</label>
       </div>
     </div>
     <div class="form-group">
@@ -650,6 +669,7 @@
         <label class="form-checkbox-row"><input type="radio" name="inv-type" value="API" checked onchange="updateInvestigateFields()"> API</label>
         <label class="form-checkbox-row"><input type="radio" name="inv-type" value="Youtube" onchange="updateInvestigateFields()"> YouTube</label>
         <label class="form-checkbox-row"><input type="radio" name="inv-type" value="RSS" onchange="updateInvestigateFields()"> RSS</label>
+        <label class="form-checkbox-row"><input type="radio" name="inv-type" value="URL" onchange="updateInvestigateFields()"> URL</label>
         </div>
       </div>
     </div>
@@ -913,6 +933,8 @@
     const mySitesData = await apiGet('GetUserOwnedSources');
     userOwnedSources = Array.isArray(mySitesData) ? mySitesData : [];
     updateSiteTypeNavVisibility();
+    const menuData = await apiGet('GetUserMenu');
+    userMenu = Array.isArray(menuData) ? menuData : [];
     renderCatSettingsTable(userSettings);renderCategoryTiles(null);
     const loadMs=Math.round(performance.now()-loadStart);
     if(loadMs>3000){
@@ -945,6 +967,7 @@
   // ── LANGUAGE ──
 
   function renderLanguageNav(){
+    renderUserMenuNav();
     document.querySelectorAll('.nav-btn-lang').forEach(b=>b.remove());
     const navDate=document.getElementById('nav-date');
     userLanguages.filter(ul=>ul.IsActive==='Y').forEach(ul=>{
@@ -2428,6 +2451,10 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
   document.addEventListener('paste', e => {
     handlePasteImage(e);
     if (document.getElementById('mysite-modal')?.style.display !== 'none') handleMsPasteImage(e);
+    if (document.getElementById('modal')?.style.display !== 'none' && modalType==='menu') {
+      const items = e.clipboardData?.items; if (!items) return;
+      for (const item of items) { if (item.type.startsWith('image/')) { resizeKwTpImage(item.getAsFile(), (imageURL) => { window._modalMenuImage=imageURL; const p=document.getElementById('m-menu-img-preview'); if(p)p.innerHTML=`<img src="${imageURL}" style="width:100%;height:100%;object-fit:cover">`; }); break; } }
+    }
     if (document.getElementById('modal')?.style.display !== 'none' && (modalType==='keyword'||modalType==='topic')) {
       const items = e.clipboardData?.items; if (!items) return;
       for (const item of items) { if (item.type.startsWith('image/')) { resizeKwTpImage(item.getAsFile(), (imageURL) => { window._modalKwImage=imageURL; const p=document.getElementById('m-kw-img-preview'); if(p)p.innerHTML=`<img src="${imageURL}" style="width:100%;height:100%;object-fit:cover">`; }); break; } }
@@ -2944,14 +2971,14 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   function showSettingsMenu(pushState=true){
     currentSettingsSection=null;
     document.getElementById('settings-menu-view').style.display='block';
-    ['categories','sources','mysources','keywords','global-sources'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
+    ['categories','sources','mysources','keywords','usermenu','global-sources'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
     if(pushState)history.pushState({screen:'settings',section:null},'','');
   }
 
   function showSettingsSection(section,pushState=true){
     currentSettingsSection=section;
     document.getElementById('settings-menu-view').style.display='none';
-    ['categories','sources','keywords','global-sources'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
+    ['categories','sources','keywords','usermenu','global-sources'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
     document.getElementById(`settings-section-${section}`).style.display='block';
     renderSettingsSection(section);
     if(pushState)history.pushState({screen:'settings',section},'','');
@@ -2990,6 +3017,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     if(section==='sources'){sources=await apiGet('GetHeadlineSources');renderSettingsSources();}
     if(section==='mysources'){await loadMySources();}
     if(section==='keywords'){keywords=await apiGet('GetHeadlineKeywords');renderSettingsKeywords();}
+    if(section==='usermenu'){userMenu=await apiGet('GetUserMenu');renderUserMenuTable();}
   }
 
   function renderSettingsCategories(){
@@ -3143,6 +3171,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   async function openModal(type,id=null){
     modalType=type;modalID=id;
     window._modalKwImage=undefined;
+    window._modalMenuImage=undefined;
     const catOptions=categories.map(c=>`<option value="${c.CategoryID}">${c.Name}</option>`).join('');
     const sourceTypeOptions=['Guardian','NYT','GNews','Currents','MediaStack','NewsAPI','RSS','YouTube'].map(t=>`<option value="${t}">${t}</option>`).join('');
     let title='',body='';
@@ -3202,6 +3231,19 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         </div>`;
       if(tp?.CategoryID)setTimeout(()=>document.getElementById('m-cat').value=tp.CategoryID,0);
       setTimeout(()=>{ window._modalKwImage = tp?.ImageURL||null; },0);
+    }else if(type==='menu'){
+      const m=id?userMenu.find(m=>m.UserMenuID===id):null;
+      title=id?'Edit Menu Item':'Add Menu Item';
+      body=`<div class="form-group"><label class="form-label">Name</label><input class="form-input" id="m-menuname" value="${m?.UserMenuName||''}"></div>
+        <div class="form-group"><label class="form-label">Image <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(upload or paste)</span></label>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+            <div id="m-menu-img-preview" style="width:100px;height:62px;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8fbff;font-size:20px;cursor:pointer" onclick="document.getElementById('m-menu-img-file').click()">${m?.UserMenuImage?`<img src="${m.UserMenuImage}" style="width:100%;height:100%;object-fit:cover">`:'🖼'}</div>
+            <input type="file" id="m-menu-img-file" accept="image/*" style="display:none" onchange="handleModalMenuImage(event)">
+            <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="document.getElementById('m-menu-img-file').click()">Upload</button>
+            <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="clearModalMenuImage()">Clear</button>
+          </div>
+        </div>`;
+      setTimeout(()=>{ window._modalMenuImage = m?.UserMenuImage||null; },0);
     }
     document.getElementById('modal-title').textContent=title;
     document.getElementById('modal-body').innerHTML=body;
@@ -3287,6 +3329,21 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         topics.push({TopicID:result.topicID,Topic:topic,CategoryID:categoryID,GroupLabel:groupLabel,ImageURL:window._modalKwImage||null,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
       }
       renderSettingsTopics();
+    }else if(modalType==='menu'){
+      const name=document.getElementById('m-menuname')?.value.trim();
+      if(!name)return alert('Name is required');
+      const imageURL=window._modalMenuImage!==undefined?window._modalMenuImage:null;
+      if(modalID){
+        await apiPost('SaveUserMenu',{action:'update',userID:USER_ID,menuID:modalID,menuName:name,menuImage:imageURL,isInactive:false});
+        const m=userMenu.find(m=>m.UserMenuID===modalID);
+        if(m){m.UserMenuName=name;m.UserMenuImage=imageURL;}
+      }else{
+        const seq=(Math.max(...userMenu.map(m=>m.UserMenuSeq||0),0))+1;
+        const result=await apiPost('SaveUserMenu',{action:'add',userID:USER_ID,menuName:name,menuImage:imageURL,sequence:seq});
+        userMenu.push({UserMenuID:result.menuID,UserMenuSeq:seq,UserMenuName:name,UserMenuImage:imageURL,IsInactive:0});
+      }
+      renderUserMenuTable();
+      renderUserMenuNav();
     }
     if(addAnother){
       const t=modalType;modalID=null;
@@ -3475,6 +3532,10 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     const sourceType=document.querySelector('input[name="gs-type"]:checked')?.value||'RSS';
     if(!name)return alert('Name is required');
     if(!url)return alert('URL is required');
+    if(sourceType==='URL'){
+      try{new URL(url);}catch(e){return alert('Enter a valid web address (e.g. https://www.example.com)');}
+      if(!/^https?:\/\/.+\..+/.test(url))return alert('URL must start with http:// or https://');
+    }
     if(sourceType==='Youtube'&&!gsResolvedChannelID&&!gsEditingID){
       const status=document.getElementById('gs-channel-status');
       if(status){status.textContent='Looking up channel...';status.style.color='var(--text-muted)';}
@@ -3544,7 +3605,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     });
     const thead=tbody.closest('table')?.querySelector('thead tr');
     const srcTypeFilter=document.getElementById('src-type-filter')?.value||'';
-    const srcTypeOpts=`<option value="">All Types</option>`+['API','RSS','Youtube'].map(t=>`<option value="${t}" ${srcTypeFilter===t?'selected':''}>${t}</option>`).join('');
+    const srcTypeOpts=`<option value="">All Types</option>`+['API','RSS','URL','Youtube'].map(t=>`<option value="${t}" ${srcTypeFilter===t?'selected':''}>${t}</option>`).join('');
     if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th>URL</th><th><select id="src-type-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsSources()">${srcTypeOpts}</select></th><th>Active</th><th>Filtered</th><th>Exclusions <span style="font-size:9px;font-weight:400;color:var(--text-muted)">CSV, use "quotes" for phrases</span></th><th></th>`;
     const srcTypeFilterVal=document.getElementById('src-type-filter')?.value||'';
     const srcFiltered=srcTypeFilterVal?sorted.filter(s=>s.SourceType===srcTypeFilterVal):sorted;
@@ -3753,6 +3814,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   // ── MY SITES ──
 
   let userOwnedSources = [];
+  let userMenu = [];
   let msEditingID = null;
   let msThumbnailData = null;
   let msSortCol = 'Sequence', msSortDir = 'asc';
@@ -4073,6 +4135,9 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     }else if(type==='Youtube'){
       if(note)note.textContent='(YouTube channel URL — e.g. https://www.youtube.com/@ChannelName)';
       urlInput.placeholder='https://www.youtube.com/@ChannelName';
+    }else if(type==='URL'){
+      if(note)note.textContent='(web page URL — must start with https://)';
+      urlInput.placeholder='https://www.example.com';
     }else{
       if(note)note.textContent='(leave blank — searches all active API sources with keyword)';
       urlInput.placeholder='(optional)';
@@ -4091,6 +4156,10 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     results.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">⏳ Fetching...</div>';
     if(type==='RSS'&&!url){alert('Enter a URL first.');btn.disabled=false;btn.textContent='Search';return;}
     if(type==='Youtube'&&!url){alert('Enter a YouTube channel URL first.');btn.disabled=false;btn.textContent='Search';return;}
+    if(type==='URL'){
+      if(!url){alert('Enter a web page URL first.');btn.disabled=false;btn.textContent='Search';return;}
+      try{new URL(url);}catch(e){alert('Enter a valid web address (e.g. https://www.example.com)');btn.disabled=false;btn.textContent='Search';return;}
+    }
     try{
       const res=await apiPost('FetchHeadlines',{preview:true,sourceType:type,url,keyword,userID:USER_ID});
       if(res.error){
@@ -4139,6 +4208,125 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     }catch(e){
       status.textContent='Error: '+e.message;
     }
+  }
+
+  // ── USER MENU ──
+
+  function renderUserMenuNav(){
+    document.querySelectorAll('.nav-btn-usermenu').forEach(b=>b.remove());
+    const navDate=document.getElementById('nav-date');
+    const firstLang=document.querySelector('.nav-btn-lang');
+    const insertBefore=firstLang||navDate;
+    [...userMenu].filter(m=>!m.IsInactive).sort((a,b)=>(a.UserMenuSeq||99)-(b.UserMenuSeq||99)).forEach(m=>{
+      const btn=document.createElement('button');
+      btn.className='nav-btn nav-btn-usermenu';
+      btn.id=`nav-usermenu-${m.UserMenuID}`;
+      btn.onclick=()=>{};
+      const imgHTML=m.UserMenuImage
+        ?`<img src="${m.UserMenuImage}" style="width:22px;height:22px;border-radius:4px;object-fit:cover;flex-shrink:0">`
+        :`<span class="nav-icon">📋</span>`;
+      btn.innerHTML=`${imgHTML}<span class="nav-label">${m.UserMenuName}</span>`;
+      insertBefore.parentNode.insertBefore(btn,insertBefore);
+    });
+  }
+
+  function renderUserMenuTable(){
+    const tbody=document.getElementById('tbl-usermenu-body');
+    if(!tbody)return;
+    const sorted=[...userMenu].sort((a,b)=>(a.UserMenuSeq||99)-(b.UserMenuSeq||99));
+    tbody.innerHTML=sorted.map(m=>`
+      <tr draggable="true" data-id="${m.UserMenuID}">
+        <td style="width:30px;color:var(--text-muted)">⠿</td>
+        <td><strong>${m.UserMenuName}</strong></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:50px;height:32px;border-radius:4px;overflow:hidden;border:1px solid var(--border);background:#f8fbff;display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="triggerUserMenuImageUpload(${m.UserMenuID})" title="Click to change image">
+              ${m.UserMenuImage?`<img src="${m.UserMenuImage}" style="width:100%;height:100%;object-fit:cover">`:`<span style="font-size:14px;color:var(--text-muted)">🖼</span>`}
+            </div>
+            ${m.UserMenuImage?`<button class="btn-icon danger" onclick="clearUserMenuImage(${m.UserMenuID})" title="Remove image" style="width:20px;height:20px;font-size:10px">✕</button>`:''}
+            <input type="file" id="um-img-${m.UserMenuID}" accept="image/*" style="display:none" onchange="handleUserMenuImageUpload(${m.UserMenuID},event)">
+          </div>
+        </td>
+        <td><button class="toggle ${!m.IsInactive?'on':''}" onclick="toggleUserMenuItem(${m.UserMenuID},this)"></button></td>
+        <td style="display:flex;gap:6px">
+          <button class="btn-icon" onclick="openModal('menu',${m.UserMenuID})">✏️</button>
+          <button class="btn-icon danger" onclick="deleteUserMenuItem(${m.UserMenuID})">🗑️</button>
+        </td>
+      </tr>`).join('');
+    initUserMenuDragDrop(tbody);
+  }
+
+  function initUserMenuDragDrop(tbody){
+    let dragSrc=null,dragMoved=false;
+    tbody.querySelectorAll('tr[draggable]').forEach(row=>{
+      row.addEventListener('dragstart',e=>{dragSrc=row;dragMoved=false;row.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+      row.addEventListener('dragend',()=>{
+        tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('dragging','drag-over'));
+        if(!dragMoved)return;
+        const rows=[...tbody.querySelectorAll('tr[draggable]')];
+        const sequences=rows.map((r,i)=>({menuID:parseInt(r.dataset.id),sequence:i+1}));
+        sequences.forEach(s=>{const m=userMenu.find(m=>m.UserMenuID===s.menuID);if(m)m.UserMenuSeq=s.sequence;});
+        apiPost('SaveUserMenu',{action:'reorder',userID:USER_ID,sequences});
+        renderUserMenuNav();
+      });
+      row.addEventListener('dragover',e=>{e.preventDefault();tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('drag-over'));if(row!==dragSrc)row.classList.add('drag-over');});
+      row.addEventListener('drop',e=>{e.preventDefault();if(dragSrc&&dragSrc!==row){dragMoved=true;const rows=[...tbody.querySelectorAll('tr')];if(rows.indexOf(dragSrc)<rows.indexOf(row))row.after(dragSrc);else row.before(dragSrc);}});
+    });
+  }
+
+  async function toggleUserMenuItem(menuID,btn){
+    const m=userMenu.find(m=>m.UserMenuID===menuID);if(!m)return;
+    const newInactive=btn.classList.contains('on')?1:0;
+    btn.classList.toggle('on');
+    m.IsInactive=newInactive;
+    await apiPost('SaveUserMenu',{action:'toggle',userID:USER_ID,menuID,isInactive:newInactive});
+    renderUserMenuNav();
+  }
+
+  async function deleteUserMenuItem(menuID){
+    if(!confirm('Delete this menu item?'))return;
+    await apiPost('SaveUserMenu',{action:'delete',userID:USER_ID,menuID});
+    userMenu=userMenu.filter(m=>m.UserMenuID!==menuID);
+    renderUserMenuTable();
+    renderUserMenuNav();
+  }
+
+  function triggerUserMenuImageUpload(menuID){
+    document.getElementById(`um-img-${menuID}`)?.click();
+  }
+
+  function handleUserMenuImageUpload(menuID,event){
+    const file=event.target.files[0];if(!file)return;
+    resizeKwTpImage(file,async(imageURL)=>{
+      const m=userMenu.find(m=>m.UserMenuID===menuID);if(!m)return;
+      m.UserMenuImage=imageURL;
+      await apiPost('SaveUserMenu',{action:'update',userID:USER_ID,menuID,menuName:m.UserMenuName,menuImage:imageURL,isInactive:m.IsInactive});
+      renderUserMenuTable();
+      renderUserMenuNav();
+    });
+  }
+
+  async function clearUserMenuImage(menuID){
+    const m=userMenu.find(m=>m.UserMenuID===menuID);if(!m)return;
+    m.UserMenuImage=null;
+    await apiPost('SaveUserMenu',{action:'update',userID:USER_ID,menuID,menuName:m.UserMenuName,menuImage:null,isInactive:m.IsInactive});
+    renderUserMenuTable();
+    renderUserMenuNav();
+  }
+
+  function handleModalMenuImage(event){
+    const file=event.target.files[0];if(!file)return;
+    resizeKwTpImage(file,(imageURL)=>{
+      window._modalMenuImage=imageURL;
+      const p=document.getElementById('m-menu-img-preview');
+      if(p)p.innerHTML=`<img src="${imageURL}" style="width:100%;height:100%;object-fit:cover">`;
+    });
+  }
+
+  function clearModalMenuImage(){
+    window._modalMenuImage=null;
+    const p=document.getElementById('m-menu-img-preview');
+    if(p)p.innerHTML='🖼';
   }
 
   // ── INIT ──

@@ -82,29 +82,57 @@ async function filterByLanguage(articles, allowedCodes) {
 }
 
 // Keyword syntax:
-// Semicolon = OR between groups
-// Comma = AND within a group
-// "quotes" = exact phrase
-// -word = exclude if present
+// Comma = separates clauses (OR between clauses)
+// + = AND between term groups within a clause
+// / = OR between terms within a group
+// "quotes" = exact phrase match
+// -term = exclusion (applies to the clause it appears in)
+// All matching is case-insensitive, whole-word
+// Example: Bears+Stadium-Indiana, Cubs+Stadium means
+//   (Bears AND Stadium AND NOT Indiana) OR (Cubs AND Stadium)
 function matchesKeyword(text, keywordText) {
-  const groups = keywordText.split(';').map(g => g.trim()).filter(Boolean);
-  for (const group of groups) {
-    const terms = group.split(',').map(t => t.trim()).filter(Boolean);
-    let groupMatch = true;
-    for (const term of terms) {
-      const isExclusion = term.startsWith('-');
-      const raw = isExclusion ? term.substring(1).trim() : term;
-      const isPhrase = raw.startsWith('"') && raw.endsWith('"');
-      const word = isPhrase ? raw.slice(1, -1) : raw;
-      const escaped = word.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const pattern = isPhrase
-        ? new RegExp(escaped, 'i')
-        : new RegExp(`\\b${escaped}\\b`, 'i');
-      const found = pattern.test(text);
-      if (isExclusion && found) { groupMatch = false; break; }
-      if (!isExclusion && !found) { groupMatch = false; break; }
+  const lowerText = text.toLowerCase();
+
+  function termMatches(raw) {
+    const isPhrase = raw.startsWith('"') && raw.endsWith('"');
+    const word = isPhrase ? raw.slice(1, -1) : raw;
+    const escaped = word.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = isPhrase
+      ? new RegExp(escaped, 'i')
+      : new RegExp(`\\b${escaped}\\b`, 'i');
+    return pattern.test(lowerText);
+  }
+
+  // Split into clauses on comma (but not commas inside quotes)
+  const clauses = keywordText.split(',').map(c => c.trim()).filter(Boolean);
+
+  for (const clause of clauses) {
+    // Extract exclusions first (tokens starting with -)
+    const exclusions = [];
+    let workingClause = clause;
+    // Pull out all exclusion terms (-word or -"phrase")
+    workingClause = workingClause.replace(/-"[^"]+"|(-\S+)/g, (match) => {
+      exclusions.push(match.substring(1).trim());
+      return '';
+    });
+
+    // Split remaining clause on + to get AND groups
+    const andGroups = workingClause.split('+').map(g => g.trim()).filter(Boolean);
+
+    // Every AND group must have at least one matching OR term
+    let clauseMatch = andGroups.length > 0;
+    for (const group of andGroups) {
+      const orTerms = group.split('/').map(t => t.trim()).filter(Boolean);
+      const groupMatch = orTerms.some(t => termMatches(t));
+      if (!groupMatch) { clauseMatch = false; break; }
     }
-    if (groupMatch) return true;
+    if (!clauseMatch) continue;
+
+    // Check exclusions — if any match, this clause fails
+    const excluded = exclusions.some(ex => termMatches(ex));
+    if (excluded) continue;
+
+    return true;
   }
   return false;
 }
@@ -152,7 +180,7 @@ async function fetchGuardian(source, keywords, fromDateStr) {
   const terms = [...keywords];
   for (const term of terms) {
     // For CSV keywords, use first term for Guardian search
-    const searchText = term.text.split(';')[0].split(',')[0].replace(/"/g,'').trim();
+    const searchText = term.text.split(',')[0].split('+')[0].split('/')[0].replace(/"/g,'').trim();
     try {
       const url = `https://content.guardianapis.com/search?q=${encodeURIComponent(searchText)}&from-date=${fromDateStr}&show-fields=trailText&order-by=newest&page-size=50&api-key=${apiKey}`;
       const data = JSON.parse(await fetchUrl(url));
@@ -214,7 +242,7 @@ async function fetchNewsAPI(source, keywords, fromDateStr, langCodes) {
     }
   } catch(e) {}
   for (const kw of keywords) {
-    const searchText = kw.text.split(';')[0].split(',')[0].replace(/"/g,'').trim();
+    const searchText = kw.text.split(',')[0].split('+')[0].split('/')[0].replace(/"/g,'').trim();
     try {
       const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(searchText)}&language=${lang}&sortBy=publishedAt&from=${fromDateStr}&pageSize=20&apiKey=${apiKey}`;
       const data = JSON.parse(await fetchUrl(url));
@@ -231,6 +259,17 @@ async function fetchNewsAPI(source, keywords, fromDateStr, langCodes) {
 
 async function fetchRSS(source) {
   try { return parseRSS(await fetchUrl(source.URL)); } catch(e) { return []; }
+}
+
+async function fetchPageURL(source) {
+  try {
+    const html = await fetchUrl(source.URL);
+    const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+    const title = titleMatch
+      ? titleMatch[1].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#039;/g,"'").replace(/&quot;/g,'"').trim()
+      : source.Name || source.URL;
+    return [{ title, link: source.URL, summary: '', pubDate: new Date() }];
+  } catch(e) { return []; }
 }
 
 function uploadsPlaylistID(channelID) { return 'UU' + channelID.substring(2); }
@@ -357,6 +396,9 @@ module.exports = async function(context, req) {
             summary: item.snippet.description?.substring(0, 300) || '',
             pubDate: new Date(item.snippet.publishedAt)
           })).filter(a => a.link.includes('watch?v='));
+        } else if (previewSourceType === 'URL') {
+          if (!previewURL) throw new Error('URL is required');
+          articles = await fetchPageURL({ URL: previewURL, Name: 'URL Preview' });
         } else if (previewSourceType === 'API') {
           if (!previewKeyword) throw new Error('A keyword is required to preview API sources');
           const apiSourcesResult = await pool.request()
@@ -549,7 +591,9 @@ module.exports = async function(context, req) {
               break;
             }
             case 'RSS':
-              articles = await fetchRSS(source);
+              articles = source.SourceType === 'URL'
+              ? await fetchPageURL(source)
+              : await fetchRSS(source);
               break;
           }
           srcLog.fetched = articles.length;
