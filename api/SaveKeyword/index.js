@@ -1,22 +1,17 @@
 const sql = require('mssql');
-
 const config = {
   server: 'brunsusa-sql.database.windows.net',
   database: 'DailyMeDB',
   user: 'noeladmin',
   password: process.env.DB_PASSWORD,
-  options: {
-    encrypt: true,
-    trustServerCertificate: false,
-    connectTimeout: 60000,
-    requestTimeout: 60000
-  }
+  options: { encrypt: true, trustServerCertificate: false, connectTimeout: 60000, requestTimeout: 60000 }
 };
 
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { action, keywordID, keyword, categoryID, isActive, sequence, sequences, groupLabel, imageURL, sourceID, userID = 1 } = req.body;
+    const { action, keywordID, keyword, categoryID, isActive, sequence, sequences,
+            groupLabel, imageURL, sourceID, userMenuID, userID = 1 } = req.body;
 
     const resetYouTube = async () => {
       await pool.request()
@@ -33,9 +28,10 @@ module.exports = async function(context, req) {
         .input('GroupLabel', sql.VarChar(100), groupLabel || null)
         .input('ImageURL', sql.NVarChar(sql.MAX), imageURL || null)
         .input('SourceID', sql.Int, sourceID || null)
+        .input('UserMenuID', sql.Int, userMenuID || null)
         .query(`
-          INSERT INTO [HeadlineKeyword] (UserID, CategoryID, Keyword, IsActive, Sequence, GroupLabel, ImageURL, SourceID, CreatedDate)
-          VALUES (@UserID, @CategoryID, @Keyword, 'Y', @Sequence, @GroupLabel, @ImageURL, @SourceID, GETDATE());
+          INSERT INTO [HeadlineKeyword] (UserID, CategoryID, Keyword, IsActive, Sequence, GroupLabel, ImageURL, SourceID, UserMenuID, CreatedDate)
+          VALUES (@UserID, @CategoryID, @Keyword, 'Y', @Sequence, @GroupLabel, @ImageURL, @SourceID, @UserMenuID, GETDATE());
           SELECT SCOPE_IDENTITY() AS KeywordID;
         `);
       await resetYouTube();
@@ -55,12 +51,14 @@ module.exports = async function(context, req) {
         .input('GroupLabel', sql.VarChar(100), groupLabel || null)
         .input('ImageURL', sql.NVarChar(sql.MAX), imageURL || null)
         .input('SourceID', sql.Int, sourceID || null)
+        .input('UserMenuID', sql.Int, userMenuID || null)
         .input('UserID', sql.Int, userID)
         .query(`
           UPDATE [HeadlineKeyword]
-          SET Keyword = @Keyword, CategoryID = @CategoryID, IsActive = @IsActive,
-              Sequence = @Sequence, GroupLabel = @GroupLabel, ImageURL = @ImageURL, SourceID = @SourceID
-          WHERE KeywordID = @KeywordID AND UserID = @UserID
+          SET Keyword=@Keyword, CategoryID=@CategoryID, IsActive=@IsActive,
+              Sequence=@Sequence, GroupLabel=@GroupLabel, ImageURL=@ImageURL,
+              SourceID=@SourceID, UserMenuID=@UserMenuID
+          WHERE KeywordID=@KeywordID AND UserID=@UserID
         `);
       await resetYouTube();
       context.res = {
@@ -74,31 +72,15 @@ module.exports = async function(context, req) {
         .input('KeywordID', sql.Int, keywordID)
         .input('IsActive', sql.Char(1), isActive ? 'Y' : 'N')
         .input('UserID', sql.Int, userID)
-        .query(`
-          UPDATE [HeadlineKeyword]
-          SET IsActive = @IsActive
-          WHERE KeywordID = @KeywordID AND UserID = @UserID
-        `);
-      context.res = {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ success: true })
-      };
+        .query(`UPDATE [HeadlineKeyword] SET IsActive=@IsActive WHERE KeywordID=@KeywordID AND UserID=@UserID`);
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) };
 
     } else if (action === 'toggleAll') {
       await pool.request()
         .input('UserID', sql.Int, userID)
         .input('IsActive', sql.Char(1), isActive ? 'Y' : 'N')
-        .query(`
-          UPDATE [HeadlineKeyword]
-          SET IsActive = @IsActive
-          WHERE UserID = @UserID
-        `);
-      context.res = {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ success: true })
-      };
+        .query(`UPDATE [HeadlineKeyword] SET IsActive=@IsActive WHERE UserID=@UserID`);
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) };
 
     } else if (action === 'reorder') {
       for (const s of sequences) {
@@ -106,7 +88,7 @@ module.exports = async function(context, req) {
           .input('KeywordID', sql.Int, s.keywordID)
           .input('Sequence', sql.Int, s.sequence)
           .input('UserID', sql.Int, userID)
-          .query(`UPDATE [HeadlineKeyword] SET Sequence = @Sequence WHERE KeywordID = @KeywordID AND UserID = @UserID`);
+          .query(`UPDATE [HeadlineKeyword] SET Sequence=@Sequence WHERE KeywordID=@KeywordID AND UserID=@UserID`);
       }
       await resetYouTube();
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) };
@@ -114,23 +96,18 @@ module.exports = async function(context, req) {
     } else if (action === 'delete') {
       await pool.request()
         .input('KeywordID', sql.Int, keywordID)
-        .query(`UPDATE [Headline] SET KeywordID = NULL WHERE KeywordID = @KeywordID`);
+        .query(`UPDATE [Headline] SET KeywordID=NULL WHERE KeywordID=@KeywordID`);
       await pool.request()
         .input('KeywordID', sql.Int, keywordID)
         .input('UserID', sql.Int, userID)
-        .query(`DELETE FROM [HeadlineKeyword] WHERE KeywordID = @KeywordID AND UserID = @UserID`);
+        .query(`DELETE FROM [HeadlineKeyword] WHERE KeywordID=@KeywordID AND UserID=@UserID`);
       await resetYouTube();
-      context.res = {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ success: true })
-      };
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) };
 
     } else {
       context.res = { status: 400, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ error: 'Unknown action: ' + action }) };
     }
-
   } catch(err) {
     context.res = { status: 500, body: 'Error: ' + err.message };
   }

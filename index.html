@@ -265,7 +265,7 @@
   <button class="nav-btn" onclick="showScreen('teams')" id="nav-teams">
     <span class="nav-icon">⚾</span><span class="nav-label">Teams</span>
   </button>
-  <button class="nav-btn active" onclick="showScreen('headlines')" id="nav-headlines">
+  <button class="nav-btn" onclick="showScreen('headlines')" id="nav-headlines" style="display:none">
     <span class="nav-icon">📰</span><span class="nav-label">Headlines</span>
   </button>
   <button class="nav-btn" onclick="showScreen('closers')" id="nav-closers" style="display:none">
@@ -471,6 +471,9 @@
       <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>🔗 My Sources</span>
         <div style="display:flex;align-items:center;gap:12px">
+          <select id="ms-group-filter" class="form-select" style="font-size:12px;padding:4px 8px;width:auto" onchange="renderMySourcesTable()">
+            <option value="">All Groups</option>
+          </select>
           <select id="ms-menu-filter" class="form-select" style="font-size:12px;padding:4px 8px;width:auto" onchange="renderMySourcesTable()">
             <option value="">All Menus</option>
           </select>
@@ -482,6 +485,7 @@
           <th style="width:30px"></th>
           <th>Name</th>
           <th>Type</th>
+          <th>Group</th>
           <th>Menu</th>
           <th>URL</th>
           <th>Active</th>
@@ -583,6 +587,10 @@
       <select class="form-select" id="ms-menuid">
         <option value="">— None —</option>
       </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Group Label <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(optional — groups sources under same label)</span></label>
+      <input class="form-input" id="ms-grouplabel" placeholder="Leave blank for no grouping">
     </div>
     <div class="form-group">
       <label class="form-label">URL</label>
@@ -954,12 +962,7 @@
       showScreen('settings',false);
       document.getElementById('onboard-overlay').style.display='flex';
     } else {
-      if(userOwnedSources.some(s=>!s.IsInactive&&s.SiteType==='Opener')){
-        showScreen('openers',false);
-        loadHeadlines();
-      } else {
-        await loadHeadlines();
-      }
+      await loadHeadlines();
     }
   }
 
@@ -2490,6 +2493,14 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
       const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`);
       let allData=await res.json();if(!Array.isArray(allData))allData=[];
       allData=allData.filter(h=>h.CategoryName!=='Teams'&&!deletedLinks.has(h.Link));
+      if(currentUserMenuFilter){
+        const menuKwIDs=new Set(keywords.filter(k=>k.UserMenuID===currentUserMenuFilter).map(k=>k.KeywordID));
+        const menuSrcIDs=new Set(userOwnedSources.filter(s=>s.UserMenuID===currentUserMenuFilter).map(s=>s.SourceID));
+        headlines=allData.filter(h=>(h.KeywordID&&menuKwIDs.has(h.KeywordID))||(h.SourceID&&menuSrcIDs.has(h.SourceID)&&!h.KeywordID));
+        renderCategoryTiles(allData);
+        renderHeadlines();
+        return;
+      }
       if(currentFilter==='Subscriptions'){
         headlines=allData.filter(h=>h.ChannelName&&!h.KeywordID&&!h.CategoryID);
       } else if(currentFilter==='Other'){
@@ -2595,6 +2606,12 @@ const now=new Date();
 
   function renderCategoryTiles(allHeadlines){
     const row=document.getElementById('cat-row');
+    if(currentUserMenuFilter){
+      const m=userMenu.find(m=>m.UserMenuID===currentUserMenuFilter);
+      row.innerHTML=`<div class="cat-tile active" style="cursor:default">${m?m.UserMenuName:'Menu'}</div>
+        <a href="#" onclick="currentUserMenuFilter=null;currentFilter='Subscriptions';loadHeadlines();return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);margin-left:8px;align-self:center">← All Headlines</a>`;
+      return;
+    }
     const subCount=allHeadlines?allHeadlines.filter(h=>h.ChannelName&&!h.KeywordID&&!h.CategoryID).length:null;
     const subEmpty=subCount!==null&&subCount===0;
     let subAction = subEmpty ? '' : "filterCat('Subscriptions',this)";
@@ -2880,7 +2897,8 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   }
 
   function filterCat(cat,el){
-    currentFilter=cat;document.querySelectorAll('.cat-tile').forEach(t=>t.classList.remove('active'));el.classList.add('active');
+    currentFilter=cat;currentUserMenuFilter=null;
+    document.querySelectorAll('.cat-tile').forEach(t=>t.classList.remove('active'));el.classList.add('active');
     loadHeadlines();
   }
 
@@ -3066,7 +3084,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     else{kwSortCol=col;kwSortDir='asc';}
     renderSettingsKeywords();
   }
-  function renderSettingsKeywords(){
+function renderSettingsKeywords(){
     const tbody=document.getElementById('tbl-keywords');
     const sorted=[...keywords].sort((a,b)=>{
       if(kwSortCol==='Sequence')return kwSortDir==='asc'?(a.Sequence||99)-(b.Sequence||99):(b.Sequence||99)-(a.Sequence||99);
@@ -3076,27 +3094,34 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     });
     const thead=tbody.closest('table')?.querySelector('thead tr');
     const kwCatFilter=document.getElementById('kw-cat-filter')?.value||'';
-      const catOpts=`<option value="">All Categories</option>`+categories.map(c=>`<option value="${c.CategoryID}" ${kwCatFilter==c.CategoryID?'selected':''}>${c.Name}</option>`).join('');
-      const kwGroupFilter=document.getElementById('kw-group-filter')?.value||'';
-      const groupLabels=[...new Set(keywords.map(k=>k.GroupLabel).filter(Boolean))].sort();
-      const groupOpts=`<option value="">All Groups</option>`+groupLabels.map(g=>`<option value="${g}" ${kwGroupFilter===g?'selected':''}>${g}</option>`).join('');
-      const kwSrcFilter=document.getElementById('kw-src-filter')?.value||'';
-      const sourceNames=[...new Set(keywords.map(k=>k.SourceName).filter(Boolean))].sort();
-      const srcOpts=`<option value="">All Sources</option>`+sourceNames.map(s=>`<option value="${s}" ${kwSrcFilter===s?'selected':''}>${s}</option>`).join('');
-      if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th><select id="kw-src-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()">${srcOpts}</select></th><th><select id="kw-group-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()">${groupOpts}</select></th><th><select id="kw-cat-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()">${catOpts}</select></th><th>Active</th><th></th>`;
+    const catOpts=`<option value="">All Categories</option>`+categories.map(c=>`<option value="${c.CategoryID}" ${kwCatFilter==c.CategoryID?'selected':''}>${c.Name}</option>`).join('');
+    const kwGroupFilter=document.getElementById('kw-group-filter')?.value||'';
+    const groupLabels=[...new Set(keywords.map(k=>k.GroupLabel).filter(Boolean))].sort();
+    const groupOpts=`<option value="">All Groups</option>`+groupLabels.map(g=>`<option value="${g}" ${kwGroupFilter===g?'selected':''}>${g}</option>`).join('');
+    const kwSrcFilter=document.getElementById('kw-src-filter')?.value||'';
+    const sourceNames=[...new Set(keywords.map(k=>k.SourceName).filter(Boolean))].sort();
+    const srcOpts=`<option value="">All Sources</option>`+sourceNames.map(s=>`<option value="${s}" ${kwSrcFilter===s?'selected':''}>${s}</option>`).join('');
+    const kwMenuFilter=document.getElementById('kw-menu-filter')?.value||'';
+    const menuOpts=`<option value="">All Menus</option>`+userMenu.map(m=>`<option value="${m.UserMenuID}" ${kwMenuFilter==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('')+`<option value="none" ${kwMenuFilter==='none'?'selected':''}>— None —</option>`;
+    const ss=`style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()"`;
+    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th><select id="kw-src-filter" ${ss}>${srcOpts}</select></th><th><select id="kw-group-filter" ${ss}>${groupOpts}</select></th><th><select id="kw-cat-filter" ${ss}>${catOpts}</select></th><th><select id="kw-menu-filter" ${ss}>${menuOpts}</select></th><th>Active</th><th></th>`;
     const kwCatFilterVal=document.getElementById('kw-cat-filter')?.value||'';
     const kwGroupFilterVal=document.getElementById('kw-group-filter')?.value||'';
     const kwSrcFilterVal=document.getElementById('kw-src-filter')?.value||'';
+    const kwMenuFilterVal=document.getElementById('kw-menu-filter')?.value||'';
     const kwFiltered=(kwCatFilterVal?sorted.filter(k=>String(k.CategoryID)===String(kwCatFilterVal)):sorted)
       .filter(k=>!kwGroupFilterVal||(k.GroupLabel===kwGroupFilterVal))
-      .filter(k=>!kwSrcFilterVal||(k.SourceName===kwSrcFilterVal));
-    tbody.innerHTML=kwFiltered.map(k=>`
-      <tr draggable="true" data-id="${k.KeywordID}" data-type="keyword">
+      .filter(k=>!kwSrcFilterVal||(k.SourceName===kwSrcFilterVal))
+      .filter(k=>kwMenuFilterVal==='none'?!k.UserMenuID:(!kwMenuFilterVal||(String(k.UserMenuID)===String(kwMenuFilterVal))));
+    tbody.innerHTML=kwFiltered.map(k=>{
+      const menuName=k.UserMenuID?(userMenu.find(m=>m.UserMenuID===k.UserMenuID)?.UserMenuName||'—'):'—';
+      return `<tr draggable="true" data-id="${k.KeywordID}" data-type="keyword">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
         <td>${k.Keyword}</td>
         <td style="font-size:11px;color:var(--text-soft)">${k.SourceName||'—'}</td>
         <td style="font-size:11px;color:var(--text-soft)">${k.GroupLabel&&k.GroupLabel.toLowerCase()!==k.Keyword.toLowerCase()?k.GroupLabel:'—'}</td>
         <td>${k.CategoryName||'—'}</td>
+        <td style="font-size:11px;color:var(--text-soft)">${menuName}</td>
         <td><button class="toggle ${k.IsActive==='Y'?'on':''}" onclick="toggleKeyword(${k.KeywordID},this)"></button></td>
         <td>
           <div style="display:flex;align-items:center;gap:6px">
@@ -3107,7 +3132,9 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
             <input type="file" id="kw-img-${k.KeywordID}" accept="image/*" style="display:none" onchange="handleKwImageUpload(${k.KeywordID},event)">
           </div>
         </td>
-        <td style="display:flex;gap:6px"><button class="btn-icon" onclick="openModal('keyword',${k.KeywordID})">✏️</button><button class="btn-icon danger" onclick="deleteKeyword(${k.KeywordID})">🗑️</button></td></tr>`).join('');
+        <td style="display:flex;gap:6px"><button class="btn-icon" onclick="openModal('keyword',${k.KeywordID})">✏️</button><button class="btn-icon danger" onclick="deleteKeyword(${k.KeywordID})">🗑️</button></td>
+      </tr>`;
+    }).join('');
     initDragDrop(tbody,'keyword');
   }
 
@@ -3204,9 +3231,11 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       const kw=id?keywords.find(k=>k.KeywordID===id):null;title=id?'Edit Keyword':'Add Keyword';
       const currentGroupLabel=kw?.GroupLabel||'';
       const sourceOptions=sources.map(s=>`<option value="${s.SourceID}" ${kw?.SourceID===s.SourceID?'selected':''}>${s.Name}</option>`).join('');
+      const menuOptions=userMenu.filter(m=>!m.IsInactive).map(m=>`<option value="${m.UserMenuID}" ${kw?.UserMenuID==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('');
       body=`<div class="form-group"><label class="form-label">Keyword (exact match)</label><input class="form-input" id="m-keyword" value="${(kw?.Keyword||'').replace(/"/g,'&quot;')}"></div>
         <div class="form-group"><label class="form-label">Group Label <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(optional — groups headlines with same label) — use "Teams" to assign to the Teams screen (Teams keywords must specify a Shared Source)</span></label><input class="form-input" id="m-grouplabel" value="${currentGroupLabel}" placeholder="Leave blank to use keyword name"></div>
         <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>
+        <div class="form-group"><label class="form-label">Menu Item <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(optional — assigns headlines to this nav menu)</span></label><select class="form-select" id="m-menuid"><option value="">— None —</option>${menuOptions}</select></div>
         <div class="form-group"><label class="form-label">Shared Source <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(optional — restricts matching to this source only; required for Teams)</span></label><select class="form-select" id="m-source"><option value="">— Any Source —</option>${sourceOptions}</select></div>
         <div class="form-group"><label class="form-label">Image <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(upload or paste)</span></label>
           <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
@@ -3301,18 +3330,19 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         }
       }
       const sourceIDVal=parseInt(document.getElementById('m-source')?.value)||null;
+      const userMenuIDForKw=parseInt(document.getElementById('m-menuid')?.value)||null;
       const rawGroupLabel=document.getElementById('m-grouplabel')?.value.trim()||'';
       if(rawGroupLabel.toLowerCase()==='teams'&&!sourceIDVal){
         return alert('Teams keywords must specify a Shared Source.');
       }
       if(modalID){
         const kw=keywords.find(k=>k.KeywordID===modalID);
-        await apiPost('SaveKeyword',{action:'update',keywordID:modalID,keyword,categoryID,sequence,isActive:true,groupLabel,sourceID:sourceIDVal,imageURL:(window._modalKwImage!==undefined?window._modalKwImage:kw?.ImageURL)||null,userID:USER_ID});
+        await apiPost('SaveKeyword',{action:'update',keywordID:modalID,keyword,categoryID,sequence,isActive:true,groupLabel,sourceID:sourceIDVal,userMenuID:userMenuIDForKw,imageURL:(window._modalKwImage!==undefined?window._modalKwImage:kw?.ImageURL)||null,userID:USER_ID});
         if(kw)kw.ImageURL=(window._modalKwImage!==undefined?window._modalKwImage:kw?.ImageURL)||null;
-        if(kw){kw.Keyword=keyword;kw.CategoryID=categoryID;kw.GroupLabel=groupLabel;kw.SourceID=sourceIDVal;kw.SourceName=sources.find(s=>s.SourceID===sourceIDVal)?.Name||null;kw.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}
+        if(kw){kw.Keyword=keyword;kw.CategoryID=categoryID;kw.GroupLabel=groupLabel;kw.SourceID=sourceIDVal;kw.UserMenuID=userMenuIDForKw;kw.SourceName=sources.find(s=>s.SourceID===sourceIDVal)?.Name||null;kw.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}
       }else{
-        const result=await apiPost('SaveKeyword',{action:'add',keyword,categoryID,sequence,groupLabel,sourceID:sourceIDVal,imageURL:window._modalKwImage||null,userID:USER_ID});
-        keywords.push({KeywordID:result.keywordID,Keyword:keyword,CategoryID:categoryID,GroupLabel:groupLabel,SourceID:sourceIDVal,SourceName:sources.find(s=>s.SourceID===sourceIDVal)?.Name||null,ImageURL:window._modalKwImage||null,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
+        const result=await apiPost('SaveKeyword',{action:'add',keyword,categoryID,sequence,groupLabel,sourceID:sourceIDVal,userMenuID:userMenuIDForKw,imageURL:window._modalKwImage||null,userID:USER_ID});
+        keywords.push({KeywordID:result.keywordID,Keyword:keyword,CategoryID:categoryID,GroupLabel:groupLabel,SourceID:sourceIDVal,UserMenuID:userMenuIDForKw,SourceName:sources.find(s=>s.SourceID===sourceIDVal)?.Name||null,ImageURL:window._modalKwImage||null,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
       }
       renderSettingsKeywords();
     }else if(modalType==='topic'){
@@ -3819,6 +3849,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   let userOwnedSources = [];
   let userMenu = [];
   let currentUserMenuID = null;
+  let currentUserMenuFilter = null;
   let msEditingID = null;
   let msThumbnailData = null;
   let msSortCol = 'Sequence', msSortDir = 'asc';
@@ -3836,7 +3867,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     if (closerNav) closerNav.style.display = 'none';
   }
 
-  function renderMySitesByMenu(menuID) {
+function renderMySitesByMenu(menuID) {
     const container = document.getElementById('openers-list');
     if (!container) return;
     if (!menuID) {
@@ -3851,23 +3882,32 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       container.innerHTML = title + '<div class="empty-state" style="padding:40px">No sources assigned to this menu item.</div>';
       return;
     }
-    container.innerHTML = title + active.map(s => {
-      const thumb = s.ThumbnailURL
-        ? `<img src="${s.ThumbnailURL}" style="width:100px;height:62px;object-fit:cover;border-radius:6px;flex-shrink:0" onerror="this.style.display='none'">`
-        : `<div style="width:100px;height:62px;border-radius:6px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">🌐</div>`;
-      return `<div class="headline-row" onclick="window.open('${s.URL}','_blank','noopener')" style="cursor:pointer">
-        ${thumb}
-        <div class="headline-body">
-          <div class="headline-row-title">${s.SourceName}</div>
-          ${s.Description ? `<div class="headline-row-summary">${s.Description}</div>` : ''}
-          <div class="headline-row-meta">
-            <span class="badge">${s.SourceType}</span>
+    const groups = {}, groupOrder = [];
+    active.forEach(s => {
+      const key = s.GroupLabel || '';
+      if (!groups[key]) { groups[key] = []; groupOrder.push(key); }
+      groups[key].push(s);
+    });
+    let html = title;
+    groupOrder.forEach(groupName => {
+      if (groupName) html += `<div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;margin:14px 0 6px 2px">${groupName}</div>`;
+      html += groups[groupName].map(s => {
+        const thumb = s.ThumbnailURL
+          ? `<img src="${s.ThumbnailURL}" style="width:100px;height:62px;object-fit:cover;border-radius:6px;flex-shrink:0" onerror="this.style.display='none'">`
+          : `<div style="width:100px;height:62px;border-radius:6px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">🌐</div>`;
+        return `<div class="headline-row" onclick="window.open('${s.URL}','_blank','noopener')" style="cursor:pointer">
+          ${thumb}
+          <div class="headline-body">
+            <div class="headline-row-title">${s.SourceName}</div>
+            ${s.Description ? `<div class="headline-row-summary">${s.Description}</div>` : ''}
+            <div class="headline-row-meta"><span class="badge">${s.SourceType}</span></div>
           </div>
-        </div>
-      </div>`;
-    }).join('');
+        </div>`;
+      }).join('');
+    });
+    container.innerHTML = html;
   }
-
+  
   async function loadMySources() {
     const data = await apiGet('GetUserOwnedSources', '&includeInactive=true');
     userOwnedSources = Array.isArray(data) ? data : [];
@@ -3878,31 +3918,43 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     renderMySourcesTable();
   }
 
-  function renderMySourcesTable() {
+ 
+function renderMySourcesTable() {
     const tbody = document.getElementById('tbl-mysources-body');
     if (!tbody) return;
-    const filterSel = document.getElementById('ms-menu-filter');
-    if (filterSel) {
-      const currentVal = filterSel.value;
-      filterSel.innerHTML = '<option value="">All Menus</option>' +
-        userMenu.map(m => `<option value="${m.UserMenuID}" ${currentVal==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('') +
-        `<option value="none" ${currentVal==='none'?'selected':''}>— No Menu —</option>`;
+    const menuSel = document.getElementById('ms-menu-filter');
+    if (menuSel) {
+      const cur = menuSel.value;
+      menuSel.innerHTML = '<option value="">All Menus</option>' +
+        userMenu.map(m => `<option value="${m.UserMenuID}" ${cur==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('') +
+        `<option value="none" ${cur==='none'?'selected':''}>— No Menu —</option>`;
     }
-    const filterVal = filterSel?.value || '';
+    const groupSel = document.getElementById('ms-group-filter');
+    if (groupSel) {
+      const cur = groupSel.value;
+      const groups = [...new Set(userOwnedSources.map(s => s.GroupLabel).filter(Boolean))].sort();
+      groupSel.innerHTML = '<option value="">All Groups</option>' +
+        groups.map(g => `<option value="${g}" ${cur===g?'selected':''}>${g}</option>`).join('');
+    }
+    const menuFilterVal = menuSel?.value || '';
+    const groupFilterVal = groupSel?.value || '';
     let sorted = [...userOwnedSources].sort((a, b) => (a.Sequence || 99) - (b.Sequence || 99));
-    if (filterVal === 'none') sorted = sorted.filter(s => !s.UserMenuID);
-    else if (filterVal) sorted = sorted.filter(s => String(s.UserMenuID) === String(filterVal));
+    if (menuFilterVal === 'none') sorted = sorted.filter(s => !s.UserMenuID);
+    else if (menuFilterVal) sorted = sorted.filter(s => String(s.UserMenuID) === String(menuFilterVal));
+    if (groupFilterVal) sorted = sorted.filter(s => s.GroupLabel === groupFilterVal);
     tbody.innerHTML = sorted.map(s => {
       const menuItem = userMenu.find(m => m.UserMenuID === s.UserMenuID);
       const menuLabel = menuItem ? `<span class="badge">${menuItem.UserMenuName}</span>` : `<span style="font-size:11px;color:var(--text-muted)">—</span>`;
+      const groupLabel = s.GroupLabel ? `<span style="font-size:11px;color:var(--text-soft)">${s.GroupLabel}</span>` : `<span style="font-size:11px;color:var(--text-muted)">—</span>`;
       return `<tr draggable="true" data-id="${s.UserOwnedSourceID}">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
         <td><strong>${s.SourceName}</strong></td>
         <td><span class="badge">${s.SourceType}</span></td>
+        <td>${groupLabel}</td>
         <td>${menuLabel}</td>
-        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)">${s.URL}</td>
+        <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)">${s.URL}</td>
         <td><button class="toggle ${!s.IsInactive ? 'on' : ''}" onclick="toggleMySite(${s.UserOwnedSourceID},this)"></button></td>
-        <td><input type="text" value="${(s.Exclusions || '').replace(/"/g, '&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:160px;font-family:'DM Sans',sans-serif" onchange="saveMySiteExclusions(${s.UserOwnedSourceID},this)"></td>
+        <td><input type="text" value="${(s.Exclusions || '').replace(/"/g, '&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:120px;font-family:'DM Sans',sans-serif" onchange="saveMySiteExclusions(${s.UserOwnedSourceID},this)"></td>
         <td style="display:flex;gap:6px">
           <button class="btn-icon" onclick="openMySiteModal(${s.UserOwnedSourceID})">✏️</button>
           <button class="btn-icon danger" onclick="deleteMySite(${s.UserOwnedSourceID})">🗑️</button>
@@ -3910,7 +3962,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       </tr>`;
     }).join('');
     initMySitesDragDrop(tbody);
-  }
+  }  
 
   function initMySitesDragDrop(tbody) {
     let dragSrc = null, dragMoved = false;
@@ -3940,6 +3992,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     msThumbnailData = src?.ThumbnailURL || null;
     document.getElementById('ms-exclusions').value = src?.Exclusions || '';
     document.getElementById('ms-inactive').checked = !!src?.IsInactive;
+    document.getElementById('ms-grouplabel').value = src?.GroupLabel || '';
     const type = src?.SourceType || 'Website';
     document.querySelectorAll('input[name="ms-type"]').forEach(r => r.checked = r.value === type);
     const menuSel = document.getElementById('ms-menuid');
@@ -4004,17 +4057,18 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     if (!url) return alert('URL is required');
     const sourceType = document.querySelector('input[name="ms-type"]:checked')?.value || 'Website';
     const userMenuID = parseInt(document.getElementById('ms-menuid')?.value) || null;
+    const groupLabel = document.getElementById('ms-grouplabel')?.value.trim() || null;
     const description = document.getElementById('ms-description').value.trim() || null;
     const exclusions = document.getElementById('ms-exclusions').value.trim() || null;
     const isInactive = document.getElementById('ms-inactive').checked;
     const thumbnailURL = msThumbnailData || null;
     if (msEditingID) {
-      await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, userMenuID });
+      await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, userMenuID, groupLabel });
       const src = userOwnedSources.find(s => s.UserOwnedSourceID === msEditingID);
-      if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; src.UserMenuID = userMenuID; }
+      if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; src.UserMenuID = userMenuID; src.GroupLabel = groupLabel; }
     } else {
-      const result = await apiPost('SaveUserOwnedSource', { action: 'add', userID: USER_ID, sourceName, url, sourceType, description, thumbnailURL, exclusions, userMenuID });
-      userOwnedSources.push({ UserOwnedSourceID: result.sourceID, SourceName: sourceName, URL: url, SourceType: sourceType, Description: description, ThumbnailURL: thumbnailURL, Exclusions: exclusions, IsInactive: 0, Sequence: 99, UserMenuID: userMenuID });
+      const result = await apiPost('SaveUserOwnedSource', { action: 'add', userID: USER_ID, sourceName, url, sourceType, description, thumbnailURL, exclusions, userMenuID, groupLabel });
+      userOwnedSources.push({ UserOwnedSourceID: result.sourceID, SourceName: sourceName, URL: url, SourceType: sourceType, Description: description, ThumbnailURL: thumbnailURL, Exclusions: exclusions, IsInactive: 0, Sequence: 99, UserMenuID: userMenuID, GroupLabel: groupLabel });
     }
     renderMySourcesTable();
     if (addAnother) { msEditingID = null; msThumbnailData = null; openMySiteModal(null); }
@@ -4026,13 +4080,13 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     const newInactive = btn.classList.contains('on') ? 1 : 0;
     btn.classList.toggle('on');
     src.IsInactive = newInactive;
-    await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID, sourceName: src.SourceName, url: src.URL, sourceType: src.SourceType, description: src.Description, thumbnailURL: src.ThumbnailURL, exclusions: src.Exclusions, isInactive: newInactive, userMenuID: src.UserMenuID || null });
+    await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID, sourceName: src.SourceName, url: src.URL, sourceType: src.SourceType, description: src.Description, thumbnailURL: src.ThumbnailURL, exclusions: src.Exclusions, isInactive: newInactive, userMenuID: src.UserMenuID || null, groupLabel: src.GroupLabel || null });
   }
 
   async function saveMySiteExclusions(sourceID, input) {
     const src = userOwnedSources.find(s => s.UserOwnedSourceID === sourceID); if (!src) return;
     src.Exclusions = input.value || null;
-    await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID, sourceName: src.SourceName, url: src.URL, sourceType: src.SourceType, description: src.Description, thumbnailURL: src.ThumbnailURL, exclusions: src.Exclusions, isInactive: src.IsInactive, userMenuID: src.UserMenuID || null });
+    await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID, sourceName: src.SourceName, url: src.URL, sourceType: src.SourceType, description: src.Description, thumbnailURL: src.ThumbnailURL, exclusions: src.Exclusions, isInactive: src.IsInactive, userMenuID: src.UserMenuID || null, groupLabel: src.GroupLabel || null });
     input.style.borderColor = '#22c55e';
     setTimeout(() => input.style.borderColor = 'var(--border)', 1500);
   }
@@ -4234,7 +4288,14 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
 
   function showUserMenuItems(menuID, menuName) {
     currentUserMenuID = menuID;
-    showScreen('openers');
+    currentUserMenuFilter = menuID;
+    const hasSources = userOwnedSources.some(s => !s.IsInactive && s.UserMenuID === menuID);
+    if (hasSources) {
+      showScreen('openers');
+    } else {
+      showScreen('headlines');
+      loadHeadlines();
+    }
   }
 
   // ── USER MENU ──

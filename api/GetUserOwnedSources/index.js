@@ -15,7 +15,8 @@ module.exports = async function(context, req) {
     const result = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`SELECT UserOwnedSourceID, SourceName, Description, SourceType, URL,
-                     ThumbnailURL, Exclusions, Sequence, IsInactive, DateAdded, UserMenuID
+                     ThumbnailURL, Exclusions, Sequence, IsInactive, DateAdded,
+                     UserMenuID, GroupLabel
               FROM UserOwnedSource
               WHERE UserID = @UserID ${whereInactive}
               ORDER BY Sequence, UserOwnedSourceID`);
