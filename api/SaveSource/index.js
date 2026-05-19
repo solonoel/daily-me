@@ -201,6 +201,19 @@ module.exports = async function(context, req) {
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ success: true }) };
 
+    } else if (action === 'updateSubscription') {
+      await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('SourceID', sql.Int, sourceID)
+        .input('GroupLabel', sql.NVarChar(100), req.body.groupLabel || null)
+        .input('UserMenuID', sql.Int, req.body.userMenuID || null)
+        .query(`
+          UPDATE [UserHeadlineSource] SET GroupLabel=@GroupLabel, UserMenuID=@UserMenuID
+          WHERE UserID=@UserID AND SourceID=@SourceID
+        `);
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true }) };
+
     } else if (action === 'updateExclusions') {
       await pool.request()
         .input('UserID', sql.Int, userID)

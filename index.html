@@ -328,39 +328,16 @@
       </div>
       <div class="settings-deck-grid">
         <div class="settings-deck">
-          <div class="settings-deck-title" style="justify-content:space-between">
+          <div class="settings-deck-title" style="justify-content:space-between;align-items:center">
             <span>📰 Headlines</span>
-            <div style="display:flex;align-items:center;gap:12px">
-              <span id="yt-quota-display" style="font-size:11px;font-weight:600;display:none"></span>
-              <a href="#" id="fetch-results-link" onclick="openFetchLog();return false;" style="font-size:12px;font-weight:600;color:var(--sky-deep);display:none">📋 Results</a>
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="checkbox" id="us-disable-yt" onchange="saveYtDisableFlag()"> Disable Youtube Today</label>
-            </div>
+            <span id="yt-quota-display" style="font-size:11px;font-weight:600;display:none;margin-left:auto"></span>
           </div>
-          <div class="settings-btn-row">
-            <div class="catlimits-section" style="margin-top:8px">
-            <div class="catlimits-title">Per-Category Limits <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none;letter-spacing:normal">(max 30)</span></div>
-            <table class="settings-table"><thead><tr><th>Category</th><th>Max</th></tr></thead><tbody id="tbl-catsettings"></tbody></table>
-          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
             <button class="settings-nav-btn" onclick="showSettingsSection('sources')">🌐 Shared Sources</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('mysources')">🔗 My Sources</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('keywords')">🔍 Keywords</button>
-            <button class="settings-nav-btn" onclick="showSettingsSection('usermenu')">📋 Menu</button>
           </div>
           <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px">
-            <div>
-              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Recency Days</div>
-              <input type="number" id="us-recency" class="form-input" style="width:52px;font-size:12px;padding:3px 5px" min="1" max="14" oninput="debounceSaveCatLimits()">
-              <div style="font-size:10px;color:var(--text-muted);margin-top:2px">max 14</div>
-            </div>
-            <div>
-              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Max Headlines</div>
-              <input type="number" id="us-maxheadlines" class="form-input" style="width:58px;font-size:12px;padding:3px 5px" min="10" max="200" oninput="updateOtherLimit()">
-              <span id="us-maxheadlines-adjusted" style="display:none;font-size:10px;color:var(--sky-deep);font-weight:600">(adj)</span>
-            </div>
-            <div>
-              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">YouTube Headlines/Keyword</div>
-              <input type="number" id="us-youtubemaxresults" class="form-input" style="width:52px;font-size:12px;padding:3px 5px" min="1" max="20">
-            </div>
             <div>
               <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Scheduled Fetch Time</div>
               <select id="us-fetchhour" class="form-select" style="font-size:12px;padding:3px 5px">
@@ -391,27 +368,43 @@
                 <option value="23">11:00 PM</option>
               </select>
             </div>
-          </div>
-          <div style="margin-top:8px;margin-bottom:4px">
-            <div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">OTHER HEADLINES/KEYWORD-SOURCE</div>
-            <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
-              <div>
-                <input type="number" id="us-otherperkey" class="form-input" style="width:52px;font-size:12px;padding:3px 5px" min="1" max="20">
-                <div style="font-size:10px;color:var(--text-muted);margin-top:2px">per keyword, per source</div>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Zip Code</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input type="text" id="us-zipcode" class="form-input" style="width:80px;font-size:12px;padding:3px 5px" maxlength="5" placeholder="12345">
+                <button class="btn-primary" style="padding:4px 10px;font-size:12px" onclick="saveZipCode()">Save</button>
+                <span id="zip-status" style="font-size:11px;color:var(--sky-deep);font-weight:600"></span>
               </div>
             </div>
           </div>
-          <div style="margin-top:8px;margin-bottom:8px">
-            <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Zip Code</div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <input type="text" id="us-zipcode" class="form-input" style="width:80px;font-size:12px;padding:3px 5px" maxlength="5" placeholder="12345">
-              <button class="btn-primary" style="padding:4px 10px;font-size:12px" onclick="saveZipCode()">Save</button>
-              <span id="zip-status" style="font-size:11px;color:var(--sky-deep);font-weight:600"></span>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px">
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Recency Days</div>
+              <input type="number" id="us-recency" class="form-input" style="width:52px;font-size:12px;padding:3px 5px" min="1" max="14" oninput="debounceSaveCatLimits()">
+              <div style="font-size:10px;color:var(--text-muted);margin-top:2px">max 14</div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Max Headlines</div>
+              <input type="number" id="us-maxheadlines" class="form-input" style="width:58px;font-size:12px;padding:3px 5px" min="10" max="200" oninput="updateOtherLimit()">
+              <span id="us-maxheadlines-adjusted" style="display:none;font-size:10px;color:var(--sky-deep);font-weight:600">(adj)</span>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">YouTube Headlines/Keyword</div>
+              <input type="number" id="us-youtubemaxresults" class="form-input" style="width:52px;font-size:12px;padding:3px 5px" min="1" max="20">
             </div>
           </div>
-          <div class="catlimits-section" style="margin-top:8px">
-            <div class="catlimits-title">Per-Category Limits <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none;letter-spacing:normal">(max 30)</span></div>
-            <table class="settings-table"><thead><tr><th>Category</th><th>Max</th></tr></thead><tbody id="tbl-catsettings"></tbody></table>
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Other Headlines/Keyword-Source</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input type="number" id="us-otherperkey" class="form-input" style="width:52px;font-size:12px;padding:3px 5px" min="1" max="20">
+                <div style="font-size:10px;color:var(--text-muted)">per keyword, per source</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+              <a href="#" id="fetch-results-link" onclick="openFetchLog();return false;" style="font-size:12px;font-weight:600;color:var(--sky-deep);display:none">📋 Results</a>
+              <button class="settings-nav-btn" onclick="showSettingsSection('usermenu')">📋 Menu</button>
+            </div>
           </div>
         </div>
         <div class="settings-deck">
@@ -438,7 +431,7 @@
           <button class="btn-primary" style="padding:7px 18px;font-size:12px" id="btn-add-source" onclick="openModal('source')">+ Add Source</button>
         </div>
       </div>
-      <table class="settings-table"><thead><tr><th></th><th>Name</th><th>URL</th><th>Type</th><th>Active</th><th>Filtered</th><th>Exclusions</th><th></th></tr></thead><tbody id="tbl-sources"></tbody></table>
+      <div id="sources-container"></div>
     </div>
     <div id="settings-section-keywords" style="display:none">
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
@@ -904,18 +897,11 @@
       const link=document.getElementById('fetch-results-link');
       if(link)link.style.display='inline';
     }
-    const ytCb=document.getElementById('us-disable-yt');
-    if(ytCb){
-      const dbDisabled=userSettings?.headlineSetting?.DisableYoutubeToday;
-      ytCb.checked=!!dbDisabled;
-      if(dbDisabled)localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
-      else localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
-      const ytWarn=document.getElementById('yt-quota-warning');
-      const teamsYtWarn=document.getElementById('teams-yt-quota-warning');
-      const quotaLow=(userSettings?.headlineSetting?.QuotaUsed||0)>=9500;
-      if(ytWarn)ytWarn.style.display=quotaLow?'':'none';
-      if(teamsYtWarn)teamsYtWarn.style.display=quotaLow?'':'none';
-    }
+    const quotaLow=(userSettings?.headlineSetting?.QuotaUsed||0)>=9500;
+    const ytWarn=document.getElementById('yt-quota-warning');
+    const teamsYtWarn=document.getElementById('teams-yt-quota-warning');
+    if(ytWarn)ytWarn.style.display=quotaLow?'':'none';
+    if(teamsYtWarn)teamsYtWarn.style.display=quotaLow?'':'none';
     const savedTs=localStorage.getItem(`dailyme_last_fetch_time_${USER_ID}`);
     const lft=document.getElementById('last-fetch-time');if(lft&&savedTs){const d=new Date(savedTs);if(!isNaN(d)){lft.textContent=`refresh: ${fmtDT(d)}`;lft.style.display='';}}
     const savedYtTs=localStorage.getItem(`dailyme_last_yt_fetch_time_${USER_ID}`);
@@ -2475,13 +2461,32 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
 
   // Resolve the display group label for a headline
   function resolveGroupLabel(h) {
-    if (h.ChannelName && !h.KeywordID && !h.CategoryID) return 'Subscriptions';
-    const kwLabel = h.KeywordGroupLabel && h.KeywordGroupLabel.trim() !== '' ? h.KeywordGroupLabel.trim() : null;
-    const kwName  = h.Keyword || null;
-    if (kwName) {
-      return kwLabel && kwLabel.toLowerCase() !== kwName.toLowerCase() ? kwLabel : kwName;
+    if (h.KeywordID) {
+      const kwLabel=h.KeywordGroupLabel&&h.KeywordGroupLabel.trim()!==''?h.KeywordGroupLabel.trim():null;
+      const kwName=h.Keyword||null;
+      if(kwName)return kwLabel&&kwLabel.toLowerCase()!==kwName.toLowerCase()?kwLabel:kwName;
     }
+    if(!h.KeywordID&&h.SourceID){
+      const src=sources.find(s=>s.SourceID===h.SourceID);
+      if(src?.GroupLabel)return src.GroupLabel;
+    }
+    if(h.ChannelName&&!h.KeywordID)return 'Subscriptions';
     return 'Other';
+  }
+
+  function updateMenuNavCounts(allData){
+    userMenu.filter(m=>!m.IsInactive).forEach(m=>{
+      const menuKwIDs=new Set(keywords.filter(k=>k.UserMenuID===m.UserMenuID).map(k=>k.KeywordID));
+      const menuSrcIDs=new Set(userOwnedSources.filter(s=>s.UserMenuID===m.UserMenuID).map(s=>s.UserOwnedSourceID));
+      const count=allData.filter(h=>(h.KeywordID&&menuKwIDs.has(h.KeywordID))||(h.SourceID&&menuSrcIDs.has(h.SourceID)&&!h.KeywordID)).length;
+      const btn=document.getElementById(`nav-usermenu-${m.UserMenuID}`);
+      if(!btn)return;
+      let countEl=btn.querySelector('.nav-menu-count');
+      if(count>0){
+        if(!countEl){countEl=document.createElement('span');countEl.className='nav-menu-count';countEl.style.cssText='font-size:10px;font-weight:700;color:rgba(255,255,255,0.85);margin-left:2px';btn.appendChild(countEl);}
+        countEl.textContent=`(${count})`;
+      }else if(countEl){countEl.remove();}
+    });
   }
 
   async function loadHeadlines(){
@@ -2489,6 +2494,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
       const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`);
       let allData=await res.json();if(!Array.isArray(allData))allData=[];
       allData=allData.filter(h=>(h.KeywordGroupLabel||'').toLowerCase()!=='teams'&&!deletedLinks.has(h.Link));
+      updateMenuNavCounts(allData);
       if(currentUserMenuFilter){
         const menuKwIDs=new Set(keywords.filter(k=>k.UserMenuID===currentUserMenuFilter).map(k=>k.KeywordID));
         const menuSrcIDs=new Set(userOwnedSources.filter(s=>s.UserMenuID===currentUserMenuFilter).map(s=>s.UserOwnedSourceID));
@@ -2518,7 +2524,6 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
       localStorage.removeItem(`dailyme_settings_changed_${USER_ID}`);
       const fetchResult=await apiPost('FetchHeadlines',{userID:USER_ID,disableYoutube});
       if(fetchResult?.quotaRemaining<=500&&!disableYoutube){
-        const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=true;
         localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
       }
       [btn,teamsBtn].forEach(b=>{if(b){b.textContent='↻ Refresh';b.style.color='';b.style.background='';b.style.borderColor='';b.style.fontWeight='';b.disabled=false;}});
@@ -2856,17 +2861,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:false});
   }
 
-  function saveYtDisableFlag(){
-    const checked=document.getElementById('us-disable-yt')?.checked;
-    if(checked){
-      localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
-      apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:true});
-    }else{
-      localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
-      localStorage.removeItem(`dailyme_last_yt_fetch_time_${USER_ID}`);
-      apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:false,resetYouTubeFetch:true});
-    }
-  }
+  
 
   async function saveUserSettings(){
     if(!document.getElementById('us-recency'))return;
@@ -3131,11 +3126,18 @@ function renderSettingsKeywords(){
         body=`<div class="form-group"><label class="form-label">Select Source</label><select class="form-select" id="m-source-pick">${available.map(s=>`<option value="${s.SourceID}">${s.Name} (${s.SourceType||'RSS'})</option>`).join('')}</select></div>`;
       }else{
         title=id?'Edit Source':'Add Source';
-        body=`<div class="form-group"><label class="form-label">Name</label><input class="form-input" id="m-name" value="${src?.Name||''}"></div>
-          <div class="form-group"><label class="form-label">URL</label><input class="form-input" id="m-url" value="${src?.URL||''}"></div>
-          <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="m-type">${sourceTypeOptions}</select></div>
-          `;
-        if(src)setTimeout(()=>document.getElementById('m-type').value=src.SourceType||'RSS',0);
+        if(id&&src&&!src.IsFiltered){
+          const menuOpts=userMenu.filter(m=>!m.IsInactive).map(m=>`<option value="${m.UserMenuID}" ${src.UserMenuID==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('');
+          body=`<div class="form-group"><label class="form-label">Source</label><div style="font-size:13px;font-weight:600;color:var(--text)">${src.Name}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${src.URL}</div></div>
+            <div class="form-group"><label class="form-label">Group Label</label><input class="form-input" id="m-src-grouplabel" value="${src.GroupLabel||''}"></div>
+            <div class="form-group"><label class="form-label">Menu</label><select class="form-select" id="m-src-menuid"><option value="">— None —</option>${menuOpts}</select></div>`;
+        }else{
+          body=`<div class="form-group"><label class="form-label">Name</label><input class="form-input" id="m-name" value="${src?.Name||''}"></div>
+            <div class="form-group"><label class="form-label">URL</label><input class="form-input" id="m-url" value="${src?.URL||''}"></div>
+            <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="m-type">${sourceTypeOptions}</select></div>
+            `;
+          if(src)setTimeout(()=>document.getElementById('m-type').value=src.SourceType||'RSS',0);
+        }
       }
     }else if(type==='keyword'){
       const kw=id?keywords.find(k=>k.KeywordID===id):null;title=id?'Edit Keyword':'Add Keyword';
@@ -3213,11 +3215,26 @@ function renderSettingsKeywords(){
         const allSourcesRes=await fetch(`${API_BASE}/GetHeadlineSources?code=${API_KEY}&userID=${USER_ID}&all=true`);
         const allSources=await allSourcesRes.json();const picked=allSources.find(s=>s.SourceID===sourceID);if(picked)sources.push(picked);
       }else{
-        const name=document.getElementById('m-name').value.trim(),url=document.getElementById('m-url').value.trim();
-        const sourceType=document.getElementById('m-type').value;
-        if(!url)return alert('URL is required');
-        if(modalID){await apiPost('SaveSource',{action:'update',sourceID:modalID,name,url,sourceType,isActive:true,userID:USER_ID});const src=sources.find(s=>s.SourceID===modalID);if(src){src.Name=name;src.URL=url;src.SourceType=sourceType;}}
-        else{const result=await apiPost('SaveSource',{action:'add',name,url,sourceType,userID:USER_ID});sources.push({SourceID:result.sourceID,Name:name,URL:url,SourceType:sourceType,IsActive:'Y'});}
+        if(modalID){
+          const src=sources.find(s=>s.SourceID===modalID);
+          if(src&&!src.IsFiltered){
+            const groupLabel=document.getElementById('m-src-grouplabel')?.value.trim()||null;
+            const userMenuID=parseInt(document.getElementById('m-src-menuid')?.value)||null;
+            await apiPost('SaveSource',{action:'updateSubscription',sourceID:modalID,groupLabel,userMenuID,userID:USER_ID});
+            src.GroupLabel=groupLabel;src.UserMenuID=userMenuID;
+          }else{
+            const name=document.getElementById('m-name').value.trim(),url=document.getElementById('m-url').value.trim();
+            const sourceType=document.getElementById('m-type').value;
+            if(!url)return alert('URL is required');
+            await apiPost('SaveSource',{action:'update',sourceID:modalID,name,url,sourceType,isActive:true,userID:USER_ID});
+            if(src){src.Name=name;src.URL=url;src.SourceType=sourceType;}
+          }
+        }else{
+          const name=document.getElementById('m-name').value.trim(),url=document.getElementById('m-url').value.trim();
+          const sourceType=document.getElementById('m-type').value;
+          if(!url)return alert('URL is required');
+          const result=await apiPost('SaveSource',{action:'add',name,url,sourceType,userID:USER_ID});sources.push({SourceID:result.sourceID,Name:name,URL:url,SourceType:sourceType,IsActive:'Y'});
+        }
       }
       renderSettingsSources();
     }else if(modalType==='keyword'){
@@ -3541,20 +3558,27 @@ function renderSettingsKeywords(){
     renderSettingsSources();
   }
   function renderSettingsSources(){
-    const tbody=document.getElementById('tbl-sources');
-    const sorted=[...sources].sort((a,b)=>{
-      if(srcSortCol==='Sequence')return srcSortDir==='asc'?(a.Sequence||99)-(b.Sequence||99):(b.Sequence||99)-(a.Sequence||99);
-      const av=(a[srcSortCol==='Name'?'Name':srcSortCol==='URL'?'URL':'SourceType']||'').toLowerCase();
-      const bv=(b[srcSortCol==='Name'?'Name':srcSortCol==='URL'?'URL':'SourceType']||'').toLowerCase();
-      return srcSortDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
-    });
-    const thead=tbody.closest('table')?.querySelector('thead tr');
-    const srcTypeFilter=document.getElementById('src-type-filter')?.value||'';
-    const srcTypeOpts=`<option value="">All Types</option>`+['API','RSS','URL','Youtube'].map(t=>`<option value="${t}" ${srcTypeFilter===t?'selected':''}>${t}</option>`).join('');
-    if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th>URL</th><th><select id="src-type-filter" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsSources()">${srcTypeOpts}</select></th><th>Active</th><th>Filtered</th><th>Exclusions <span style="font-size:9px;font-weight:400;color:var(--text-muted)">CSV, use "quotes" for phrases</span></th><th></th>`;
-    const srcTypeFilterVal=document.getElementById('src-type-filter')?.value||'';
-    const srcFiltered=srcTypeFilterVal?sorted.filter(s=>s.SourceType===srcTypeFilterVal):sorted;
-    tbody.innerHTML=srcFiltered.map(s=>{
+    const container=document.getElementById('sources-container');
+    if(!container)return;
+    const subs=sources.filter(s=>!s.IsFiltered).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
+    const filtered=sources.filter(s=>s.IsFiltered).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
+    const subRows=subs.map(s=>{
+      const userIsActive=s.UserIsActive===1||s.UserIsActive===true||s.UserIsActive===null||s.UserIsActive===undefined;
+      const menuItem=userMenu.find(m=>m.UserMenuID===s.UserMenuID);
+      const menuLabel=menuItem?`<span class="badge">${menuItem.UserMenuName}</span>`:`<span style="font-size:11px;color:var(--text-muted)">—</span>`;
+      const groupLabel=s.GroupLabel?`<span style="font-size:11px;color:var(--text-soft)">${s.GroupLabel}</span>`:`<span style="font-size:11px;color:var(--text-muted)">—</span>`;
+      return `<tr draggable="true" data-id="${s.SourceID}" data-type="source">
+        <td style="width:30px;color:var(--text-muted)">⠿</td>
+        <td style="${!userIsActive?'opacity:0.5':''}">${s.Name||'—'}</td>
+        <td>${groupLabel}</td>
+        <td>${menuLabel}</td>
+        <td><span class="badge">${s.SourceType||'RSS'}</span></td>
+        <td><button class="toggle ${userIsActive?'on':''}" onclick="toggleUserSourceActive(${s.SourceID},this)"></button></td>
+        <td><input type="text" value="${(s.Exclusions||'').replace(/"/g,'&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:120px;font-family:'DM Sans',sans-serif" onchange="saveUserExclusions(${s.SourceID},this)"></td>
+        <td style="display:flex;gap:4px"><button class="btn-icon" onclick="openModal('source',${s.SourceID})">✏️</button><button class="btn-icon danger" onclick="removeUserSource(${s.SourceID})" title="Remove">🗑️</button></td>
+      </tr>`;
+    }).join('');
+    const filtRows=filtered.map(s=>{
       const userIsActive=s.UserIsActive===1||s.UserIsActive===true||s.UserIsActive===null||s.UserIsActive===undefined;
       return `<tr draggable="true" data-id="${s.SourceID}" data-type="source">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
@@ -3567,7 +3591,21 @@ function renderSettingsKeywords(){
         <td><button class="btn-icon danger" onclick="removeUserSource(${s.SourceID})" title="Remove">🗑️</button></td>
       </tr>`;
     }).join('');
-    initDragDrop(tbody,'source');
+    container.innerHTML=`
+      ${subs.length?`<div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.6px;margin:0 0 6px 2px">Subscriptions</div>
+      <table class="settings-table" style="margin-bottom:20px">
+        <thead><tr><th style="width:30px"></th><th>Name</th><th>Group</th><th>Menu</th><th>Type</th><th>Active</th><th>Exclusions</th><th></th></tr></thead>
+        <tbody id="tbl-sources-sub">${subRows}</tbody>
+      </table>`:''}
+      ${filtered.length?`<div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.6px;margin:0 0 6px 2px">Filtered Sources</div>
+      <table class="settings-table">
+        <thead><tr><th style="width:30px"></th><th>Name</th><th>URL</th><th>Type</th><th>Active</th><th>Filtered</th><th>Exclusions <span style="font-size:9px;font-weight:400;color:var(--text-muted)">CSV</span></th><th></th></tr></thead>
+        <tbody id="tbl-sources-filt">${filtRows}</tbody>
+      </table>`:''}`;
+    const subTbody=document.getElementById('tbl-sources-sub');
+    const filtTbody=document.getElementById('tbl-sources-filt');
+    if(subTbody)initDragDrop(subTbody,'source');
+    if(filtTbody)initDragDrop(filtTbody,'source');
     if(document.getElementById('btn-add-source'))document.getElementById('btn-add-source').style.display='inline-flex';
   }
 

@@ -17,15 +17,6 @@ module.exports = async function(context, req) {
       .input('UserID', sql.Int, userID)
       .query(`SELECT RecencyDays, MaxHeadlines, YouTubeMaxResults, OtherHeadlinesPerKeyword, FetchHour, DisableYoutubeToday, QuotaUsed, QuotaDate FROM [HeadlineSetting] WHERE UserID = @UserID`);
 
-    const catSettingResult = await pool.request()
-      .input('UserID', sql.Int, userID)
-      .query(`
-        SELECT ucs.CategoryID, ucs.MaxItems, c.Name AS CategoryName
-        FROM [UserCategorySetting] ucs
-        JOIN [Category] c ON ucs.CategoryID = c.CategoryID
-        WHERE ucs.UserID = @UserID
-      `);
-
     const userResult = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`SELECT UserID, Name, Email, IsActive, ZipCode FROM [User] WHERE UserID = @UserID`);
@@ -36,7 +27,7 @@ module.exports = async function(context, req) {
       body: JSON.stringify({
         user: userResult.recordset[0] || null,
         headlineSetting: settingResult.recordset[0] || { RecencyDays: 7, MaxHeadlines: 50, YouTubeMaxResults: 3 },
-        categorySettings: catSettingResult.recordset
+        categorySettings: []
       })
     };
   } catch(err) {
