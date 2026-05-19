@@ -470,14 +470,19 @@
       <button class="settings-back" onclick="showSettingsMenu()">← Back to Settings</button>
       <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>🔗 My Sources</span>
-        <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openMySiteModal(null)">+ Add Source</button>
+        <div style="display:flex;align-items:center;gap:12px">
+          <select id="ms-menu-filter" class="form-select" style="font-size:12px;padding:4px 8px;width:auto" onchange="renderMySourcesTable()">
+            <option value="">All Menus</option>
+          </select>
+          <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openMySiteModal(null)">+ Add Source</button>
+        </div>
       </div>
       <table class="settings-table" id="tbl-mysources">
         <thead><tr>
           <th style="width:30px"></th>
           <th>Name</th>
           <th>Type</th>
-          <th>Section</th>
+          <th>Menu</th>
           <th>URL</th>
           <th>Active</th>
           <th>Exclusions</th>
@@ -574,11 +579,10 @@
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">Section</label>
-      <div style="display:flex;gap:16px;margin-top:6px">
-        <label class="form-checkbox-row"><input type="radio" name="ms-sitetype" value="Opener" checked> Opener</label>
-        <label class="form-checkbox-row"><input type="radio" name="ms-sitetype" value="Closer"> Closer</label>
-      </div>
+      <label class="form-label">Menu Item</label>
+      <select class="form-select" id="ms-menuid">
+        <option value="">— None —</option>
+      </select>
     </div>
     <div class="form-group">
       <label class="form-label">URL</label>
@@ -2962,8 +2966,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     const navEl=document.getElementById('nav-'+name);
     if(screenEl)screenEl.classList.add('active');if(navEl)navEl.classList.add('active');
     if(name==='settings')showSettingsMenu(false);
-    if(name==='openers')loadMySites('Opener');
-    if(name==='closers')loadMySites('Closer');
+    if(name==='openers')loadMySites(currentUserMenuID);
     if(name==='teams')loadTeamsHeadlines();
     if(pushState)history.pushState({screen:name,section:null},'','');
   }
@@ -3815,38 +3818,40 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
 
   let userOwnedSources = [];
   let userMenu = [];
+  let currentUserMenuID = null;
   let msEditingID = null;
   let msThumbnailData = null;
   let msSortCol = 'Sequence', msSortDir = 'asc';
 
-  async function loadMySites(siteType) {
+  async function loadMySites(menuID) {
     const data = await apiGet('GetUserOwnedSources');
     userOwnedSources = Array.isArray(data) ? data : [];
-    updateSiteTypeNavVisibility();
-    renderMySitesByType(siteType);
+    renderMySitesByMenu(menuID);
   }
 
   function updateSiteTypeNavVisibility() {
-    const active = userOwnedSources.filter(s => !s.IsInactive);
-    const hasOpeners = active.some(s => s.SiteType === 'Opener');
-    const hasClosers = active.some(s => s.SiteType === 'Closer');
     const openerNav = document.getElementById('nav-openers');
     const closerNav = document.getElementById('nav-closers');
-    if (openerNav) openerNav.style.display = hasOpeners ? '' : 'none';
-    if (closerNav) closerNav.style.display = hasClosers ? '' : 'none';
+    if (openerNav) openerNav.style.display = 'none';
+    if (closerNav) closerNav.style.display = 'none';
   }
 
-  function renderMySitesByType(siteType) {
-    const containerID = siteType === 'Closer' ? 'closers-list' : 'openers-list';
-    const container = document.getElementById(containerID);
+  function renderMySitesByMenu(menuID) {
+    const container = document.getElementById('openers-list');
     if (!container) return;
-    const active = userOwnedSources.filter(s => !s.IsInactive && s.SiteType === siteType)
-      .sort((a, b) => (a.Sequence || 99) - (b.Sequence || 99));
-    if (!active.length) {
-      container.innerHTML = '<div class="empty-state" style="padding:60px">No entries. Add some in Settings → My Sources.</div>';
+    if (!menuID) {
+      container.innerHTML = '<div class="empty-state" style="padding:60px">Select a menu item to view its sources.</div>';
       return;
     }
-    container.innerHTML = active.map(s => {
+    const menuItem = userMenu.find(m => m.UserMenuID === menuID);
+    const active = userOwnedSources.filter(s => !s.IsInactive && s.UserMenuID === menuID)
+      .sort((a, b) => (a.Sequence || 99) - (b.Sequence || 99));
+    const title = menuItem ? `<div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--text);margin-bottom:12px">${menuItem.UserMenuName}</div>` : '';
+    if (!active.length) {
+      container.innerHTML = title + '<div class="empty-state" style="padding:40px">No sources assigned to this menu item.</div>';
+      return;
+    }
+    container.innerHTML = title + active.map(s => {
       const thumb = s.ThumbnailURL
         ? `<img src="${s.ThumbnailURL}" style="width:100px;height:62px;object-fit:cover;border-radius:6px;flex-shrink:0" onerror="this.style.display='none'">`
         : `<div style="width:100px;height:62px;border-radius:6px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">🌐</div>`;
@@ -3866,19 +3871,35 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   async function loadMySources() {
     const data = await apiGet('GetUserOwnedSources', '&includeInactive=true');
     userOwnedSources = Array.isArray(data) ? data : [];
+    if (!userMenu.length) {
+      const menuData = await apiGet('GetUserMenu');
+      userMenu = Array.isArray(menuData) ? menuData : [];
+    }
     renderMySourcesTable();
   }
 
   function renderMySourcesTable() {
     const tbody = document.getElementById('tbl-mysources-body');
     if (!tbody) return;
-    const sorted = [...userOwnedSources].sort((a, b) => (a.Sequence || 99) - (b.Sequence || 99));
-    tbody.innerHTML = sorted.map(s => `
-      <tr draggable="true" data-id="${s.UserOwnedSourceID}">
+    const filterSel = document.getElementById('ms-menu-filter');
+    if (filterSel) {
+      const currentVal = filterSel.value;
+      filterSel.innerHTML = '<option value="">All Menus</option>' +
+        userMenu.map(m => `<option value="${m.UserMenuID}" ${currentVal==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('') +
+        `<option value="none" ${currentVal==='none'?'selected':''}>— No Menu —</option>`;
+    }
+    const filterVal = filterSel?.value || '';
+    let sorted = [...userOwnedSources].sort((a, b) => (a.Sequence || 99) - (b.Sequence || 99));
+    if (filterVal === 'none') sorted = sorted.filter(s => !s.UserMenuID);
+    else if (filterVal) sorted = sorted.filter(s => String(s.UserMenuID) === String(filterVal));
+    tbody.innerHTML = sorted.map(s => {
+      const menuItem = userMenu.find(m => m.UserMenuID === s.UserMenuID);
+      const menuLabel = menuItem ? `<span class="badge">${menuItem.UserMenuName}</span>` : `<span style="font-size:11px;color:var(--text-muted)">—</span>`;
+      return `<tr draggable="true" data-id="${s.UserOwnedSourceID}">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
         <td><strong>${s.SourceName}</strong></td>
         <td><span class="badge">${s.SourceType}</span></td>
-        <td><span class="badge" style="background:${s.SiteType==='Closer'?'#ede6ff':'#d6f5ef'};color:${s.SiteType==='Closer'?'#3d1580':'#0a5c4e'}">${s.SiteType||'Opener'}</span></td>
+        <td>${menuLabel}</td>
         <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)">${s.URL}</td>
         <td><button class="toggle ${!s.IsInactive ? 'on' : ''}" onclick="toggleMySite(${s.UserOwnedSourceID},this)"></button></td>
         <td><input type="text" value="${(s.Exclusions || '').replace(/"/g, '&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:160px;font-family:'DM Sans',sans-serif" onchange="saveMySiteExclusions(${s.UserOwnedSourceID},this)"></td>
@@ -3886,7 +3907,8 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
           <button class="btn-icon" onclick="openMySiteModal(${s.UserOwnedSourceID})">✏️</button>
           <button class="btn-icon danger" onclick="deleteMySite(${s.UserOwnedSourceID})">🗑️</button>
         </td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
     initMySitesDragDrop(tbody);
   }
 
@@ -3920,8 +3942,11 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     document.getElementById('ms-inactive').checked = !!src?.IsInactive;
     const type = src?.SourceType || 'Website';
     document.querySelectorAll('input[name="ms-type"]').forEach(r => r.checked = r.value === type);
-    const siteType = src?.SiteType || 'Opener';
-    document.querySelectorAll('input[name="ms-sitetype"]').forEach(r => r.checked = r.value === siteType);
+    const menuSel = document.getElementById('ms-menuid');
+    if (menuSel) {
+      menuSel.innerHTML = '<option value="">— None —</option>' +
+        userMenu.filter(m => !m.IsInactive).map(m => `<option value="${m.UserMenuID}" ${src?.UserMenuID==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('');
+    }
     const preview = document.getElementById('ms-thumbnail-preview');
     if (src?.ThumbnailURL) preview.innerHTML = `<img src="${src.ThumbnailURL}" style="width:100%;height:100%;object-fit:cover">`;
     else { msThumbnailData = null; preview.innerHTML = '🌐'; }
@@ -3974,26 +3999,23 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
 
   async function saveMySite(addAnother = false) {
     const sourceName = document.getElementById('ms-name').value.trim();
-    console.log('saveMySite siteType:', document.querySelector('input[name="ms-sitetype"]:checked')?.value);
     const url = document.getElementById('ms-url').value.trim();
     if (!sourceName) return alert('Name is required');
     if (!url) return alert('URL is required');
     const sourceType = document.querySelector('input[name="ms-type"]:checked')?.value || 'Website';
-    const siteType = document.querySelector('input[name="ms-sitetype"]:checked')?.value || 'Opener';
+    const userMenuID = parseInt(document.getElementById('ms-menuid')?.value) || null;
     const description = document.getElementById('ms-description').value.trim() || null;
     const exclusions = document.getElementById('ms-exclusions').value.trim() || null;
     const isInactive = document.getElementById('ms-inactive').checked;
     const thumbnailURL = msThumbnailData || null;
     if (msEditingID) {
-      console.log('saving siteType to DB:', siteType, 'for sourceID:', msEditingID);
-      await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, siteType });
+      await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, userMenuID });
       const src = userOwnedSources.find(s => s.UserOwnedSourceID === msEditingID);
-      if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; src.SiteType = siteType; }
+      if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; src.UserMenuID = userMenuID; }
     } else {
-      const result = await apiPost('SaveUserOwnedSource', { action: 'add', userID: USER_ID, sourceName, url, sourceType, description, thumbnailURL, exclusions, siteType });
-      userOwnedSources.push({ UserOwnedSourceID: result.sourceID, SourceName: sourceName, URL: url, SourceType: sourceType, Description: description, ThumbnailURL: thumbnailURL, Exclusions: exclusions, IsInactive: 0, Sequence: 99, SiteType: siteType });
+      const result = await apiPost('SaveUserOwnedSource', { action: 'add', userID: USER_ID, sourceName, url, sourceType, description, thumbnailURL, exclusions, userMenuID });
+      userOwnedSources.push({ UserOwnedSourceID: result.sourceID, SourceName: sourceName, URL: url, SourceType: sourceType, Description: description, ThumbnailURL: thumbnailURL, Exclusions: exclusions, IsInactive: 0, Sequence: 99, UserMenuID: userMenuID });
     }
-    updateSiteTypeNavVisibility();
     renderMySourcesTable();
     if (addAnother) { msEditingID = null; msThumbnailData = null; openMySiteModal(null); }
     else closeMySiteModal();
@@ -4004,13 +4026,13 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     const newInactive = btn.classList.contains('on') ? 1 : 0;
     btn.classList.toggle('on');
     src.IsInactive = newInactive;
-    await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID, sourceName: src.SourceName, url: src.URL, sourceType: src.SourceType, description: src.Description, thumbnailURL: src.ThumbnailURL, exclusions: src.Exclusions, isInactive: newInactive, siteType: src.SiteType || 'Opener' });
+    await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID, sourceName: src.SourceName, url: src.URL, sourceType: src.SourceType, description: src.Description, thumbnailURL: src.ThumbnailURL, exclusions: src.Exclusions, isInactive: newInactive, userMenuID: src.UserMenuID || null });
   }
 
   async function saveMySiteExclusions(sourceID, input) {
     const src = userOwnedSources.find(s => s.UserOwnedSourceID === sourceID); if (!src) return;
     src.Exclusions = input.value || null;
-    await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID, sourceName: src.SourceName, url: src.URL, sourceType: src.SourceType, description: src.Description, thumbnailURL: src.ThumbnailURL, exclusions: src.Exclusions, isInactive: src.IsInactive, siteType: src.SiteType || 'Opener' });
+    await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID, sourceName: src.SourceName, url: src.URL, sourceType: src.SourceType, description: src.Description, thumbnailURL: src.ThumbnailURL, exclusions: src.Exclusions, isInactive: src.IsInactive, userMenuID: src.UserMenuID || null });
     input.style.borderColor = '#22c55e';
     setTimeout(() => input.style.borderColor = 'var(--border)', 1500);
   }
@@ -4210,6 +4232,11 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     }
   }
 
+  function showUserMenuItems(menuID, menuName) {
+    currentUserMenuID = menuID;
+    showScreen('openers');
+  }
+
   // ── USER MENU ──
 
   function renderUserMenuNav(){
@@ -4221,7 +4248,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       const btn=document.createElement('button');
       btn.className='nav-btn nav-btn-usermenu';
       btn.id=`nav-usermenu-${m.UserMenuID}`;
-      btn.onclick=()=>{};
+      btn.onclick=()=>showUserMenuItems(m.UserMenuID,m.UserMenuName);
       const imgHTML=m.UserMenuImage
         ?`<img src="${m.UserMenuImage}" style="width:22px;height:22px;border-radius:4px;object-fit:cover;flex-shrink:0">`
         :`<span class="nav-icon">📋</span>`;

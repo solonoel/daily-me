@@ -10,8 +10,7 @@ module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
     const { action, userID, sourceID, sourceName, description, sourceType, url,
-            thumbnailURL, exclusions, sequence, isInactive, siteType, sequences } = req.body;
-
+            thumbnailURL, exclusions, isInactive, userMenuID, sequences } = req.body;
     if (action === 'add') {
       const maxSeq = await pool.request()
         .input('UserID', sql.Int, userID)
@@ -26,12 +25,11 @@ module.exports = async function(context, req) {
         .input('ThumbnailURL', sql.NVarChar(sql.MAX), thumbnailURL || null)
         .input('Exclusions', sql.NVarChar(500), exclusions || null)
         .input('Sequence', sql.Int, nextSeq)
-        .input('SiteType', sql.NVarChar(10), siteType || 'Opener')
-        .query(`INSERT INTO UserOwnedSource (UserID,SourceName,Description,SourceType,URL,ThumbnailURL,Exclusions,Sequence,IsInactive,SiteType)
-                VALUES (@UserID,@SourceName,@Description,@SourceType,@URL,@ThumbnailURL,@Exclusions,@Sequence,0,@SiteType);
+        .input('UserMenuID', sql.Int, userMenuID || null)
+        .query(`INSERT INTO UserOwnedSource (UserID,SourceName,Description,SourceType,URL,ThumbnailURL,Exclusions,Sequence,IsInactive,UserMenuID)
+                VALUES (@UserID,@SourceName,@Description,@SourceType,@URL,@ThumbnailURL,@Exclusions,@Sequence,0,@UserMenuID);
                 SELECT SCOPE_IDENTITY() AS sourceID`);
       context.res = { status: 200, body: JSON.stringify({ sourceID: result.recordset[0].sourceID }) };
-
     } else if (action === 'update') {
       await pool.request()
         .input('SourceID', sql.Int, sourceID)
@@ -43,20 +41,18 @@ module.exports = async function(context, req) {
         .input('ThumbnailURL', sql.NVarChar(sql.MAX), thumbnailURL || null)
         .input('Exclusions', sql.NVarChar(500), exclusions || null)
         .input('IsInactive', sql.Bit, isInactive ? 1 : 0)
-        .input('SiteType', sql.NVarChar(10), siteType || 'Opener')
+        .input('UserMenuID', sql.Int, userMenuID || null)
         .query(`UPDATE UserOwnedSource SET SourceName=@SourceName, Description=@Description,
                 SourceType=@SourceType, URL=@URL, ThumbnailURL=@ThumbnailURL,
-                Exclusions=@Exclusions, IsInactive=@IsInactive, SiteType=@SiteType
+                Exclusions=@Exclusions, IsInactive=@IsInactive, UserMenuID=@UserMenuID
                 WHERE UserOwnedSourceID=@SourceID AND UserID=@UserID`);
       context.res = { status: 200, body: JSON.stringify({ success: true }) };
-
     } else if (action === 'delete') {
       await pool.request()
         .input('SourceID', sql.Int, sourceID)
         .input('UserID', sql.Int, userID)
         .query(`DELETE FROM UserOwnedSource WHERE UserOwnedSourceID=@SourceID AND UserID=@UserID`);
       context.res = { status: 200, body: JSON.stringify({ success: true }) };
-
     } else if (action === 'reorder') {
       for (const s of sequences) {
         await pool.request()
@@ -66,7 +62,6 @@ module.exports = async function(context, req) {
           .query(`UPDATE UserOwnedSource SET Sequence=@Sequence WHERE UserOwnedSourceID=@SourceID AND UserID=@UserID`);
       }
       context.res = { status: 200, body: JSON.stringify({ success: true }) };
-
     } else {
       context.res = { status: 400, body: 'Unknown action' };
     }
