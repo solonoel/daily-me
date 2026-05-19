@@ -2477,8 +2477,12 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
   function updateMenuNavCounts(allData){
     userMenu.filter(m=>!m.IsInactive).forEach(m=>{
       const menuKwIDs=new Set(keywords.filter(k=>k.UserMenuID===m.UserMenuID).map(k=>k.KeywordID));
-      const menuSrcIDs=new Set(userOwnedSources.filter(s=>s.UserMenuID===m.UserMenuID).map(s=>s.UserOwnedSourceID));
-      const count=allData.filter(h=>(h.KeywordID&&menuKwIDs.has(h.KeywordID))||(h.SourceID&&menuSrcIDs.has(h.SourceID)&&!h.KeywordID)).length;
+      const menuOwnedSrcIDs=new Set(userOwnedSources.filter(s=>s.UserMenuID===m.UserMenuID).map(s=>s.UserOwnedSourceID));
+      const menuSharedSrcIDs=new Set(sources.filter(s=>!s.IsFiltered&&s.UserMenuID===m.UserMenuID).map(s=>s.SourceID));
+      const count=allData.filter(h=>
+        (h.KeywordID&&menuKwIDs.has(h.KeywordID))||
+        (!h.KeywordID&&h.SourceID&&(menuOwnedSrcIDs.has(h.SourceID)||menuSharedSrcIDs.has(h.SourceID)))
+      ).length;
       const btn=document.getElementById(`nav-usermenu-${m.UserMenuID}`);
       if(!btn)return;
       let countEl=btn.querySelector('.nav-menu-count');
@@ -2497,8 +2501,12 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
       updateMenuNavCounts(allData);
       if(currentUserMenuFilter){
         const menuKwIDs=new Set(keywords.filter(k=>k.UserMenuID===currentUserMenuFilter).map(k=>k.KeywordID));
-        const menuSrcIDs=new Set(userOwnedSources.filter(s=>s.UserMenuID===currentUserMenuFilter).map(s=>s.UserOwnedSourceID));
-        headlines=allData.filter(h=>(h.KeywordID&&menuKwIDs.has(h.KeywordID))||(h.SourceID&&menuSrcIDs.has(h.SourceID)&&!h.KeywordID));
+        const menuOwnedSrcIDs=new Set(userOwnedSources.filter(s=>s.UserMenuID===currentUserMenuFilter).map(s=>s.UserOwnedSourceID));
+        const menuSharedSrcIDs=new Set(sources.filter(s=>!s.IsFiltered&&s.UserMenuID===currentUserMenuFilter).map(s=>s.SourceID));
+        headlines=allData.filter(h=>
+          (h.KeywordID&&menuKwIDs.has(h.KeywordID))||
+          (!h.KeywordID&&h.SourceID&&(menuOwnedSrcIDs.has(h.SourceID)||menuSharedSrcIDs.has(h.SourceID)))
+        );
       }else{
         headlines=allData;
       }
@@ -3630,6 +3638,7 @@ function renderSettingsKeywords(){
   async function saveUserFiltered(sourceID,cb){
     const src=sources.find(s=>s.SourceID===sourceID);
     if(src)src.IsFiltered=cb.checked?1:0;
+    renderSettingsSources();
     await apiPost('SaveSource',{action:'updateFiltered',sourceID,isFiltered:cb.checked,userID:USER_ID});
   }
 
