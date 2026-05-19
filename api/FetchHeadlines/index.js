@@ -81,45 +81,24 @@ async function filterByLanguage(articles, allowedCodes) {
   return filtered;
 }
 
-// Keyword syntax:
-// Comma = separates clauses (OR between clauses)
-// + = AND between term groups within a clause
-// / = OR between terms within a group
-// "quotes" = exact phrase match
-// -term = exclusion (applies to the clause it appears in)
-// All matching is case-insensitive, whole-word
-// Example: Bears+Stadium-Indiana, Cubs+Stadium means
-//   (Bears AND Stadium AND NOT Indiana) OR (Cubs AND Stadium)
 function matchesKeyword(text, keywordText) {
   const lowerText = text.toLowerCase();
-
   function termMatches(raw) {
     const isPhrase = raw.startsWith('"') && raw.endsWith('"');
     const word = isPhrase ? raw.slice(1, -1) : raw;
     const escaped = word.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const pattern = isPhrase
-      ? new RegExp(escaped, 'i')
-      : new RegExp(`\\b${escaped}\\b`, 'i');
+    const pattern = isPhrase ? new RegExp(escaped, 'i') : new RegExp(`\\b${escaped}\\b`, 'i');
     return pattern.test(lowerText);
   }
-
-  // Split into clauses on comma (but not commas inside quotes)
   const clauses = keywordText.split(',').map(c => c.trim()).filter(Boolean);
-
   for (const clause of clauses) {
-    // Extract exclusions first (tokens starting with -)
     const exclusions = [];
     let workingClause = clause;
-    // Pull out all exclusion terms (-word or -"phrase")
     workingClause = workingClause.replace(/-"[^"]+"|(-\S+)/g, (match) => {
       exclusions.push(match.substring(1).trim());
       return '';
     });
-
-    // Split remaining clause on + to get AND groups
     const andGroups = workingClause.split('+').map(g => g.trim()).filter(Boolean);
-
-    // Every AND group must have at least one matching OR term
     let clauseMatch = andGroups.length > 0;
     for (const group of andGroups) {
       const orTerms = group.split('/').map(t => t.trim()).filter(Boolean);
@@ -127,11 +106,8 @@ function matchesKeyword(text, keywordText) {
       if (!groupMatch) { clauseMatch = false; break; }
     }
     if (!clauseMatch) continue;
-
-    // Check exclusions — if any match, this clause fails
     const excluded = exclusions.some(ex => termMatches(ex));
     if (excluded) continue;
-
     return true;
   }
   return false;
@@ -148,8 +124,8 @@ function applyKeywordMatching(articles, keywords, teamsCategoryID) {
       if (a.categoryID) continue;
       const text = `${a.title} ${a.summary} ${a.fullText||''}`.toLowerCase();
       for (const kw of teamsKeywords) {
-        // If keyword has a SourceID, only match against that specific source
         if (kw.SourceID && kw.SourceID !== a.sourceID) continue;
+        if (kw.UserOwnedSourceID && kw.UserOwnedSourceID !== a.userOwnedSourceID) continue;
         if (matchesKeyword(text, kw.text)) {
           a.categoryID = kw.CategoryID; a.keywordID = kw.KeywordID;
           a.teamsOnly = true; break;
@@ -163,8 +139,8 @@ function applyKeywordMatching(articles, keywords, teamsCategoryID) {
     if (a.categoryID) continue;
     const text = `${a.title} ${a.summary} ${a.fullText||''}`.toLowerCase();
     for (const kw of nonTeamsKeywords) {
-      // If keyword has a SourceID, only match against that specific source
       if (kw.SourceID && kw.SourceID !== a.sourceID) continue;
+      if (kw.UserOwnedSourceID && kw.UserOwnedSourceID !== a.userOwnedSourceID) continue;
       if (matchesKeyword(text, kw.text)) {
         a.categoryID = kw.CategoryID; a.keywordID = kw.KeywordID;
         break;
@@ -179,7 +155,6 @@ async function fetchGuardian(source, keywords, fromDateStr) {
   const articles = [];
   const terms = [...keywords];
   for (const term of terms) {
-    // For CSV keywords, use first term for Guardian search
     const searchText = term.text.split(',')[0].split('+')[0].split('/')[0].replace(/"/g,'').trim();
     try {
       const url = `https://content.guardianapis.com/search?q=${encodeURIComponent(searchText)}&from-date=${fromDateStr}&show-fields=trailText&order-by=newest&page-size=50&api-key=${apiKey}`;
@@ -295,14 +270,12 @@ async function fetchYouTubeDurations(videoIDs, apiKey, context) {
   return durations;
 }
 
-// All YouTube uses playlistItems (1 unit/call)
 async function fetchYouTube(source, fromDate, isFiltered, keywords, youTubeMaxResults, context, quotaUsed, teamsCategoryID) {
   const apiKey = process.env.YOUTUBE_API_KEY;
   const playlistID = uploadsPlaylistID(source.YoutubeChannelID);
   const articles = [];
   let fetched = 0, recencyFiltered = 0;
   try {
-    const publishedAfter = fromDate.toISOString();
     const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistID}&maxResults=50&key=${apiKey}`;
     const data = JSON.parse(await fetchUrl(url));
     quotaUsed.units += 1;
@@ -338,8 +311,8 @@ async function fetchYouTube(source, fromDate, isFiltered, keywords, youTubeMaxRe
     for (const a of articles) {
       const text = `${a.title} ${a.summary}`.toLowerCase();
       for (const kw of orderedKws) {
-        // If keyword has a SourceID, only match against that specific source
         if (kw.SourceID && kw.SourceID !== source.SourceID) continue;
+        if (kw.UserOwnedSourceID) continue; // UserOwnedSource keywords don't match shared YouTube sources
         if (matchesKeyword(text, kw.text)) {
           const key = kw.KeywordID;
           if (!kwCounts[key]) kwCounts[key] = 0;
@@ -380,14 +353,11 @@ module.exports = async function(context, req) {
           const apiKey = process.env.YOUTUBE_API_KEY;
           const handle = previewURL.split('@')[1]?.split('/')[0];
           if (!handle) throw new Error('Invalid YouTube URL — must contain @ChannelName');
-          // Resolve handle to channel ID
           const chanUrl = `https://www.googleapis.com/youtube/v3/channels?part=id,snippet&forHandle=${encodeURIComponent(handle)}&key=${apiKey}`;
           const chanData = JSON.parse(await fetchUrl(chanUrl));
           const channelID = chanData.items?.[0]?.id;
           if (!channelID) throw new Error('YouTube channel not found for @' + handle);
-          // Store resolved channelID on context for Apply to use
           context._resolvedYoutubeChannelID = channelID;
-          // Fetch recent videos
           const videosUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelID}&type=video&order=date&maxResults=20&key=${apiKey}`;
           const videosData = JSON.parse(await fetchUrl(videosUrl));
           articles = (videosData.items || []).map(item => ({
@@ -397,7 +367,6 @@ module.exports = async function(context, req) {
             pubDate: new Date(item.snippet.publishedAt)
           })).filter(a => a.link.includes('watch?v='));
         } else if (previewSourceType === 'URL') {
-          if (!previewURL) throw new Error('URL is required');
           articles = await fetchPageURL({ URL: previewURL, Name: 'URL Preview' });
         } else if (previewSourceType === 'API') {
           if (!previewKeyword) throw new Error('A keyword is required to preview API sources');
@@ -423,25 +392,20 @@ module.exports = async function(context, req) {
           }
           if (!articles.length) throw new Error('No results found across active API sources for keyword: ' + previewKeyword);
         } else {
-          // Default: treat as RSS
           articles = await fetchRSS({ URL: previewURL });
         }
       } catch(e) {
         context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: e.message, articles: [] }) };
         return;
       }
-      // Apply keyword filter if provided
       if (previewKeyword && previewSourceType === 'RSS') {
         articles = articles.filter(a => {
           const text = `${a.title} ${a.summary} ${a.fullText||''}`.toLowerCase();
           return matchesKeyword(text, previewKeyword);
         });
       }
-      // Return up to 50
       const preview = articles.slice(0, 50).map(a => ({
-        title: a.title,
-        link: a.link,
-        summary: a.summary || '',
+        title: a.title, link: a.link, summary: a.summary || '',
         pubDate: a.pubDate ? new Date(a.pubDate).toISOString() : null
       }));
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ articles: preview, youtubeChannelID: context._resolvedYoutubeChannelID || null }) };
@@ -458,13 +422,10 @@ module.exports = async function(context, req) {
     const maxHeadlines = settings.MaxHeadlines || 50;
     const youTubeMaxResults = settings.YouTubeMaxResults || 3;
     const otherPerKeyword = settings.OtherHeadlinesPerKeyword || 3;
-    const lastYouTubeFetch = settings.LastYouTubeFetch;
 
-    // Quota tracking — resets daily
     const today = new Date().toISOString().split('T')[0];
     const quotaDate = settings.QuotaDate ? new Date(settings.QuotaDate).toISOString().split('T')[0] : null;
     const quotaUsed = { units: quotaDate === today ? (settings.QuotaUsed || 0) : 0 };
-
     const youtubeAlreadyFetched = false;
 
     const fromDate = new Date();
@@ -488,7 +449,6 @@ module.exports = async function(context, req) {
               ORDER BY h.Sequence, h.SourceID`);
     const sources = sourcesResult.recordset;
 
-    // Parse source-level exclusions
     function parseExclusions(str) {
       if (!str) return [];
       const terms = [];
@@ -510,9 +470,15 @@ module.exports = async function(context, req) {
       });
     }
 
+    // Load keywords — includes UserOwnedSourceID with JOIN to UserOwnedSource
     const kwResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT KeywordID, Keyword AS text, CategoryID, SourceID, GroupLabel FROM [HeadlineKeyword] WHERE UserID=@UserID AND IsActive='Y'`);
+      .query(`SELECT k.KeywordID, k.Keyword AS text, k.CategoryID, k.SourceID, k.GroupLabel,
+              k.UserOwnedSourceID,
+              u.URL AS OwnedSourceURL, u.SourceType AS OwnedSourceType, u.SourceName AS OwnedSourceName
+              FROM [HeadlineKeyword] k
+              LEFT JOIN [UserOwnedSource] u ON k.UserOwnedSourceID = u.UserOwnedSourceID
+              WHERE k.UserID=@UserID AND k.IsActive='Y'`);
     const keywords = kwResult.recordset.map(k => ({ ...k, keywordID: k.KeywordID, topicID: null }));
     const topics = [];
     const hasActiveKeywords = keywords.length > 0;
@@ -522,7 +488,6 @@ module.exports = async function(context, req) {
       .query(`SELECT Link FROM [Headline] WHERE UserID=@UserID`);
     const existingLinks = new Set(existingResult.recordset.map(r => r.Link));
 
-    // Purge stale exclusions, then load active ones
     await pool.request()
       .input('UserID', sql.Int, userID)
       .input('RecencyDays', sql.Int, recencyDays)
@@ -548,15 +513,13 @@ module.exports = async function(context, req) {
     const numCats = catNamesResult.recordset.length || 5;
     const defaultPerCat = Math.ceil(maxHeadlines / numCats);
 
-    // Log tracking
-    const logSources = {};   // sourceName -> { fetched, langFiltered, recencyFiltered, matched, unmatched: [] }
-    const logKeywords = {};  // keywordText -> count
+    const logSources = {};
     const logErrors = [];
     let totalLangFiltered = 0, totalDuplicates = 0;
-
     let allArticles = [];
     let youtubeFetched = false;
 
+    // ── MAIN SOURCE LOOP (HeadlineSources) ──
     for (const source of sources) {
       try {
         let articles = [];
@@ -581,7 +544,11 @@ module.exports = async function(context, req) {
         } else {
           switch(source.SourceType) {
             case 'API': {
-              const nonTeamsKws = keywords.filter(kw => kw.CategoryID !== teamsCategoryID && (!kw.SourceID || kw.SourceID === source.SourceID));
+              const nonTeamsKws = keywords.filter(kw =>
+                !kw.UserOwnedSourceID &&
+                kw.CategoryID !== teamsCategoryID &&
+                (!kw.SourceID || kw.SourceID === source.SourceID)
+              );
               if (source.Name.includes('Guardian'))       articles = await fetchGuardian(source, nonTeamsKws, fromDateStr);
               else if (source.Name.includes('NYT'))        articles = await fetchNYT(source);
               else if (source.Name.includes('GNews'))      articles = await fetchGNews(source, uniqueLangCodes);
@@ -591,23 +558,26 @@ module.exports = async function(context, req) {
               break;
             }
             case 'RSS':
-              articles = source.SourceType === 'URL'
-              ? await fetchPageURL(source)
-              : await fetchRSS(source);
+              articles = await fetchRSS(source);
               break;
+            case 'URL':
+              articles = await fetchPageURL(source);
+              break;
+            default:
+              articles = await fetchRSS(source);
           }
           srcLog.fetched = articles.length;
           const langResult3 = await filterByLanguage(articles, uniqueLangCodes);
           srcLog.langFiltered = langResult3._langFiltered?.length || 0;
           totalLangFiltered += srcLog.langFiltered;
           articles = langResult3;
-          // Recency filter
           const beforeRecency = articles.length;
           articles = articles.filter(a => !a.pubDate || a.pubDate >= fromDate);
           srcLog.recencyFiltered = beforeRecency - articles.length;
           if (isFiltered) {
             articles.forEach(a => { a.sourceID = source.SourceID; });
             const applicableKeywords = keywords.filter(kw => {
+              if (kw.UserOwnedSourceID) return false; // handled separately
               if (kw.CategoryID === teamsCategoryID) return kw.SourceID === source.SourceID;
               return !kw.SourceID || kw.SourceID === source.SourceID;
             });
@@ -618,7 +588,6 @@ module.exports = async function(context, req) {
         }
 
         articles = articles.filter(a => !sourceExcludesArticle(source, a));
-
         articles.forEach(a => {
           a.sourceName = source.Name;
           a.sourceID = source.SourceID;
@@ -640,6 +609,46 @@ module.exports = async function(context, req) {
       }
     }
 
+    // ── FETCH USER-OWNED SOURCES (keyword-linked) ──
+    const uosKeywords = keywords.filter(k => k.UserOwnedSourceID && k.OwnedSourceURL);
+    const uniqueUOSIDs = [...new Set(uosKeywords.map(k => k.UserOwnedSourceID))];
+    for (const uosID of uniqueUOSIDs) {
+      const uosKw = uosKeywords.find(k => k.UserOwnedSourceID === uosID);
+      if (!uosKw) continue;
+      const uosSource = { URL: uosKw.OwnedSourceURL, SourceType: uosKw.OwnedSourceType, Name: uosKw.OwnedSourceName || 'My Source' };
+      if (!logSources[uosSource.Name]) logSources[uosSource.Name] = { fetched: 0, langFiltered: 0, recencyFiltered: 0, matched: 0, unmatched: [] };
+      try {
+        let uosArticles = [];
+        if (uosKw.OwnedSourceType === 'RSS') uosArticles = await fetchRSS(uosSource);
+        else if (uosKw.OwnedSourceType === 'URL') uosArticles = await fetchPageURL(uosSource);
+        logSources[uosSource.Name].fetched += uosArticles.length;
+        const beforeRecency = uosArticles.length;
+        uosArticles = uosArticles.filter(a => !a.pubDate || a.pubDate >= fromDate);
+        logSources[uosSource.Name].recencyFiltered += beforeRecency - uosArticles.length;
+        const uosSpecificKws = keywords.filter(k => k.UserOwnedSourceID === uosID);
+        for (const a of uosArticles) {
+          a.userOwnedSourceID = uosID;
+          a.sourceName = uosSource.Name;
+          a.sourceID = null;
+          a.sourceType = uosSource.SourceType;
+          a.thumbnailURL = null; a.channelName = null; a.channelURL = null;
+          a.duration = null; a.isSubscription = false;
+          const text = `${a.title} ${a.summary} ${a.fullText||''}`.toLowerCase();
+          for (const kw of uosSpecificKws) {
+            if (matchesKeyword(text, kw.text)) { a.categoryID = kw.CategoryID; a.keywordID = kw.KeywordID; break; }
+          }
+        }
+        const matched = uosArticles.filter(a => a.keywordID);
+        logSources[uosSource.Name].matched += matched.length;
+        allArticles = allArticles.concat(matched);
+        context.log(`UserOwnedSource [${uosSource.Name}]: ${uosArticles.length} fetched, ${matched.length} matched`);
+      } catch(err) {
+        context.log(`Error fetching UserOwnedSource ${uosSource.Name}: ${err.message}`);
+        logErrors.push({ source: uosSource.Name, error: err.message });
+        logSources[uosSource.Name].error = err.message;
+      }
+    }
+
     if (youtubeFetched) {
       await pool.request()
         .input('UserID', sql.Int, userID)
@@ -647,14 +656,12 @@ module.exports = async function(context, req) {
       const ytArticles = allArticles.filter(a => a.sourceType === 'Youtube');
       const videoIDs = ytArticles.map(a => { const m = a.link?.match(/[?&]v=([^&]+)/); return m ? m[1] : null; }).filter(Boolean);
       if (videoIDs.length) {
-        // Each batch of 50 = 1 unit
         quotaUsed.units += Math.ceil(videoIDs.length / 50);
         const durations = await fetchYouTubeDurations(videoIDs, process.env.YOUTUBE_API_KEY, context);
         ytArticles.forEach(a => { const m = a.link?.match(/[?&]v=([^&]+)/); if (m) a.duration = durations[m[1]] || null; });
       }
     }
 
-    // Build exclusion map: categoryID -> [term, term, ...]
     const exclusionMap = {};
     for (const kw of kwResult.recordset) {
       if (isExclusionKeyword(kw) && kw.CategoryID) {
@@ -663,25 +670,20 @@ module.exports = async function(context, req) {
       }
     }
 
-    // Deduplicate
     const seen = new Set();
     const unique = allArticles.filter(a => {
       if (!a.link || seen.has(a.link) || existingLinks.has(a.link) || excludedLinks.has(a.link)) { totalDuplicates++; return false; }
       seen.add(a.link); return true;
     });
 
-    // Sort newest first
     unique.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
 
-    // Fetch order priority: Subscriptions first, Teams second, Headlines last
-    // A headline cannot appear in more than one bucket
     const placedLinks = new Set();
     const selected = [];
     const catCounts = {};
     const catDropped = {};
 
-    // Pass 1: Subscriptions (unfiltered YouTube - no keyword/topic/category)
-    // If no active keywords, only subscriptions are collected
+    // Pass 1: Subscriptions
     for (const a of unique) {
       if (a.isSubscription && !a.keywordID && !a.categoryID) {
         placedLinks.add(a.link);
@@ -689,7 +691,7 @@ module.exports = async function(context, req) {
       }
     }
 
-    // Pass 2: Teams category (skip if no active keywords)
+    // Pass 2: Teams
     if (teamsCategoryID && hasActiveKeywords) {
       for (const a of unique) {
         if (placedLinks.has(a.link)) continue;
@@ -700,7 +702,7 @@ module.exports = async function(context, req) {
       }
     }
 
-    // Pass 3: Remaining headlines with per-category limits (skip if no active keywords)
+    // Pass 3: Remaining with per-category limits
     if (hasActiveKeywords) for (const a of unique) {
       if (placedLinks.has(a.link)) continue;
       const cat = a.categoryID !== null && a.categoryID !== undefined ? a.categoryID : 'none';
@@ -716,7 +718,6 @@ module.exports = async function(context, req) {
 
     context.log(`unique: ${unique.length}, selected: ${selected.length}`);
 
-    // Build keyword match counts and unmatched list for log
     const keywordMatchCounts = {};
     const unmatchedBySource = {};
     for (const a of unique) {
@@ -731,7 +732,6 @@ module.exports = async function(context, req) {
       }
     }
 
-    // Zero-hit keywords
     const zeroKeywords = kwResult.recordset.filter(k => !keywordMatchCounts[k.text]).map(k => k.text);
 
     let totalInserted = 0;
@@ -757,7 +757,6 @@ module.exports = async function(context, req) {
                     (@UserID, @CategoryID, @HeadlineName, @Link, @Summary, GETDATE(), 'N',
                      @KeywordID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID, @Duration, @PublishedDate)`);
         totalInserted++;
-        // Track per-source matched count for log
         if (logSources[a.sourceName]) {
           if (a.keywordID || a.categoryID) logSources[a.sourceName].matched++;
           else logSources[a.sourceName].unmatched.push(a.title);
@@ -767,7 +766,6 @@ module.exports = async function(context, req) {
       }
     }
 
-    // Build fetch log
     const fetchDuration = ((Date.now() - fetchStart) / 1000).toFixed(1);
     const fetchLog = {
       timestamp: new Date().toISOString(),
@@ -797,7 +795,6 @@ module.exports = async function(context, req) {
         .map(a => ({ title: a.title, pubDate: a.pubDate ? new Date(a.pubDate).toLocaleDateString('en-US') : '—' }))
     };
 
-    // Auto-disable YouTube if quota at or below 500
     const quotaRemaining = Math.max(0, 10000 - quotaUsed.units);
     if (youtubeFetched && quotaRemaining <= 500) {
       await pool.request()
@@ -806,7 +803,6 @@ module.exports = async function(context, req) {
       fetchLog.youtubeQuotaAutoDisabled = true;
     }
 
-    // Save quota and log
     await pool.request()
       .input('UserID', sql.Int, userID)
       .input('QuotaUsed', sql.Int, quotaUsed.units)

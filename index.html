@@ -271,7 +271,10 @@
   <button class="nav-btn" onclick="showScreen('closers')" id="nav-closers" style="display:none">
     <span class="nav-icon">🌙</span><span class="nav-label">Closers</span>
   </button>
-  <div id="nav-date" style="margin-left:auto;padding:0 20px;display:flex;align-items:center;font-size:12px;color:var(--text-muted);white-space:nowrap;flex-shrink:0"></div>
+  <div id="nav-date" style="margin-left:auto;padding:0 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;gap:2px">
+    <div id="nav-date-text" style="font-size:12px;color:var(--text-muted);white-space:nowrap"></div>
+    <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn" style="font-size:10px;padding:3px 10px">↻ Refresh</button>
+  </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:0 12px;border-left:1px solid var(--border);flex-shrink:0;gap:3px">
     <div style="display:flex;align-items:center;gap:6px">
       <span style="font-size:12px;font-weight:600;color:var(--text-soft)" id="nav-username"></span>
@@ -292,7 +295,6 @@
           <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
             <a href="#" onclick="setGroupExpand(true);return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);white-space:nowrap">Expand</a>
             <a href="#" onclick="setGroupExpand(false);return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);white-space:nowrap">Collapse</a>
-            <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn" style="flex-shrink:0">↻ Refresh</button>
           </div>
         </div>
         <div style="display:flex;align-items:stretch;flex-wrap:wrap">
@@ -577,9 +579,10 @@
     <div class="form-group">
       <label class="form-label">Type</label>
       <div style="display:flex;gap:16px;margin-top:6px">
-        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="Website" checked> Website</label>
-        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="RSS"> RSS</label>
+        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="API"> API</label>
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="Youtube"> YouTube</label>
+        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="RSS"> RSS</label>
+        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="URL"> URL</label>
       </div>
     </div>
     <div class="form-group">
@@ -822,8 +825,8 @@
     if(document.getElementById('date-main'))document.getElementById('date-main').textContent=`${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`;
     if(document.getElementById('date-sub'))document.getElementById('date-sub').textContent=`${now.getFullYear()}`;
     document.getElementById('header-date').textContent=dateStr;
-    const navDate=document.getElementById('nav-date');
-    if(navDate)navDate.textContent=dateStr;
+    const navDateText=document.getElementById('nav-date-text');
+    if(navDateText)navDateText.textContent=dateStr;
   }
 
   let weatherLat=41.9945,weatherLon=-89.3334,weatherTz='America%2FChicago';
@@ -3230,13 +3233,14 @@ function renderSettingsKeywords(){
     }else if(type==='keyword'){
       const kw=id?keywords.find(k=>k.KeywordID===id):null;title=id?'Edit Keyword':'Add Keyword';
       const currentGroupLabel=kw?.GroupLabel||'';
-      const sourceOptions=sources.map(s=>`<option value="${s.SourceID}" ${kw?.SourceID===s.SourceID?'selected':''}>${s.Name}</option>`).join('');
+      const mySourceOpts=userOwnedSources.filter(s=>!s.IsInactive).map(s=>`<option value="my_${s.UserOwnedSourceID}" ${kw?.UserOwnedSourceID==s.UserOwnedSourceID&&kw?.UserOwnedSourceID?'selected':''}>${s.SourceName}</option>`).join('');
+      const sharedSourceOpts=sources.map(s=>`<option value="shared_${s.SourceID}" ${kw?.SourceID===s.SourceID&&!kw?.UserOwnedSourceID?'selected':''}>${s.Name}</option>`).join('');
       const menuOptions=userMenu.filter(m=>!m.IsInactive).map(m=>`<option value="${m.UserMenuID}" ${kw?.UserMenuID==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('');
       body=`<div class="form-group"><label class="form-label">Keyword (exact match)</label><input class="form-input" id="m-keyword" value="${(kw?.Keyword||'').replace(/"/g,'&quot;')}"></div>
-        <div class="form-group"><label class="form-label">Group Label <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(optional — groups headlines with same label) — use "Teams" to assign to the Teams screen (Teams keywords must specify a Shared Source)</span></label><input class="form-input" id="m-grouplabel" value="${currentGroupLabel}" placeholder="Leave blank to use keyword name"></div>
+        <div class="form-group"><label class="form-label">Group Label <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(optional — groups headlines with same label) — use "Teams" to assign to the Teams screen (Teams keywords must specify a Source)</span></label><input class="form-input" id="m-grouplabel" value="${currentGroupLabel}" placeholder="Leave blank to use keyword name"></div>
         <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="m-cat"><option value="">— None —</option>${catOptions}</select></div>
         <div class="form-group"><label class="form-label">Menu Item <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(optional — assigns headlines to this nav menu)</span></label><select class="form-select" id="m-menuid"><option value="">— None —</option>${menuOptions}</select></div>
-        <div class="form-group"><label class="form-label">Shared Source <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(optional — restricts matching to this source only; required for Teams)</span></label><select class="form-select" id="m-source"><option value="">— Any Source —</option>${sourceOptions}</select></div>
+        <div class="form-group"><label class="form-label">Source <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(optional — restricts matching to this source only; required for Teams)</span></label><select class="form-select" id="m-source"><option value="">— Any Source —</option><optgroup label="My Sources">${mySourceOpts}</optgroup><optgroup label="Shared Sources">${sharedSourceOpts}</optgroup></select></div>
         <div class="form-group"><label class="form-label">Image <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(upload or paste)</span></label>
           <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
             <div id="m-kw-img-preview" style="width:100px;height:62px;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8fbff;font-size:20px;cursor:pointer" onclick="document.getElementById('m-kw-img-file').click()">${kw?.ImageURL?`<img src="${kw.ImageURL}" style="width:100%;height:100%;object-fit:cover">`:'🖼'}</div>
@@ -3329,20 +3333,24 @@ function renderSettingsKeywords(){
           }
         }
       }
-      const sourceIDVal=parseInt(document.getElementById('m-source')?.value)||null;
+      const sourceRaw=document.getElementById('m-source')?.value||'';
+      const sourceIDVal=sourceRaw.startsWith('shared_')?parseInt(sourceRaw.replace('shared_',''))||null:null;
+      const userOwnedSourceIDForKw=sourceRaw.startsWith('my_')?parseInt(sourceRaw.replace('my_',''))||null:null;
       const userMenuIDForKw=parseInt(document.getElementById('m-menuid')?.value)||null;
       const rawGroupLabel=document.getElementById('m-grouplabel')?.value.trim()||'';
-      if(rawGroupLabel.toLowerCase()==='teams'&&!sourceIDVal){
-        return alert('Teams keywords must specify a Shared Source.');
+      if(rawGroupLabel.toLowerCase()==='teams'&&!sourceIDVal&&!userOwnedSourceIDForKw){
+        return alert('Teams keywords must specify a Source.');
       }
       if(modalID){
         const kw=keywords.find(k=>k.KeywordID===modalID);
-        await apiPost('SaveKeyword',{action:'update',keywordID:modalID,keyword,categoryID,sequence,isActive:true,groupLabel,sourceID:sourceIDVal,userMenuID:userMenuIDForKw,imageURL:(window._modalKwImage!==undefined?window._modalKwImage:kw?.ImageURL)||null,userID:USER_ID});
+        await apiPost('SaveKeyword',{action:'update',keywordID:modalID,keyword,categoryID,sequence,isActive:true,groupLabel,sourceID:sourceIDVal,userOwnedSourceID:userOwnedSourceIDForKw,userMenuID:userMenuIDForKw,imageURL:(window._modalKwImage!==undefined?window._modalKwImage:kw?.ImageURL)||null,userID:USER_ID});
         if(kw)kw.ImageURL=(window._modalKwImage!==undefined?window._modalKwImage:kw?.ImageURL)||null;
-        if(kw){kw.Keyword=keyword;kw.CategoryID=categoryID;kw.GroupLabel=groupLabel;kw.SourceID=sourceIDVal;kw.UserMenuID=userMenuIDForKw;kw.SourceName=sources.find(s=>s.SourceID===sourceIDVal)?.Name||null;kw.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}
+        const updSrcName=sourceIDVal?(sources.find(s=>s.SourceID===sourceIDVal)?.Name||null):userOwnedSourceIDForKw?(userOwnedSources.find(s=>s.UserOwnedSourceID===userOwnedSourceIDForKw)?.SourceName||null):null;
+        if(kw){kw.Keyword=keyword;kw.CategoryID=categoryID;kw.GroupLabel=groupLabel;kw.SourceID=sourceIDVal;kw.UserOwnedSourceID=userOwnedSourceIDForKw;kw.UserMenuID=userMenuIDForKw;kw.SourceName=updSrcName;kw.CategoryName=categories.find(c=>c.CategoryID==categoryID)?.Name||'';}
       }else{
-        const result=await apiPost('SaveKeyword',{action:'add',keyword,categoryID,sequence,groupLabel,sourceID:sourceIDVal,userMenuID:userMenuIDForKw,imageURL:window._modalKwImage||null,userID:USER_ID});
-        keywords.push({KeywordID:result.keywordID,Keyword:keyword,CategoryID:categoryID,GroupLabel:groupLabel,SourceID:sourceIDVal,UserMenuID:userMenuIDForKw,SourceName:sources.find(s=>s.SourceID===sourceIDVal)?.Name||null,ImageURL:window._modalKwImage||null,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
+        const result=await apiPost('SaveKeyword',{action:'add',keyword,categoryID,sequence,groupLabel,sourceID:sourceIDVal,userOwnedSourceID:userOwnedSourceIDForKw,userMenuID:userMenuIDForKw,imageURL:window._modalKwImage||null,userID:USER_ID});
+        const newSrcName=sourceIDVal?(sources.find(s=>s.SourceID===sourceIDVal)?.Name||null):userOwnedSourceIDForKw?(userOwnedSources.find(s=>s.UserOwnedSourceID===userOwnedSourceIDForKw)?.SourceName||null):null;
+        keywords.push({KeywordID:result.keywordID,Keyword:keyword,CategoryID:categoryID,GroupLabel:groupLabel,SourceID:sourceIDVal,UserOwnedSourceID:userOwnedSourceIDForKw,UserMenuID:userMenuIDForKw,SourceName:newSrcName,ImageURL:window._modalKwImage||null,Sequence:sequence,CategoryName:categories.find(c=>c.CategoryID==categoryID)?.Name||'',IsActive:'Y'});
       }
       renderSettingsKeywords();
     }else if(modalType==='topic'){
@@ -3993,7 +4001,7 @@ function renderMySourcesTable() {
     document.getElementById('ms-exclusions').value = src?.Exclusions || '';
     document.getElementById('ms-inactive').checked = !!src?.IsInactive;
     document.getElementById('ms-grouplabel').value = src?.GroupLabel || '';
-    const type = src?.SourceType || 'Website';
+    const type = (!src?.SourceType || src.SourceType === 'Website') ? 'API' : src.SourceType;
     document.querySelectorAll('input[name="ms-type"]').forEach(r => r.checked = r.value === type);
     const menuSel = document.getElementById('ms-menuid');
     if (menuSel) {
@@ -4144,7 +4152,7 @@ function renderMySourcesTable() {
     resizeKwTpImage(file, async (imageURL) => {
       const kw = keywords.find(k => k.KeywordID === keywordID); if (!kw) return;
       kw.ImageURL = imageURL;
-      await apiPost('SaveKeyword', { action: 'update', keywordID, keyword: kw.Keyword, categoryID: kw.CategoryID, sequence: kw.Sequence, isActive: kw.IsActive === 'Y', groupLabel: kw.GroupLabel, imageURL, userID: USER_ID });
+      await apiPost('SaveKeyword', { action: 'update', keywordID, keyword: kw.Keyword, categoryID: kw.CategoryID, sequence: kw.Sequence, isActive: kw.IsActive === 'Y', groupLabel: kw.GroupLabel, sourceID: kw.SourceID||null, userOwnedSourceID: kw.UserOwnedSourceID||null, userMenuID: kw.UserMenuID||null, imageURL, userID: USER_ID });
       renderSettingsKeywords();
     });
   }
@@ -4152,7 +4160,7 @@ function renderMySourcesTable() {
   async function clearKwImage(keywordID) {
     const kw = keywords.find(k => k.KeywordID === keywordID); if (!kw) return;
     kw.ImageURL = null;
-    await apiPost('SaveKeyword', { action: 'update', keywordID, keyword: kw.Keyword, categoryID: kw.CategoryID, sequence: kw.Sequence, isActive: kw.IsActive === 'Y', groupLabel: kw.GroupLabel, imageURL: null, userID: USER_ID });
+    await apiPost('SaveKeyword', { action: 'update', keywordID, keyword: kw.Keyword, categoryID: kw.CategoryID, sequence: kw.Sequence, isActive: kw.IsActive === 'Y', groupLabel: kw.GroupLabel, sourceID: kw.SourceID||null, userOwnedSourceID: kw.UserOwnedSourceID||null, userMenuID: kw.UserMenuID||null, imageURL: null, userID: USER_ID });
     renderSettingsKeywords();
   }
 

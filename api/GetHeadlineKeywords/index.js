@@ -14,11 +14,13 @@ module.exports = async function(context, req) {
       .input('UserID', sql.Int, userID)
       .query(`
         SELECT k.KeywordID, k.CategoryID, k.Keyword, k.IsActive, k.Sequence,
-               k.GroupLabel, k.ImageURL, k.SourceID, k.UserMenuID,
-               c.Name AS CategoryName, h.Name AS SourceName
+               k.GroupLabel, k.ImageURL, k.SourceID, k.UserMenuID, k.UserOwnedSourceID,
+               c.Name AS CategoryName,
+               COALESCE(h.Name, u.SourceName) AS SourceName
         FROM [HeadlineKeyword] k
         LEFT JOIN [Category] c ON k.CategoryID = c.CategoryID
         LEFT JOIN [HeadlineSource] h ON k.SourceID = h.SourceID
+        LEFT JOIN [UserOwnedSource] u ON k.UserOwnedSourceID = u.UserOwnedSourceID AND u.UserID = @UserID
         WHERE k.UserID = @UserID
         ORDER BY k.Sequence, k.Keyword
       `);
