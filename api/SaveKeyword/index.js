@@ -10,7 +10,7 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { action, keywordID, keyword, categoryID, isActive, sequence, sequences,
+    const { action, keywordID, keyword, isActive, sequence, sequences,
             groupLabel, imageURL, sourceID, userOwnedSourceID, userMenuID, userID = 1 } = req.body;
 
     const resetYouTube = async () => {
@@ -22,7 +22,6 @@ module.exports = async function(context, req) {
     if (action === 'add') {
       const result = await pool.request()
         .input('UserID', sql.Int, userID)
-        .input('CategoryID', sql.Int, categoryID || null)
         .input('Keyword', sql.NVarChar(200), keyword)
         .input('Sequence', sql.Int, sequence || 99)
         .input('GroupLabel', sql.VarChar(100), groupLabel || null)
@@ -31,8 +30,8 @@ module.exports = async function(context, req) {
         .input('UserOwnedSourceID', sql.Int, userOwnedSourceID || null)
         .input('UserMenuID', sql.Int, userMenuID || null)
         .query(`
-          INSERT INTO [HeadlineKeyword] (UserID, CategoryID, Keyword, IsActive, Sequence, GroupLabel, ImageURL, SourceID, UserOwnedSourceID, UserMenuID, CreatedDate)
-          VALUES (@UserID, @CategoryID, @Keyword, 'Y', @Sequence, @GroupLabel, @ImageURL, @SourceID, @UserOwnedSourceID, @UserMenuID, GETDATE());
+          INSERT INTO [HeadlineKeyword] (UserID, Keyword, IsActive, Sequence, GroupLabel, ImageURL, SourceID, UserOwnedSourceID, UserMenuID, CreatedDate)
+          VALUES (@UserID, @Keyword, 'Y', @Sequence, @GroupLabel, @ImageURL, @SourceID, @UserOwnedSourceID, @UserMenuID, GETDATE());
           SELECT SCOPE_IDENTITY() AS KeywordID;
         `);
       await resetYouTube();
@@ -45,7 +44,6 @@ module.exports = async function(context, req) {
     } else if (action === 'update') {
       await pool.request()
         .input('KeywordID', sql.Int, keywordID)
-        .input('CategoryID', sql.Int, categoryID || null)
         .input('Keyword', sql.NVarChar(200), keyword)
         .input('IsActive', sql.Char(1), isActive ? 'Y' : 'N')
         .input('Sequence', sql.Int, sequence || 99)
@@ -57,17 +55,13 @@ module.exports = async function(context, req) {
         .input('UserID', sql.Int, userID)
         .query(`
           UPDATE [HeadlineKeyword]
-          SET Keyword=@Keyword, CategoryID=@CategoryID, IsActive=@IsActive,
+          SET Keyword=@Keyword, IsActive=@IsActive,
               Sequence=@Sequence, GroupLabel=@GroupLabel, ImageURL=@ImageURL,
               SourceID=@SourceID, UserOwnedSourceID=@UserOwnedSourceID, UserMenuID=@UserMenuID
           WHERE KeywordID=@KeywordID AND UserID=@UserID
         `);
       await resetYouTube();
-      context.res = {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ success: true })
-      };
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) };
 
     } else if (action === 'toggle') {
       await pool.request()
