@@ -207,8 +207,9 @@ module.exports = async function(context, req) {
         .input('SourceID', sql.Int, sourceID)
         .input('GroupLabel', sql.NVarChar(100), req.body.groupLabel || null)
         .input('UserMenuID', sql.Int, req.body.userMenuID || null)
+        .input('ImageURL', sql.NVarChar(sql.MAX), req.body.imageURL || null)
         .query(`
-          UPDATE [UserHeadlineSource] SET GroupLabel=@GroupLabel, UserMenuID=@UserMenuID
+          UPDATE [UserHeadlineSource] SET GroupLabel=@GroupLabel, UserMenuID=@UserMenuID, ImageURL=@ImageURL
           WHERE UserID=@UserID AND SourceID=@SourceID
         `);
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
