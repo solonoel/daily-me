@@ -23,6 +23,7 @@ module.exports = async function(context, req) {
       SELECT h.HeadlineID, h.UserID, h.HeadlineName,
              h.Link, h.Summary, h.CreatedDate, h.PublishedDate, h.LastViewedDate, h.Retain,
              h.KeywordID, h.ThumbnailURL, h.ChannelName, h.ChannelURL, h.Duration,
+             h.UserMenuID, h.MenuSeq,
              CASE WHEN uhs.IsFiltered = 0 THEN 1 ELSE 0 END AS IsSubscription,
              k.Keyword, k.Sequence AS KeywordSequence,
              k.GroupLabel AS KeywordGroupLabel,

@@ -417,7 +417,8 @@ module.exports = async function(context, req) {
     const sourcesResult = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.IsActive,
-                     h.Sequence, h.YoutubeChannelID, uhs.IsFiltered, uhs.Exclusions, uhs.IsActive AS UserIsActive
+                     h.Sequence, h.YoutubeChannelID, uhs.IsFiltered, uhs.Exclusions, uhs.IsActive AS UserIsActive,
+                     uhs.UserMenuID AS SourceUserMenuID
               FROM [HeadlineSource] h
               INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
               WHERE uhs.UserID = @UserID AND h.IsActive = 1 AND uhs.IsActive = 1
@@ -446,13 +447,23 @@ module.exports = async function(context, req) {
     const kwResult = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`SELECT k.KeywordID, k.Keyword AS text, k.GroupLabel, k.SourceID,
-              k.UserOwnedSourceID,
+              k.UserOwnedSourceID, k.UserMenuID,
               u.URL AS OwnedSourceURL, u.SourceType AS OwnedSourceType, u.SourceName AS OwnedSourceName
               FROM [HeadlineKeyword] k
               LEFT JOIN [UserOwnedSource] u ON k.UserOwnedSourceID = u.UserOwnedSourceID
               WHERE k.UserID=@UserID AND k.IsActive='Y'`);
     const keywords = kwResult.recordset.map(k => ({ ...k, keywordID: k.KeywordID }));
     const hasActiveKeywords = keywords.length > 0;
+
+    const menuResult = await pool.request()
+      .input('UserID', sql.Int, userID)
+      .query(`SELECT UserMenuID, UserMenuSeq FROM [UserMenu] WHERE UserID=@UserID AND IsInactive=0`);
+    const menuSeqMap = {};
+    for (const m of menuResult.recordset) menuSeqMap[m.UserMenuID] = m.UserMenuSeq ?? 99;
+    const kwMenuMap = {};
+    for (const k of keywords) {
+      if (k.UserMenuID) kwMenuMap[k.KeywordID] = { userMenuID: k.UserMenuID, menuSeq: menuSeqMap[k.UserMenuID] ?? 99 };
+    }
 
     const existingResult = await pool.request()
       .input('UserID', sql.Int, userID)
@@ -543,6 +554,7 @@ module.exports = async function(context, req) {
           a.sourceName = source.Name;
           a.sourceID = source.SourceID;
           a.sourceType = source.SourceType;
+          a.sourceUserMenuID = source.SourceUserMenuID || null;
           if (!a.keywordID) a.keywordID = null;
           if (!a.thumbnailURL) a.thumbnailURL = null;
           if (!a.channelName) a.channelName = null;
@@ -683,12 +695,16 @@ module.exports = async function(context, req) {
           .input('SourceID', sql.Int, a.sourceID || null)
           .input('Duration', sql.VarChar(20), a.duration || null)
           .input('PublishedDate', sql.DateTime, a.pubDate || null)
+          .input('UserMenuID', sql.Int, a.keywordID ? (kwMenuMap[a.keywordID]?.userMenuID || null) : (a.sourceUserMenuID || null))
+          .input('MenuSeq', sql.SmallInt, a.keywordID ? (kwMenuMap[a.keywordID]?.menuSeq || null) : (a.sourceUserMenuID ? (menuSeqMap[a.sourceUserMenuID] ?? null) : null))
           .query(`INSERT INTO [Headline]
                     (UserID, HeadlineName, Link, Summary, CreatedDate, Retain,
-                     KeywordID, ThumbnailURL, ChannelName, ChannelURL, SourceID, Duration, PublishedDate)
+                     KeywordID, ThumbnailURL, ChannelName, ChannelURL, SourceID, Duration, PublishedDate,
+                     UserMenuID, MenuSeq)
                   VALUES
                     (@UserID, @HeadlineName, @Link, @Summary, GETDATE(), 'N',
-                     @KeywordID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID, @Duration, @PublishedDate)`);
+                     @KeywordID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID, @Duration, @PublishedDate,
+                     @UserMenuID, @MenuSeq)`);
         totalInserted++;
         if (logSources[a.sourceName]) {
           if (a.keywordID) logSources[a.sourceName].matched++;
