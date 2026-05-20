@@ -478,6 +478,7 @@
           <th>URL</th>
           <th>Active</th>
           <th>Exclusions</th>
+          <th>Image</th>
           <th></th>
         </tr></thead>
         <tbody id="tbl-mysources-body"></tbody>
@@ -2444,6 +2445,10 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
       const items = e.clipboardData?.items; if (!items) return;
       for (const item of items) { if (item.type.startsWith('image/')) { resizeKwTpImage(item.getAsFile(), (imageURL) => { window._modalMenuImage=imageURL; const p=document.getElementById('m-menu-img-preview'); if(p)p.innerHTML=`<img src="${imageURL}" style="width:100%;height:100%;object-fit:cover">`; }); break; } }
     }
+    if (document.getElementById('modal')?.style.display !== 'none' && modalType==='source' && window._modalSubImage!==undefined) {
+      const items = e.clipboardData?.items; if (!items) return;
+      for (const item of items) { if (item.type.startsWith('image/')) { resizeKwTpImage(item.getAsFile(), (imageURL) => { window._modalSubImage=imageURL; const p=document.getElementById('m-sub-img-preview'); if(p)p.innerHTML=`<img src="${imageURL}" style="width:100%;height:100%;object-fit:cover">`; }); break; } }
+    }
     if (document.getElementById('modal')?.style.display !== 'none' && (modalType==='keyword'||modalType==='topic')) {
       const items = e.clipboardData?.items; if (!items) return;
       for (const item of items) { if (item.type.startsWith('image/')) { resizeKwTpImage(item.getAsFile(), (imageURL) => { window._modalKwImage=imageURL; const p=document.getElementById('m-kw-img-preview'); if(p)p.innerHTML=`<img src="${imageURL}" style="width:100%;height:100%;object-fit:cover">`; }); break; } }
@@ -2482,11 +2487,8 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
       ).length;
       const btn=document.getElementById(`nav-usermenu-${m.UserMenuID}`);
       if(!btn)return;
-      let countEl=btn.querySelector('.nav-menu-count');
-      if(count>0){
-        if(!countEl){countEl=document.createElement('span');countEl.className='nav-menu-count';countEl.style.cssText='font-size:10px;font-weight:700;color:rgba(255,255,255,0.85);margin-left:2px';btn.appendChild(countEl);}
-        countEl.textContent=`(${count})`;
-      }else if(countEl){countEl.remove();}
+      const countEl=btn.querySelector('.nav-menu-count');
+      if(countEl)countEl.textContent=count>0?`(${count})`:'';
     });
   }
 
@@ -3111,6 +3113,7 @@ function renderSettingsKeywords(){
     modalType=type;modalID=id;
     window._modalKwImage=undefined;
     window._modalMenuImage=undefined;
+    window._modalSubImage=undefined;
     const catOptions=categories.map(c=>`<option value="${c.CategoryID}">${c.Name}</option>`).join('');
     const sourceTypeOptions=['Guardian','NYT','GNews','Currents','MediaStack','NewsAPI','RSS','YouTube'].map(t=>`<option value="${t}">${t}</option>`).join('');
     let title='',body='';
@@ -3133,7 +3136,16 @@ function renderSettingsKeywords(){
           const menuOpts=userMenu.filter(m=>!m.IsInactive).map(m=>`<option value="${m.UserMenuID}" ${src.UserMenuID==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('');
           body=`<div class="form-group"><label class="form-label">Source</label><div style="font-size:13px;font-weight:600;color:var(--text)">${src.Name}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${src.URL}</div></div>
             <div class="form-group"><label class="form-label">Group Label</label><input class="form-input" id="m-src-grouplabel" value="${src.GroupLabel||''}"></div>
-            <div class="form-group"><label class="form-label">Menu</label><select class="form-select" id="m-src-menuid"><option value="">— None —</option>${menuOpts}</select></div>`;
+            <div class="form-group"><label class="form-label">Menu</label><select class="form-select" id="m-src-menuid"><option value="">— None —</option>${menuOpts}</select></div>
+            <div class="form-group"><label class="form-label">Image <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(upload or paste)</span></label>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+                <div id="m-sub-img-preview" style="width:100px;height:62px;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8fbff;font-size:20px;cursor:pointer" onclick="document.getElementById('m-sub-img-file').click()">${src.ImageURL?`<img src="${src.ImageURL}" style="width:100%;height:100%;object-fit:cover">`:'🖼'}</div>
+                <input type="file" id="m-sub-img-file" accept="image/*" style="display:none" onchange="handleModalSubImage(event)">
+                <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="document.getElementById('m-sub-img-file').click()">Upload</button>
+                <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="clearModalSubImage()">Clear</button>
+              </div>
+            </div>`;
+          window._modalSubImage=src.ImageURL||null;
         }else{
           body=`<div class="form-group"><label class="form-label">Name</label><input class="form-input" id="m-name" value="${src?.Name||''}"></div>
             <div class="form-group"><label class="form-label">URL</label><input class="form-input" id="m-url" value="${src?.URL||''}"></div>
@@ -3223,8 +3235,9 @@ function renderSettingsKeywords(){
           if(src&&!src.IsFiltered){
             const groupLabel=document.getElementById('m-src-grouplabel')?.value.trim()||null;
             const userMenuID=parseInt(document.getElementById('m-src-menuid')?.value)||null;
-            await apiPost('SaveSource',{action:'updateSubscription',sourceID:modalID,groupLabel,userMenuID,userID:USER_ID});
-            src.GroupLabel=groupLabel;src.UserMenuID=userMenuID;
+            const subImageURL=window._modalSubImage!==undefined?window._modalSubImage:src.ImageURL||null;
+            await apiPost('SaveSource',{action:'updateSubscription',sourceID:modalID,groupLabel,userMenuID,imageURL:subImageURL,userID:USER_ID});
+            src.GroupLabel=groupLabel;src.UserMenuID=userMenuID;src.ImageURL=subImageURL;
           }else{
             const name=document.getElementById('m-name').value.trim(),url=document.getElementById('m-url').value.trim();
             const sourceType=document.getElementById('m-type').value;
@@ -3577,6 +3590,16 @@ function renderSettingsKeywords(){
         <td>${menuLabel}</td>
         <td><span class="badge">${s.SourceType||'RSS'}</span></td>
         <td><button class="toggle ${userIsActive?'on':''}" onclick="toggleUserSourceActive(${s.SourceID},this)"></button></td>
+        <td><label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" ${s.IsFiltered?'checked':''} onchange="saveUserFiltered(${s.SourceID},this)" style="accent-color:var(--sky-deep)"></label></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:50px;height:32px;border-radius:4px;overflow:hidden;border:1px solid var(--border);background:#f8fbff;display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="triggerSubImageUpload(${s.SourceID})" title="Click to change image">
+              ${s.ImageURL?`<img src="${s.ImageURL}" style="width:100%;height:100%;object-fit:cover">`:`<span style="font-size:14px;color:var(--text-muted)">🖼</span>`}
+            </div>
+            ${s.ImageURL?`<button class="btn-icon danger" onclick="clearSubImage(${s.SourceID})" title="Remove image" style="width:20px;height:20px;font-size:10px">✕</button>`:''}
+            <input type="file" id="sub-img-${s.SourceID}" accept="image/*" style="display:none" onchange="handleSubImageUpload(${s.SourceID},event)">
+          </div>
+        </td>
         <td><input type="text" value="${(s.Exclusions||'').replace(/"/g,'&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:120px;font-family:'DM Sans',sans-serif" onchange="saveUserExclusions(${s.SourceID},this)"></td>
         <td style="display:flex;gap:4px"><button class="btn-icon" onclick="openModal('source',${s.SourceID})">✏️</button><button class="btn-icon danger" onclick="removeUserSource(${s.SourceID})" title="Remove">🗑️</button></td>
       </tr>`;
@@ -3597,7 +3620,7 @@ function renderSettingsKeywords(){
     container.innerHTML=`
       ${subs.length?`<div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.6px;margin:0 0 6px 2px">Subscriptions</div>
       <table class="settings-table" style="margin-bottom:20px">
-        <thead><tr><th style="width:30px"></th><th>Name</th><th>Group</th><th>Menu</th><th>Type</th><th>Active</th><th>Exclusions</th><th></th></tr></thead>
+        <thead><tr><th style="width:30px"></th><th>Name</th><th>Group</th><th>Menu</th><th>Type</th><th>Active</th><th>Filtered</th><th>Image</th><th>Exclusions</th><th></th></tr></thead>
         <tbody id="tbl-sources-sub">${subRows}</tbody>
       </table>`:''}
       ${filtered.length?`<div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.6px;margin:0 0 6px 2px">Filtered Sources</div>
@@ -3909,6 +3932,15 @@ function renderMySourcesTable() {
         <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)">${s.URL}</td>
         <td><button class="toggle ${!s.IsInactive ? 'on' : ''}" onclick="toggleMySite(${s.UserOwnedSourceID},this)"></button></td>
         <td><input type="text" value="${(s.Exclusions || '').replace(/"/g, '&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:120px;font-family:'DM Sans',sans-serif" onchange="saveMySiteExclusions(${s.UserOwnedSourceID},this)"></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:50px;height:32px;border-radius:4px;overflow:hidden;border:1px solid var(--border);background:#f8fbff;display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="triggerMsTableImageUpload(${s.UserOwnedSourceID})" title="Click to change image">
+              ${s.ThumbnailURL?`<img src="${s.ThumbnailURL}" style="width:100%;height:100%;object-fit:cover">`:`<span style="font-size:14px;color:var(--text-muted)">🖼</span>`}
+            </div>
+            ${s.ThumbnailURL?`<button class="btn-icon danger" onclick="clearMsTableImage(${s.UserOwnedSourceID})" title="Remove image" style="width:20px;height:20px;font-size:10px">✕</button>`:''}
+            <input type="file" id="ms-tbl-img-${s.UserOwnedSourceID}" accept="image/*" style="display:none" onchange="handleMsTableImageUpload(${s.UserOwnedSourceID},event)">
+          </div>
+        </td>
         <td style="display:flex;gap:6px">
           <button class="btn-icon" onclick="openMySiteModal(${s.UserOwnedSourceID})">✏️</button>
           <button class="btn-icon danger" onclick="deleteMySite(${s.UserOwnedSourceID})">🗑️</button>
@@ -4131,6 +4163,59 @@ function renderMySourcesTable() {
     renderSettingsTopics();
   }
 
+  // ── SUBSCRIPTION SOURCE IMAGE ──
+  function triggerSubImageUpload(sourceID){
+    document.getElementById(`sub-img-${sourceID}`)?.click();
+  }
+  function handleSubImageUpload(sourceID,event){
+    const file=event.target.files[0];if(!file)return;
+    resizeKwTpImage(file,async(imageURL)=>{
+      const src=sources.find(s=>s.SourceID===sourceID);if(!src)return;
+      src.ImageURL=imageURL;
+      await apiPost('SaveSource',{action:'updateSubscription',sourceID,groupLabel:src.GroupLabel||null,userMenuID:src.UserMenuID||null,imageURL,userID:USER_ID});
+      renderSettingsSources();
+    });
+  }
+  async function clearSubImage(sourceID){
+    const src=sources.find(s=>s.SourceID===sourceID);if(!src)return;
+    src.ImageURL=null;
+    await apiPost('SaveSource',{action:'updateSubscription',sourceID,groupLabel:src.GroupLabel||null,userMenuID:src.UserMenuID||null,imageURL:null,userID:USER_ID});
+    renderSettingsSources();
+  }
+  function handleModalSubImage(event){
+    const file=event.target.files[0];if(!file)return;
+    resizeKwTpImage(file,(imageURL)=>{
+      window._modalSubImage=imageURL;
+      const p=document.getElementById('m-sub-img-preview');
+      if(p)p.innerHTML=`<img src="${imageURL}" style="width:100%;height:100%;object-fit:cover">`;
+    });
+  }
+  function clearModalSubImage(){
+    window._modalSubImage=null;
+    const p=document.getElementById('m-sub-img-preview');
+    if(p)p.innerHTML='🖼';
+  }
+
+  // ── MY SOURCES TABLE IMAGE ──
+  function triggerMsTableImageUpload(sourceID){
+    document.getElementById(`ms-tbl-img-${sourceID}`)?.click();
+  }
+  function handleMsTableImageUpload(sourceID,event){
+    const file=event.target.files[0];if(!file)return;
+    resizeKwTpImage(file,async(imageURL)=>{
+      const src=userOwnedSources.find(s=>s.UserOwnedSourceID===sourceID);if(!src)return;
+      src.ThumbnailURL=imageURL;
+      await apiPost('SaveUserOwnedSource',{action:'update',userID:USER_ID,sourceID,sourceName:src.SourceName,url:src.URL,sourceType:src.SourceType,description:src.Description,thumbnailURL:imageURL,exclusions:src.Exclusions,isInactive:src.IsInactive,userMenuID:src.UserMenuID||null,groupLabel:src.GroupLabel||null});
+      renderMySourcesTable();
+    });
+  }
+  async function clearMsTableImage(sourceID){
+    const src=userOwnedSources.find(s=>s.UserOwnedSourceID===sourceID);if(!src)return;
+    src.ThumbnailURL=null;
+    await apiPost('SaveUserOwnedSource',{action:'update',userID:USER_ID,sourceID,sourceName:src.SourceName,url:src.URL,sourceType:src.SourceType,description:src.Description,thumbnailURL:null,exclusions:src.Exclusions,isInactive:src.IsInactive,userMenuID:src.UserMenuID||null,groupLabel:src.GroupLabel||null});
+    renderMySourcesTable();
+  }
+
   function resolveHeadlineImage(h) {
     // Thumbnail (article/video image) takes priority, then keyword image fallback
     return h.ThumbnailURL || h.KeywordImage || h.KeywordGroupImage || h.TopicImage || h.TopicGroupImage || null;
@@ -4267,7 +4352,7 @@ function renderMySourcesTable() {
       const imgHTML=m.UserMenuImage
         ?`<img src="${m.UserMenuImage}" style="width:22px;height:22px;border-radius:4px;object-fit:cover;flex-shrink:0">`
         :`<span class="nav-icon">📋</span>`;
-      btn.innerHTML=`${imgHTML}<span class="nav-label">${m.UserMenuName}</span>`;
+      btn.innerHTML=`<div style="display:flex;align-items:center;gap:2px">${imgHTML}<span class="nav-menu-count" style="font-size:10px;font-weight:700;color:var(--sky-deep)"></span></div><span class="nav-label">${m.UserMenuName}</span>`;
       insertBefore.parentNode.insertBefore(btn,insertBefore);
     });
   }
