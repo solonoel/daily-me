@@ -27,6 +27,7 @@ module.exports = async function(context, req) {
                w.WordsTranslationAudio, w.WordsImage, w.DateAdded,
                w.Flag, w.DateMastered, w.IsVerb, w.Gender,
                w.SampleSentence1, w.SampleSentence2, w.SampleSentence3,
+               w.EnglishSentence1, w.EnglishSentence2, w.EnglishSentence3,
                STUFF((
                  SELECT ',' + d.UserLanguageWordsDeckName
                  FROM UserLanguageWordsDeckWords dw

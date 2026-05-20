@@ -15,13 +15,20 @@ function fetchUrl(url, options, body) {
 
 module.exports = async function(context, req) {
   try {
-    const { word, langName } = req.body;
+    const { word, langName, isVerb } = req.body;
 
-    const prompt = `Generate 3 short, natural example sentences in ${langName} using the word "${word}". Use present tense for the first, past tense for the second, and future tense for the third. Use a different subject pronoun for each. Keep each sentence simple and under 12 words. Return ONLY a raw JSON array, no markdown:
+    const prompt = isVerb
+      ? `Generate 3 short, natural example sentences in ${langName} using the verb "${word}". Use present tense for the first, past tense for the second, and future tense for the third. Use a different subject pronoun for each. Keep each sentence simple and under 12 words. Also provide an English translation for each. Return ONLY a raw JSON array, no markdown:
 [
-  {"sentence": "..."},
-  {"sentence": "..."},
-  {"sentence": "..."}
+  {"sentence": "...","tense":"present","englishTranslation":"..."},
+  {"sentence": "...","tense":"past","englishTranslation":"..."},
+  {"sentence": "...","tense":"future","englishTranslation":"..."}
+]`
+      : `Generate 3 short, natural example sentences in ${langName} that use the word "${word}" in different contexts. Keep each sentence simple and under 12 words. Also provide an English translation for each. Return ONLY a raw JSON array, no markdown:
+[
+  {"sentence": "...","tense":"","englishTranslation":"..."},
+  {"sentence": "...","tense":"","englishTranslation":"..."},
+  {"sentence": "...","tense":"","englishTranslation":"..."}
 ]`;
 
     const anthropicBody = JSON.stringify({

@@ -191,6 +191,9 @@ module.exports = async function(context, req) {
         .input('SampleSentence1', sql.NVarChar(500), req.body.sampleSentence1 || null)
         .input('SampleSentence2', sql.NVarChar(500), req.body.sampleSentence2 || null)
         .input('SampleSentence3', sql.NVarChar(500), req.body.sampleSentence3 || null)
+        .input('EnglishSentence1', sql.NVarChar(500), req.body.englishSentence1 || null)
+        .input('EnglishSentence2', sql.NVarChar(500), req.body.englishSentence2 || null)
+        .input('EnglishSentence3', sql.NVarChar(500), req.body.englishSentence3 ||  null)
         .query(`UPDATE [UserLanguageWords]
                 SET WordsName=@WordsName, WordsTranslation=@WordsTranslation,
                     WordsTranslationAudio=@WordsTranslationAudio, WordsImage=@WordsImage,
@@ -199,7 +202,10 @@ module.exports = async function(context, req) {
                                       ELSE NULL END,
                     SampleSentence1=COALESCE(@SampleSentence1, SampleSentence1),
                     SampleSentence2=COALESCE(@SampleSentence2, SampleSentence2),
-                    SampleSentence3=COALESCE(@SampleSentence3, SampleSentence3)
+                    SampleSentence3=COALESCE(@SampleSentence3, SampleSentence3),
+                    EnglishSentence1=COALESCE(@EnglishSentence1, EnglishSentence1),
+                    EnglishSentence2=COALESCE(@EnglishSentence2, EnglishSentence2),
+                    EnglishSentence3=COALESCE(@EnglishSentence3, EnglishSentence3)
                 WHERE UserLanguageWordsID=@WordID AND UserID=@UserID`);
       context.res = {
         status: 200,

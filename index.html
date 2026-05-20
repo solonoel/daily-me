@@ -749,7 +749,7 @@
   function getStreakEmoji(days){ if(days>=30)return'🏆'; if(days>=14)return'💎'; if(days>=7)return'🔥'; if(days>=3)return'⭐'; return'🌱'; }
   const langStreaks = {};
 
-  let headlines=[],recencyDays_value=7,categories=[],sources=[],keywords=[],topics=[];
+  let headlines=[],allHeadlinesCache=[],recencyDays_value=7,categories=[],sources=[],keywords=[],topics=[];
   const deletedLinks=new Set();
   // topics retained as empty array for legacy compatibility only
   let allLanguages=[],userLanguages=[];
@@ -1464,7 +1464,7 @@
           <label class="form-label">Translation(s)</label>
           <textarea class="form-textarea" id="nw-translation" placeholder="Enter one or more translations, one per line">${word?word.WordsTranslation||'':''}</textarea>
         </div>
-        ${isEdit&&word?.IsVerb==='Y'?`
+        ${isEdit?`
         <div class="form-group" id="sample-sentences-section">
           <label class="form-label">Sample Sentences <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(auto-generated on Fetch Translation)</span></label>
           <input class="form-input" id="nw-sentence1" value="${(word?.SampleSentence1||'').replace(/"/g,'&quot;')}" placeholder="Present tense example" style="margin-bottom:6px">
@@ -1625,8 +1625,7 @@
           if(art){const cur=wordInput.value.trim();if(!cur.toLowerCase().startsWith(art+' '))wordInput.value=art+' '+cur;}
         }
         const isVerbNow=(result.isVerb===true||result.isVerb==='true')||document.getElementById('nw-isverb')?.checked;
-        if(isVerbNow){
-if(editingWordID){
+        if(isVerbNow&&editingWordID){
             status.textContent='⏳ Regenerating conjugations...';
             try{
               const conjResult=await apiPost('GetConjugation',{userID:USER_ID,userLanguageWordsID:editingWordID,regenerate:true});
@@ -1636,18 +1635,23 @@ if(editingWordID){
           }
           status.textContent='⏳ Generating sentences...';
           try{
-            const sentResult=await apiPost('GetWordSentences',{word,langName:currentLangName});
+            const sentResult=await apiPost('GetWordSentences',{word,langName:currentLangName,isVerb:isVerbNow});
             if(Array.isArray(sentResult.sentences)&&sentResult.sentences.length){
               const s=sentResult.sentences;
               const s1=s[0]?.sentence||null,s2=s[1]?.sentence||null,s3=s[2]?.sentence||null;
+              const e1=s[0]?.englishTranslation||null,e2t=s[1]?.englishTranslation||null,e3=s[2]?.englishTranslation||null;
               if(editingWordID){
                 const w=myWords.find(w=>w.UserLanguageWordsID===editingWordID);
-                if(w){w.SampleSentence1=s1;w.SampleSentence2=s2;w.SampleSentence3=s3;}
+                if(w){w.SampleSentence1=s1;w.SampleSentence2=s2;w.SampleSentence3=s3;w.EnglishSentence1=e1;w.EnglishSentence2=e2t;w.EnglishSentence3=e3;}
                 await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:editingWordID,
                   wordsName:document.getElementById('nw-word')?.value.trim(),
                   wordsTranslation:document.getElementById('nw-translation')?.value.trim(),
-                  isVerb:true,gender:result.gender||null,
-                  sampleSentence1:s1,sampleSentence2:s2,sampleSentence3:s3});
+                  isVerb:isVerbNow,gender:result.gender||null,
+                  sampleSentence1:s1,sampleSentence2:s2,sampleSentence3:s3,
+                  englishSentence1:e1,englishSentence2:e2t,englishSentence3:e3});
+                sentencesCache[editingWordID]=[
+                  {sentence:s1,english:e1||''},{sentence:s2,english:e2t||''},{sentence:s3,english:e3||''}
+                ].filter(x=>x.sentence);
               }
               const f1=document.getElementById('nw-sentence1');
               const f2=document.getElementById('nw-sentence2');
@@ -1658,9 +1662,6 @@ if(editingWordID){
             }
           }catch(e3){}
           status.textContent='✓ Done';
-        }else{
-          status.textContent='✓ Done';
-        }
       }else status.textContent='No translation found';
     }catch(e){status.textContent='Error: '+e.message;}
     btn.style.pointerEvents='';btn.textContent='🔍 Fetch Translation';
@@ -1679,7 +1680,7 @@ if(editingWordID){
 function renderSentencesHTML(wordID){
     const cached=sentencesCache[wordID];
     if(!cached||!cached.length)return'';
-    return`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${cached.map(s=>`<div style="margin-bottom:5px;font-size:12px;color:var(--text);line-height:1.4">${s.sentence}</div>`).join('')}</div>`;
+    return`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">${cached.map(s=>`<div style="margin-bottom:8px"><div style="font-size:12px;color:var(--text);line-height:1.4">${s.sentence}</div>${s.english?`<div style="font-size:11px;color:var(--text-muted);font-style:italic;line-height:1.4">${s.english}</div>`:''}</div>`).join('')}</div>`;
   }
 
   function setFlashcardLeadWith(val){flashcardLeadWith=val;flashcardShowTranslation=false;renderFlashcardsScreen();}
@@ -1688,9 +1689,9 @@ function loadSentencesForCard(card){
     const id=card.UserLanguageWordsID;
     if(sentencesCache[id]!==undefined)return;
     const sentences=[];
-    if(card.SampleSentence1)sentences.push({sentence:card.SampleSentence1});
-    if(card.SampleSentence2)sentences.push({sentence:card.SampleSentence2});
-    if(card.SampleSentence3)sentences.push({sentence:card.SampleSentence3});
+    if(card.SampleSentence1)sentences.push({sentence:card.SampleSentence1,english:card.EnglishSentence1||''});
+    if(card.SampleSentence2)sentences.push({sentence:card.SampleSentence2,english:card.EnglishSentence2||''});
+    if(card.SampleSentence3)sentences.push({sentence:card.SampleSentence3,english:card.EnglishSentence3||''});
     sentencesCache[id]=sentences;
   }
 
@@ -1780,6 +1781,10 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
   }
 
   function fcEditWord(wordID,langID,langName){
+    if(!myWords.find(w=>w.UserLanguageWordsID===wordID)){
+      const card=flashcards.find(c=>c.UserLanguageWordsID===wordID);
+      if(card)myWords.push(card);
+    }
     const savedIdx=flashcardIndex;
     const savedDeckID=currentDeckID;
     const savedDeckName=currentDeckName;
@@ -2479,8 +2484,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
 
   function updateMenuNavCounts(allData){
     userMenu.filter(m=>!m.IsInactive).forEach(m=>{
-      const count=allData.filter(h=>h.UserMenuID===m.UserMenuID).length
-        +userOwnedSources.filter(s=>s.UserMenuID===m.UserMenuID&&!s.IsInactive).length;
+      const count=allData.filter(h=>h.UserMenuID===m.UserMenuID).length;
       const btn=document.getElementById(`nav-usermenu-${m.UserMenuID}`);
       if(!btn)return;
       const countEl=btn.querySelector('.nav-menu-count');
@@ -2488,11 +2492,14 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     });
   }
 
-  async function loadHeadlines(){
+  async function loadHeadlines(forceRefresh=false){
     try{
-      const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`);
-      let allData=await res.json();if(!Array.isArray(allData))allData=[];
-      allData=allData.filter(h=>!deletedLinks.has(h.Link));
+      if(forceRefresh||!allHeadlinesCache.length){
+        const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`);
+        let allData=await res.json();if(!Array.isArray(allData))allData=[];
+        allHeadlinesCache=allData;
+      }
+      const allData=allHeadlinesCache.filter(h=>!deletedLinks.has(h.Link));
       updateMenuNavCounts(allData);
       if(currentUserMenuFilter){
         headlines=allData.filter(h=>h.UserMenuID===currentUserMenuFilter);
@@ -2544,7 +2551,8 @@ const now=new Date();
       const ytLft=document.getElementById('last-yt-fetch-time');
       if(ytLft&&!disableYoutube){ytLft.textContent=`youtube: ${ts}`;ytLft.style.display='';localStorage.setItem(`dailyme_last_yt_fetch_time_${USER_ID}`,now.toISOString());}
       groupsExpanded=false;teamsGroupsExpanded=false;
-      await loadHeadlines();
+      allHeadlinesCache=[];
+      await loadHeadlines(true);
     }catch(e){
       const btn=document.getElementById('refresh-btn');
       const teamsBtn=document.getElementById('teams-refresh-btn');
@@ -2619,7 +2627,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   async function deleteHeadline(headlineID,e){
     e.stopPropagation();
     const deleted=headlines.find(h=>h.HeadlineID===headlineID);
-    if(deleted?.Link)deletedLinks.add(deleted.Link);
+    if(deleted?.Link){deletedLinks.add(deleted.Link);allHeadlinesCache=allHeadlinesCache.filter(h=>h.Link!==deleted.Link);}
     headlines=headlines.filter(h=>h.HeadlineID!==headlineID);
     // Remove row directly without full re-render
     const row=document.querySelector(`.headline-row[data-headline-id="${headlineID}"]`);
