@@ -2479,10 +2479,8 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
 
   function updateMenuNavCounts(allData){
     userMenu.filter(m=>!m.IsInactive).forEach(m=>{
-      const menuHeadlines=allData.filter(h=>h.UserMenuID===m.UserMenuID);
-      const groupCount=new Set(menuHeadlines.map(h=>resolveGroupLabel(h))).size;
-      const urlCount=userOwnedSources.filter(s=>s.UserMenuID===m.UserMenuID&&!s.IsInactive).length;
-      const count=groupCount+urlCount;
+      const count=allData.filter(h=>h.UserMenuID===m.UserMenuID).length
+        +userOwnedSources.filter(s=>s.UserMenuID===m.UserMenuID&&!s.IsInactive).length;
       const btn=document.getElementById(`nav-usermenu-${m.UserMenuID}`);
       if(!btn)return;
       const countEl=btn.querySelector('.nav-menu-count');
@@ -2497,11 +2495,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
       allData=allData.filter(h=>!deletedLinks.has(h.Link));
       updateMenuNavCounts(allData);
       if(currentUserMenuFilter){
-        const menuKwIDs=new Set(keywords.filter(k=>k.UserMenuID===currentUserMenuFilter).map(k=>k.KeywordID));
-        headlines=allData.filter(h=>
-          (h.KeywordID&&menuKwIDs.has(h.KeywordID))||
-          (!h.KeywordID&&h.SourceUserMenuID===currentUserMenuFilter)
-        );
+        headlines=allData.filter(h=>h.UserMenuID===currentUserMenuFilter);
       }else{
         headlines=allData.filter(h=>(h.KeywordGroupLabel||'').toLowerCase()!=='teams');
       }
@@ -3203,12 +3197,34 @@ function renderSettingsKeywords(){
     }
     document.getElementById('modal-title').textContent=title;
     document.getElementById('modal-body').innerHTML=body;
+    document.getElementById('modal-actions').innerHTML=`<button class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary" style="background:#22c55e" id="modal-save-new" onclick="saveModal(true)">Save & New</button><button class="btn-primary" onclick="saveModal()">Save</button>`;
     const saveNewBtn=document.getElementById('modal-save-new');
     if(saveNewBtn)saveNewBtn.style.display=(type==='source'&&!id&&USER_ID!==1)?'none':'';
     document.getElementById('modal').style.display='flex';
   }
 
-  function closeModal(){document.getElementById('modal').style.display='none';modalType=null;modalID=null;}
+  async function closeModal(){
+    if(modalType==='keyword'&&modalID){
+      const kwInput=document.getElementById('m-keyword');
+      if(kwInput){
+        const keyword=kwInput.value.trim();
+        if(keyword){
+          const kw=keywords.find(k=>k.KeywordID===modalID);
+          const groupLabel=document.getElementById('m-grouplabel')?.value.trim()||null;
+          const sourceRaw=document.getElementById('m-source')?.value||'';
+          const sourceIDVal=sourceRaw.startsWith('shared_')?parseInt(sourceRaw.replace('shared_',''))||null:null;
+          const uosIDVal=sourceRaw.startsWith('my_')?parseInt(sourceRaw.replace('my_',''))||null:null;
+          const userMenuIDVal=parseInt(document.getElementById('m-menuid')?.value)||null;
+          await apiPost('SaveKeyword',{action:'update',keywordID:modalID,keyword,sequence:kw?.Sequence||99,isActive:kw?.IsActive==='Y',groupLabel,sourceID:sourceIDVal,userOwnedSourceID:uosIDVal,userMenuID:userMenuIDVal,imageURL:(window._modalKwImage!==undefined?window._modalKwImage:kw?.ImageURL)||null,userID:USER_ID});
+          if(kw){kw.Keyword=keyword;kw.GroupLabel=groupLabel;kw.SourceID=sourceIDVal;kw.UserOwnedSourceID=uosIDVal;kw.UserMenuID=userMenuIDVal;}
+          renderSettingsKeywords();
+          markSettingsChanged();
+        }
+      }
+    }
+    document.getElementById('modal').style.display='none';
+    modalType=null;modalID=null;
+  }
   function closeModalOverlay(e){if(e.target===document.getElementById('modal'))closeModal();}
 
   async function saveModal(addAnother=false){
