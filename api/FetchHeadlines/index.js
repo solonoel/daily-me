@@ -293,7 +293,11 @@ async function fetchYouTube(source, fromDate, isFiltered, keywords, youTubeMaxRe
     const kwCounts = {};
     const teamsKws = keywords.filter(isTeamsKeyword);
     const otherKws = keywords.filter(kw => !isTeamsKeyword(kw));
-    const orderedKws = [...teamsKws, ...otherKws];
+    const bySpecificity = arr => [
+      ...arr.filter(kw => kw.SourceID && kw.SourceID === source.SourceID),
+      ...arr.filter(kw => !kw.SourceID)
+    ];
+    const orderedKws = [...bySpecificity(teamsKws), ...bySpecificity(otherKws)];
     for (const a of articles) {
       const text = `${a.title} ${a.summary}`.toLowerCase();
       for (const kw of orderedKws) {
@@ -544,6 +548,7 @@ module.exports = async function(context, req) {
               return !kw.SourceID || kw.SourceID === source.SourceID;
             });
             articles = applyKeywordMatching(articles, applicableKeywords);
+            articles = articles.filter(a => a.keywordID);
           } else {
             articles.forEach(a => { a.isSubscription = false; });
           }

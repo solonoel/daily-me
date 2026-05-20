@@ -2479,7 +2479,10 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
 
   function updateMenuNavCounts(allData){
     userMenu.filter(m=>!m.IsInactive).forEach(m=>{
-      const count=allData.filter(h=>h.UserMenuID===m.UserMenuID).length;
+      const menuHeadlines=allData.filter(h=>h.UserMenuID===m.UserMenuID);
+      const groupCount=new Set(menuHeadlines.map(h=>resolveGroupLabel(h))).size;
+      const urlCount=userOwnedSources.filter(s=>s.UserMenuID===m.UserMenuID&&!s.IsInactive).length;
+      const count=groupCount+urlCount;
       const btn=document.getElementById(`nav-usermenu-${m.UserMenuID}`);
       if(!btn)return;
       const countEl=btn.querySelector('.nav-menu-count');
