@@ -270,7 +270,11 @@
   </button>
   <div id="nav-date" style="margin-left:auto;padding:0 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;gap:2px">
     <div id="nav-date-text" style="font-size:12px;color:var(--text-muted);white-space:nowrap"></div>
-    <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn" style="font-size:10px;padding:3px 10px">↻ Refresh</button>
+    <div style="display:flex;align-items:center;gap:6px">
+      <a href="#" onclick="setGroupExpand(true);return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);white-space:nowrap">Expand</a>
+      <a href="#" onclick="setGroupExpand(false);return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);white-space:nowrap">Collapse</a>
+      <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn" style="font-size:10px;padding:3px 10px">↻ Refresh</button>
+    </div>
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:0 12px;border-left:1px solid var(--border);flex-shrink:0;gap:3px">
     <div style="display:flex;align-items:center;gap:6px">
@@ -287,10 +291,7 @@
       <div id="last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
       <div id="last-yt-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
       <div id="yt-quota-warning" style="font-size:10px;font-weight:700;color:#e05050;display:none">⚠️ Youtube quota exhausted for today</div>
-      <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
-        <a href="#" onclick="setGroupExpand(true);return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);white-space:nowrap">Expand</a>
-        <a href="#" onclick="setGroupExpand(false);return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);white-space:nowrap">Collapse</a>
-      </div>
+      
     </div>
     <div id="refresh-status" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep);margin-bottom:12px;padding:8px 14px;background:#f0f7ff;border-radius:8px;border:1px solid var(--border)"></div>
     <div id="headlines-grouped"></div>
@@ -309,8 +310,6 @@
           <div id="teams-last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
           <div id="teams-yt-quota-warning" style="font-size:10px;font-weight:700;color:#e05050;display:none">⚠️ Youtube quota exhausted for today</div>
           <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
-            <a href="#" onclick="setGroupExpand(true);return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);white-space:nowrap">Expand</a>
-            <a href="#" onclick="setGroupExpand(false);return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);white-space:nowrap">Collapse</a>
             <button class="refresh-btn" onclick="refreshHeadlines()" id="teams-refresh-btn" style="flex-shrink:0">↻ Refresh</button>
           </div>
         </div>
@@ -2481,10 +2480,11 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
   function updateMenuNavCounts(allData){
     userMenu.filter(m=>!m.IsInactive).forEach(m=>{
       const menuKwIDs=new Set(keywords.filter(k=>k.UserMenuID===m.UserMenuID).map(k=>k.KeywordID));
-      const count=allData.filter(h=>
+      const filtered=allData.filter(h=>
         (h.KeywordID&&menuKwIDs.has(h.KeywordID))||
         (!h.KeywordID&&h.SourceUserMenuID===m.UserMenuID)
-      ).length;
+      );
+      const count=new Set(filtered.map(h=>resolveGroupLabel(h))).size;
       const btn=document.getElementById(`nav-usermenu-${m.UserMenuID}`);
       if(!btn)return;
       const countEl=btn.querySelector('.nav-menu-count');
@@ -2496,7 +2496,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     try{
       const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`);
       let allData=await res.json();if(!Array.isArray(allData))allData=[];
-      allData=allData.filter(h=>(h.KeywordGroupLabel||'').toLowerCase()!=='teams'&&!deletedLinks.has(h.Link));
+      allData=allData.filter(h=>!deletedLinks.has(h.Link));
       updateMenuNavCounts(allData);
       if(currentUserMenuFilter){
         const menuKwIDs=new Set(keywords.filter(k=>k.UserMenuID===currentUserMenuFilter).map(k=>k.KeywordID));
@@ -2505,7 +2505,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
           (!h.KeywordID&&h.SourceUserMenuID===currentUserMenuFilter)
         );
       }else{
-        headlines=allData;
+        headlines=allData.filter(h=>(h.KeywordGroupLabel||'').toLowerCase()!=='teams');
       }
       renderHeadlines();
     }catch(e){console.error('Error loading headlines:',e);}
@@ -3867,8 +3867,7 @@ function renderMySitesByMenu(menuID) {
     });
     let html = title;
     groupOrder.forEach(groupName => {
-      if (groupName) html += `<div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;margin:14px 0 6px 2px">${groupName}</div>`;
-      html += groups[groupName].map(s => {
+      const rows = groups[groupName].map(s => {
         const thumb = s.ThumbnailURL
           ? `<img src="${s.ThumbnailURL}" style="width:100px;height:62px;object-fit:cover;border-radius:6px;flex-shrink:0" onerror="this.style.display='none'">`
           : `<div style="width:100px;height:62px;border-radius:6px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">🌐</div>`;
@@ -3881,6 +3880,18 @@ function renderMySitesByMenu(menuID) {
           </div>
         </div>`;
       }).join('');
+      if(groupName){
+        const countLabel=groups[groupName].length>1?` <span style="opacity:0.6;font-weight:500">(${groups[groupName].length})</span>`:'';
+        html+=`<div class="cat-group">
+          <div class="cat-group-header" style="background:#c2ddf0;color:#1a4a6e;border-bottom:1.5px solid #1a4a6e44;cursor:pointer" onclick="toggleGroup(this)">
+            <span class="group-arrow" style="font-size:10px;margin-right:4px">${groupsExpanded?'▼':'▶'}</span>
+            <span style="margin-left:6px">${groupName}${countLabel}</span>
+          </div>
+          <div class="cat-group-body" style="display:${groupsExpanded?'block':'none'}">${rows}</div>
+        </div>`;
+      }else{
+        html+=rows;
+      }
     });
     container.innerHTML = html;
   }
