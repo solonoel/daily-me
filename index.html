@@ -2661,7 +2661,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         const container=document.getElementById(cid);
         if(!container)return;
         const totalCount=container.querySelectorAll('.headline-row').length;
-        const shouldExpand=val||(totalCount<=collapseThreshold);
+        const shouldExpand=val;
         container.querySelectorAll('.cat-group-body,.teams-group-body').forEach(b=>{
           b.style.display=shouldExpand?'block':'none';
           const arrow=b.previousElementSibling?.querySelector('.group-arrow,.teams-group-arrow');
@@ -2723,12 +2723,12 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       groupOrder.forEach(gName=>{
         const rows=grouped[gName].map(makeRow).join('');
         const cl=grouped[gName].length>1?` <span style="opacity:0.6;font-weight:500">(${grouped[gName].length})</span>`:'';
-        html+=`<div class="cat-group"><div class="cat-group-header" style="background:#c2ddf0;color:#1a4a6e;border-bottom:1.5px solid #1a4a6e44;cursor:pointer" onclick="toggleGroup(this)"><span class="group-arrow" style="font-size:10px;margin-right:4px">${(groupsExpanded||ms.length<=collapseThreshold)?'▼':'▶'}</span><span>🔗</span><span style="margin-left:6px">${gName}${cl}</span></div><div class="cat-group-body" style="display:${(groupsExpanded||ms.length<=collapseThreshold)?'block':'none'}">${rows}</div></div>`;
+        html+=`<div class="cat-group"><div class="cat-group-header" style="background:#c2ddf0;color:#1a4a6e;border-bottom:1.5px solid #1a4a6e44;cursor:pointer" onclick="toggleGroup(this)"><span class="group-arrow" style="font-size:10px;margin-right:4px">${(groupsExpanded||(ms.length+headlines.length)<=collapseThreshold)?'▼':'▶'}</span><span>🔗</span><span style="margin-left:6px">${gName}${cl}</span></div><div class="cat-group-body" style="display:${(groupsExpanded||(ms.length+headlines.length)<=collapseThreshold)?'block':'none'}">${rows}</div></div>`;
       });
       if(ungrouped.length){
         const rows=ungrouped.map(makeRow).join('');
         const cl=ungrouped.length>1?` <span style="opacity:0.6;font-weight:500">(${ungrouped.length})</span>`:'';
-        html+=`<div class="cat-group"><div class="cat-group-header" style="background:#c2ddf0;color:#1a4a6e;border-bottom:1.5px solid #1a4a6e44;cursor:pointer" onclick="toggleGroup(this)"><span class="group-arrow" style="font-size:10px;margin-right:4px">${(groupsExpanded||ms.length<=collapseThreshold)?'▼':'▶'}</span><span>🔗</span><span style="margin-left:6px">Links${cl}</span></div><div class="cat-group-body" style="display:${(groupsExpanded||ms.length<=collapseThreshold)?'block':'none'}">${rows}</div></div>`;
+        html+=`<div class="cat-group"><div class="cat-group-header" style="background:#c2ddf0;color:#1a4a6e;border-bottom:1.5px solid #1a4a6e44;cursor:pointer" onclick="toggleGroup(this)"><span class="group-arrow" style="font-size:10px;margin-right:4px">${(groupsExpanded||(ms.length+headlines.length)<=collapseThreshold)?'▼':'▶'}</span><span>🔗</span><span style="margin-left:6px">Links${cl}</span></div><div class="cat-group-body" style="display:${(groupsExpanded||(ms.length+headlines.length)<=collapseThreshold)?'block':'none'}">${rows}</div></div>`;
       }
       return html;
     })();
