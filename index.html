@@ -1478,7 +1478,7 @@
           <button class="btn-secondary" onclick="cancelWordForm()">Cancel</button>
         </div>
       </div>
-      ${isEdit?`<div style="flex:0 0 calc(50% - 12px);min-width:300px">
+      <div style="flex:0 0 calc(50% - 12px);min-width:300px">
         <div class="form-group" id="sample-sentences-section" style="border:1.5px solid var(--border);border-radius:12px;padding:16px;background:#f8fbff">
           <label class="form-label">Sample Sentences <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(auto-generated on Fetch Translation)</span></label>
           <div style="margin-bottom:10px">
@@ -1494,12 +1494,14 @@
             <input class="form-input" id="nw-english3" value="${(word?.EnglishSentence3||'').replace(/"/g,'&quot;')}" placeholder="Sentence 3 (English)" style="font-size:12px;color:var(--text-soft);font-style:italic">
           </div>
         </div>
-      </div>`:''}
+      </div>
       </div>`;
   }
 
   function showNewWord(){
     newWordImage=null;newWordImageChanged=false;editingWordID=null;
+    window._fetchedSentence1=null;window._fetchedSentence2=null;window._fetchedSentence3=null;
+    window._fetchedEnglish1=null;window._fetchedEnglish2=null;window._fetchedEnglish3=null;
     const screenEl=document.getElementById(`screen-newword-${currentLangID}`);
     if(!screenEl){console.error('No newword screen for lang',currentLangID);return;}
     screenEl.innerHTML=wordFormHTML(false,null,null);
@@ -1562,6 +1564,11 @@
         if(newWordID&&isVerb&&(window._fetchedPresentParticiple||window._fetchedPastParticiple)){
           await apiPost('SaveParticiples',{userID:USER_ID,userLanguageWordsID:newWordID,presentParticiple:window._fetchedPresentParticiple||null,pastParticiple:window._fetchedPastParticiple||null});
           window._fetchedPresentParticiple=null;window._fetchedPastParticiple=null;
+        }
+        if(newWordID&&(window._fetchedSentence1||window._fetchedSentence2||window._fetchedSentence3)){
+          await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:newWordID,wordsName,wordsTranslation,isVerb,gender:gender||null,mastered:false,wordsImage:newWordImage,sampleSentence1:window._fetchedSentence1||null,sampleSentence2:window._fetchedSentence2||null,sampleSentence3:window._fetchedSentence3||null,englishSentence1:window._fetchedEnglish1||null,englishSentence2:window._fetchedEnglish2||null,englishSentence3:window._fetchedEnglish3||null});
+          window._fetchedSentence1=null;window._fetchedSentence2=null;window._fetchedSentence3=null;
+          window._fetchedEnglish1=null;window._fetchedEnglish2=null;window._fetchedEnglish3=null;
         }
       }
       newWordImageChanged=false;editingWordID=null;
@@ -1663,6 +1670,8 @@
               const s=sentResult.sentences;
               const s1=s[0]?.sentence||null,s2=s[1]?.sentence||null,s3=s[2]?.sentence||null;
               const e1=s[0]?.englishTranslation||null,e2t=s[1]?.englishTranslation||null,e3=s[2]?.englishTranslation||null;
+              window._fetchedSentence1=s1;window._fetchedSentence2=s2;window._fetchedSentence3=s3;
+              window._fetchedEnglish1=e1;window._fetchedEnglish2=e2t;window._fetchedEnglish3=e3;
               if(editingWordID){
                 const w=myWords.find(w=>w.UserLanguageWordsID===editingWordID);
                 if(w){w.SampleSentence1=s1;w.SampleSentence2=s2;w.SampleSentence3=s3;w.EnglishSentence1=e1;w.EnglishSentence2=e2t;w.EnglishSentence3=e3;}
