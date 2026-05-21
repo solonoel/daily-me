@@ -11,7 +11,7 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, otherHeadlinesPerKeyword, categorySettings, disableYoutubeToday, fetchHour, zipCode } = req.body;
+    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, otherHeadlinesPerKeyword, categorySettings, disableYoutubeToday, fetchHour, zipCode, collapseThreshold } = req.body;
 
     if (disableYoutubeToday !== undefined) {
       const resetYT = req.body.resetYouTubeFetch === true;
@@ -30,7 +30,7 @@ module.exports = async function(context, req) {
         .query(`UPDATE [User] SET ZipCode = @ZipCode WHERE UserID = @UserID`);
     }
 
-    if (recencyDays || maxHeadlines || fetchHour !== undefined) {
+    if (recencyDays || maxHeadlines || fetchHour !== undefined || collapseThreshold !== undefined) {
       await pool.request()
         .input('UserID', sql.Int, userID)
         .input('RecencyDays', sql.Int, recencyDays || 7)
@@ -38,11 +38,13 @@ module.exports = async function(context, req) {
         .input('YouTubeMaxResults', sql.Int, youTubeMaxResults || 3)
         .input('OtherHeadlinesPerKeyword', sql.Int, otherHeadlinesPerKeyword ?? 3)
         .input('FetchHour', sql.Int, fetchHour === undefined ? null : (fetchHour === null ? null : parseInt(fetchHour)))
+        .input('CollapseThreshold', sql.Int, collapseThreshold ?? 5)
         .query(`
           UPDATE [HeadlineSetting]
           SET RecencyDays = @RecencyDays, MaxHeadlines = @MaxHeadlines, YouTubeMaxResults = @YouTubeMaxResults,
               OtherHeadlinesPerKeyword = @OtherHeadlinesPerKeyword,
-              FetchHour = ISNULL(@FetchHour, FetchHour)
+              FetchHour = ISNULL(@FetchHour, FetchHour),
+              CollapseThreshold = @CollapseThreshold
           WHERE UserID = @UserID
         `);
     }
