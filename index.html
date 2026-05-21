@@ -1353,7 +1353,7 @@
   // ── WORD FORM ──
 
   function renderWordDeckGrid(wordID,wordDecks){
-    const activeDecks=[...userDecks].filter(d=>d.Status==='Active').sort((a,b)=>b.UserLanguageWordsDeckName.localeCompare(a.UserLanguageWordsDeckName));
+    const activeDecks=[...userDecks].filter(d=>d.Status==='Active'||d.Status==='Pending').sort((a,b)=>new Date(b.DateAdded)-new Date(a.DateAdded));
     const deckRows=(wordDecks||[]).map(d=>`
       <div style="display:flex;align-items:center;gap:8px;padding:2px 0;border-bottom:1px solid #eef5fc" id="wdeck-row-${d.UserLanguageWordsDeckID}">
         <span style="flex:1;font-size:12px">${d.UserLanguageWordsDeckName}</span>
@@ -4528,9 +4528,11 @@ function renderMySourcesTable() {
     currentUserMenuFilter = menuID;
     showScreen('headlines');
     if(!menuGroupSeqs[menuID]){
-      const seqs=await apiGet('GetMenuGroupSeq',`&menuID=${menuID}`);
-      menuGroupSeqs[menuID]={};
-      if(Array.isArray(seqs))seqs.forEach(s=>menuGroupSeqs[menuID][s.GroupLabel]=s.GroupSeq);
+      try{
+        const seqs=await apiGet('GetMenuGroupSeq',`&menuID=${menuID}`);
+        menuGroupSeqs[menuID]={};
+        if(Array.isArray(seqs))seqs.forEach(s=>menuGroupSeqs[menuID][s.GroupLabel]=s.GroupSeq);
+      }catch(e){menuGroupSeqs[menuID]={};}
     }
     loadHeadlines();
     document.querySelectorAll('.nav-btn-usermenu').forEach(b=>b.classList.remove('active'));
