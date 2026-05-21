@@ -1144,7 +1144,7 @@
       {key:'active',label:`Active (${activeCount})`},{key:'flagged',label:`Flagged (${flaggedCount})`},
       {key:'mastered',label:`Mastered (${masteredCount})`},{key:'all',label:`All (${deckFiltered.length})`}
     ];
-    const activeDecks=[...userDecks].filter(d=>d.Status==='Active').sort((a,b)=>b.UserLanguageWordsDeckName.localeCompare(a.UserLanguageWordsDeckName));
+    const activeDecks=[...userDecks].filter(d=>d.Status==='Active'||d.Status==='Pending').sort((a,b)=>new Date(b.DateAdded)-new Date(a.DateAdded));
     const mwSorted=[...searchFiltered].sort((a,b)=>{
       let av,bv;
       if(mwSortCol==='dateadded'){av=a.DateAdded||'';bv=b.DateAdded||'';}
@@ -2747,6 +2747,12 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     });
 
     const orderedKeys=Object.keys(groups).sort((a,b)=>{
+      if(currentUserMenuFilter){
+        const ms=menuGroupSeqs[currentUserMenuFilter]||{};
+        const sa=ms[a]??Infinity,sb=ms[b]??Infinity;
+        if(sa!==sb)return sa-sb;
+        return (groupSeq[a]||999)-(groupSeq[b]||999);
+      }
       if(a==='Subscriptions')return -1;if(b==='Subscriptions')return 1;
       if(a==='Other')return 1;if(b==='Other')return -1;
       return (groupSeq[a]||999)-(groupSeq[b]||999);
@@ -2759,6 +2765,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       const headerBg='#c2ddf0';
       const headerColor='#1a4a6e';
       const countLabel=items.length>1?` <span style="opacity:0.6;font-weight:500">(${items.length})</span>`:'';
+      const draggableAttr=currentUserMenuFilter?`draggable="true" data-group="${groupName.replace(/"/g,'&quot;')}"`:'';
       const rows=items.map(h=>`
         <div class="headline-row ${h.Retain==='Y'?'retained':''}" data-headline-id="${h.HeadlineID}" onclick="openHeadline('${h.Link.replace(/'/g,"\\'")}')">
           <img src="${resolveHeadlineImage(h)||'images/newspaper.svg'}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">
@@ -2776,7 +2783,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
           <button class="retain-btn ${h.Retain==='Y'?'active':''}" onclick="toggleRetain(${h.HeadlineID},event)" title="Retain"></button>
           <button class="retain-btn" onclick="deleteHeadline(${h.HeadlineID},event)" title="Delete" style="margin-top:2px;flex-shrink:0;font-size:12px;color:var(--text-muted)" data-delete="1">✕</button>
         </div>`).join('');
-      return `<div class="cat-group">
+      return `<div class="cat-group" ${draggableAttr}>
         <div class="cat-group-header" style="background:${headerBg};color:${headerColor};border-bottom:1.5px solid ${headerColor}44;cursor:pointer" onclick="toggleGroup(this)">
           <span class="group-arrow" style="font-size:10px;margin-right:4px">${(groupsExpanded||headlines.length<=collapseThreshold)?'▼':'▶'}</span>
           <span>${icon}</span><span style="margin-left:6px">${groupName}${countLabel}</span>
@@ -2784,6 +2791,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         <div class="cat-group-body" style="display:${(groupsExpanded||headlines.length<=collapseThreshold)?'block':'none'}">${rows}</div>
       </div>`;
     }).join('');
+    if(currentUserMenuFilter)initGroupDragDrop(document.getElementById('headlines-grouped'));
   }
 
   function openHeadline(link){if(link&&link!=='#')window.open(link,'_blank','noopener');}
@@ -3500,6 +3508,39 @@ function renderSettingsKeywords(){
     });
   }
 
+  function initGroupDragDrop(container){
+    let dragSrc=null,dragMoved=false;
+    container.querySelectorAll('.cat-group[draggable]').forEach(group=>{
+      group.addEventListener('dragstart',e=>{
+        dragSrc=group;dragMoved=false;group.classList.add('dragging');
+        e.dataTransfer.effectAllowed='move';e.stopPropagation();
+      });
+      group.addEventListener('dragend',()=>{
+        container.querySelectorAll('.cat-group').forEach(g=>g.classList.remove('dragging','drag-over'));
+        if(!dragMoved)return;
+        const ordered=[...container.querySelectorAll('.cat-group[draggable]')];
+        const sequences=ordered.map((g,i)=>({groupLabel:g.dataset.group,groupSeq:i+1}));
+        menuGroupSeqs[currentUserMenuFilter]={};
+        sequences.forEach(s=>menuGroupSeqs[currentUserMenuFilter][s.groupLabel]=s.groupSeq);
+        apiPost('SaveMenuGroupSeq',{userID:USER_ID,menuID:currentUserMenuFilter,groups:sequences});
+      });
+      group.addEventListener('dragover',e=>{
+        e.preventDefault();
+        container.querySelectorAll('.cat-group').forEach(g=>g.classList.remove('drag-over'));
+        if(group!==dragSrc)group.classList.add('drag-over');
+      });
+      group.addEventListener('drop',e=>{
+        e.preventDefault();
+        if(dragSrc&&dragSrc!==group){
+          dragMoved=true;
+          const all=[...container.querySelectorAll('.cat-group')];
+          if(all.indexOf(dragSrc)<all.indexOf(group))group.after(dragSrc);
+          else group.before(dragSrc);
+        }
+      });
+    });
+  }
+
   // ── GLOBAL SOURCES ──
 
   let globalSources=[];
@@ -3972,6 +4013,7 @@ function renderSettingsKeywords(){
   let userMenu = [];
   let currentUserMenuID = null;
   let currentUserMenuFilter = null;
+  let menuGroupSeqs = {};
   let msEditingID = null;
   let msThumbnailData = null;
   let msSortCol = 'Sequence', msSortDir = 'asc';
@@ -4481,10 +4523,15 @@ function renderMySourcesTable() {
     }
   }
 
-  function showUserMenuItems(menuID, menuName) {
+  async function showUserMenuItems(menuID, menuName) {
     currentUserMenuID = menuID;
     currentUserMenuFilter = menuID;
     showScreen('headlines');
+    if(!menuGroupSeqs[menuID]){
+      const seqs=await apiGet('GetMenuGroupSeq',`&menuID=${menuID}`);
+      menuGroupSeqs[menuID]={};
+      if(Array.isArray(seqs))seqs.forEach(s=>menuGroupSeqs[menuID][s.GroupLabel]=s.GroupSeq);
+    }
     loadHeadlines();
     document.querySelectorAll('.nav-btn-usermenu').forEach(b=>b.classList.remove('active'));
     const btn=document.getElementById(`nav-usermenu-${menuID}`);
