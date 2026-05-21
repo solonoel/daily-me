@@ -18,9 +18,16 @@ module.exports = async function(context, req) {
     const pool = await sql.connect(config);
     const userID = req.body?.userID || 1;
 
+    const recencyDays = req.body?.recencyDays || 7;
+
     const result = await pool.request()
       .input('UserID', sql.Int, userID)
+      .input('RecencyDays', sql.Int, recencyDays)
       .query(`
+        DELETE FROM [HeadlineExclusion]
+        WHERE UserID = @UserID
+          AND DeletedDate < DATEADD(day, -@RecencyDays, GETUTCDATE());
+
         DELETE FROM [Headline]
         WHERE UserID = @UserID AND ISNULL(Retain, 'N') != 'Y';
 
