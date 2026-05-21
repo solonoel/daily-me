@@ -18,7 +18,8 @@ module.exports = async function(context, req) {
       .query(`
         SELECT w.UserLanguageWordsID, w.WordsName, w.WordsTranslation, w.Gender,
                w.IsVerb, w.Flag, w.DateMastered, w.WordsImage,
-               w.SampleSentence1, w.SampleSentence2, w.SampleSentence3
+               w.SampleSentence1, w.SampleSentence2, w.SampleSentence3,
+               w.EnglishSentence1, w.EnglishSentence2, w.EnglishSentence3
         FROM [UserLanguageWordsDeckWords] dw
         JOIN [UserLanguageWords] w ON dw.UserLanguageWordsID = w.UserLanguageWordsID
         WHERE dw.UserLanguageWordsDeckID = @DeckID

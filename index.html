@@ -1427,7 +1427,7 @@
     const deckSection=isEdit?renderWordDeckGrid(word?.UserLanguageWordsID,wordDecks||[]):'';
     return `
       <div class="date-strip"><div class="date-main">${title}</div></div>
-      <div class="newword-form" style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;max-width:none"><div style="flex:1;min-width:380px">
+      <div class="newword-form" style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;max-width:none"><div style="flex:0 0 calc(50% - 12px);min-width:300px">
         <div style="display:flex;gap:20px;align-items:flex-start;margin-bottom:16px">
           <div>
             <div class="form-label">Image</div>
@@ -1478,7 +1478,7 @@
           <button class="btn-secondary" onclick="cancelWordForm()">Cancel</button>
         </div>
       </div>
-      ${isEdit?`<div style="flex:0 0 300px;min-width:260px">
+      ${isEdit?`<div style="flex:0 0 calc(50% - 12px);min-width:300px">
         <div class="form-group" id="sample-sentences-section" style="border:1.5px solid var(--border);border-radius:12px;padding:16px;background:#f8fbff">
           <label class="form-label">Sample Sentences <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(auto-generated on Fetch Translation)</span></label>
           <div style="margin-bottom:10px">
@@ -2648,12 +2648,16 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     if(el2)el2.textContent='⏳';
     requestAnimationFrame(()=>setTimeout(()=>{
       groupsExpanded=val;teamsGroupsExpanded=val;
-      document.querySelectorAll('.cat-group-body,.teams-group-body').forEach(b=>{
-        const count=b.querySelectorAll('.headline-row').length;
-        const show=val||(count<=collapseThreshold);
-        b.style.display=show?'block':'none';
-        const arrow=b.previousElementSibling?.querySelector('.group-arrow,.teams-group-arrow');
-        if(arrow)arrow.textContent=show?'▼':'▶';
+      ['headlines-grouped','teams-grouped','openers-list'].forEach(cid=>{
+        const container=document.getElementById(cid);
+        if(!container)return;
+        const totalCount=container.querySelectorAll('.headline-row').length;
+        const shouldExpand=val||(totalCount<=collapseThreshold);
+        container.querySelectorAll('.cat-group-body,.teams-group-body').forEach(b=>{
+          b.style.display=shouldExpand?'block':'none';
+          const arrow=b.previousElementSibling?.querySelector('.group-arrow,.teams-group-arrow');
+          if(arrow)arrow.textContent=shouldExpand?'▼':'▶';
+        });
       });
       if(el1)el1.textContent='Expand';
       if(el2)el2.textContent='Collapse';
@@ -2710,12 +2714,12 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       groupOrder.forEach(gName=>{
         const rows=grouped[gName].map(makeRow).join('');
         const cl=grouped[gName].length>1?` <span style="opacity:0.6;font-weight:500">(${grouped[gName].length})</span>`:'';
-        html+=`<div class="cat-group"><div class="cat-group-header" style="background:#c2ddf0;color:#1a4a6e;border-bottom:1.5px solid #1a4a6e44;cursor:pointer" onclick="toggleGroup(this)"><span class="group-arrow" style="font-size:10px;margin-right:4px">${groupsExpanded?'▼':'▶'}</span><span>🔗</span><span style="margin-left:6px">${gName}${cl}</span></div><div class="cat-group-body" style="display:${groupsExpanded?'block':'none'}">${rows}</div></div>`;
+        html+=`<div class="cat-group"><div class="cat-group-header" style="background:#c2ddf0;color:#1a4a6e;border-bottom:1.5px solid #1a4a6e44;cursor:pointer" onclick="toggleGroup(this)"><span class="group-arrow" style="font-size:10px;margin-right:4px">${(groupsExpanded||ms.length<=collapseThreshold)?'▼':'▶'}</span><span>🔗</span><span style="margin-left:6px">${gName}${cl}</span></div><div class="cat-group-body" style="display:${(groupsExpanded||ms.length<=collapseThreshold)?'block':'none'}">${rows}</div></div>`;
       });
       if(ungrouped.length){
         const rows=ungrouped.map(makeRow).join('');
         const cl=ungrouped.length>1?` <span style="opacity:0.6;font-weight:500">(${ungrouped.length})</span>`:'';
-        html+=`<div class="cat-group"><div class="cat-group-header" style="background:#c2ddf0;color:#1a4a6e;border-bottom:1.5px solid #1a4a6e44;cursor:pointer" onclick="toggleGroup(this)"><span class="group-arrow" style="font-size:10px;margin-right:4px">${groupsExpanded?'▼':'▶'}</span><span>🔗</span><span style="margin-left:6px">Links${cl}</span></div><div class="cat-group-body" style="display:${groupsExpanded?'block':'none'}">${rows}</div></div>`;
+        html+=`<div class="cat-group"><div class="cat-group-header" style="background:#c2ddf0;color:#1a4a6e;border-bottom:1.5px solid #1a4a6e44;cursor:pointer" onclick="toggleGroup(this)"><span class="group-arrow" style="font-size:10px;margin-right:4px">${(groupsExpanded||ms.length<=collapseThreshold)?'▼':'▶'}</span><span>🔗</span><span style="margin-left:6px">Links${cl}</span></div><div class="cat-group-body" style="display:${(groupsExpanded||ms.length<=collapseThreshold)?'block':'none'}">${rows}</div></div>`;
       }
       return html;
     })();
@@ -2765,10 +2769,10 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         </div>`).join('');
       return `<div class="cat-group">
         <div class="cat-group-header" style="background:${headerBg};color:${headerColor};border-bottom:1.5px solid ${headerColor}44;cursor:pointer" onclick="toggleGroup(this)">
-          <span class="group-arrow" style="font-size:10px;margin-right:4px">${(groupsExpanded||items.length<=collapseThreshold)?'▼':'▶'}</span>
+          <span class="group-arrow" style="font-size:10px;margin-right:4px">${(groupsExpanded||headlines.length<=collapseThreshold)?'▼':'▶'}</span>
           <span>${icon}</span><span style="margin-left:6px">${groupName}${countLabel}</span>
         </div>
-        <div class="cat-group-body" style="display:${(groupsExpanded||items.length<=collapseThreshold)?'block':'none'}">${rows}</div>
+        <div class="cat-group-body" style="display:${(groupsExpanded||headlines.length<=collapseThreshold)?'block':'none'}">${rows}</div>
       </div>`;
     }).join('');
   }
@@ -2849,10 +2853,10 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         </div>`).join('');
       return `<div class="cat-group">
         <div class="cat-group-header" style="background:#c2ddf0;color:#1a4a6e;border-bottom:1.5px solid #1a4a6e44;cursor:pointer" onclick="toggleTeamsGroup(this)">
-          <span class="teams-group-arrow" style="font-size:10px;margin-right:4px">${(teamsGroupsExpanded||items.length<=collapseThreshold)?'▼':'▶'}</span>
+          <span class="teams-group-arrow" style="font-size:10px;margin-right:4px">${(teamsGroupsExpanded||teamsHeadlines.length<=collapseThreshold)?'▼':'▶'}</span>
           <span>⚾</span><span style="margin-left:6px">${groupName}${countLabel}</span>
         </div>
-        <div class="teams-group-body" style="display:${(teamsGroupsExpanded||items.length<=collapseThreshold)?'block':'none'}">${rows}</div>
+        <div class="teams-group-body" style="display:${(teamsGroupsExpanded||teamsHeadlines.length<=collapseThreshold)?'block':'none'}">${rows}</div>
       </div>`;
     }).join('');
   }
@@ -4016,10 +4020,10 @@ function renderMySitesByMenu(menuID) {
         const countLabel=groups[groupName].length>1?` <span style="opacity:0.6;font-weight:500">(${groups[groupName].length})</span>`:'';
         html+=`<div class="cat-group">
           <div class="cat-group-header" style="background:#c2ddf0;color:#1a4a6e;border-bottom:1.5px solid #1a4a6e44;cursor:pointer" onclick="toggleGroup(this)">
-            <span class="group-arrow" style="font-size:10px;margin-right:4px">${(groupsExpanded||groups[groupName].length<=collapseThreshold)?'▼':'▶'}</span>
+            <span class="group-arrow" style="font-size:10px;margin-right:4px">${(groupsExpanded||active.length<=collapseThreshold)?'▼':'▶'}</span>
             <span style="margin-left:6px">${groupName}${countLabel}</span>
           </div>
-          <div class="cat-group-body" style="display:${(groupsExpanded||groups[groupName].length<=collapseThreshold)?'block':'none'}">${rows}</div>
+          <div class="cat-group-body" style="display:${(groupsExpanded||active.length<=collapseThreshold)?'block':'none'}">${rows}</div>
         </div>`;
       }else{
         html+=rows;
