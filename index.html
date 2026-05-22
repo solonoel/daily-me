@@ -565,11 +565,12 @@
     </div>
     <div class="form-group">
       <label class="form-label">Type</label>
-      <div style="display:flex;gap:16px;margin-top:6px">
-        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="API"> API</label>
-        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="Youtube"> YouTube</label>
-        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="RSS"> RSS</label>
-        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="URL"> URL</label>
+      <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
+        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="API" onchange="updateMsTypeFields()"> API</label>
+        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="Youtube" onchange="updateMsTypeFields()"> YouTube</label>
+        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="RSS" onchange="updateMsTypeFields()"> RSS</label>
+        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="URL" onchange="updateMsTypeFields()"> URL</label>
+        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="File" onchange="updateMsTypeFields()"> File</label>
       </div>
     </div>
     <div class="form-group">
@@ -583,8 +584,13 @@
       <input class="form-input" id="ms-grouplabel" placeholder="Leave blank for no grouping">
     </div>
     <div class="form-group">
-      <label class="form-label">URL</label>
-      <input class="form-input" id="ms-url">
+      <label class="form-label" id="ms-url-label">URL</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="form-input" id="ms-url" style="flex:1">
+        <button type="button" class="btn-secondary" id="ms-file-pick-btn" style="display:none;padding:7px 10px;font-size:12px;white-space:nowrap;flex-shrink:0" onclick="triggerMsFilePicker()">📂 Browse</button>
+        <input type="file" id="ms-file-input" style="display:none" onchange="handleMsFilePick(event)">
+      </div>
+      <div id="ms-file-note" style="display:none;font-size:11px;color:var(--text-muted);margin-top:4px">Browse inserts the filename — paste or type the full path to complete it.</div>
     </div>
     <div class="form-group">
       <label class="form-label">Description</label>
@@ -718,6 +724,15 @@
       <button class="btn-primary" style="background:#22c55e" id="modal-save-new" onclick="saveModal(true)">Save & New</button>
       <button class="btn-primary" onclick="saveModal()">Save</button>
     </div>
+  </div>
+</div>
+<div class="modal-overlay" id="pdf-modal" style="display:none" onclick="if(event.target===this)closePDFModal()">
+  <div style="background:white;border-radius:16px;padding:20px;width:92vw;max-width:960px;height:92vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.3)" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0">
+      <div style="font-family:'Playfair Display',serif;font-size:16px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:82%" id="pdf-modal-title">Document</div>
+      <button onclick="closePDFModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted);line-height:1;flex-shrink:0;margin-left:12px">✕</button>
+    </div>
+    <iframe id="pdf-iframe" style="flex:1;border:1.5px solid var(--border);border-radius:8px;background:#f8fbff" src="" onload="checkPDFIframeLoad()"></iframe>
   </div>
 </div>
 <script>
@@ -2721,10 +2736,11 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     const menuSources=currentUserMenuFilter
       ?userOwnedSources.filter(s=>!s.IsInactive&&s.UserMenuID===currentUserMenuFilter).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99))
       :[];
-    const makeSourceRow=s=>{
-      const thumb=s.ThumbnailURL?`<img src="${s.ThumbnailURL}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">`:`<div style="width:100px;height:62px;border-radius:6px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">🌐</div>`;
-      return `<div class="headline-row" onclick="window.open('${s.URL}','_blank','noopener')">${thumb}<div class="headline-body"><div class="headline-row-title">${s.SourceName}</div>${s.Description?`<div class="headline-row-summary">${s.Description}</div>`:''}<div class="headline-row-meta"><span class="badge">${s.SourceType}</span></div></div></div>`;
-    };
+      const makeSourceRow=s=>{
+        const defaultIcon=s.SourceType==='File'?'📄':'🌐';
+        const thumb=s.ThumbnailURL?`<img src="${s.ThumbnailURL}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">`:`<div style="width:100px;height:62px;border-radius:6px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">${defaultIcon}</div>`;
+        return `<div class="headline-row" onclick="openSourceEntry('${s.URL.replace(/'/g,"\\'")}','${(s.SourceType||'').replace(/'/g,"\\'")}');return false;">${thumb}<div class="headline-body"><div class="headline-row-title">${s.SourceName}</div>${s.Description?`<div class="headline-row-summary">${s.Description}</div>`:''}<div class="headline-row-meta"><span class="badge">${s.SourceType}</span></div></div></div>`;
+      };
     const sourceRowsByGroup={};
     menuSources.forEach(s=>{
       const key=s.GroupLabel||'Links';
@@ -2797,6 +2813,86 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     if(currentUserMenuFilter)initGroupDragDrop(document.getElementById('headlines-grouped'));
   }
   function openHeadline(link){if(link&&link!=='#')window.open(link,'_blank','noopener');}
+
+  function openSourceEntry(url,sourceType){
+    if(sourceType==='File'){openFileLink(url);}
+    else{window.open(url,'_blank','noopener');}
+  }
+
+  function normalizeFileUrl(path){
+    if(path.startsWith('http://')||path.startsWith('https://')||path.startsWith('file:///'))return path;
+    const normalized=path.replace(/\\/g,'/');
+    return 'file:///'+(normalized.startsWith('/')?normalized.slice(1):normalized);
+  }
+
+  function openFileLink(url){
+    const fileUrl=normalizeFileUrl(url);
+    const ext=(fileUrl.split('.').pop()||'').toLowerCase().split(/[?#]/)[0];
+    if(ext==='pdf'){
+      showPDFModal(fileUrl);
+    }else{
+      const win=window.open(fileUrl,'_blank','noopener');
+      if(!win){showFileNotAvailablePopup();return;}
+      setTimeout(()=>{try{if(win.closed)showFileNotAvailablePopup();}catch(e){}},1500);
+    }
+  }
+
+  function showPDFModal(url){
+    const filename=decodeURIComponent(url.split('/').pop().split('\\').pop()||'Document');
+    document.getElementById('pdf-modal-title').textContent=filename;
+    document.getElementById('pdf-iframe').src=url;
+    document.getElementById('pdf-modal').style.display='flex';
+  }
+
+  function closePDFModal(){
+    document.getElementById('pdf-modal').style.display='none';
+    document.getElementById('pdf-iframe').src='';
+  }
+
+  function checkPDFIframeLoad(){
+    const iframe=document.getElementById('pdf-iframe');
+    try{
+      const loc=iframe.contentWindow?.location?.href;
+      if(loc==='about:blank'){closePDFModal();showFileNotAvailablePopup();}
+    }catch(e){/* cross-origin: assume loaded OK */}
+  }
+
+  function showFileNotAvailablePopup(){
+    const existing=document.querySelector('.file-unavail-overlay');
+    if(existing)existing.remove();
+    const overlay=document.createElement('div');
+    overlay.className='file-unavail-overlay';
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2000;display:flex;align-items:center;justify-content:center';
+    overlay.innerHTML=`<div style="background:white;border-radius:16px;padding:28px 32px;max-width:380px;width:90vw;box-shadow:0 8px 40px rgba(0,0,0,0.25);text-align:center" onclick="event.stopPropagation()">
+      <div style="font-size:40px;margin-bottom:12px">📂</div>
+      <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--text);margin-bottom:8px">File Not Available</div>
+      <div style="font-size:13px;color:var(--text-soft);line-height:1.6;margin-bottom:20px">This file could not be opened. It may not exist at the specified path, or your browser may not have permission to access local files.</div>
+      <button class="btn-primary" onclick="this.closest('.file-unavail-overlay').remove()" style="padding:9px 24px">OK</button>
+    </div>`;
+    overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+    document.body.appendChild(overlay);
+  }
+
+  function updateMsTypeFields(){
+    const type=document.querySelector('input[name="ms-type"]:checked')?.value||'API';
+    const urlLabel=document.getElementById('ms-url-label');
+    const filePickBtn=document.getElementById('ms-file-pick-btn');
+    const fileNote=document.getElementById('ms-file-note');
+    const urlInput=document.getElementById('ms-url');
+    if(urlLabel)urlLabel.textContent=type==='File'?'File Path':'URL';
+    if(filePickBtn)filePickBtn.style.display=type==='File'?'':'none';
+    if(fileNote)fileNote.style.display=type==='File'?'':'none';
+    if(urlInput)urlInput.placeholder=type==='File'?'e.g. C:\\Documents\\report.pdf':'';
+  }
+
+  function triggerMsFilePicker(){document.getElementById('ms-file-input')?.click();}
+
+  function handleMsFilePick(event){
+    const file=event.target.files[0];if(!file)return;
+    const urlInput=document.getElementById('ms-url');
+    if(urlInput){urlInput.value=file.name;urlInput.focus();urlInput.select();}
+    event.target.value='';
+  }
 
   // ── TEAMS ──
 
@@ -4061,10 +4157,11 @@ function renderMySitesByMenu(menuID) {
     let html = title;
     groupOrder.forEach(groupName => {
       const rows = groups[groupName].map(s => {
+        const defaultIcon=s.SourceType==='File'?'📄':'🌐';
         const thumb = s.ThumbnailURL
           ? `<img src="${s.ThumbnailURL}" style="width:100px;height:62px;object-fit:cover;border-radius:6px;flex-shrink:0" onerror="this.style.display='none'">`
-          : `<div style="width:100px;height:62px;border-radius:6px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">🌐</div>`;
-        return `<div class="headline-row" onclick="window.open('${s.URL}','_blank','noopener')" style="cursor:pointer">
+          : `<div style="width:100px;height:62px;border-radius:6px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">${defaultIcon}</div>`;
+        return `<div class="headline-row" onclick="openSourceEntry('${s.URL.replace(/'/g,"\\'")}','${(s.SourceType||'').replace(/'/g,"\\'")}');return false;" style="cursor:pointer">
           ${thumb}
           <div class="headline-body">
             <div class="headline-row-title">${s.SourceName}</div>
@@ -4190,6 +4287,7 @@ function renderMySourcesTable() {
     document.getElementById('ms-grouplabel').value = src?.GroupLabel || '';
     const type = (!src?.SourceType || src.SourceType === 'Website') ? 'API' : src.SourceType;
     document.querySelectorAll('input[name="ms-type"]').forEach(r => r.checked = r.value === type);
+    updateMsTypeFields();
     const menuSel = document.getElementById('ms-menuid');
     if (menuSel) {
       menuSel.innerHTML = '<option value="">— None —</option>' +

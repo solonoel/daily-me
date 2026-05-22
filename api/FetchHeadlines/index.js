@@ -586,6 +586,7 @@ module.exports = async function(context, req) {
       if (!logSources[uosSource.Name]) logSources[uosSource.Name] = { fetched: 0, langFiltered: 0, recencyFiltered: 0, matched: 0, unmatched: [] };
       try {
         let uosArticles = [];
+        if (uosKw.OwnedSourceType === 'File') { srcLog.skipped = 'local file — not fetched server-side'; continue; }
         if (uosKw.OwnedSourceType === 'RSS') uosArticles = await fetchRSS(uosSource);
         else if (uosKw.OwnedSourceType === 'URL') uosArticles = await fetchPageURL(uosSource);
         logSources[uosSource.Name].fetched += uosArticles.length;
