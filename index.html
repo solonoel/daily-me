@@ -2825,10 +2825,12 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     return 'file:///'+(normalized.startsWith('/')?normalized.slice(1):normalized);
   }
 
-  function openFileLink(url){
+function openFileLink(url){
     const fileUrl=normalizeFileUrl(url);
+    const isLocal=fileUrl.startsWith('file:///');
     const ext=(fileUrl.split('.').pop()||'').toLowerCase().split(/[?#]/)[0];
-    if(ext==='pdf'){
+    if(ext==='pdf'&&!isLocal){
+      // Only use PDF modal for http/https PDFs — never for local files
       showPDFModal(fileUrl);
     }else{
       const win=window.open(fileUrl,'_blank','noopener');
@@ -2844,17 +2846,25 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     document.getElementById('pdf-modal').style.display='flex';
   }
 
+let _pdfClosing=false;
+
   function closePDFModal(){
+    _pdfClosing=true;
     document.getElementById('pdf-modal').style.display='none';
     document.getElementById('pdf-iframe').src='';
+    setTimeout(()=>_pdfClosing=false,200);
   }
 
   function checkPDFIframeLoad(){
+    if(_pdfClosing)return;
     const iframe=document.getElementById('pdf-iframe');
     try{
       const loc=iframe.contentWindow?.location?.href;
       if(loc==='about:blank'){closePDFModal();showFileNotAvailablePopup();}
-    }catch(e){/* cross-origin: assume loaded OK */}
+    }catch(e){
+      // Security error = http/https PDF failed to load
+      closePDFModal();showFileNotAvailablePopup();
+    }
   }
 
   function showFileNotAvailablePopup(){
@@ -2863,19 +2873,21 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     const overlay=document.createElement('div');
     overlay.className='file-unavail-overlay';
     overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2000;display:flex;align-items:center;justify-content:center';
-    overlay.innerHTML=`<div style="background:white;border-radius:16px;padding:28px 32px;max-width:380px;width:90vw;box-shadow:0 8px 40px rgba(0,0,0,0.25);text-align:center" onclick="event.stopPropagation()">
-      <div style="font-size:40px;margin-bottom:12px">📂</div>
-      <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--text);margin-bottom:8px">File Not Available</div>
-      <div style="font-size:13px;color:var(--text-soft);line-height:1.6;margin-bottom:20px">This file could not be opened. It may not exist at the specified path, or your browser may not have permission to access local files.</div>
-      <button class="btn-primary" onclick="closeFileUnavailablePopup()" style="padding:9px 24px">OK</button>
-    </div>`;
-    overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+    const box=document.createElement('div');
+    box.style.cssText='background:white;border-radius:16px;padding:28px 32px;max-width:380px;width:90vw;box-shadow:0 8px 40px rgba(0,0,0,0.25);text-align:center';
+    box.innerHTML='<div style="font-size:40px;margin-bottom:12px">📂</div>'
+      +'<div style="font-family:\'Playfair Display\',serif;font-size:18px;color:var(--text);margin-bottom:8px">File Not Available</div>'
+      +'<div style="font-size:13px;color:var(--text-soft);line-height:1.6;margin-bottom:20px">This file could not be opened. It may not exist at the specified path, or your browser may not have permission to access local files.</div>';
+    const btn=document.createElement('button');
+    btn.className='btn-primary';
+    btn.style.padding='9px 24px';
+    btn.textContent='OK';
+    btn.addEventListener('click',()=>overlay.remove());
+    box.appendChild(btn);
+    box.addEventListener('click',e=>e.stopPropagation());
+    overlay.appendChild(box);
+    overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
     document.body.appendChild(overlay);
-  }
-
-  function closeFileUnavailablePopup(){
-    const el=document.querySelector('.file-unavail-overlay');
-    if(el)el.remove();
   }
 
   function updateMsTypeFields(){
