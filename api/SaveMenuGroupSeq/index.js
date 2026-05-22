@@ -16,7 +16,7 @@ module.exports = async function(context, req) {
     await pool.request()
       .input('userID', sql.Int, userID)
       .input('menuID', sql.Int, menuID)
-      .query('DELETE FROM UserMenuGroup WHERE UserID=@userID AND MenuID=@menuID');
+      .query('DELETE FROM UserMenuGroup WHERE UserID=@userID AND UserMenuID=@menuID');
     for (const g of groups) {
       if (!g.groupLabel) continue;
       await pool.request()
@@ -24,7 +24,7 @@ module.exports = async function(context, req) {
         .input('menuID', sql.Int, menuID)
         .input('groupLabel', sql.NVarChar(200), g.groupLabel)
         .input('groupSeq', sql.Int, g.groupSeq || 99)
-        .query('INSERT INTO UserMenuGroup (UserID, MenuID, GroupLabel, GroupSeq) VALUES (@userID, @menuID, @groupLabel, @groupSeq)');
+        .query('INSERT INTO UserMenuGroup (UserID, UserMenuID, GroupLabel, GroupSeq) VALUES (@userID, @menuID, @groupLabel, @groupSeq)');
     }
     context.log(`SaveMenuGroupSeq: saved ${groups.length} groups for menuID=${menuID}`);
     context.res = { body: { success: true, saved: groups.length } };

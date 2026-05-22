@@ -17,7 +17,7 @@ module.exports = async function(context, req) {
     const result = await pool.request()
       .input('userID', sql.Int, userID)
       .input('menuID', sql.Int, menuID)
-      .query('SELECT GroupLabel, GroupSeq FROM UserMenuGroup WHERE UserID=@userID AND MenuID=@menuID ORDER BY GroupSeq');
+      .query('SELECT GroupLabel, GroupSeq FROM UserMenuGroup WHERE UserID=@userID AND UserMenuID=@menuID ORDER BY GroupSeq');
     context.res = { body: result.recordset };
   } catch (e) {
     context.log.error('GetMenuGroupSeq error:', e.message);
