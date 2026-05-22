@@ -2712,14 +2712,6 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   function renderHeadlines(){
     const dragNote=document.getElementById('drag-reorder-note');
     if(dragNote)dragNote.style.display=currentUserMenuFilter?'':'none';
-    const menuSrcHTML=(()=>{
-      if(!currentUserMenuFilter)return'';
-      const ms=userOwnedSources.filter(s=>!s.IsInactive&&s.UserMenuID===currentUserMenuFilter).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
-      if(!ms.length)return'';
-      const makeRow=s=>{
-        const thumb=sfunction renderHeadlines(){
-    const dragNote=document.getElementById('drag-reorder-note');
-    if(dragNote)dragNote.style.display=currentUserMenuFilter?'':'none';
 
     const menuSources=currentUserMenuFilter
       ?userOwnedSources.filter(s=>!s.IsInactive&&s.UserMenuID===currentUserMenuFilter).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99))
@@ -2798,89 +2790,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       </div>`;
     }).join('');
     if(currentUserMenuFilter)initGroupDragDrop(document.getElementById('headlines-grouped'));
-  }.ThumbnailURL?`<img src="${s.ThumbnailURL}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">`:`<div style="width:100px;height:62px;border-radius:6px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">🌐</div>`;
-        return `<div class="headline-row" onclick="window.open('${s.URL}','_blank','noopener')">${thumb}<div class="headline-body"><div class="headline-row-title">${s.SourceName}</div>${s.Description?`<div class="headline-row-summary">${s.Description}</div>`:''}<div class="headline-row-meta"><span class="badge">${s.SourceType}</span></div></div></div>`;
-      };
-      const grouped={},groupOrder=[],ungrouped=[];
-      ms.forEach(s=>{
-        if(s.GroupLabel){if(!grouped[s.GroupLabel]){grouped[s.GroupLabel]=[];groupOrder.push(s.GroupLabel);}grouped[s.GroupLabel].push(s);}
-        else ungrouped.push(s);
-      });
-      let html='';
-      groupOrder.forEach(gName=>{
-        const rows=grouped[gName].map(makeRow).join('');
-        const cl=grouped[gName].length>1?` <span style="opacity:0.6;font-weight:500">(${grouped[gName].length})</span>`:'';
-        html+=`<div class="cat-group"><div class="cat-group-header" style="background:#c2ddf0;color:#1a4a6e;border-bottom:1.5px solid #1a4a6e44;cursor:pointer" onclick="toggleGroup(this)"><span class="group-arrow" style="font-size:10px;margin-right:4px">${(groupsExpanded||(ms.length+headlines.length)<=collapseThreshold)?'▼':'▶'}</span><span>🔗</span><span style="margin-left:6px">${gName}${cl}</span></div><div class="cat-group-body" style="display:${(groupsExpanded||(ms.length+headlines.length)<=collapseThreshold)?'block':'none'}">${rows}</div></div>`;
-      });
-      if(ungrouped.length){
-        const rows=ungrouped.map(makeRow).join('');
-        const cl=ungrouped.length>1?` <span style="opacity:0.6;font-weight:500">(${ungrouped.length})</span>`:'';
-        html+=`<div class="cat-group"><div class="cat-group-header" style="background:#c2ddf0;color:#1a4a6e;border-bottom:1.5px solid #1a4a6e44;cursor:pointer" onclick="toggleGroup(this)"><span class="group-arrow" style="font-size:10px;margin-right:4px">${(groupsExpanded||(ms.length+headlines.length)<=collapseThreshold)?'▼':'▶'}</span><span>🔗</span><span style="margin-left:6px">Links${cl}</span></div><div class="cat-group-body" style="display:${(groupsExpanded||(ms.length+headlines.length)<=collapseThreshold)?'block':'none'}">${rows}</div></div>`;
-      }
-      return html;
-    })();
-    if(!headlines.length&&!menuSrcHTML){document.getElementById('headlines-grouped').innerHTML='<div class="empty-state">No headlines found. Click ↻ Refresh to fetch latest headlines.</div>';return;}
-
-    const getGroupKey = (h) => resolveGroupLabel(h);
-    const sortedDisplay=[...headlines].sort((a,b)=>new Date(b.PublishedDate||b.CreatedDate)-new Date(a.PublishedDate||a.CreatedDate));
-    const groups={};
-    const groupSeq={};
-    sortedDisplay.forEach(h=>{
-      const key=getGroupKey(h);
-      if(!groups[key])groups[key]=[];
-      groups[key].push(h);  // already sorted above
-      const seq=h.KeywordSequence||h.TopicSequence||999;
-      if(groupSeq[key]===undefined||seq<groupSeq[key])groupSeq[key]=seq;
-    });
-
-    const orderedKeys=Object.keys(groups).sort((a,b)=>{
-      if(currentUserMenuFilter){
-        const ms=menuGroupSeqs[currentUserMenuFilter]||{};
-        const sa=ms[a]??Infinity,sb=ms[b]??Infinity;
-        if(sa!==sb)return sa-sb;
-        return (groupSeq[a]||999)-(groupSeq[b]||999);
-      }
-      if(a==='Subscriptions')return -1;if(b==='Subscriptions')return 1;
-      if(a==='Other')return 1;if(b==='Other')return -1;
-      return (groupSeq[a]||999)-(groupSeq[b]||999);
-    });
-
-    document.getElementById('headlines-grouped').innerHTML=menuSrcHTML+orderedKeys.map(groupName=>{
-      const items=groups[groupName]||[];
-      const c=groupName==='Subscriptions'?catColors['Subscriptions']:catColors[groupName]||catColors['Other'];
-      const icon=groupName==='Subscriptions'?'📡':(c.icon||'📰');
-      const headerBg='#c2ddf0';
-      const headerColor='#1a4a6e';
-      const countLabel=items.length>1?` <span style="opacity:0.6;font-weight:500">(${items.length})</span>`:'';
-      const draggableAttr=currentUserMenuFilter?`draggable="true" data-group="${groupName.replace(/"/g,'&quot;')}"`:'';
-      const rows=items.map(h=>`
-        <div class="headline-row ${h.Retain==='Y'?'retained':''}" data-headline-id="${h.HeadlineID}" onclick="openHeadline('${h.Link.replace(/'/g,"\\'")}')">
-          <img src="${resolveHeadlineImage(h)||'images/newspaper.svg'}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">
-          <div class="headline-body">
-            <div class="headline-row-title">${h.HeadlineName}</div>
-            ${h.Summary?`<div class="headline-row-summary">${h.Summary}</div>`:''}
-            <div class="headline-row-meta">
-              <span class="headline-row-source">date: ${formatDate(h.PublishedDate || h.CreatedDate, true)}</span>
-              <span class="headline-row-source">source: ${h.SourceName||'—'}</span>
-              ${h.Keyword||h.Topic?`<span class="headline-row-source">keyword: ${h.Keyword||h.Topic}</span>`:''}
-              ${h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:''}
-              ${h.Duration?`<span class="headline-row-source">length: ${h.Duration}</span>`:''}
-            </div>
-          </div>
-          <button class="retain-btn ${h.Retain==='Y'?'active':''}" onclick="toggleRetain(${h.HeadlineID},event)" title="Retain"></button>
-          <button class="retain-btn" onclick="deleteHeadline(${h.HeadlineID},event)" title="Delete" style="margin-top:2px;flex-shrink:0;font-size:12px;color:var(--text-muted)" data-delete="1">✕</button>
-        </div>`).join('');
-      return `<div class="cat-group" ${draggableAttr}>
-        <div class="cat-group-header" style="background:${headerBg};color:${headerColor};border-bottom:1.5px solid ${headerColor}44;cursor:pointer" onclick="toggleGroup(this)">
-          <span class="group-arrow" style="font-size:10px;margin-right:4px">${(groupsExpanded||headlines.length<=collapseThreshold)?'▼':'▶'}</span>
-          <span>${icon}</span><span style="margin-left:6px">${groupName}${countLabel}</span>
-        </div>
-        <div class="cat-group-body" style="display:${(groupsExpanded||headlines.length<=collapseThreshold)?'block':'none'}">${rows}</div>
-      </div>`;
-    }).join('');
-    if(currentUserMenuFilter)initGroupDragDrop(document.getElementById('headlines-grouped'));
   }
-
   function openHeadline(link){if(link&&link!=='#')window.open(link,'_blank','noopener');}
 
   // ── TEAMS ──
