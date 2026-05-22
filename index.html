@@ -129,6 +129,7 @@
     .empty-state { text-align:center; padding:40px; color:var(--text-muted); font-size:14px; }
     .dragging { opacity:0.4; background:#e8f4ff !important; }
     .drag-over { border-top:2px solid var(--sky-deep); }
+    .drag-over-below { border-bottom:2px solid var(--sky-deep); }
     tr[draggable] { cursor:grab; }
     tr[draggable]:active { cursor:grabbing; }
     .lang-compact-header { display:flex; align-items:center; gap:12px; padding:10px 16px; background:white; border:1.5px solid var(--border); border-radius:12px; margin-bottom:12px; box-shadow:var(--shadow); }
@@ -288,11 +289,11 @@
 <main class="main">
   <div class="screen active" id="screen-headlines">
     <div style="display:flex;align-items:center;gap:6px;padding:4px 12px;background:white;border-bottom:2px solid var(--border);margin-bottom:6px;position:sticky;top:54px;z-index:90;box-shadow:0 2px 8px rgba(43,127,212,0.06)">
-      <span style="font-size:10px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="recency-val">7 days</span></span>
-      <div id="last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
-      <div id="last-yt-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
-      <div id="yt-quota-warning" style="font-size:10px;font-weight:700;color:#e05050;display:none">⚠️ Youtube quota exhausted for today</div>
-      <div id="drag-reorder-note" style="margin-left:auto;font-size:10px;color:var(--text-muted);font-style:italic;display:none">drag/drop to resequence groups</div>
+      <span style="font-size:12px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="recency-val">7 days</span></span>
+      <div id="last-fetch-time" style="font-size:12px;color:var(--text-muted);display:none"></div>
+      <div id="last-yt-fetch-time" style="font-size:12px;color:var(--text-muted);display:none"></div>
+      <div id="yt-quota-warning" style="font-size:12px;font-weight:700;color:#e05050;display:none">⚠️ Youtube quota exhausted for today</div>
+      <div id="drag-reorder-note" style="margin-left:auto;font-size:12px;color:var(--text-muted);font-style:italic;display:none">drag/drop to resequence groups</div>
     </div>
     <div id="refresh-status" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep);margin-bottom:12px;padding:8px 14px;background:#f0f7ff;border-radius:8px;border:1px solid var(--border)"></div>
     <div id="headlines-grouped"></div>
@@ -464,12 +465,6 @@
       <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>🔗 My Sources</span>
         <div style="display:flex;align-items:center;gap:12px">
-          <select id="ms-group-filter" class="form-select" style="font-size:12px;padding:4px 8px;width:auto" onchange="renderMySourcesTable()">
-            <option value="">All Groups</option>
-          </select>
-          <select id="ms-menu-filter" class="form-select" style="font-size:12px;padding:4px 8px;width:auto" onchange="renderMySourcesTable()">
-            <option value="">All Menus</option>
-          </select>
           <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openMySiteModal(null)">+ Add Source</button>
         </div>
       </div>
@@ -2722,7 +2717,88 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       const ms=userOwnedSources.filter(s=>!s.IsInactive&&s.UserMenuID===currentUserMenuFilter).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
       if(!ms.length)return'';
       const makeRow=s=>{
-        const thumb=s.ThumbnailURL?`<img src="${s.ThumbnailURL}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">`:`<div style="width:100px;height:62px;border-radius:6px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">🌐</div>`;
+        const thumb=sfunction renderHeadlines(){
+    const dragNote=document.getElementById('drag-reorder-note');
+    if(dragNote)dragNote.style.display=currentUserMenuFilter?'':'none';
+
+    const menuSources=currentUserMenuFilter
+      ?userOwnedSources.filter(s=>!s.IsInactive&&s.UserMenuID===currentUserMenuFilter).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99))
+      :[];
+    const makeSourceRow=s=>{
+      const thumb=s.ThumbnailURL?`<img src="${s.ThumbnailURL}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">`:`<div style="width:100px;height:62px;border-radius:6px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">🌐</div>`;
+      return `<div class="headline-row" onclick="window.open('${s.URL}','_blank','noopener')">${thumb}<div class="headline-body"><div class="headline-row-title">${s.SourceName}</div>${s.Description?`<div class="headline-row-summary">${s.Description}</div>`:''}<div class="headline-row-meta"><span class="badge">${s.SourceType}</span></div></div></div>`;
+    };
+    const sourceRowsByGroup={};
+    menuSources.forEach(s=>{
+      const key=s.GroupLabel||'Links';
+      if(!sourceRowsByGroup[key])sourceRowsByGroup[key]=[];
+      sourceRowsByGroup[key].push(makeSourceRow(s));
+    });
+
+    if(!headlines.length&&!menuSources.length){document.getElementById('headlines-grouped').innerHTML='<div class="empty-state">No headlines found. Click ↻ Refresh to fetch latest headlines.</div>';return;}
+
+    const getGroupKey=(h)=>resolveGroupLabel(h);
+    const sortedDisplay=[...headlines].sort((a,b)=>new Date(b.PublishedDate||b.CreatedDate)-new Date(a.PublishedDate||a.CreatedDate));
+    const groups={};
+    const groupSeq={};
+    sortedDisplay.forEach(h=>{
+      const key=getGroupKey(h);
+      if(!groups[key])groups[key]=[];
+      groups[key].push(h);
+      const seq=h.KeywordSequence||h.TopicSequence||999;
+      if(groupSeq[key]===undefined||seq<groupSeq[key])groupSeq[key]=seq;
+    });
+    Object.keys(sourceRowsByGroup).forEach(key=>{
+      if(!groups[key]){groups[key]=[];groupSeq[key]=998;}
+    });
+
+    const orderedKeys=Object.keys(groups).sort((a,b)=>{
+      if(currentUserMenuFilter){
+        const ms=menuGroupSeqs[currentUserMenuFilter]||{};
+        const sa=ms[a]??Infinity,sb=ms[b]??Infinity;
+        if(sa!==sb)return sa-sb;
+        return (groupSeq[a]||999)-(groupSeq[b]||999);
+      }
+      if(a==='Subscriptions')return -1;if(b==='Subscriptions')return 1;
+      if(a==='Other')return 1;if(b==='Other')return -1;
+      return (groupSeq[a]||999)-(groupSeq[b]||999);
+    });
+
+    document.getElementById('headlines-grouped').innerHTML=orderedKeys.map(groupName=>{
+      const items=groups[groupName]||[];
+      const srcRows=(sourceRowsByGroup[groupName]||[]).join('');
+      const totalCount=(sourceRowsByGroup[groupName]||[]).length+items.length;
+      const c=groupName==='Subscriptions'?catColors['Subscriptions']:catColors[groupName]||catColors['Other'];
+      const icon=groupName==='Subscriptions'?'📡':(c.icon||'📰');
+      const countLabel=totalCount>1?` <span style="opacity:0.6;font-weight:500">(${totalCount})</span>`:'';
+      const draggableAttr=currentUserMenuFilter?`draggable="true" data-group="${groupName.replace(/"/g,'&quot;')}"`:'';
+      const rows=items.map(h=>`
+        <div class="headline-row ${h.Retain==='Y'?'retained':''}" data-headline-id="${h.HeadlineID}" onclick="openHeadline('${h.Link.replace(/'/g,"\\'")}')">
+          <img src="${resolveHeadlineImage(h)||'images/newspaper.svg'}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">
+          <div class="headline-body">
+            <div class="headline-row-title">${h.HeadlineName}</div>
+            ${h.Summary?`<div class="headline-row-summary">${h.Summary}</div>`:''}
+            <div class="headline-row-meta">
+              <span class="headline-row-source">date: ${formatDate(h.PublishedDate||h.CreatedDate,true)}</span>
+              <span class="headline-row-source">source: ${h.SourceName||'—'}</span>
+              ${h.Keyword||h.Topic?`<span class="headline-row-source">keyword: ${h.Keyword||h.Topic}</span>`:''}
+              ${h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:''}
+              ${h.Duration?`<span class="headline-row-source">length: ${h.Duration}</span>`:''}
+            </div>
+          </div>
+          <button class="retain-btn ${h.Retain==='Y'?'active':''}" onclick="toggleRetain(${h.HeadlineID},event)" title="Retain"></button>
+          <button class="retain-btn" onclick="deleteHeadline(${h.HeadlineID},event)" title="Delete" style="margin-top:2px;flex-shrink:0;font-size:12px;color:var(--text-muted)" data-delete="1">✕</button>
+        </div>`).join('');
+      return `<div class="cat-group" ${draggableAttr}>
+        <div class="cat-group-header" style="background:#c2ddf0;color:#1a4a6e;border-bottom:1.5px solid #1a4a6e44;cursor:pointer" onclick="toggleGroup(this)">
+          <span class="group-arrow" style="font-size:10px;margin-right:4px">${(groupsExpanded||headlines.length<=collapseThreshold)?'▼':'▶'}</span>
+          <span>${icon}</span><span style="margin-left:6px">${groupName}${countLabel}</span>
+        </div>
+        <div class="cat-group-body" style="display:${(groupsExpanded||headlines.length<=collapseThreshold)?'block':'none'}">${srcRows}${rows}</div>
+      </div>`;
+    }).join('');
+    if(currentUserMenuFilter)initGroupDragDrop(document.getElementById('headlines-grouped'));
+  }.ThumbnailURL?`<img src="${s.ThumbnailURL}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">`:`<div style="width:100px;height:62px;border-radius:6px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">🌐</div>`;
         return `<div class="headline-row" onclick="window.open('${s.URL}','_blank','noopener')">${thumb}<div class="headline-body"><div class="headline-row-title">${s.SourceName}</div>${s.Description?`<div class="headline-row-summary">${s.Description}</div>`:''}<div class="headline-row-meta"><span class="badge">${s.SourceType}</span></div></div></div>`;
       };
       const grouped={},groupOrder=[],ungrouped=[];
@@ -3520,34 +3596,38 @@ function renderSettingsKeywords(){
   }
 
   function initGroupDragDrop(container){
-    let dragSrc=null,dragMoved=false;
+    let dragSrc=null;
     container.querySelectorAll('.cat-group[draggable]').forEach(group=>{
       group.addEventListener('dragstart',e=>{
-        dragSrc=group;dragMoved=false;group.classList.add('dragging');
+        dragSrc=group;group.classList.add('dragging');
         e.dataTransfer.effectAllowed='move';e.stopPropagation();
       });
       group.addEventListener('dragend',()=>{
-        container.querySelectorAll('.cat-group').forEach(g=>g.classList.remove('dragging','drag-over'));
-        if(!dragMoved)return;
-        const ordered=[...container.querySelectorAll('.cat-group[draggable]')];
-        const sequences=ordered.map((g,i)=>({groupLabel:g.dataset.group,groupSeq:i+1}));
-        menuGroupSeqs[currentUserMenuFilter]={};
-        sequences.forEach(s=>menuGroupSeqs[currentUserMenuFilter][s.groupLabel]=s.groupSeq);
-        apiPost('SaveMenuGroupSeq',{userID:USER_ID,menuID:currentUserMenuFilter,groups:sequences});
+        container.querySelectorAll('.cat-group').forEach(g=>g.classList.remove('dragging','drag-over','drag-over-below'));
       });
       group.addEventListener('dragover',e=>{
         e.preventDefault();
-        container.querySelectorAll('.cat-group').forEach(g=>g.classList.remove('drag-over'));
-        if(group!==dragSrc)group.classList.add('drag-over');
+        container.querySelectorAll('.cat-group').forEach(g=>g.classList.remove('drag-over','drag-over-below'));
+        if(group===dragSrc)return;
+        const mid=group.getBoundingClientRect().top+group.getBoundingClientRect().height/2;
+        group.classList.add(e.clientY<mid?'drag-over':'drag-over-below');
       });
       group.addEventListener('drop',e=>{
         e.preventDefault();
-        if(dragSrc&&dragSrc!==group){
-          dragMoved=true;
-          const all=[...container.querySelectorAll('.cat-group')];
-          if(all.indexOf(dragSrc)<all.indexOf(group))group.after(dragSrc);
-          else group.before(dragSrc);
-        }
+        if(!dragSrc||dragSrc===group)return;
+        const mid=group.getBoundingClientRect().top+group.getBoundingClientRect().height/2;
+        if(e.clientY<mid)group.before(dragSrc);
+        else group.after(dragSrc);
+        // Save immediately after DOM settles
+        setTimeout(async()=>{
+          const ordered=[...container.querySelectorAll('.cat-group[draggable]')];
+          const sequences=ordered.map((g,i)=>({groupLabel:g.dataset.group,groupSeq:i+1}));
+          menuGroupSeqs[currentUserMenuFilter]={};
+          sequences.forEach(s=>menuGroupSeqs[currentUserMenuFilter][s.groupLabel]=s.groupSeq);
+          try{
+            await apiPost('SaveMenuGroupSeq',{userID:USER_ID,menuID:currentUserMenuFilter,groups:sequences});
+          }catch(err){console.error('SaveMenuGroupSeq failed:',err);}
+        },0);
       });
     });
   }
@@ -4108,26 +4188,31 @@ function renderMySitesByMenu(menuID) {
 function renderMySourcesTable() {
     const tbody = document.getElementById('tbl-mysources-body');
     if (!tbody) return;
-    const menuSel = document.getElementById('ms-menu-filter');
-    if (menuSel) {
-      const cur = menuSel.value;
-      menuSel.innerHTML = '<option value="">All Menus</option>' +
-        userMenu.map(m => `<option value="${m.UserMenuID}" ${cur==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('') +
-        `<option value="none" ${cur==='none'?'selected':''}>— No Menu —</option>`;
-    }
-    const groupSel = document.getElementById('ms-group-filter');
-    if (groupSel) {
-      const cur = groupSel.value;
-      const groups = [...new Set(userOwnedSources.map(s => s.GroupLabel).filter(Boolean))].sort();
-      groupSel.innerHTML = '<option value="">All Groups</option>' +
-        groups.map(g => `<option value="${g}" ${cur===g?'selected':''}>${g}</option>`).join('');
-    }
-    const menuFilterVal = menuSel?.value || '';
-    const groupFilterVal = groupSel?.value || '';
+    const thead = tbody.closest('table')?.querySelector('thead tr');
+
+    const msTypeFilter = document.getElementById('ms-type-filter')?.value || '';
+    const msGroupFilter = document.getElementById('ms-group-filter-hdr')?.value || '';
+    const msMenuFilter = document.getElementById('ms-menu-filter-hdr')?.value || '';
+    const msActiveFilter = document.getElementById('ms-active-filter')?.value || '';
+
+    const types = [...new Set(userOwnedSources.map(s => s.SourceType).filter(Boolean))].sort();
+    const groups = [...new Set(userOwnedSources.map(s => s.GroupLabel).filter(Boolean))].sort();
+    const ss = `style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderMySourcesTable()"`;
+    const typeOpts = `<option value="">All</option>`+types.map(t=>`<option value="${t}" ${msTypeFilter===t?'selected':''}>${t}</option>`).join('');
+    const groupOpts = `<option value="">All</option>`+groups.map(g=>`<option value="${g}" ${msGroupFilter===g?'selected':''}>${g}</option>`).join('')+`<option value="__none__" ${msGroupFilter==='__none__'?'selected':''}>— None —</option>`;
+    const menuOpts = `<option value="">All</option>`+userMenu.map(m=>`<option value="${m.UserMenuID}" ${msMenuFilter==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('')+`<option value="__none__" ${msMenuFilter==='__none__'?'selected':''}>— None —</option>`;
+    const activeOpts = `<option value="">All</option><option value="active" ${msActiveFilter==='active'?'selected':''}>Active</option><option value="inactive" ${msActiveFilter==='inactive'?'selected':''}>Inactive</option>`;
+
+    if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th><select id="ms-type-filter" ${ss}>${typeOpts}</select></th><th><select id="ms-group-filter-hdr" ${ss}>${groupOpts}</select></th><th><select id="ms-menu-filter-hdr" ${ss}>${menuOpts}</select></th><th>URL</th><th><select id="ms-active-filter" ${ss}>${activeOpts}</select></th><th>Exclusions</th><th>Image</th><th></th>`;
+
     let sorted = [...userOwnedSources].sort((a, b) => (a.Sequence || 99) - (b.Sequence || 99));
-    if (menuFilterVal === 'none') sorted = sorted.filter(s => !s.UserMenuID);
-    else if (menuFilterVal) sorted = sorted.filter(s => String(s.UserMenuID) === String(menuFilterVal));
-    if (groupFilterVal) sorted = sorted.filter(s => s.GroupLabel === groupFilterVal);
+    if(msTypeFilter) sorted=sorted.filter(s=>s.SourceType===msTypeFilter);
+    if(msGroupFilter==='__none__') sorted=sorted.filter(s=>!s.GroupLabel);
+    else if(msGroupFilter) sorted=sorted.filter(s=>s.GroupLabel===msGroupFilter);
+    if(msMenuFilter==='__none__') sorted=sorted.filter(s=>!s.UserMenuID);
+    else if(msMenuFilter) sorted=sorted.filter(s=>String(s.UserMenuID)===String(msMenuFilter));
+    if(msActiveFilter==='active') sorted=sorted.filter(s=>!s.IsInactive);
+    else if(msActiveFilter==='inactive') sorted=sorted.filter(s=>!!s.IsInactive);
     tbody.innerHTML = sorted.map(s => {
       const menuItem = userMenu.find(m => m.UserMenuID === s.UserMenuID);
       const menuLabel = menuItem ? `<span class="badge">${menuItem.UserMenuName}</span>` : `<span style="font-size:11px;color:var(--text-muted)">—</span>`;
