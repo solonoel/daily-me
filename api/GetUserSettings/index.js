@@ -15,7 +15,7 @@ module.exports = async function(context, req) {
 
     const settingResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT RecencyDays, MaxHeadlines, YouTubeMaxResults, OtherHeadlinesPerKeyword, FetchHour, DisableYoutubeToday, QuotaUsed, QuotaDate, CollapseThreshold FROM [HeadlineSetting] WHERE UserID = @UserID`);
+      .query(`SELECT hs.RecencyDays, hs.MaxHeadlines, hs.YouTubeMaxResults, hs.OtherHeadlinesPerKeyword, hs.FetchHour, hs.DisableYoutubeToday, hs.CollapseThreshold, yq.QuotaUsed, yq.QuotaDate FROM [HeadlineSetting] hs CROSS JOIN YouTubeQuota yq WHERE hs.UserID=@UserID AND yq.QuotaID=1`);
 
     const userResult = await pool.request()
       .input('UserID', sql.Int, userID)

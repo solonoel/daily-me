@@ -743,7 +743,20 @@ module.exports = async function(context, req) {
       gerdesVideos: selected.filter(a => a.sourceID === 34).map(a => ({ title: a.title, pubDate: a.pubDate ? new Date(a.pubDate).toLocaleDateString('en-US') : '—' }))
     };
 
-    const quotaRemaining = Math.max(0, 10000 - quotaUsed.units);
+    // Accumulate global quota across all users and all runs today
+    const gqRes = await pool.request()
+      .query(`SELECT QuotaUsed, QuotaDate FROM YouTubeQuota WHERE QuotaID=1`);
+    const gq = gqRes.recordset[0];
+    const todayStr = new Date().toISOString().split('T')[0];
+    const gqDate = gq?.QuotaDate ? new Date(gq.QuotaDate).toISOString().split('T')[0] : null;
+    const newQuotaUsed = (gqDate === todayStr ? (gq?.QuotaUsed || 0) : 0) + quotaUsed.units;
+    const quotaRemaining = Math.max(0, 10000 - newQuotaUsed);
+
+    await pool.request()
+      .input('QuotaUsed', sql.Int, newQuotaUsed)
+      .input('QuotaDate', sql.Date, new Date())
+      .query(`UPDATE YouTubeQuota SET QuotaUsed=@QuotaUsed, QuotaDate=@QuotaDate WHERE QuotaID=1`);
+
     if (youtubeFetched && quotaRemaining <= 500) {
       await pool.request().input('UserID', sql.Int, userID)
         .query(`UPDATE [HeadlineSetting] SET DisableYoutubeToday=1 WHERE UserID=@UserID`);
@@ -752,10 +765,8 @@ module.exports = async function(context, req) {
 
     await pool.request()
       .input('UserID', sql.Int, userID)
-      .input('QuotaUsed', sql.Int, quotaUsed.units)
-      .input('QuotaDate', sql.Date, new Date())
       .input('LastFetchLog', sql.NVarChar(sql.MAX), JSON.stringify(fetchLog))
-      .query(`UPDATE [HeadlineSetting] SET QuotaUsed=@QuotaUsed, QuotaDate=@QuotaDate, LastFetchLog=@LastFetchLog WHERE UserID=@UserID`);
+      .query(`UPDATE [HeadlineSetting] SET LastFetchLog=@LastFetchLog WHERE UserID=@UserID`);
 
     context.res = {
       status: 200,
