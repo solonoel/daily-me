@@ -955,6 +955,11 @@
         document.querySelectorAll('.nav-btn-usermenu').forEach(b => b.classList.remove('active'));
         const btn = document.getElementById(`nav-usermenu-${firstMenuItem.UserMenuID}`);
         if (btn) btn.classList.add('active');
+        try {
+          const seqs = await apiGet('GetMenuGroupSeq', `&menuID=${firstMenuItem.UserMenuID}`);
+          menuGroupSeqs[firstMenuItem.UserMenuID] = {};
+          if (Array.isArray(seqs)) seqs.forEach(s => menuGroupSeqs[firstMenuItem.UserMenuID][s.GroupLabel] = s.GroupSeq);
+        } catch(e) {}
       }
       await loadHeadlines();
     }
