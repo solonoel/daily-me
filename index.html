@@ -2867,10 +2867,15 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       <div style="font-size:40px;margin-bottom:12px">📂</div>
       <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--text);margin-bottom:8px">File Not Available</div>
       <div style="font-size:13px;color:var(--text-soft);line-height:1.6;margin-bottom:20px">This file could not be opened. It may not exist at the specified path, or your browser may not have permission to access local files.</div>
-      <button class="btn-primary" onclick="this.closest('.file-unavail-overlay').remove()" style="padding:9px 24px">OK</button>
+      <button class="btn-primary" onclick="closeFileUnavailablePopup()" style="padding:9px 24px">OK</button>
     </div>`;
     overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
     document.body.appendChild(overlay);
+  }
+
+  function closeFileUnavailablePopup(){
+    const el=document.querySelector('.file-unavail-overlay');
+    if(el)el.remove();
   }
 
   function updateMsTypeFields(){
