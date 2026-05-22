@@ -2777,6 +2777,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       return (groupSeq[a]||999)-(groupSeq[b]||999);
     });
 
+    const totalVisible=headlines.length+menuSources.length;
     document.getElementById('headlines-grouped').innerHTML=orderedKeys.map(groupName=>{
       const items=groups[groupName]||[];
       const srcRows=(sourceRowsByGroup[groupName]||[]).join('');
@@ -2807,10 +2808,22 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
           <span class="group-arrow" style="font-size:10px;margin-right:4px">${(groupsExpanded||headlines.length<=collapseThreshold)?'▼':'▶'}</span>
           <span>${icon}</span><span style="margin-left:6px">${groupName}${countLabel}</span>
         </div>
-        <div class="cat-group-body" style="display:${(groupsExpanded||headlines.length<=collapseThreshold)?'block':'none'}">${srcRows}${rows}</div>
+        <div class="cat-group-body" style="display:${(groupsExpanded||totalVisible<=collapseThreshold)?'block':'none'}">${srcRows}${rows}</div>
       </div>`;
     }).join('');
     if(currentUserMenuFilter)initGroupDragDrop(document.getElementById('headlines-grouped'));
+    applyGroupCollapseState();
+  }
+  function applyGroupCollapseState(){
+    const menuSrcs=currentUserMenuFilter
+      ?userOwnedSources.filter(s=>!s.IsInactive&&s.UserMenuID===currentUserMenuFilter).length:0;
+    const totalCount=headlines.length+menuSrcs;
+    const shouldExpand=groupsExpanded||totalCount<=collapseThreshold;
+    document.querySelectorAll('#headlines-grouped .cat-group-body').forEach(b=>{
+      b.style.display=shouldExpand?'block':'none';
+      const arrow=b.previousElementSibling?.querySelector('.group-arrow');
+      if(arrow)arrow.textContent=shouldExpand?'▼':'▶';
+    });
   }
   function openHeadline(link){if(link&&link!=='#')window.open(link,'_blank','noopener');}
 
@@ -4678,6 +4691,7 @@ function renderMySourcesTable() {
   async function showUserMenuItems(menuID, menuName) {
     currentUserMenuID = menuID;
     currentUserMenuFilter = menuID;
+    groupsExpanded=false;
     showScreen('headlines');
     if(!menuGroupSeqs[menuID]){
       try{
