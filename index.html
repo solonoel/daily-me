@@ -2802,7 +2802,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
             <div class="headline-row-title">${h.HeadlineName}</div>
             ${h.Summary?`<div class="headline-row-summary">${h.Summary}</div>`:''}
             <div class="headline-row-meta">
-              <span class="headline-row-source">date: ${formatDate(h.PublishedDate||h.CreatedDate,true)}${h.PublishedDate&&h.CreatedDate?` · released: ${formatReleased(h.PublishedDate,h.CreatedDate)||''}`:''}</span>
+              ${(()=>{const rel=h.PublishedDate&&h.CreatedDate?formatReleased(h.PublishedDate,h.CreatedDate):null;const dt=formatDate(h.PublishedDate||h.CreatedDate,true);return`<span class="headline-row-source">${rel?`${rel} ago (${dt})`:`date: ${dt}`}</span>`;})()}
               <span class="headline-row-source">source: ${h.SourceName||'—'}</span>
               ${h.Keyword||h.Topic?`<span class="headline-row-source">keyword: ${h.Keyword||h.Topic}</span>`:''}
               ${h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:''}
