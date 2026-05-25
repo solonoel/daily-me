@@ -474,6 +474,11 @@ module.exports = async function(context, req) {
       .query(`SELECT Link FROM [Headline] WHERE UserID=@UserID`);
     const existingLinks = new Set(existingResult.recordset.map(r => r.Link));
 
+    const exclusionResult = await pool.request()
+      .input('UserID', sql.Int, userID)
+      .query(`SELECT Link FROM [HeadlineExclusion] WHERE UserID=@UserID`);
+    const exclusionLinks = new Set(exclusionResult.recordset.map(r => r.Link));
+
     await pool.request()
       .input('UserID', sql.Int, userID)
       .input('RecencyDays', sql.Int, recencyDays)
@@ -636,7 +641,7 @@ module.exports = async function(context, req) {
     // Deduplicate
     const seen = new Set();
     const unique = allArticles.filter(a => {
-      if (!a.link || seen.has(a.link) || existingLinks.has(a.link) || excludedLinks.has(a.link)) { totalDuplicates++; return false; }
+      if (!a.link || seen.has(a.link) || existingLinks.has(a.link) || exclusionLinks.has(a.link)) return false;
       seen.add(a.link); return true;
     });
     unique.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
@@ -768,6 +773,12 @@ module.exports = async function(context, req) {
       .input('UserID', sql.Int, userID)
       .input('LastFetchLog', sql.NVarChar(sql.MAX), JSON.stringify(fetchLog))
       .query(`UPDATE [HeadlineSetting] SET LastFetchLog=@LastFetchLog WHERE UserID=@UserID`);
+
+    // Purge exclusions older than recencyDays
+    await pool.request()
+      .input('UserID', sql.Int, userID)
+      .input('RecencyDays', sql.Int, recencyDays||7)
+      .query(`DELETE FROM HeadlineExclusion WHERE UserID=@UserID AND DeletedDate < DATEADD(day, -@RecencyDays, GETDATE())`);
 
     context.res = {
       status: 200,
