@@ -479,16 +479,6 @@ module.exports = async function(context, req) {
       .query(`SELECT Link FROM [HeadlineExclusion] WHERE UserID=@UserID`);
     const exclusionLinks = new Set(exclusionResult.recordset.map(r => r.Link));
 
-    await pool.request()
-      .input('UserID', sql.Int, userID)
-      .input('RecencyDays', sql.Int, recencyDays)
-      .query(`DELETE FROM HeadlineExclusion WHERE UserID=@UserID AND DeletedDate < DATEADD(day, -@RecencyDays, GETDATE())`);
-
-    const exclusionResult = await pool.request()
-      .input('UserID', sql.Int, userID)
-      .query(`SELECT Link FROM HeadlineExclusion WHERE UserID = @UserID`);
-    const excludedLinks = new Set(exclusionResult.recordset.map(r => r.Link));
-
     const logSources = {};
     const logErrors = [];
     let totalLangFiltered = 0, totalDuplicates = 0;
