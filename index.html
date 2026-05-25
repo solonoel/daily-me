@@ -2633,6 +2633,15 @@ const now=new Date();
     const diff=Date.now()-new Date(dateStr).getTime(),hrs=Math.floor(diff/3600000);
     if(hrs<1)return'<1h';if(hrs<24)return`${hrs}h`;return`${Math.floor(hrs/24)}d`;
   }
+  function formatReleased(pubDate,fetchDate){
+    if(!pubDate||!fetchDate)return null;
+    const diff=Math.max(0,new Date(fetchDate)-new Date(pubDate));
+    const totalMins=Math.round(diff/60000);
+    if(totalMins<1)return null;
+    const h=Math.floor(totalMins/60),m=totalMins%60;
+    if(h===0)return`${m}m`;
+    return m===0?`${h}h`:`${h}h ${m}m`;
+  }
   function formatDate(dateStr,includeTime=false){
     if(!dateStr)return'—';
     const d=new Date(dateStr);
@@ -2793,7 +2802,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
             <div class="headline-row-title">${h.HeadlineName}</div>
             ${h.Summary?`<div class="headline-row-summary">${h.Summary}</div>`:''}
             <div class="headline-row-meta">
-              <span class="headline-row-source">date: ${formatDate(h.PublishedDate||h.CreatedDate,true)}</span>
+              <span class="headline-row-source">date: ${formatDate(h.PublishedDate||h.CreatedDate,true)}${h.PublishedDate&&h.CreatedDate?` · released: ${formatReleased(h.PublishedDate,h.CreatedDate)||''}`:''}</span>
               <span class="headline-row-source">source: ${h.SourceName||'—'}</span>
               ${h.Keyword||h.Topic?`<span class="headline-row-source">keyword: ${h.Keyword||h.Topic}</span>`:''}
               ${h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:''}
@@ -2870,6 +2879,7 @@ let _pdfClosing=false;
 
   function checkPDFIframeLoad(){
     if(_pdfClosing)return;
+    if(document.getElementById('pdf-modal')?.style.display==='none')return;
     const iframe=document.getElementById('pdf-iframe');
     try{
       const loc=iframe.contentWindow?.location?.href;
