@@ -889,7 +889,8 @@
       const data = await res.json();
       if(data.path){
         const urlInput = document.getElementById('ms-url');
-        if(urlInput) urlInput.value = data.path;
+        // Ensure Windows backslashes are preserved
+        if(urlInput) urlInput.value = data.path.replace(/\//g, '\\');
         if(browseStatus) browseStatus.style.display = 'none';
       }
     }catch(e){
