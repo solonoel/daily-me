@@ -88,6 +88,17 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (url.pathname === '/browse') {
+    const { exec } = require('child_process');
+    const ps = `Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.OpenFileDialog; $f.Title='Select File for Daily Me'; $f.ShowDialog()|Out-Null; $f.FileName`;
+    exec(`powershell -NoProfile -Command "${ps}"`, (err, stdout) => {
+      const filePath = (stdout || '').trim();
+      res.writeHead(200, CORS_HEADERS);
+      res.end(JSON.stringify({ path: filePath || null }));
+    });
+    return;
+  }
+
   if (url.pathname === '/open') {
     const filePath = url.searchParams.get('path') || '';
     console.log('[Open] Request:', filePath);

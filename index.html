@@ -616,8 +616,10 @@
       <label class="form-label" id="ms-url-label">URL</label>
       <div style="display:flex;gap:8px;align-items:center">
         <input class="form-input" id="ms-url" style="flex:1" placeholder="Full path e.g. C:\Documents\report.pdf">
+        <button type="button" class="btn-secondary" id="ms-browse-btn" style="display:none;padding:7px 10px;font-size:12px;white-space:nowrap;flex-shrink:0" onclick="browseForFile()">📂 Browse</button>
       </div>
       <div id="ms-file-note" style="display:none;font-size:11px;color:var(--text-muted);margin-top:4px">Enter the full file path including drive letter and folder.</div>
+      <div id="ms-browse-status" style="display:none;font-size:11px;color:#e05050;margin-top:4px">📂 Browse requires the Daily Me Launcher to be running. Go to <strong>Settings → File Launcher</strong> to set it up.</div>
     </div>
     <div class="form-group">
       <label class="form-label">Description</label>
@@ -861,6 +863,33 @@
         <div style="color:var(--text-soft);margin-bottom:8px">File sources require the Daily Me Launcher to be installed and running. Go to <strong>Settings → File Launcher</strong> to set it up.</div>
         <button class="btn-secondary" style="padding:4px 12px;font-size:12px" onclick="recheckLauncher()">↻ Check Again</button>
       </div>`;
+    }
+  }
+
+  async function browseForFile(){
+    const browseStatus = document.getElementById('ms-browse-status');
+    const browseBtn = document.getElementById('ms-browse-btn');
+    // Re-ping in case launcher started after page load
+    if(!window._launcherAvailable) await pingLauncher();
+    if(!window._launcherAvailable){
+      if(browseStatus) browseStatus.style.display = 'block';
+      return;
+    }
+    if(browseBtn){ browseBtn.disabled=true; browseBtn.textContent='⏳ Opening...'; }
+    try{
+      const res = await fetch('http://localhost:3333/browse', { signal: AbortSignal.timeout(30000) });
+      const data = await res.json();
+      if(data.path){
+        const urlInput = document.getElementById('ms-url');
+        if(urlInput) urlInput.value = data.path;
+        if(browseStatus) browseStatus.style.display = 'none';
+      }
+    }catch(e){
+      window._launcherAvailable = false;
+      updateLauncherStatusUI();
+      if(browseStatus) browseStatus.style.display = 'block';
+    }finally{
+      if(browseBtn){ browseBtn.disabled=false; browseBtn.textContent='📂 Browse'; }
     }
   }
 
@@ -3077,9 +3106,13 @@ let _pdfClosing=false;
     const urlLabel=document.getElementById('ms-url-label');
     const fileNote=document.getElementById('ms-file-note');
     const urlInput=document.getElementById('ms-url');
+    const browseBtn=document.getElementById('ms-browse-btn');
+    const browseStatus=document.getElementById('ms-browse-status');
     if(urlLabel)urlLabel.textContent=type==='File'?'File Path':'URL';
     if(fileNote)fileNote.style.display=type==='File'?'':'none';
     if(urlInput)urlInput.placeholder=type==='File'?'Full path e.g. C:\\Documents\\report.pdf or \\\\server\\share\\file.pdf':'';
+    if(browseBtn)browseBtn.style.display=type==='File'?'':'none';
+    if(browseStatus)browseStatus.style.display='none';
     // Show/hide launcher panel in modal
     const launcherRow = document.getElementById('ms-launcher-row');
     if(launcherRow){
