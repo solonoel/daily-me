@@ -2945,7 +2945,8 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       const makeSourceRow=s=>{
         const defaultIcon=s.SourceType==='File'?'📄':'🌐';
         const thumb=s.ThumbnailURL?`<img src="${s.ThumbnailURL}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">`:`<div style="width:100px;height:62px;border-radius:6px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">${defaultIcon}</div>`;
-        return `<div class="headline-row" onclick="openSourceEntry('${s.URL.replace(/'/g,"\\'")}','${(s.SourceType||'').replace(/'/g,"\\'")}');return false;">${thumb}<div class="headline-body"><div class="headline-row-title">${s.SourceName}</div>${s.Description?`<div class="headline-row-summary">${s.Description}</div>`:''}<div class="headline-row-meta"><span class="badge">${s.SourceType}</span></div></div></div>`;
+        const escapedURL = s.URL.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        return `<div class="headline-row" onclick="openSourceEntry('${escapedURL}','${(s.SourceType||'').replace(/'/g,"\\'")}');return false;">${thumb}<div class="headline-body"><div class="headline-row-title">${s.SourceName}</div>${s.Description?`<div class="headline-row-summary">${s.Description}</div>`:''}<div class="headline-row-meta"><span class="badge">${s.SourceType}</span></div></div></div>`;
       };
     const sourceRowsByGroup={};
     menuSources.forEach(s=>{
@@ -4419,7 +4420,8 @@ function renderMySitesByMenu(menuID) {
         const thumb = s.ThumbnailURL
           ? `<img src="${s.ThumbnailURL}" style="width:100px;height:62px;object-fit:cover;border-radius:6px;flex-shrink:0" onerror="this.style.display='none'">`
           : `<div style="width:100px;height:62px;border-radius:6px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">${defaultIcon}</div>`;
-        return `<div class="headline-row" onclick="openSourceEntry('${s.URL.replace(/'/g,"\\'")}','${(s.SourceType||'').replace(/'/g,"\\'")}');return false;" style="cursor:pointer">
+        const escapedSrcURL = s.URL.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        return `<div class="headline-row" onclick="openSourceEntry('${escapedSrcURL}','${(s.SourceType||'').replace(/'/g,"\\'")}');return false;" style="cursor:pointer">
           ${thumb}
           <div class="headline-body">
             <div class="headline-row-title">${s.SourceName}</div>
