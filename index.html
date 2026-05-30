@@ -881,16 +881,48 @@
   }
 
   async function openFileViaLauncher(filePath){
-    // Re-ping in case launcher started after page load
     if(!window._launcherAvailable) await pingLauncher();
     if(!window._launcherAvailable){ showLauncherBanner(); return; }
-    try{
-      const res = await fetch(`http://localhost:3333/open?path=${encodeURIComponent(filePath)}`, { signal: AbortSignal.timeout(3000) });
-      if(!res.ok) throw new Error('Launcher error');
+    // Normalize path: forward slashes → backslashes, collapse doubles to single
+    const normalizedPath = filePath.replace(/\//g,'\\').replace(/\\{2,}/g,'\\');
+try{
+      const res = await fetch(`http://localhost:3333/open?path=${encodeURIComponent(normalizedPath)}`, { signal: AbortSignal.timeout(3000) });
+      // Launcher responded — it's running regardless of status code
+      window._launcherAvailable = true;
+      updateLauncherStatusUI();
+      if(res.status === 404){
+        showFileNotFoundMessage(normalizedPath);
+      } else if(res.status === 500){
+        showFileNotFoundMessage(normalizedPath, 'Could not open this file. Check that the path is correct and the file is accessible from this computer.');
+      }
+      // 200 = success, file opened — nothing to show
     }catch(e){
+      // fetch itself failed = launcher not running
       window._launcherAvailable = false;
+      updateLauncherStatusUI();
       showLauncherBanner();
     }
+  }
+
+  function showFileNotFoundMessage(filePath, customMsg){
+    const existing = document.getElementById('file-notfound-overlay');
+    if(existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'file-notfound-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+    const shortName = filePath.split(/[\\\/]/).pop() || filePath;
+    const msg = customMsg || 'This file may have been moved, renamed, or is on a drive that isn\'t currently connected. Check that the path is correct in <strong>Settings → My Sources</strong>.';
+    overlay.innerHTML = `
+      <div style="background:white;border-radius:16px;padding:28px 32px;max-width:420px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,0.25);text-align:center">
+        <div style="font-size:40px;margin-bottom:12px">📂</div>
+        <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--text);margin-bottom:8px">File Not Available</div>
+        <div style="font-size:13px;color:var(--text-soft);line-height:1.6;margin-bottom:6px"><strong>${shortName}</strong></div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:20px;background:#f8fbff;border-radius:8px;padding:8px 12px;text-align:left;word-break:break-all">${filePath}</div>
+        <div style="font-size:12px;color:var(--text-soft);line-height:1.7;margin-bottom:20px;text-align:left">${msg}</div>
+        <button class="btn-primary" onclick="document.getElementById('file-notfound-overlay').remove()" style="padding:9px 28px">OK</button>
+      </div>`;
+    overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
   }
 
   async function applyZipCodeWeather(zip){
@@ -2055,7 +2087,6 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     conjLangName=currentLangName;
     showScreen(`lang-${currentLangID}`,false);
     conjReturnFn=()=>editWord(wordID);
-    history.pushState({view:'conjugation'},'');
     await showLangFeature(currentLangID,'conjugation',currentLangName,wordID);
   }
   function showConjugationFromFlashcard(wordID){
@@ -2438,46 +2469,59 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
   }
 
   async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
-    const language = _conjData?.language || conjLangName || 'Spanish';
+    // Guard: don't open if conjugation hasn't loaded yet
+    if(!_conjData?.moods?.length){
+      console.warn('[ConjTips] Conjugation not loaded yet — ignoring click');
+      return;
+    }
+    const language = _conjData.language || currentLangName || conjLangName || 'Spanish';
     const cacheKey = `${language}|${moodEng}|${tenseEng}`;
     const modal = document.getElementById('conj-tips-modal');
     const titleEl = document.getElementById('conj-tips-title');
     const subtitleEl = document.getElementById('conj-tips-subtitle');
     const bodyEl = document.getElementById('conj-tips-body');
-    if (titleEl) titleEl.textContent = `${moodEng} — ${tenseEng}`;
-    if (subtitleEl) subtitleEl.textContent = `${moodName} / ${tenseName} · ${language}`;
-    if (bodyEl) bodyEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:24px;margin-bottom:12px">⏳</div><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">Loading Conjugation Tips...</div><div style="font-size:12px;line-height:1.6">The first load may take 15–20 seconds while tips are generated.<br>Future visits to these tips will load instantly.</div></div>';
-    if (modal) modal.style.display = 'flex';
+    if(titleEl) titleEl.textContent = `${moodEng} — ${tenseEng}`;
+    if(subtitleEl) subtitleEl.textContent = `${moodName} / ${tenseName} · ${language}`;
+    if(bodyEl) bodyEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:24px;margin-bottom:12px">⏳</div><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">Generating Conjugation Tips...</div><div style="font-size:12px;line-height:1.6">First load may take 15–20 seconds.<br>Future visits load instantly.</div></div>';
+    if(modal) modal.style.display = 'flex';
 
-    if (_conjTipsCache[cacheKey]) {
+    // Check in-memory cache first
+    if(_conjTipsCache[cacheKey]){
       renderConjTips(_conjTipsCache[cacheKey]);
       return;
     }
-    const stored = localStorage.getItem(`conjTips_${cacheKey}`);
-    if (stored) {
-      try {
+    // Check localStorage cache
+    try{
+      const stored = localStorage.getItem(`conjTips_${cacheKey}`);
+      if(stored){
         const parsed = JSON.parse(stored);
-        _conjTipsCache[cacheKey] = parsed;
-        renderConjTips(parsed);
-        return;
-      } catch(e) {}
-    }
+        if(parsed?.usage || parsed?.verbGroups || parsed?.examples || parsed?.tips){
+          _conjTipsCache[cacheKey] = parsed;
+          renderConjTips(parsed);
+          return;
+        }
+      }
+    }catch(e){}
 
-    try {
+    // Not cached — generate via API
+    try{
       const result = await apiPost('GetConjugationTips', { language, moodEng, moodName, tenseEng, tenseName });
-      console.log('[ConjTips] API result:', JSON.stringify(result)?.substring(0, 200));
-      // Handle both { tips: {...} } and direct tips object shapes
-      const tips = result?.tips || (result?.usage || result?.verbGroups || result?.examples ? result : null);
-      if (tips) {
+      // Handle both { tips: {...} } and direct object shapes
+      const tips = result?.tips
+        ? result.tips
+        : (result?.usage || result?.verbGroups || result?.examples || result?.tips)
+          ? result
+          : null;
+      if(tips){
         _conjTipsCache[cacheKey] = tips;
-        try { localStorage.setItem(`conjTips_${cacheKey}`, JSON.stringify(tips)); } catch(e) {}
+        try{ localStorage.setItem(`conjTips_${cacheKey}`, JSON.stringify(tips)); }catch(e){}
         renderConjTips(tips);
-      } else {
-        if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">No tips available. Try closing and reopening.</div>';
+      }else{
+        if(bodyEl) bodyEl.innerHTML = `<div class="empty-state">No tips were returned. Try closing and clicking Conjugation Tips again.</div>`;
         console.warn('[ConjTips] Unexpected response shape:', result);
       }
-    } catch(e) {
-      if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+    }catch(e){
+      if(bodyEl) bodyEl.innerHTML = `<div class="empty-state">Error loading tips: ${e.message}</div>`;
       console.error('[ConjTips] Error:', e);
     }
   }
@@ -2605,7 +2649,6 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
 
   async function showConjugation(wordID,returnFn){
     conjReturnFn=returnFn||null;
-    history.pushState({view:'conjugation'},'');
     await showLangFeature(currentLangID,'conjugation',currentLangName,wordID);
   }
 
@@ -3919,8 +3962,8 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     document.getElementById('gs-channel-status').textContent='';
     document.getElementById('gs-channelid-display').style.display='none';
     document.getElementById('gs-channelid-display').textContent='';
-    const type=(src?.SourceType==='Youtube')?'URL':(src?.SourceType||(sourceID?'RSS':'API'));
-    document.querySelectorAll('input[name="gs-type"]').forEach(r=>r.checked=r.value===type);
+    const type=(src?.SourceType==='Youtube')?'URL':(src?.SourceType||null);
+    document.querySelectorAll('input[name="gs-type"]').forEach(r=>r.checked=!!(type&&r.value===type));
     updateGsTypeFields();
     if(src?.YoutubeChannelID){
       gsResolvedChannelID=src.YoutubeChannelID;
@@ -4458,8 +4501,8 @@ function renderMySourcesTable() {
     document.getElementById('ms-exclusions').value = src?.Exclusions || '';
     document.getElementById('ms-inactive').checked = !!src?.IsInactive;
     document.getElementById('ms-grouplabel').value = src?.GroupLabel || '';
-    const type = (!src?.SourceType || src.SourceType === 'Website' || src.SourceType === 'Youtube') ? 'URL' : src.SourceType;
-    document.querySelectorAll('input[name="ms-type"]').forEach(r => r.checked = r.value === type);
+    const type = src ? ((!src.SourceType || src.SourceType === 'Website' || src.SourceType === 'Youtube') ? 'URL' : src.SourceType) : null;
+    document.querySelectorAll('input[name="ms-type"]').forEach(r => r.checked = !!(type && r.value === type));
     updateMsTypeFields();
     if(type === 'File') updateModalLauncherPanel();
     const menuSel = document.getElementById('ms-menuid');
@@ -4737,7 +4780,7 @@ function renderMySourcesTable() {
     document.getElementById('inv-keyword').value='';
     document.getElementById('inv-status').textContent='';
     document.getElementById('inv-results').innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">Enter a URL and click Search to preview articles.</div>';
-    document.querySelectorAll('input[name="inv-type"]').forEach(r=>r.checked=r.value==='RSS');
+    document.querySelectorAll('input[name="inv-type"]').forEach(r=>r.checked=false);
     updateInvestigateFields();
     document.getElementById('investigate-modal').style.display='flex';
     history.pushState({screen:'settings',section:'investigate'},'','');
