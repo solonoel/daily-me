@@ -89,9 +89,23 @@ const server = http.createServer((req, res) => {
   }
 
   if (url.pathname === '/browse') {
-    const { exec } = require('child_process');
-    const ps = `Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.OpenFileDialog; $f.Title='Select File for Daily Me'; $f.ShowDialog()|Out-Null; $f.FileName`;
-    exec(`powershell -NoProfile -Command "${ps}"`, (err, stdout) => {
+    const ps = [
+      'Add-Type -AssemblyName System.Windows.Forms',
+      '$f = New-Object System.Windows.Forms.OpenFileDialog',
+      '$f.Title = "Select File for Daily Me"',
+      '$f.Filter = "All Files (*.*)|*.*"',
+      '[System.Windows.Forms.Application]::EnableVisualStyles()',
+      '$dummy = New-Object System.Windows.Forms.Form',
+      '$dummy.TopMost = $true',
+      '$dummy.StartPosition = "CenterScreen"',
+      '$dummy.Size = New-Object System.Drawing.Size(1,1)',
+      '$dummy.Show()',
+      '$dummy.Hide()',
+      '$result = $f.ShowDialog($dummy)',
+      '$dummy.Dispose()',
+      'if ($result -eq "OK") { $f.FileName } else { "" }'
+    ].join('; ');
+    exec(`powershell -NoProfile -WindowStyle Hidden -Command "${ps}"`, { timeout: 120000 }, (err, stdout) => {
       const filePath = (stdout || '').trim();
       res.writeHead(200, CORS_HEADERS);
       res.end(JSON.stringify({ path: filePath || null }));
