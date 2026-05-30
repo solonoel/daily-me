@@ -413,6 +413,36 @@
             </div>
           </div>
         </div>
+        <div class="settings-deck" id="launcher-settings-deck">
+          <div class="settings-deck-title" style="justify-content:space-between;align-items:center">
+            <span>📂 File Launcher</span>
+            <span id="launcher-status-badge" style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:100px;background:#f0f7ff;color:var(--text-muted)">Checking...</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-soft);margin-bottom:12px;line-height:1.6">The File Launcher is a small background service that lets Daily Me open files on your computer. It must be installed and running to use File-type sources.</div>
+          <div id="launcher-setup-panel">
+            <div id="launcher-running-msg" style="display:none;font-size:13px;font-weight:600;color:#16a34a;margin-bottom:8px">✅ Launcher is running — File sources are ready to use.</div>
+            <div id="launcher-notrunning-msg" style="display:none">
+              <div style="font-size:12px;font-weight:700;color:#e05050;margin-bottom:10px">⚠️ Launcher not detected on this computer</div>
+              <div style="font-size:12px;color:var(--text-soft);margin-bottom:12px;line-height:1.7">
+                <strong>One-time setup — 2 steps:</strong><br>
+                <span style="display:inline-block;background:#f0f7ff;border-radius:6px;padding:8px 12px;margin-top:6px;line-height:1.9;width:100%">
+                  <strong>1.</strong> Click <strong>Download Setup</strong> below — your browser may warn about .bat files, click <em>Keep</em> or <em>Allow</em><br>
+                  <strong>2.</strong> Open your Downloads folder and double-click <strong>start-dailyme-launcher.bat</strong> — it installs itself to <code style="font-size:11px;background:#e6f1ff;padding:1px 5px;border-radius:3px">C:\Tools\DailyMe\</code>, downloads the launcher, registers Windows startup, and starts running automatically
+                </span>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+                <a href="https://dailyme.brunsusa.com/start-dailyme-launcher.bat" download="start-dailyme-launcher.bat" class="btn-primary" style="text-decoration:none;padding:9px 18px;font-size:13px;display:inline-flex;align-items:center;gap:8px;background:#22c55e">⬇ Download Setup</a>
+                <button class="btn-secondary" style="padding:9px 14px;font-size:12px" onclick="recheckLauncher()">↻ Check Again</button>
+              </div>
+              <div style="font-size:11px;color:var(--text-muted);line-height:1.6;background:#fff8e6;border:1px solid #e8a020;border-radius:8px;padding:8px 12px">
+                <strong>Requirements:</strong> Windows 10 or later &nbsp;·&nbsp; Node.js must be installed (<a href="https://nodejs.org" target="_blank" style="color:var(--sky-deep)">nodejs.org</a>) &nbsp;·&nbsp; Each computer that uses Daily Me needs its own setup run once.
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:8px">
+            <button class="btn-secondary" style="padding:5px 12px;font-size:12px" onclick="recheckLauncher()">↻ Recheck Status</button>
+          </div>
+        </div>
         <div class="settings-deck">
           <div class="settings-deck-title">🌍 Languages</div>
           <div class="lang-max-note" style="margin-bottom:12px">Your word data is retained when a language is deactivated.</div>
@@ -451,12 +481,12 @@
       <div style="font-size:12px;color:var(--text);background:#f0f7ff;border:1px solid var(--sky-deep);border-radius:8px;padding:10px 16px;margin-bottom:12px;line-height:1.8">
         <div style="font-weight:700;color:var(--sky-deep);margin-bottom:4px">🔍 Keywords — How They Work</div>
         <div>🔍 <strong>Case-insensitive, whole-word match</strong> — searched on YouTube and filtered news sources. Drag to reorder — higher items are prioritized.</div>
+        <div>💬 <strong>Phrases:</strong> Multi-word phrases <strong>must use quotes</strong> — e.g. <em>"White Sox"</em>, <em>"Stock Market"</em>. Without quotes, each word is matched independently.</div>
+        <div>📋 <strong>Clauses ( , or ; ):</strong> Comma or semicolon separates independent clauses — a headline passes if it matches <em>any</em> clause. e.g. <em>Bears+Stadium; Cubs+Stadium</em> matches either team's stadium news.</div>
+        <div style="margin-top:8px"></div>
         <div>➕ <strong>AND ( + ):</strong> All terms must be present — e.g. <em>Bears+Stadium</em> requires both words.</div>
         <div>➗ <strong>OR ( / ):</strong> Any term matches — e.g. <em>Russia/Russian</em> matches either word. OR is evaluated before AND, so <em>Russia/Russian+Ukraine</em> means (Russia OR Russian) AND Ukraine.</div>
-        <div>📋 <strong>Clauses ( , ):</strong> Comma separates independent clauses — a headline passes if it matches <em>any</em> clause. e.g. <em>Bears+Stadium, Cubs+Stadium</em> matches either team's stadium news.</div>
         <div>🚫 <strong>Exclusions ( - ):</strong> Prefix a term with <strong>-</strong> to exclude headlines containing it — e.g. <em>Bears+Stadium-Indiana</em>. Exclusions apply per clause. Use quotes for phrases: <em>-"Indiana Pacers"</em>.</div>
-        <div>💬 <strong>Phrases:</strong> Multi-word phrases <strong>must use quotes</strong> — e.g. <em>"White Sox"</em>, <em>"Stock Market"</em>. Without quotes, each word is matched independently.</div>
-        <div>⚪ <strong>Inactive keywords</strong> do not participate in any filtering. If all keywords are inactive, only Subscription entries are shown.</div>
       </div>
       <table class="settings-table"><thead><tr><th>⠿</th><th>Keyword</th><th>Source</th><th>Group Label</th><th>Category</th><th>Active</th><th>Image</th><th></th></tr></thead><tbody id="tbl-keywords"></tbody></table>
     </div>
@@ -567,7 +597,6 @@
       <label class="form-label">Type</label>
       <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="API" onchange="updateMsTypeFields()"> API</label>
-        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="Youtube" onchange="updateMsTypeFields()"> YouTube</label>
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="RSS" onchange="updateMsTypeFields()"> RSS</label>
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="URL" onchange="updateMsTypeFields()"> URL</label>
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="File" onchange="updateMsTypeFields()"> File</label>
@@ -586,11 +615,9 @@
     <div class="form-group">
       <label class="form-label" id="ms-url-label">URL</label>
       <div style="display:flex;gap:8px;align-items:center">
-        <input class="form-input" id="ms-url" style="flex:1">
-        <button type="button" class="btn-secondary" id="ms-file-pick-btn" style="display:none;padding:7px 10px;font-size:12px;white-space:nowrap;flex-shrink:0" onclick="triggerMsFilePicker()">📂 Browse</button>
-        <input type="file" id="ms-file-input" style="display:none" onchange="handleMsFilePick(event)">
+        <input class="form-input" id="ms-url" style="flex:1" placeholder="Full path e.g. C:\Documents\report.pdf">
       </div>
-      <div id="ms-file-note" style="display:none;font-size:11px;color:var(--text-muted);margin-top:4px">Browse inserts the filename — paste or type the full path to complete it.</div>
+      <div id="ms-file-note" style="display:none;font-size:11px;color:var(--text-muted);margin-top:4px">Enter the full file path including drive letter and folder.</div>
     </div>
     <div class="form-group">
       <label class="form-label">Description</label>
@@ -604,6 +631,9 @@
         <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="clearMsThumbnail()">Clear</button>
         <div id="ms-thumbnail-preview" style="width:100px;height:62px;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8fbff;font-size:20px;color:var(--text-muted)">🌐</div>
       </div>
+    </div>
+    <div class="form-group" id="ms-launcher-row" style="display:none">
+      <div id="ms-launcher-panel"></div>
     </div>
     <div class="form-group">
       <label class="form-label">Exclusions <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(CSV, use "quotes" for phrases)</span></label>
@@ -646,7 +676,6 @@
       <label class="form-label">Type</label>
       <div style="display:flex;gap:16px;margin-top:6px">
         <label class="form-checkbox-row"><input type="radio" name="gs-type" value="API" onchange="updateGsTypeFields()"> API</label>
-        <label class="form-checkbox-row"><input type="radio" name="gs-type" value="Youtube" onchange="updateGsTypeFields()"> Youtube</label>
         <label class="form-checkbox-row"><input type="radio" name="gs-type" value="RSS" onchange="updateGsTypeFields()"> RSS</label>
         <label class="form-checkbox-row"><input type="radio" name="gs-type" value="URL" onchange="updateGsTypeFields()"> URL</label>
       </div>
@@ -675,8 +704,7 @@
       <div class="form-group" style="margin-bottom:0">
         <label class="form-label">Type</label>
         <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap">
-        <label class="form-checkbox-row"><input type="radio" name="inv-type" value="API" checked onchange="updateInvestigateFields()"> API</label>
-        <label class="form-checkbox-row"><input type="radio" name="inv-type" value="Youtube" onchange="updateInvestigateFields()"> YouTube</label>
+        <label class="form-checkbox-row"><input type="radio" name="inv-type" value="API" onchange="updateInvestigateFields()"> API</label>
         <label class="form-checkbox-row"><input type="radio" name="inv-type" value="RSS" onchange="updateInvestigateFields()"> RSS</label>
         <label class="form-checkbox-row"><input type="radio" name="inv-type" value="URL" onchange="updateInvestigateFields()"> URL</label>
         </div>
@@ -786,6 +814,85 @@
   let verbFilter='all';
   let wordSearch='';
 
+  // ── FILE LAUNCHER ──────────────────────────────────────────────────────────
+
+  window._launcherAvailable = false;
+
+  async function pingLauncher(){
+    try{
+      const res = await fetch('http://localhost:3333/ping', { signal: AbortSignal.timeout(1500) });
+      if(res.ok){ window._launcherAvailable = true; }
+      else { window._launcherAvailable = false; }
+    }catch(e){ window._launcherAvailable = false; }
+    updateLauncherStatusUI();
+  }
+
+  async function recheckLauncher(){
+    const badge = document.getElementById('launcher-status-badge');
+    if(badge){ badge.textContent = 'Checking...'; badge.style.color = 'var(--text-muted)'; badge.style.background = '#f0f7ff'; }
+    await pingLauncher();
+  }
+
+  function updateLauncherStatusUI(){
+    const badge = document.getElementById('launcher-status-badge');
+    const runningMsg = document.getElementById('launcher-running-msg');
+    const notRunningMsg = document.getElementById('launcher-notrunning-msg');
+    if(window._launcherAvailable){
+      if(badge){ badge.textContent = '✅ Running'; badge.style.color = '#16a34a'; badge.style.background = '#f0fdf4'; }
+      if(runningMsg) runningMsg.style.display = 'block';
+      if(notRunningMsg) notRunningMsg.style.display = 'none';
+    } else {
+      if(badge){ badge.textContent = '⚠️ Not Running'; badge.style.color = '#e05050'; badge.style.background = '#fef0f0'; }
+      if(runningMsg) runningMsg.style.display = 'none';
+      if(notRunningMsg) notRunningMsg.style.display = 'block';
+    }
+    // Also update inline modal panel if open
+    updateModalLauncherPanel();
+  }
+
+  function updateModalLauncherPanel(){
+    const panel = document.getElementById('ms-launcher-panel');
+    if(!panel) return;
+    if(window._launcherAvailable){
+      panel.innerHTML = `<div style="font-size:12px;font-weight:600;color:#16a34a;padding:8px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px">✅ File Launcher is running — this source will open files on your computer.</div>`;
+    } else {
+      panel.innerHTML = `<div style="font-size:12px;padding:8px 12px;background:#fff8e6;border:1px solid #e8a020;border-radius:8px;line-height:1.7">
+        <div style="font-weight:700;color:#b07000;margin-bottom:4px">⚠️ File Launcher not detected</div>
+        <div style="color:var(--text-soft);margin-bottom:8px">File sources require the Daily Me Launcher to be installed and running. Go to <strong>Settings → File Launcher</strong> to set it up.</div>
+        <button class="btn-secondary" style="padding:4px 12px;font-size:12px" onclick="recheckLauncher()">↻ Check Again</button>
+      </div>`;
+    }
+  }
+
+  function showLauncherBanner(){
+    const existing = document.getElementById('launcher-banner');
+    if(existing) return;
+    const banner = document.createElement('div');
+    banner.id = 'launcher-banner';
+    banner.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:white;border:1.5px solid var(--border);border-radius:12px;padding:14px 20px;box-shadow:0 4px 24px rgba(43,127,212,0.18);z-index:2000;display:flex;align-items:center;gap:14px;font-size:13px;color:var(--text);max-width:480px;width:90vw';
+    banner.innerHTML = `<span style="font-size:22px">📂</span>
+      <div style="flex:1">
+        <div style="font-weight:700;margin-bottom:2px">Daily Me Launcher not running</div>
+        <div style="font-size:12px;color:var(--text-soft)">The file launcher must be running to open local files. Start it from your Windows Startup folder or run <strong>start-dailyme-launcher.bat</strong>.</div>
+      </div>
+      <button onclick="document.getElementById('launcher-banner').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted);flex-shrink:0">✕</button>`;
+    document.body.appendChild(banner);
+    setTimeout(() => banner?.remove(), 8000);
+  }
+
+  async function openFileViaLauncher(filePath){
+    // Re-ping in case launcher started after page load
+    if(!window._launcherAvailable) await pingLauncher();
+    if(!window._launcherAvailable){ showLauncherBanner(); return; }
+    try{
+      const res = await fetch(`http://localhost:3333/open?path=${encodeURIComponent(filePath)}`, { signal: AbortSignal.timeout(3000) });
+      if(!res.ok) throw new Error('Launcher error');
+    }catch(e){
+      window._launcherAvailable = false;
+      showLauncherBanner();
+    }
+  }
+
   async function applyZipCodeWeather(zip){
     if(!zip||zip.length!==5)return;
     try{
@@ -878,6 +985,7 @@
 
   async function loadAll(){
     const loadStart=performance.now();
+    pingLauncher();
     const [srcs,kwds,userSettings,langs,ulangs]=await Promise.all([
       apiGet('GetHeadlineSources'),apiGet('GetHeadlineKeywords'),
       apiGet('GetUserSettings'),apiGet('GetLanguages'),apiGet('GetUserLanguages')
@@ -2315,7 +2423,8 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
         html += `<div class="conj-tense-box"><div class="conj-tense-header" style="display:flex;align-items:center;justify-content:space-between">${tense.tenseEng} <span style="font-weight:400;opacity:0.7">(${tense.tenseName})</span><a href="#" onclick="openConjTips('${mood.moodEng.replace(/'/g,"\\'")}','${mood.moodName.replace(/'/g,"\\'")}','${tense.tenseEng.replace(/'/g,"\\'")}','${tense.tenseName.replace(/'/g,"\\'")}');return false;" style="font-size:10px;font-weight:600;color:#1a5a90;text-decoration:none;border-bottom:1px dashed #1a5a90;white-space:nowrap;margin-left:8px">Conjugation Tips</a></div><div class="conj-grid" style="grid-template-rows:repeat(${rows},auto)">`;
         tense.forms.forEach(f => {
           if (mode === 'test') {
-            html += `<div class="conj-cell"><span class="conj-pronoun" style="font-weight:700;color:#1a3a6a">${shortenPronoun(f.pronounName,mode)}</span><input class="conj-test-input" data-answer="${f.form.replace(/"/g,'&quot;')}" type="text" style="width:90px;font-size:12px;padding:2px 5px;border:1.5px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif;color:var(--text);font-weight:400" autocomplete="off" autocorrect="off" spellcheck="false"></div>`;
+            const engPrompt = f.englishForm ? f.englishForm : shortenPronoun(f.pronounName, 'english');
+            html += `<div class="conj-cell"><span class="conj-pronoun" style="font-weight:700;color:#1a3a6a;min-width:60px">${engPrompt}</span><input class="conj-test-input" data-answer="${f.form.replace(/"/g,'&quot;')}" type="text" style="width:90px;font-size:12px;padding:2px 5px;border:1.5px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif;color:var(--text);font-weight:400" autocomplete="off" autocorrect="off" spellcheck="false"></div>`;
           } else {
             const displayForm = mode === 'english' ? (f.englishForm || f.form) : f.form;
             html += `<div class="conj-cell"><span class="conj-pronoun" style="font-weight:700;color:#1a3a6a">${shortenPronoun(f.pronounName,mode)}</span><span class="conj-form" style="font-weight:400;color:#1a3a6a">${displayForm}</span></div>`;
@@ -2356,15 +2465,20 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
 
     try {
       const result = await apiPost('GetConjugationTips', { language, moodEng, moodName, tenseEng, tenseName });
-      if (result?.tips) {
-        _conjTipsCache[cacheKey] = result.tips;
-        try { localStorage.setItem(`conjTips_${cacheKey}`, JSON.stringify(result.tips)); } catch(e) {}
-        renderConjTips(result.tips);
+      console.log('[ConjTips] API result:', JSON.stringify(result)?.substring(0, 200));
+      // Handle both { tips: {...} } and direct tips object shapes
+      const tips = result?.tips || (result?.usage || result?.verbGroups || result?.examples ? result : null);
+      if (tips) {
+        _conjTipsCache[cacheKey] = tips;
+        try { localStorage.setItem(`conjTips_${cacheKey}`, JSON.stringify(tips)); } catch(e) {}
+        renderConjTips(tips);
       } else {
-        if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">No tips available.</div>';
+        if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">No tips available. Try closing and reopening.</div>';
+        console.warn('[ConjTips] Unexpected response shape:', result);
       }
     } catch(e) {
       if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+      console.error('[ConjTips] Error:', e);
     }
   }
 
@@ -2468,6 +2582,8 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     try {
       const data = await apiPost('GetConjugation', {userID: USER_ID, userLanguageWordsID: parseInt(wordID)});
       if (!data || !data.moods || !data.moods.length) { out.innerHTML = '<div class="empty-state">No conjugation data found.</div>'; return; }
+      // Ensure language is always set for tips cache key consistency
+      if (!data.language) data.language = langName || currentLangName || 'Spanish';
       _conjData = data;
       renderConjOutput();
     } catch(e) { out.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
@@ -2837,8 +2953,8 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   function openHeadline(link){if(link&&link!=='#')window.open(link,'_blank','noopener');}
 
   function openSourceEntry(url,sourceType){
-    if(sourceType==='File'){openFileLink(url);}
-    else{window.open(url,'_blank','noopener');}
+    if(sourceType==='File'){ openFileViaLauncher(url); }
+    else{ window.open(url,'_blank','noopener'); }
   }
 
   function normalizeFileUrl(path){
@@ -2916,13 +3032,17 @@ let _pdfClosing=false;
   function updateMsTypeFields(){
     const type=document.querySelector('input[name="ms-type"]:checked')?.value||'API';
     const urlLabel=document.getElementById('ms-url-label');
-    const filePickBtn=document.getElementById('ms-file-pick-btn');
     const fileNote=document.getElementById('ms-file-note');
     const urlInput=document.getElementById('ms-url');
     if(urlLabel)urlLabel.textContent=type==='File'?'File Path':'URL';
-    if(filePickBtn)filePickBtn.style.display=type==='File'?'':'none';
     if(fileNote)fileNote.style.display=type==='File'?'':'none';
-    if(urlInput)urlInput.placeholder=type==='File'?'e.g. C:\\Documents\\report.pdf':'';
+    if(urlInput)urlInput.placeholder=type==='File'?'Full path e.g. C:\\Documents\\report.pdf or \\\\server\\share\\file.pdf':'';
+    // Show/hide launcher panel in modal
+    const launcherRow = document.getElementById('ms-launcher-row');
+    if(launcherRow){
+      launcherRow.style.display = type==='File' ? '' : 'none';
+      if(type==='File') updateModalLauncherPanel();
+    }
   }
 
   function triggerMsFilePicker(){document.getElementById('ms-file-input')?.click();}
@@ -3021,7 +3141,13 @@ let _pdfClosing=false;
     const h=teamsHeadlines.find(h=>h.HeadlineID===headlineID);if(!h)return;
     const newRetain=h.Retain!=='Y';
     await apiPost('SaveRetain',{headlineID,retain:newRetain});
-    h.Retain=newRetain?'Y':'N';renderTeamsHeadlines();
+    h.Retain=newRetain?'Y':'N';
+    const row=document.querySelector(`#teams-grouped .headline-row[data-headline-id="${headlineID}"]`);
+    if(row){
+      const btn=row.querySelector('.retain-btn:not([data-delete])');
+      if(newRetain){row.classList.add('retained');if(btn)btn.classList.add('active');}
+      else{row.classList.remove('retained');if(btn)btn.classList.remove('active');}
+    }
   }
 
   async function deleteTeamsHeadline(headlineID,e){
@@ -3047,7 +3173,14 @@ let _pdfClosing=false;
     const h=headlines.find(h=>h.HeadlineID===headlineID);if(!h)return;
     const newRetain=h.Retain!=='Y';
     await apiPost('SaveRetain',{headlineID,retain:newRetain});
-    h.Retain=newRetain?'Y':'N';renderHeadlines();
+    h.Retain=newRetain?'Y':'N';
+    // Update DOM directly — avoid full re-render which resets group collapse state
+    const row=document.querySelector(`.headline-row[data-headline-id="${headlineID}"]`);
+    if(row){
+      const btn=row.querySelector('.retain-btn:not([data-delete])');
+      if(newRetain){row.classList.add('retained');if(btn)btn.classList.add('active');}
+      else{row.classList.remove('retained');if(btn)btn.classList.remove('active');}
+    }
   }
 
   function filterCat(cat,el){
@@ -3473,10 +3606,10 @@ function renderSettingsKeywords(){
     if(modalType!=='keyword'||!modalID)return;
     const keyword=document.getElementById('m-keyword').value.trim();
     if(!keyword)return alert('Keyword is required before saving as.');
-    const clauses=keyword.split(',').map(c=>c.trim()).filter(Boolean);
+    const clauses=keyword.split(/[,;]/).map(c=>c.trim()).filter(Boolean);
     for(const clause of clauses){
-      const stripped=clause.replace(/-?"[^"]+"/g,'').trim();
-      const tokens=stripped.split(/[+\/]/).map(t=>t.trim().replace(/^-/,'')).filter(Boolean);
+const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
+        const tokens=stripped.split(/[+\/]/).map(t=>t.trim().replace(/^-/,'')).filter(Boolean);
       for(const token of tokens){if(token.includes(' '))return alert(`Multi-word phrase must be in quotes: "${token}"`);}
     }
     const groupLabel=document.getElementById('m-grouplabel')?.value.trim()||null;
@@ -3551,9 +3684,9 @@ function renderSettingsKeywords(){
       const sequence=modalID?(keywords.find(k=>k.KeywordID===modalID)?.Sequence||99):(Math.max(...keywords.map(k=>k.Sequence||0),0)+1);
       if(!keyword)return alert('Keyword is required');
       // Validate: multi-word terms without quotes must be quoted
-      const clauses=keyword.split(',').map(c=>c.trim()).filter(Boolean);
+      const clauses=keyword.split(/[,;]/).map(c=>c.trim()).filter(Boolean);
       for(const clause of clauses){
-        const stripped=clause.replace(/-?"[^"]+"/g,'').trim();
+const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
         const tokens=stripped.split(/[+\/]/).map(t=>t.trim().replace(/^-/,'')).filter(Boolean);
         for(const token of tokens){
           if(token.includes(' ')){
@@ -3786,7 +3919,7 @@ function renderSettingsKeywords(){
     document.getElementById('gs-channel-status').textContent='';
     document.getElementById('gs-channelid-display').style.display='none';
     document.getElementById('gs-channelid-display').textContent='';
-    const type=src?.SourceType||(sourceID?'RSS':'API');
+    const type=(src?.SourceType==='Youtube')?'URL':(src?.SourceType||(sourceID?'RSS':'API'));
     document.querySelectorAll('input[name="gs-type"]').forEach(r=>r.checked=r.value===type);
     updateGsTypeFields();
     if(src?.YoutubeChannelID){
@@ -4325,9 +4458,10 @@ function renderMySourcesTable() {
     document.getElementById('ms-exclusions').value = src?.Exclusions || '';
     document.getElementById('ms-inactive').checked = !!src?.IsInactive;
     document.getElementById('ms-grouplabel').value = src?.GroupLabel || '';
-    const type = (!src?.SourceType || src.SourceType === 'Website') ? 'API' : src.SourceType;
+    const type = (!src?.SourceType || src.SourceType === 'Website' || src.SourceType === 'Youtube') ? 'URL' : src.SourceType;
     document.querySelectorAll('input[name="ms-type"]').forEach(r => r.checked = r.value === type);
     updateMsTypeFields();
+    if(type === 'File') updateModalLauncherPanel();
     const menuSel = document.getElementById('ms-menuid');
     if (menuSel) {
       menuSel.innerHTML = '<option value="">— None —</option>' +

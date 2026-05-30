@@ -90,14 +90,16 @@ function matchesKeyword(text, keywordText) {
     const pattern = isPhrase ? new RegExp(escaped, 'i') : new RegExp(`\\b${escaped}\\b`, 'i');
     return pattern.test(lowerText);
   }
-  const clauses = keywordText.split(',').map(c => c.trim()).filter(Boolean);
+  const clauses = keywordText.split(/[,;]/).map(c => c.trim()).filter(Boolean);
   for (const clause of clauses) {
     const exclusions = [];
     let workingClause = clause;
-    workingClause = workingClause.replace(/-"[^"]+"|(-\S+)/g, (match) => {
-      exclusions.push(match.substring(1).trim());
-      return '';
+    // Extract all exclusions: -"quoted phrase" or -word, anywhere in clause
+    workingClause = workingClause.replace(/-"([^"]+)"|-([\w\S]+)/g, (match, phrase, word) => {
+      exclusions.push(phrase !== undefined ? `"${phrase}"` : word);
+      return '+'; // replace with + so surrounding AND groups stay intact
     });
+    // Clean up: collapse multiple/leading/trailing + separators
     const andGroups = workingClause.split('+').map(g => g.trim()).filter(Boolean);
     let clauseMatch = andGroups.length > 0;
     for (const group of andGroups) {
@@ -150,7 +152,7 @@ async function fetchGuardian(source, keywords, fromDateStr) {
   const apiKey = process.env.GUARDIAN_API_KEY;
   const articles = [];
   for (const term of keywords) {
-    const searchText = term.text.split(',')[0].split('+')[0].split('/')[0].replace(/"/g,'').trim();
+    const searchText = term.text.split(/[,;]/)[0].split('+')[0].split('/')[0].replace(/"/g,'').trim();
     try {
       const url = `https://content.guardianapis.com/search?q=${encodeURIComponent(searchText)}&from-date=${fromDateStr}&show-fields=trailText&order-by=newest&page-size=50&api-key=${apiKey}`;
       const data = JSON.parse(await fetchUrl(url));
@@ -207,7 +209,7 @@ async function fetchNewsAPI(source, keywords, fromDateStr, langCodes) {
     }
   } catch(e) {}
   for (const kw of keywords) {
-    const searchText = kw.text.split(',')[0].split('+')[0].split('/')[0].replace(/"/g,'').trim();
+    const searchText = kw.text.split(/[,;]/)[0].split('+')[0].split('/')[0].replace(/"/g,'').trim();
     try {
       const data = JSON.parse(await fetchUrl(`https://newsapi.org/v2/everything?q=${encodeURIComponent(searchText)}&language=${lang}&sortBy=publishedAt&from=${fromDateStr}&pageSize=20&apiKey=${process.env.NEWSAPI_KEY}`));
       for (const a of (data.articles || [])) {
@@ -340,7 +342,7 @@ module.exports = async function(context, req) {
       try {
         if (previewSourceType === 'RSS') {
           articles = await fetchRSS({ URL: previewURL });
-        } else if (previewSourceType === 'Youtube') {
+        } else if (previewSourceType === 'URL' && previewURL.includes('youtube.com')) {
           const apiKey = process.env.YOUTUBE_API_KEY;
           const handle = previewURL.split('@')[1]?.split('/')[0];
           if (!handle) throw new Error('Invalid YouTube URL — must contain @ChannelName');
@@ -493,49 +495,57 @@ module.exports = async function(context, req) {
         const srcLog = { fetched: 0, langFiltered: 0, recencyFiltered: 0, matched: 0, unmatched: [] };
         logSources[source.Name] = srcLog;
 
-        if (source.SourceType === 'Youtube') {
-          if (disableYoutube) { srcLog.skipped = 'disabled'; continue; }
-          if (youtubeAlreadyFetched) { srcLog.skipped = 'already fetched today'; continue; }
-          if (!source.YoutubeChannelID) { srcLog.skipped = 'no channel ID'; continue; }
-          const ytResult = await fetchYouTube(source, fromDate, isFiltered, keywords, youTubeMaxResults, context, quotaUsed);
-          articles = ytResult.articles;
-          srcLog.fetched = ytResult.fetched;
-          srcLog.recencyFiltered = ytResult.recencyFiltered;
-          const lr = await filterByLanguage(articles, uniqueLangCodes);
-          srcLog.langFiltered = lr._langFiltered?.length || 0;
-          totalLangFiltered += srcLog.langFiltered;
-          articles = lr;
-          articles.forEach(a => { a.isSubscription = !isFiltered; });
-          youtubeFetched = true;
-        } else {
-          switch(source.SourceType) {
-            case 'API': {
-              const nonTeamsKws = keywords.filter(kw =>
-                !kw.UserOwnedSourceID &&
-                !isTeamsKeyword(kw) &&
-                (!kw.SourceID || kw.SourceID === source.SourceID)
-              );
-              if (source.Name.includes('Guardian'))       articles = await fetchGuardian(source, nonTeamsKws, fromDateStr);
-              else if (source.Name.includes('NYT'))        articles = await fetchNYT(source);
-              else if (source.Name.includes('GNews'))      articles = await fetchGNews(source, uniqueLangCodes);
-              else if (source.Name.includes('Currents'))   articles = await fetchCurrents(source);
-              else if (source.Name.includes('MediaStack')) articles = await fetchMediaStack(source);
-              else if (source.Name.includes('NewsAPI'))    articles = await fetchNewsAPI(source, nonTeamsKws, fromDateStr, uniqueLangCodes);
-              break;
-            }
-            case 'RSS':  articles = await fetchRSS(source);     break;
-            case 'URL':  articles = await fetchPageURL(source);  break;
-            default:     articles = await fetchRSS(source);
+        switch(source.SourceType) {
+          case 'API': {
+            const nonTeamsKws = keywords.filter(kw =>
+              !kw.UserOwnedSourceID &&
+              !isTeamsKeyword(kw) &&
+              (!kw.SourceID || kw.SourceID === source.SourceID)
+            );
+            if (source.Name.includes('Guardian'))       articles = await fetchGuardian(source, nonTeamsKws, fromDateStr);
+            else if (source.Name.includes('NYT'))        articles = await fetchNYT(source);
+            else if (source.Name.includes('GNews'))      articles = await fetchGNews(source, uniqueLangCodes);
+            else if (source.Name.includes('Currents'))   articles = await fetchCurrents(source);
+            else if (source.Name.includes('MediaStack')) articles = await fetchMediaStack(source);
+            else if (source.Name.includes('NewsAPI'))    articles = await fetchNewsAPI(source, nonTeamsKws, fromDateStr, uniqueLangCodes);
+            break;
           }
+          case 'RSS':  articles = await fetchRSS(source); break;
+          case 'URL': {
+            if (source.URL?.includes('youtube.com')) {
+              if (disableYoutube) { srcLog.skipped = 'disabled'; continue; }
+              if (youtubeAlreadyFetched) { srcLog.skipped = 'already fetched today'; continue; }
+              if (!source.YoutubeChannelID) { srcLog.skipped = 'no channel ID'; continue; }
+              const ytResult = await fetchYouTube(source, fromDate, isFiltered, keywords, youTubeMaxResults, context, quotaUsed);
+              articles = ytResult.articles;
+              srcLog.fetched = ytResult.fetched;
+              srcLog.recencyFiltered = ytResult.recencyFiltered;
+              const lr = await filterByLanguage(articles, uniqueLangCodes);
+              srcLog.langFiltered = lr._langFiltered?.length || 0;
+              totalLangFiltered += srcLog.langFiltered;
+              articles = lr;
+              articles.forEach(a => { a.isSubscription = !isFiltered; });
+              youtubeFetched = true;
+            } else {
+              articles = await fetchPageURL(source);
+            }
+            break;
+          }
+          default: articles = await fetchRSS(source);
+        }
+          if (source.URL?.includes('youtube.com') && source.SourceType === 'URL') {
+          // fetched/langFiltered/recencyFiltered already set above in YouTube branch
+        } else {
           srcLog.fetched = articles.length;
-          const lr = await filterByLanguage(articles, uniqueLangCodes);
-          srcLog.langFiltered = lr._langFiltered?.length || 0;
+          const lr2 = await filterByLanguage(articles, uniqueLangCodes);
+          srcLog.langFiltered = lr2._langFiltered?.length || 0;
           totalLangFiltered += srcLog.langFiltered;
-          articles = lr;
+          articles = lr2;
           const beforeRecency = articles.length;
           articles = articles.filter(a => !a.pubDate || a.pubDate >= fromDate);
           srcLog.recencyFiltered = beforeRecency - articles.length;
-          if (isFiltered) {
+        }
+        if (isFiltered) {
             articles.forEach(a => { a.sourceID = source.SourceID; });
             const applicableKeywords = keywords.filter(kw => {
               if (kw.UserOwnedSourceID) return false;
@@ -547,7 +557,6 @@ module.exports = async function(context, req) {
           } else {
             articles.forEach(a => { a.isSubscription = false; });
           }
-        }
 
         articles = articles.filter(a => !sourceExcludesArticle(source, a));
         articles.forEach(a => {
@@ -619,7 +628,7 @@ module.exports = async function(context, req) {
     if (youtubeFetched) {
       await pool.request().input('UserID', sql.Int, userID)
         .query(`UPDATE [HeadlineSetting] SET LastYouTubeFetch = GETDATE() WHERE UserID = @UserID`);
-      const ytArticles = allArticles.filter(a => a.sourceType === 'Youtube');
+      const ytArticles = allArticles.filter(a => a.sourceURL?.includes('youtube.com') || a.link?.includes('youtube.com/watch'));
       const videoIDs = ytArticles.map(a => { const m = a.link?.match(/[?&]v=([^&]+)/); return m ? m[1] : null; }).filter(Boolean);
       if (videoIDs.length) {
         quotaUsed.units += Math.ceil(videoIDs.length / 50);
