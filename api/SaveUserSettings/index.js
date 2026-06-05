@@ -11,7 +11,7 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, otherHeadlinesPerKeyword, categorySettings, disableYoutubeToday, fetchHour, zipCode, collapseThreshold } = req.body;
+    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, otherHeadlinesPerKeyword, categorySettings, disableYoutubeToday, fetchHour, zipCode, collapseThreshold, weatherURL } = req.body;
 
     if (disableYoutubeToday !== undefined) {
       const resetYT = req.body.resetYouTubeFetch === true;
@@ -39,12 +39,14 @@ module.exports = async function(context, req) {
         .input('OtherHeadlinesPerKeyword', sql.Int, otherHeadlinesPerKeyword ?? 3)
         .input('FetchHour', sql.Int, fetchHour === undefined ? null : (fetchHour === null ? null : parseInt(fetchHour)))
         .input('CollapseThreshold', sql.Int, collapseThreshold ?? 5)
+        .input('WeatherURL', sql.NVarChar(500), weatherURL !== undefined ? (weatherURL || null) : null)
         .query(`
           UPDATE [HeadlineSetting]
           SET RecencyDays = @RecencyDays, MaxHeadlines = @MaxHeadlines, YouTubeMaxResults = @YouTubeMaxResults,
               OtherHeadlinesPerKeyword = @OtherHeadlinesPerKeyword,
               FetchHour = ISNULL(@FetchHour, FetchHour),
-              CollapseThreshold = @CollapseThreshold
+              CollapseThreshold = @CollapseThreshold,
+              WeatherURL = @WeatherURL
           WHERE UserID = @UserID
         `);
     }

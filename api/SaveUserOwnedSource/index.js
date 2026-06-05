@@ -10,7 +10,7 @@ module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
     const { action, userID, sourceID, sourceName, description, sourceType, url,
-            thumbnailURL, exclusions, isInactive, userMenuID, groupLabel, sequences } = req.body;
+            thumbnailURL, exclusions, isInactive, userMenuID, groupLabel, sequences, isSysHeader } = req.body;
 
     if (action === 'add') {
       const maxSeq = await pool.request()
@@ -28,9 +28,10 @@ module.exports = async function(context, req) {
         .input('Sequence', sql.Int, nextSeq)
         .input('UserMenuID', sql.Int, userMenuID || null)
         .input('GroupLabel', sql.VarChar(100), groupLabel || null)
+        .input('IsSysHeader', sql.Bit, isSysHeader ? 1 : 0)
         .query(`INSERT INTO UserOwnedSource
-                  (UserID,SourceName,Description,SourceType,URL,ThumbnailURL,Exclusions,Sequence,IsInactive,UserMenuID,GroupLabel)
-                VALUES (@UserID,@SourceName,@Description,@SourceType,@URL,@ThumbnailURL,@Exclusions,@Sequence,0,@UserMenuID,@GroupLabel);
+                  (UserID,SourceName,Description,SourceType,URL,ThumbnailURL,Exclusions,Sequence,IsInactive,UserMenuID,GroupLabel,IsSysHeader)
+                VALUES (@UserID,@SourceName,@Description,@SourceType,@URL,@ThumbnailURL,@Exclusions,@Sequence,0,@UserMenuID,@GroupLabel,@IsSysHeader);
                 SELECT SCOPE_IDENTITY() AS sourceID`);
       context.res = { status: 200, body: JSON.stringify({ sourceID: result.recordset[0].sourceID }) };
 
@@ -47,10 +48,12 @@ module.exports = async function(context, req) {
         .input('IsInactive', sql.Bit, isInactive ? 1 : 0)
         .input('UserMenuID', sql.Int, userMenuID || null)
         .input('GroupLabel', sql.VarChar(100), groupLabel || null)
+        .input('IsSysHeader', sql.Bit, isSysHeader ? 1 : 0)
         .query(`UPDATE UserOwnedSource
                 SET SourceName=@SourceName, Description=@Description, SourceType=@SourceType,
                     URL=@URL, ThumbnailURL=@ThumbnailURL, Exclusions=@Exclusions,
-                    IsInactive=@IsInactive, UserMenuID=@UserMenuID, GroupLabel=@GroupLabel
+                    IsInactive=@IsInactive, UserMenuID=@UserMenuID, GroupLabel=@GroupLabel,
+                    IsSysHeader=@IsSysHeader
                 WHERE UserOwnedSourceID=@SourceID AND UserID=@UserID`);
       context.res = { status: 200, body: JSON.stringify({ success: true }) };
 

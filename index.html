@@ -398,6 +398,11 @@
               <input type="number" id="us-collapsethreshold" class="form-input" style="width:52px;font-size:12px;padding:3px 5px" min="0" max="50" oninput="debounceSaveCatLimits()">
               <div style="font-size:10px;color:var(--text-muted);margin-top:2px">headlines</div>
             </div>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">On Weather Click</div>
+              <input type="text" id="us-weatherurl" class="form-input" style="width:180px;font-size:12px;padding:3px 5px" placeholder="https://...">
+              <div style="font-size:10px;color:var(--text-muted);margin-top:2px">optional URL</div>
+            </div>
           </div>
           <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px">
             <div>
@@ -1030,8 +1035,9 @@ try{
           <div style="font-size:10px;color:rgba(255,255,255,0.65)">${Math.round(d.temperature_2m_min[i+1])}&#176;</div>
         </div>`;
       }).join('');
+      const wUrl=window._weatherClickURL||'https://forecast.weather.gov/MapClick.php?CityName=Oregon&state=IL&site=LOT&textField1=41.9945&textField2=-89.3334';
       document.getElementById('weather-block').innerHTML=`
-        <a href="https://forecast.weather.gov/MapClick.php?CityName=Oregon&state=IL&site=LOT&textField1=41.9945&textField2=-89.3334" target="_blank" style="display:flex;align-items:center;gap:10px;text-decoration:none">
+        <a href="${wUrl}" target="_blank" style="display:flex;align-items:center;gap:10px;text-decoration:none">
           <div class="weather-icon" style="font-size:28px">${icon}</div>
           <div>
             <div class="weather-temp" style="font-size:20px">${Math.round(c.temperature_2m)}&#176;F</div>
@@ -1084,6 +1090,10 @@ try{
     document.getElementById('us-otherperkey').value=userSettings?.headlineSetting?.OtherHeadlinesPerKeyword||3;
     collapseThreshold=userSettings?.headlineSetting?.CollapseThreshold??5;
     document.getElementById('us-collapsethreshold').value=collapseThreshold;
+    const weatherUrl=userSettings?.headlineSetting?.WeatherURL||'';
+    const weatherUrlEl=document.getElementById('us-weatherurl');
+    if(weatherUrlEl)weatherUrlEl.value=weatherUrl;
+    window._weatherClickURL=weatherUrl||null;
     const fetchHourEl=document.getElementById('us-fetchhour');
     if(fetchHourEl){
       const fh=userSettings?.headlineSetting?.FetchHour;
@@ -1165,7 +1175,33 @@ try{
 
   // ── LANGUAGE ──
 
+  function renderSysHeaderButtons(){
+    document.querySelectorAll('.nav-sysheader-btn').forEach(b=>b.remove());
+    const headerLeft=document.querySelector('.header-left');
+    if(!headerLeft)return;
+    const buttons=userOwnedSources
+      .filter(s=>s.IsSysHeader===1&&!s.IsInactive)
+      .sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
+    buttons.forEach(s=>{
+      const btn=document.createElement('button');
+      btn.className='nav-sysheader-btn';
+      btn.title=s.SourceName;
+      btn.style.cssText='display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);border-radius:8px;cursor:pointer;padding:4px 8px;min-width:48px;transition:background 0.2s;flex-shrink:0';
+      btn.onmouseenter=()=>btn.style.background='rgba(255,255,255,0.3)';
+      btn.onmouseleave=()=>btn.style.background='rgba(255,255,255,0.18)';
+      btn.onclick=()=>openSourceEntry(s.URL, s.SourceType);
+      const escapedURL=s.URL.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      if(s.ThumbnailURL){
+        btn.innerHTML=`<img src="${s.ThumbnailURL}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;flex-shrink:0"><span style="font-size:10px;font-weight:700;color:white;letter-spacing:0.3px;line-height:1;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.SourceName}</span>`;
+      } else {
+        btn.innerHTML=`<span style="font-size:18px;line-height:1">${s.SourceType==='File'?'📄':'🌐'}</span><span style="font-size:10px;font-weight:700;color:white;letter-spacing:0.3px;line-height:1;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.SourceName}</span>`;
+      }
+      headerLeft.appendChild(btn);
+    });
+  }
+
   function renderLanguageNav(){
+    renderSysHeaderButtons();
     renderUserMenuNav();
     document.querySelectorAll('.nav-btn-lang').forEach(b=>b.remove());
     const navDate=document.getElementById('nav-date');
@@ -1207,8 +1243,6 @@ try{
             <div class="lang-compact-native">${lang.LanguageName}</div>
             <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
               <div style="display:flex;align-items:center;gap:12px">
-                <button class="btn-primary" style="padding:4px 12px;font-size:12px;background:#22c55e" id="btn-add5words" onclick="addFiveWords()">✨ Add 5 Words</button>
-                <span id="add5words-status" style="font-size:11px;color:var(--sky-deep);font-weight:600"></span>
                 <button class="btn-primary" style="padding:4px 12px;font-size:12px" onclick="visitLanguage(${lang.LanguageID},'${lang.LanguageNameEng}');showNewWord()">+ Add Word</button>
                 <div class="lang-compact-greeting">${langEncouragements[lang.LanguageNameEng]?langEncouragements[lang.LanguageNameEng][Math.floor(Math.random()*langEncouragements[lang.LanguageNameEng].length)]:''}</div>
               </div>
@@ -2224,52 +2258,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
       </table>`;
   }
 
-  async function addFiveWords(){
-    const btn=document.getElementById('btn-add5words');
-    const status=document.getElementById('add5words-status');
-    if(btn){btn.disabled=true;btn.textContent='⏳ Finding words...';}
-    if(status){status.textContent='';status.style.display='none';}
-    try{
-      const existingWords=myWords.map(w=>w.WordsName).join(', ')||'none yet';
-      const prompt=`The user is learning Spanish. Their current word list includes: ${existingWords}. Suggest exactly 5 new Spanish words appropriate for their level that they don't already have. Return ONLY a JSON array of objects with fields: word (Spanish), translation (English), isVerb (boolean), gender (M, F, or null). No other text.`;
-      const res=await apiPost('GetWordSuggestions',{prompt,userID:USER_ID});
-      const text=res.text||'';
-      const clean=text.replace(/```json|```/g,'').trim();
-      const words=JSON.parse(clean);
-      if(!Array.isArray(words)||!words.length)throw new Error('No words returned');
-      const latestDeck=userDecks.length?[...userDecks].sort((a,b)=>new Date(b.DateAdded)-new Date(a.DateAdded))[0]:null;
-      let added=0;
-      for(const w of words){
-        const trans=await translateWord(w.word);
-        const wordsName=trans.wordWithRegion||w.word;
-        const isVerbFlag=trans.isVerb===true||trans.isVerb==='true';
-        const gender=trans.gender||null;
-        const wordsTranslation=trans.translation||w.translation||'';
-        const result=await apiPost('SaveUserLanguageWord',{action:'add',userID:USER_ID,languageID:currentLangID,
-          wordsName,wordsTranslation,isVerb:isVerbFlag,gender,wordsImage:null});
-        if(result?.wordID){
-          added++;
-          if(latestDeck)await apiPost('SaveUserDeck',{action:'addWord',userID:USER_ID,deckID:latestDeck.UserLanguageWordsDeckID,wordID:result.wordID});
-        }
-      }
-      const freshData=await apiGet('GetUserLanguageWords',`&languageID=${currentLangID}&filter=all`);
-      myWords=Array.isArray(freshData)?freshData:[];
-      const ddata=await apiGet('GetUserDecks',`&languageID=${currentLangID}&status=all`);
-      userDecks=Array.isArray(ddata)?ddata:[];
-      if(btn){btn.disabled=false;btn.textContent='✨ Add 5 Words';}
-      if(status){
-        status.textContent=`✓ ${added} words added${latestDeck?' to '+latestDeck.UserLanguageWordsDeckName:''}`;
-        status.style.display='inline';
-        setTimeout(()=>{status.style.display='none';},6000);
-      }
-      const panel=document.getElementById(`lang-feature-${currentLangID}`);
-      if(panel)panel.innerHTML=renderDecksHTML(currentLangID,currentLangName);
-    }catch(e){
-      if(btn){btn.disabled=false;btn.textContent='✨ Add 5 Words';}
-      if(status){status.textContent='Failed: '+e.message;status.style.display='inline';}
-    }
-  }
-
+  
   function setDeckStatusFilter(status){
     deckStatusFilter=status;
     const panel=document.getElementById(`lang-feature-${currentLangID}`);
@@ -2506,10 +2495,12 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     out.innerHTML = html;
   }
 
-  async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
-    // Guard: don't open if conjugation hasn't loaded yet
-    if(!_conjData?.moods?.length){
-      console.warn('[ConjTips] Conjugation not loaded yet — ignoring click');
+
+
+
+async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
+    if (!_conjData?.moods?.length) {
+      console.warn('[ConjTips] Conjugation not loaded yet');
       return;
     }
     const language = _conjData.language || currentLangName || conjLangName || 'Spanish';
@@ -2518,51 +2509,56 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     const titleEl = document.getElementById('conj-tips-title');
     const subtitleEl = document.getElementById('conj-tips-subtitle');
     const bodyEl = document.getElementById('conj-tips-body');
-    if(titleEl) titleEl.textContent = `${moodEng} — ${tenseEng}`;
-    if(subtitleEl) subtitleEl.textContent = `${moodName} / ${tenseName} · ${language}`;
-    if(bodyEl) bodyEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:24px;margin-bottom:12px">⏳</div><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">Generating Conjugation Tips...</div><div style="font-size:12px;line-height:1.6">First load may take 15–20 seconds.<br>Future visits load instantly.</div></div>';
-    if(modal) modal.style.display = 'flex';
+    if (titleEl) titleEl.textContent = `${moodEng} — ${tenseEng}`;
+    if (subtitleEl) subtitleEl.textContent = `${moodName} / ${tenseName} · ${language}`;
+    if (bodyEl) bodyEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:24px;margin-bottom:12px">⏳</div><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">Generating Conjugation Tips...</div><div style="font-size:12px;line-height:1.6">First load may take 15–20 seconds.<br>Future visits load instantly.</div></div>';
+    if (modal) modal.style.display = 'flex';
 
-    // Check in-memory cache first
-    if(_conjTipsCache[cacheKey]){
+    // Check in-memory cache
+    if (_conjTipsCache[cacheKey]) {
       renderConjTips(_conjTipsCache[cacheKey]);
       return;
     }
     // Check localStorage cache
-    try{
+    try {
       const stored = localStorage.getItem(`conjTips_${cacheKey}`);
-      if(stored){
+      if (stored) {
         const parsed = JSON.parse(stored);
-        if(parsed?.usage || parsed?.verbGroups || parsed?.examples || parsed?.tips){
+        if (parsed?.usage || parsed?.verbGroups || parsed?.examples || parsed?.tips) {
           _conjTipsCache[cacheKey] = parsed;
           renderConjTips(parsed);
           return;
         }
       }
-    }catch(e){}
+    } catch(e) {}
 
     // Not cached — generate via API
-    try{
+    try {
       const result = await apiPost('GetConjugationTips', { language, moodEng, moodName, tenseEng, tenseName });
       // Handle both { tips: {...} } and direct object shapes
       const tips = result?.tips
         ? result.tips
-        : (result?.usage || result?.verbGroups || result?.examples || result?.tips)
+        : (result?.usage || result?.verbGroups || result?.examples)
           ? result
           : null;
-      if(tips){
+      if (tips) {
         _conjTipsCache[cacheKey] = tips;
-        try{ localStorage.setItem(`conjTips_${cacheKey}`, JSON.stringify(tips)); }catch(e){}
+        try { localStorage.setItem(`conjTips_${cacheKey}`, JSON.stringify(tips)); } catch(e) {}
         renderConjTips(tips);
-      }else{
-        if(bodyEl) bodyEl.innerHTML = `<div class="empty-state">No tips were returned. Try closing and clicking Conjugation Tips again.</div>`;
+      } else {
+        if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">No tips available. Try closing and reopening.</div>';
         console.warn('[ConjTips] Unexpected response shape:', result);
       }
-    }catch(e){
-      if(bodyEl) bodyEl.innerHTML = `<div class="empty-state">Error loading tips: ${e.message}</div>`;
+    } catch(e) {
+      if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
       console.error('[ConjTips] Error:', e);
     }
   }
+
+
+
+
+
 
   function closeConjTips() {
     const modal = document.getElementById('conj-tips-modal');
@@ -3113,6 +3109,23 @@ let _pdfClosing=false;
 
   function updateMsTypeFields(){
     const type=document.querySelector('input[name="ms-type"]:checked')?.value||'API';
+    // Show/hide System Header option based on type
+    const menuSel=document.getElementById('ms-menuid');
+    if(menuSel){
+      const sysOpts=menuSel.querySelectorAll('option[value="__sysheader__"], option[disabled]');
+      sysOpts.forEach(o=>o.remove());
+      if(type==='URL'||type==='File'){
+        const sep=document.createElement('option');
+        sep.disabled=true;sep.textContent='─────────────';sep.style.cssText='font-size:4px;line-height:1;padding:0';
+        menuSel.appendChild(sep);
+        const opt=document.createElement('option');
+        opt.value='__sysheader__';opt.textContent='System Header';
+        menuSel.appendChild(opt);
+      } else {
+        // If System Header was selected and type changed away, reset to none
+        if(menuSel.value==='__sysheader__') menuSel.value='';
+      }
+    }
     const urlLabel=document.getElementById('ms-url-label');
     const fileNote=document.getElementById('ms-file-note');
     const urlInput=document.getElementById('ms-url');
@@ -3302,7 +3315,9 @@ let _pdfClosing=false;
       const fetchHour=fetchHourVal===''?null:parseInt(fetchHourVal);
       const collapseThresholdVal=Math.max(0,parseInt(document.getElementById('us-collapsethreshold')?.value)??5);
       collapseThreshold=collapseThresholdVal;
-      await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,fetchHour,collapseThreshold:collapseThresholdVal,categorySettings});
+      const weatherURLVal=(document.getElementById('us-weatherurl')?.value||'').trim()||null;
+      window._weatherClickURL=weatherURLVal;
+      await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,fetchHour,collapseThreshold:collapseThresholdVal,weatherURL:weatherURLVal,categorySettings});
     },800);
   }
   function updateOtherLimit(){
@@ -3333,7 +3348,9 @@ let _pdfClosing=false;
     if(maxHeadlines<catSum){maxHeadlines=catSum;document.getElementById('us-maxheadlines').value=maxHeadlines;updateOtherLimit();}
     const collapseThresholdVal=Math.max(0,parseInt(document.getElementById('us-collapsethreshold')?.value)??5);
     collapseThreshold=collapseThresholdVal;
-    await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,fetchHour,collapseThreshold:collapseThresholdVal,categorySettings});
+    const weatherURLVal=(document.getElementById('us-weatherurl')?.value||'').trim()||null;
+    window._weatherClickURL=weatherURLVal;
+    await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,fetchHour,collapseThreshold:collapseThresholdVal,weatherURL:weatherURLVal,categorySettings});
     recencyDays_value=recencyDays;
     document.getElementById('recency-val').textContent=recencyDays===1?'1 day':`${recencyDays} days`;
   }
@@ -4454,6 +4471,7 @@ function renderMySitesByMenu(menuID) {
       userMenu = Array.isArray(menuData) ? menuData : [];
     }
     renderMySourcesTable();
+    renderSysHeaderButtons();
   }
 
  
@@ -4551,8 +4569,12 @@ function renderMySourcesTable() {
     if(type === 'File') updateModalLauncherPanel();
     const menuSel = document.getElementById('ms-menuid');
     if (menuSel) {
+      const type = src ? ((!src.SourceType || src.SourceType === 'Website') ? 'URL' : src.SourceType) : null;
+      const showSysHeader = !type || type === 'URL' || type === 'File';
+const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
       menuSel.innerHTML = '<option value="">— None —</option>' +
-        userMenu.filter(m => !m.IsInactive).map(m => `<option value="${m.UserMenuID}" ${src?.UserMenuID==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('');
+        userMenu.filter(m => !m.IsInactive).map(m => `<option value="${m.UserMenuID}" ${!isSysHeader&&src?.UserMenuID==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('') +
+        (showSysHeader ? `<option disabled style="border-top:1px solid var(--border);padding:0;line-height:1;font-size:4px">─────────────</option><option value="__sysheader__" ${isSysHeader?'selected':''}>System Header</option>` : '');
     }
     const preview = document.getElementById('ms-thumbnail-preview');
     if (src?.ThumbnailURL) preview.innerHTML = `<img src="${src.ThumbnailURL}" style="width:100%;height:100%;object-fit:cover">`;
@@ -4612,19 +4634,22 @@ function renderMySourcesTable() {
     if (!sourceName) return alert('Name is required');
     if (!url) return alert('URL is required');
     const sourceType = document.querySelector('input[name="ms-type"]:checked')?.value || 'Website';
-    const userMenuID = parseInt(document.getElementById('ms-menuid')?.value) || null;
+    const msMenuRaw = document.getElementById('ms-menuid')?.value || '';
+    const userMenuID = msMenuRaw === '__sysheader__' ? '__sysheader__' : (parseInt(msMenuRaw) || null);
     const groupLabel = document.getElementById('ms-grouplabel')?.value.trim() || null;
     const description = document.getElementById('ms-description').value.trim() || null;
     const exclusions = document.getElementById('ms-exclusions').value.trim() || null;
     const isInactive = document.getElementById('ms-inactive').checked;
     const thumbnailURL = msThumbnailData || null;
     if (msEditingID) {
-      await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, userMenuID, groupLabel });
+      const userMenuIDForSave = userMenuID === '__sysheader__' ? null : userMenuID;
+      await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, userMenuID: userMenuIDForSave, groupLabel, isSysHeader: userMenuID === '__sysheader__' ? 1 : 0 });
       const src = userOwnedSources.find(s => s.UserOwnedSourceID === msEditingID);
-      if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; src.UserMenuID = userMenuID; src.GroupLabel = groupLabel; }
+      if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; src.UserMenuID = userMenuID; src.GroupLabel = groupLabel; src.IsSysHeader = userMenuID === '__sysheader__' ? 1 : 0; }
     } else {
-      const result = await apiPost('SaveUserOwnedSource', { action: 'add', userID: USER_ID, sourceName, url, sourceType, description, thumbnailURL, exclusions, userMenuID, groupLabel });
-      userOwnedSources.push({ UserOwnedSourceID: result.sourceID, SourceName: sourceName, URL: url, SourceType: sourceType, Description: description, ThumbnailURL: thumbnailURL, Exclusions: exclusions, IsInactive: 0, Sequence: 99, UserMenuID: userMenuID, GroupLabel: groupLabel });
+      const userMenuIDForSave = userMenuID === '__sysheader__' ? null : userMenuID;
+      const result = await apiPost('SaveUserOwnedSource', { action: 'add', userID: USER_ID, sourceName, url, sourceType, description, thumbnailURL, exclusions, userMenuID: userMenuIDForSave, groupLabel, isSysHeader: userMenuID === '__sysheader__' ? 1 : 0 });
+      userOwnedSources.push({ UserOwnedSourceID: result.sourceID, SourceName: sourceName, URL: url, SourceType: sourceType, Description: description, ThumbnailURL: thumbnailURL, Exclusions: exclusions, IsInactive: 0, Sequence: 99, UserMenuID: userMenuID, GroupLabel: groupLabel, IsSysHeader: userMenuID === '__sysheader__' ? 1 : 0 });
     }
     renderMySourcesTable();
     if (addAnother) { msEditingID = null; msThumbnailData = null; openMySiteModal(null); }
@@ -4637,19 +4662,22 @@ function renderMySourcesTable() {
     if (!sourceName) return alert('Name is required');
     if (!url) return alert('URL is required');
     const sourceType = document.querySelector('input[name="ms-type"]:checked')?.value || 'Website';
-    const userMenuID = parseInt(document.getElementById('ms-menuid')?.value) || null;
+    const msMenuRaw = document.getElementById('ms-menuid')?.value || '';
+    const userMenuID = msMenuRaw === '__sysheader__' ? '__sysheader__' : (parseInt(msMenuRaw) || null);
+    const userMenuIDForSave = userMenuID === '__sysheader__' ? null : userMenuID;
+    const isSysHeader = userMenuID === '__sysheader__' ? 1 : 0;
     const groupLabel = document.getElementById('ms-grouplabel')?.value.trim() || null;
     const description = document.getElementById('ms-description').value.trim() || null;
     const exclusions = document.getElementById('ms-exclusions').value.trim() || null;
     const isInactive = document.getElementById('ms-inactive').checked;
     const thumbnailURL = msThumbnailData || null;
     // Save current
-    await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, userMenuID, groupLabel });
+    await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, userMenuID: userMenuIDForSave, groupLabel, isSysHeader });
     const src = userOwnedSources.find(s => s.UserOwnedSourceID === msEditingID);
-    if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; src.UserMenuID = userMenuID; src.GroupLabel = groupLabel; }
+    if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; src.UserMenuID = userMenuID; src.GroupLabel = groupLabel; src.IsSysHeader = isSysHeader; }
     // Create copy with placeholder name
-    const result = await apiPost('SaveUserOwnedSource', { action: 'add', userID: USER_ID, sourceName: 'New Name Here', url, sourceType, description, thumbnailURL, exclusions, userMenuID, groupLabel });
-    userOwnedSources.push({ UserOwnedSourceID: result.sourceID, SourceName: 'New Name Here', URL: url, SourceType: sourceType, Description: description, ThumbnailURL: thumbnailURL, Exclusions: exclusions, IsInactive: 0, Sequence: 99, UserMenuID: userMenuID, GroupLabel: groupLabel });
+    const result = await apiPost('SaveUserOwnedSource', { action: 'add', userID: USER_ID, sourceName: 'New Name Here', url, sourceType, description, thumbnailURL, exclusions, userMenuID: userMenuIDForSave, groupLabel, isSysHeader });
+    userOwnedSources.push({ UserOwnedSourceID: result.sourceID, SourceName: 'New Name Here', URL: url, SourceType: sourceType, Description: description, ThumbnailURL: thumbnailURL, Exclusions: exclusions, IsInactive: 0, Sequence: 99, UserMenuID: userMenuID, GroupLabel: groupLabel, IsSysHeader: isSysHeader });
     renderMySourcesTable();
     openMySiteModal(result.sourceID);
     setTimeout(() => { const n = document.getElementById('ms-name'); if (n) { n.select(); n.focus(); } }, 50);
