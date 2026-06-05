@@ -2519,26 +2519,7 @@ async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
     } catch(e) {
       if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">Error loading tips: ${e.message}</div>`;
     }
-  }', { language, moodEng, moodName, tenseEng, tenseName });
-      console.log('[ConjTips] full result:', JSON.stringify(result));
-      const tips = result?.tips && typeof result.tips === 'object' && !Array.isArray(result.tips) ? result.tips : null;
-      console.log('[ConjTips] extracted tips:', JSON.stringify(tips));
-      if (tips) {
-        _conjTipsCache[cacheKey] = tips;
-        try { localStorage.setItem(`conjTips_${cacheKey}`, JSON.stringify(tips)); } catch(e) {}
-        renderConjTips(tips);
-      } else {
-        if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">No tips were generated. Close and try again.</div>';
-        console.warn('[ConjTips] Unexpected response:', result);
-      }
-    } catch(e) {
-      if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">Error loading tips: ${e.message}</div>`;
-      console.error('[ConjTips] Error:', e);
-    }
   }
-
-
-
 
 
 
