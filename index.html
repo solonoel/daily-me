@@ -2366,11 +2366,6 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     loadConjugation(wordID,conjLangName);
   }
 
-  let _conjMode = 'learn';
-  let _conjData = null;
-  let _conjWordID = null;
-  let _conjTipsCache = {};
-
   function setConjMode(mode) {
     _conjMode = mode;
     renderConjOutput();
@@ -2500,46 +2495,31 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
 
 
 async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
-    // If conjugation still loading, wait briefly then retry once
     if (!_conjData?.moods?.length) {
       await new Promise(r => setTimeout(r, 800));
-      if (!_conjData?.moods?.length) {
-        console.warn('[ConjTips] Conjugation not loaded after wait');
-        return;
-      }
+      if (!_conjData?.moods?.length) return;
     }
     const language = _conjData.language || currentLangName || conjLangName || 'Spanish';
-    const cacheKey = `${language}|${moodEng}|${tenseEng}`;
     const modal = document.getElementById('conj-tips-modal');
     const titleEl = document.getElementById('conj-tips-title');
     const subtitleEl = document.getElementById('conj-tips-subtitle');
     const bodyEl = document.getElementById('conj-tips-body');
     if (titleEl) titleEl.textContent = `${moodEng} — ${tenseEng}`;
     if (subtitleEl) subtitleEl.textContent = `${moodName} / ${tenseName} · ${language}`;
-    if (bodyEl) bodyEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:24px;margin-bottom:12px">⏳</div><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">Generating Conjugation Tips...</div><div style="font-size:12px;line-height:1.6">First load may take 15–20 seconds.<br>Future visits load instantly.</div></div>';
+    if (bodyEl) bodyEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:24px;margin-bottom:12px">⏳</div><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">Loading Conjugation Tips...</div><div style="font-size:12px;line-height:1.6">First load may take 15–20 seconds.<br>Tips are saved for future visits.</div></div>';
     if (modal) modal.style.display = 'flex';
-
-    // Check in-memory cache
-    if (_conjTipsCache[cacheKey]) {
-      renderConjTips(_conjTipsCache[cacheKey]);
-      return;
-    }
-    // Check localStorage cache — accept any non-empty object
-    try {
-      const stored = localStorage.getItem(`conjTips_${cacheKey}`);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length) {
-          _conjTipsCache[cacheKey] = parsed;
-          renderConjTips(parsed);
-          return;
-        }
-      }
-    } catch(e) {}
-
-    // Not cached — generate via API
     try {
       const result = await apiPost('GetConjugationTips', { language, moodEng, moodName, tenseEng, tenseName });
+      const tips = result?.tips && typeof result.tips === 'object' && !Array.isArray(result.tips) ? result.tips : null;
+      if (tips) {
+        renderConjTips(tips);
+      } else {
+        if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">Tips could not be generated. Close and try again.</div>';
+      }
+    } catch(e) {
+      if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">Error loading tips: ${e.message}</div>`;
+    }
+  }', { language, moodEng, moodName, tenseEng, tenseName });
       console.log('[ConjTips] full result:', JSON.stringify(result));
       const tips = result?.tips && typeof result.tips === 'object' && !Array.isArray(result.tips) ? result.tips : null;
       console.log('[ConjTips] extracted tips:', JSON.stringify(tips));
