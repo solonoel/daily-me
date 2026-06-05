@@ -1137,6 +1137,7 @@ try{
     const menuData = await apiGet('GetUserMenu');
     userMenu = Array.isArray(menuData) ? menuData : [];
     renderLanguageNav();
+    renderSysHeaderButtons();
     const loadMs=Math.round(performance.now()-loadStart);
     if(loadMs>3000){
       const loadMsg=document.getElementById('refresh-status');
@@ -1180,7 +1181,7 @@ try{
     const headerLeft=document.querySelector('.header-left');
     if(!headerLeft)return;
     const buttons=userOwnedSources
-      .filter(s=>s.IsSysHeader===1&&!s.IsInactive)
+      .filter(s=>(s.IsSysHeader===1||s.IsSysHeader===true)&&!s.IsInactive)
       .sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
     buttons.forEach(s=>{
       const btn=document.createElement('button');
@@ -2499,9 +2500,13 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
 
 
 async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
+    // If conjugation still loading, wait briefly then retry once
     if (!_conjData?.moods?.length) {
-      console.warn('[ConjTips] Conjugation not loaded yet');
-      return;
+      await new Promise(r => setTimeout(r, 800));
+      if (!_conjData?.moods?.length) {
+        console.warn('[ConjTips] Conjugation not loaded after wait');
+        return;
+      }
     }
     const language = _conjData.language || currentLangName || conjLangName || 'Spanish';
     const cacheKey = `${language}|${moodEng}|${tenseEng}`;
@@ -2519,12 +2524,12 @@ async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
       renderConjTips(_conjTipsCache[cacheKey]);
       return;
     }
-    // Check localStorage cache
+    // Check localStorage cache — accept any non-empty object
     try {
       const stored = localStorage.getItem(`conjTips_${cacheKey}`);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed?.usage || parsed?.verbGroups || parsed?.examples || parsed?.tips) {
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length) {
           _conjTipsCache[cacheKey] = parsed;
           renderConjTips(parsed);
           return;
@@ -2535,22 +2540,21 @@ async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
     // Not cached — generate via API
     try {
       const result = await apiPost('GetConjugationTips', { language, moodEng, moodName, tenseEng, tenseName });
-      // Handle both { tips: {...} } and direct object shapes
-      const tips = result?.tips
-        ? result.tips
-        : (result?.usage || result?.verbGroups || result?.examples)
-          ? result
-          : null;
-      if (tips) {
+      console.log('[ConjTips] API result:', JSON.stringify(result).slice(0, 300));
+      // Unwrap { tips: {...} } wrapper if present, otherwise use result directly
+      const tips = (result?.tips && typeof result.tips === 'object') ? result.tips : result;
+      // Validate: must have at least one recognisable field
+      const hasContent = tips && (tips.usage || tips.tips?.length || tips.verbGroups?.length || tips.irregulars?.length || tips.examples?.length);
+      if (hasContent) {
         _conjTipsCache[cacheKey] = tips;
         try { localStorage.setItem(`conjTips_${cacheKey}`, JSON.stringify(tips)); } catch(e) {}
         renderConjTips(tips);
       } else {
-        if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">No tips available. Try closing and reopening.</div>';
-        console.warn('[ConjTips] Unexpected response shape:', result);
+        if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">No tips were generated. Close and try again.</div>';
+        console.warn('[ConjTips] No usable content in response:', result);
       }
     } catch(e) {
-      if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+      if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">Error loading tips: ${e.message}</div>`;
       console.error('[ConjTips] Error:', e);
     }
   }
@@ -3393,7 +3397,8 @@ let _pdfClosing=false;
   window.addEventListener('popstate',(e)=>{
     if(document.getElementById('investigate-modal')?.style.display!=='none'){closeInvestigateModal();return;}
     if(_editReturnFn){const fn=_editReturnFn;_editReturnFn=null;editingWordID=null;fn();return;}
-    if(conjReturnFn){cancelConjugation();return;}
+    if(conjReturnFn&&_conjData){cancelConjugation();return;}
+    if(conjReturnFn&&!_conjData){return;}
     const panel=document.getElementById(`lang-feature-${currentLangID}`);
     if(panel?.querySelector('.flashcard-container')){returnFromFlashcards();return;}
     const state=e.state;if(!state){showScreen('headlines',false);return;}
@@ -4504,8 +4509,9 @@ function renderMySourcesTable() {
     if(msActiveFilter==='active') sorted=sorted.filter(s=>!s.IsInactive);
     else if(msActiveFilter==='inactive') sorted=sorted.filter(s=>!!s.IsInactive);
     tbody.innerHTML = sorted.map(s => {
-      const menuItem = userMenu.find(m => m.UserMenuID === s.UserMenuID);
-      const menuLabel = menuItem ? `<span class="badge">${menuItem.UserMenuName}</span>` : `<span style="font-size:11px;color:var(--text-muted)">—</span>`;
+      const isSysHeaderRow = s.IsSysHeader === 1 || s.IsSysHeader === true;
+      const menuItem = !isSysHeaderRow ? userMenu.find(m => m.UserMenuID === s.UserMenuID) : null;
+      const menuLabel = isSysHeaderRow ? `<span class="badge" style="background:#fff0d6;color:#b07000">System Header</span>` : menuItem ? `<span class="badge">${menuItem.UserMenuName}</span>` : `<span style="font-size:11px;color:var(--text-muted)">—</span>`;
       const groupLabel = s.GroupLabel ? `<span style="font-size:11px;color:var(--text-soft)">${s.GroupLabel}</span>` : `<span style="font-size:11px;color:var(--text-muted)">—</span>`;
       return `<tr draggable="true" data-id="${s.UserOwnedSourceID}">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
