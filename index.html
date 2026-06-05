@@ -1190,7 +1190,7 @@ try{
       btn.style.cssText='display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);border-radius:8px;cursor:pointer;padding:4px 8px;min-width:48px;transition:background 0.2s;flex-shrink:0';
       btn.onmouseenter=()=>btn.style.background='rgba(255,255,255,0.3)';
       btn.onmouseleave=()=>btn.style.background='rgba(255,255,255,0.18)';
-      btn.onclick=()=>openSourceEntry(s.URL, s.SourceType);
+      btn.onclick=()=>window.open(s.URL,'_blank','noopener');
       const escapedURL=s.URL.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
       if(s.ThumbnailURL){
         btn.innerHTML=`<img src="${s.ThumbnailURL}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;flex-shrink:0"><span style="font-size:10px;font-weight:700;color:white;letter-spacing:0.3px;line-height:1;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.SourceName}</span>`;
@@ -2540,18 +2540,15 @@ async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
     // Not cached — generate via API
     try {
       const result = await apiPost('GetConjugationTips', { language, moodEng, moodName, tenseEng, tenseName });
-      console.log('[ConjTips] API result:', JSON.stringify(result).slice(0, 300));
-      // Unwrap { tips: {...} } wrapper if present, otherwise use result directly
-      const tips = (result?.tips && typeof result.tips === 'object') ? result.tips : result;
-      // Validate: must have at least one recognisable field
-      const hasContent = tips && (tips.usage || tips.tips?.length || tips.verbGroups?.length || tips.irregulars?.length || tips.examples?.length);
-      if (hasContent) {
+      // API always returns { success: true, tips: { usage, tips[], verbGroups[], irregulars[], examples[] } }
+      const tips = result?.tips && typeof result.tips === 'object' && !Array.isArray(result.tips) ? result.tips : null;
+      if (tips) {
         _conjTipsCache[cacheKey] = tips;
         try { localStorage.setItem(`conjTips_${cacheKey}`, JSON.stringify(tips)); } catch(e) {}
         renderConjTips(tips);
       } else {
         if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">No tips were generated. Close and try again.</div>';
-        console.warn('[ConjTips] No usable content in response:', result);
+        console.warn('[ConjTips] Unexpected response:', result);
       }
     } catch(e) {
       if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">Error loading tips: ${e.message}</div>`;
