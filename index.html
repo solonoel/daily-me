@@ -232,6 +232,7 @@
     .searchable-combo-opt:hover { background:#f0f7ff; }
     body.nav-mode { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
     body.nav-mode .main { display:flex; flex:1; overflow:hidden; padding:0; max-width:none; }
+    body.nav-mode .nav { display:none; }
     .nav-panel { display:none; flex-direction:column; background:white; border-right:2px solid var(--border); overflow-y:auto; flex-shrink:0; padding:8px 6px; }
     body.nav-mode .nav-panel { display:flex; }
     .nav-panel-btn-grid { display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-start; }
@@ -283,6 +284,14 @@
       </div>
     </div>
   </div>
+  <div id="header-user-controls" style="display:none;flex-direction:column;align-items:flex-end;gap:2px;position:relative;z-index:1;flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:6px">
+      <a id="mode-toggle-link-hdr" href="#" onclick="toggleLaunchMode();return false;" style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.9);border-bottom:1px dashed rgba(255,255,255,0.6);white-space:nowrap">Nav</a>
+      <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.85)" id="nav-username-hdr"></span>
+      <button onclick="showScreen('settings')" title="Settings" style="width:26px;height:26px;border-radius:6px;border:1.5px solid rgba(255,255,255,0.35);background:rgba(255,255,255,0.18);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px">⚙️</button>
+    </div>
+    <a onclick="logout()" style="font-size:10px;color:rgba(255,255,255,0.65);cursor:pointer;text-decoration:underline;white-space:nowrap;line-height:1">Sign out</a>
+  </div>
   <div class="weather-block" id="weather-block"><div class="weather-loading" id="weather-initial">Loading weather...</div></div>
 </header>
 <nav class="nav" id="main-nav">
@@ -303,7 +312,7 @@
       <button class="refresh-btn" onclick="refreshHeadlines()" id="refresh-btn" style="font-size:10px;padding:3px 10px">↻ Refresh</button>
     </div>
   </div>
-  <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:0 12px;border-left:1px solid var(--border);flex-shrink:0;gap:3px">
+  <div id="nav-user-controls" style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:0 12px;border-left:1px solid var(--border);flex-shrink:0;gap:3px">
     <div style="display:flex;align-items:center;gap:6px">
       <a id="mode-toggle-link" href="#" onclick="toggleLaunchMode();return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);white-space:nowrap">Full</a>
       <span style="font-size:12px;font-weight:600;color:var(--text-soft)" id="nav-username"></span>
@@ -1053,21 +1062,37 @@ try{
   function applyNavMode(){
     const link=document.getElementById('mode-toggle-link');
     if(link)link.textContent=_navMode?'Nav':'Full';
+    const linkHdr=document.getElementById('mode-toggle-link-hdr');
+    if(linkHdr)linkHdr.textContent=_navMode?'Nav':'Full';
     const navHeaderControls=document.getElementById('nav-header-controls');
+    const headerUserControls=document.getElementById('header-user-controls');
+    const navUserControls=document.getElementById('nav-user-controls');
     const weatherBlock=document.getElementById('weather-block');
     const navDate=document.getElementById('nav-date');
+    const n=storedUser?.name?.split(' ')[0]||'';
+    const hdrUser=document.getElementById('nav-username-hdr');
+    if(hdrUser)hdrUser.textContent=n;
     if(_navMode){
       document.body.classList.add('nav-mode');
       if(navHeaderControls)navHeaderControls.style.display='flex';
+      if(headerUserControls)headerUserControls.style.display='flex';
+      if(navUserControls)navUserControls.style.display='none';
       if(weatherBlock)weatherBlock.style.display='none';
       if(navDate)navDate.style.display='none';
+      // Hide old-style nav menu buttons — nav panel handles them
+      document.querySelectorAll('.nav-btn-usermenu,.nav-btn-lang').forEach(b=>b.style.display='none');
       renderNavPanel();
       renderNavSysHeaderBtns();
+      document.querySelectorAll('.nav-sysheader-btn').forEach(b=>b.remove());
     } else {
       document.body.classList.remove('nav-mode');
       if(navHeaderControls)navHeaderControls.style.display='none';
+      if(headerUserControls)headerUserControls.style.display='none';
+      if(navUserControls)navUserControls.style.display='flex';
       if(weatherBlock)weatherBlock.style.display='';
       if(navDate)navDate.style.display='';
+      document.querySelectorAll('.nav-btn-usermenu,.nav-btn-lang').forEach(b=>b.style.display='');
+      renderSysHeaderButtons();
     }
   }
 
@@ -1094,7 +1119,10 @@ try{
     if(!grid)return;
     const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
     const activeMenu=userMenu.filter(m=>!m.IsInactive).sort((a,b)=>(a.UserMenuSeq||99)-(b.UserMenuSeq||99));
-    grid.style.maxWidth=(perRow*82+((perRow-1)*6))+'px';
+    const panelWidth=(perRow*82+((perRow-1)*6))+24;
+    grid.style.maxWidth=(panelWidth-24)+'px';
+    const navPanel=document.getElementById('nav-panel');
+    if(navPanel)navPanel.style.width=panelWidth+'px';
     grid.innerHTML=activeMenu.map(m=>{
       const imgHTML=m.UserMenuImage
         ?`<img src="${m.UserMenuImage}" style="width:28px;height:28px;border-radius:4px;object-fit:cover">`
@@ -1126,6 +1154,7 @@ try{
     const h=new Date().getHours(),p=h<12?'morning':h<17?'afternoon':'evening';
     const n=storedUser?.name?.split(' ')[0]||'Noel';
     const navUser=document.getElementById('nav-username');if(navUser)navUser.textContent=n;
+    const navUserHdr=document.getElementById('nav-username-hdr');if(navUserHdr)navUserHdr.textContent=n;
     const m={morning:[`Good morning, ${n} — let's make it a great one.`,`Good morning, ${n}. Oregon's finest day awaits.`,`Rise and shine, ${n}. The news won't read itself.`],afternoon:[`Good afternoon, ${n}. How's the day treating you?`,`Afternoon, ${n}. Time for a mid-day check-in.`],evening:[`Good evening, ${n}. Wind down with the day's news.`,`Evening, ${n}. Let's see what the world was up to.`]};
     const greetingEl=document.getElementById('greeting');
     if(greetingEl)greetingEl.style.display=_navMode?'none':'';
@@ -1324,6 +1353,7 @@ try{
   // ── LANGUAGE ──
 
   function renderSysHeaderButtons(){
+    if(_navMode)return;
     document.querySelectorAll('.nav-sysheader-btn').forEach(b=>b.remove());
     const headerLeft=document.querySelector('.header-left');
     if(!headerLeft)return;
