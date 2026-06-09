@@ -3659,13 +3659,15 @@ async function showSettingsSection(section,pushState=true){
   });
 
   async function renderSettingsSection(section){
+    console.log('renderSettingsSection called:', section);
     try{
       if(section==='categories'){categories=await apiGet('GetCategories');renderSettingsCategories();renderCategoryTiles(null);}
       if(section==='sources'){sources=await apiGet('GetHeadlineSources');renderSettingsSources();}
-      if(section==='mysources'){await loadMySources();}
+      if(section==='mysources'){console.log('calling loadMySources');await loadMySources();console.log('loadMySources done');}
       if(section==='keywords'){keywords=await apiGet('GetHeadlineKeywords');renderSettingsKeywords();}
       if(section==='usermenu'){userMenu=await apiGet('GetUserMenu');renderUserMenuTable();}
     }catch(e){
+      console.error('renderSettingsSection CAUGHT ERROR:', section, e);
       console.error('renderSettingsSection error:',section,e);
       const secEl=document.getElementById(`settings-section-${section}`);
       if(secEl){
@@ -4725,8 +4727,10 @@ function renderMySitesByMenu(menuID) {
   }
   
   async function loadMySources() {
+    console.log('loadMySources called');
     try {
       const data = await apiGet('GetUserOwnedSources', '&includeInactive=true');
+      console.log('GetUserOwnedSources response:', data);
       if (data?.error) throw new Error('GetUserOwnedSources: ' + data.error);
       userOwnedSources = Array.isArray(data) ? data : [];
       if (!userMenu.length) {
