@@ -230,6 +230,18 @@
     .searchable-combo-opt { padding:7px 12px; cursor:pointer; font-size:13px; border-bottom:1px solid #eef5fc; }
     .searchable-combo-opt:last-child { border-bottom:none; }
     .searchable-combo-opt:hover { background:#f0f7ff; }
+    body.nav-mode { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+    body.nav-mode .main { display:flex; flex:1; overflow:hidden; padding:0; max-width:none; }
+    .nav-panel { display:none; flex-direction:column; background:white; border-right:2px solid var(--border); overflow-y:auto; flex-shrink:0; padding:8px 6px; }
+    body.nav-mode .nav-panel { display:flex; }
+    .nav-panel-btn-grid { display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-start; }
+    .nav-panel-btn { display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 6px; border-radius:8px; border:1.5px solid var(--border); background:white; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; min-width:70px; }
+    .nav-panel-btn:hover { background:#f0f7ff; border-color:var(--sky-deep); }
+    .nav-panel-btn.active { border-color:var(--sky-deep); background:#cce0f5; }
+    .nav-panel-btn img { width:28px; height:28px; border-radius:4px; object-fit:cover; }
+    .nav-panel-btn-label { font-size:11px; font-weight:600; color:#2a4a6a; white-space:nowrap; }
+    .content-panel { flex:1; overflow-y:auto; padding:24px 32px; }
+    body.nav-mode .screen { animation:none; }
     @media (max-width:700px) { .settings-deck-grid { grid-template-columns:1fr; } .header { padding:14px 16px; } .main { padding:16px; } .app-title { font-size:20px; } .nav-btn { padding:8px 14px; min-width:60px; } .headline-thumb { width:72px; height:45px; } }
     .onboard-overlay { position:fixed; inset:0; background:rgba(15,30,46,0.6); z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px; }
     .onboard-card { background:white; border-radius:20px; padding:36px 40px; max-width:600px; width:100%; box-shadow:0 20px 60px rgba(43,127,212,0.25); position:relative; max-height:90vh; overflow-y:auto; }
@@ -258,6 +270,19 @@
       <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px" id="header-date"></div>
     </div>
   </div>
+  <div id="nav-header-controls" style="display:none;align-items:center;gap:6px;position:relative;z-index:1">
+    <button id="nav-weather-btn" class="nav-sysheader-btn" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);border-radius:8px;cursor:pointer;padding:4px 8px;min-width:48px;transition:background 0.2s;flex-shrink:0" title="Weather">
+      <span style="font-size:22px">🌡️</span><span style="font-size:10px;font-weight:700;color:white">—°</span>
+    </button>
+    <div id="nav-sysheader-btns"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      <button class="refresh-btn" onclick="refreshHeadlines()" id="nav-refresh-btn" style="font-size:11px;padding:3px 10px;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);color:white;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600">↻ Refresh</button>
+      <div style="display:flex;gap:6px">
+        <a href="#" onclick="setGroupExpand(true);return false;" style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.85)">Expand</a>
+        <a href="#" onclick="setGroupExpand(false);return false;" style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.85)">Collapse</a>
+      </div>
+    </div>
+  </div>
   <div class="weather-block" id="weather-block"><div class="weather-loading" id="weather-initial">Loading weather...</div></div>
 </header>
 <nav class="nav" id="main-nav">
@@ -280,13 +305,18 @@
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:0 12px;border-left:1px solid var(--border);flex-shrink:0;gap:3px">
     <div style="display:flex;align-items:center;gap:6px">
+      <a id="mode-toggle-link" href="#" onclick="toggleLaunchMode();return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);white-space:nowrap">Full</a>
       <span style="font-size:12px;font-weight:600;color:var(--text-soft)" id="nav-username"></span>
       <button onclick="showScreen('settings')" title="Settings" style="width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px" id="nav-settings">⚙️</button>
     </div>
     <a onclick="logout()" style="font-size:10px;color:var(--text-muted);cursor:pointer;text-decoration:underline;white-space:nowrap;line-height:1">Sign out</a>
   </div>
 </nav>
+<div class="nav-panel" id="nav-panel">
+  <div class="nav-panel-btn-grid" id="nav-panel-btn-grid"></div>
+</div>
 <main class="main">
+  <div class="content-panel" id="content-panel">
   <div class="screen active" id="screen-headlines">
     <div style="display:flex;align-items:center;gap:6px;padding:4px 12px;background:white;border-bottom:2px solid var(--border);margin-bottom:6px;position:sticky;top:54px;z-index:90;box-shadow:0 2px 8px rgba(43,127,212,0.06)">
       <span style="font-size:12px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="recency-val">7 days</span></span>
@@ -340,34 +370,15 @@
           </div>
           <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px">
             <div>
-              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Scheduled Fetch Time</div>
-              <select id="us-fetchhour" class="form-select" style="font-size:12px;padding:3px 5px">
-                <option value="">None</option>
-                <option value="0">12:00 AM</option>
-                <option value="1">1:00 AM</option>
-                <option value="2">2:00 AM</option>
-                <option value="3">3:00 AM</option>
-                <option value="4">4:00 AM</option>
-                <option value="5">5:00 AM</option>
-                <option value="6">6:00 AM</option>
-                <option value="7">7:00 AM</option>
-                <option value="8">8:00 AM</option>
-                <option value="9">9:00 AM</option>
-                <option value="10">10:00 AM</option>
-                <option value="11">11:00 AM</option>
-                <option value="12">12:00 PM</option>
-                <option value="13">1:00 PM</option>
-                <option value="14">2:00 PM</option>
-                <option value="15">3:00 PM</option>
-                <option value="16">4:00 PM</option>
-                <option value="17">5:00 PM</option>
-                <option value="18">6:00 PM</option>
-                <option value="19">7:00 PM</option>
-                <option value="20">8:00 PM</option>
-                <option value="21">9:00 PM</option>
-                <option value="22">10:00 PM</option>
-                <option value="23">11:00 PM</option>
-              </select>
+              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Preferred Launch Mode</div>
+              <div style="display:flex;gap:12px;margin-top:4px">
+                <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="us-launchmode" value="Full" onchange="debounceSaveCatLimits()" style="accent-color:var(--sky-deep)"> Full</label>
+                <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="us-launchmode" value="Nav" onchange="debounceSaveCatLimits()" style="accent-color:var(--sky-deep)"> Nav</label>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Nav Buttons/Row</div>
+              <input type="number" id="us-navbuttonsperrow" class="form-input" style="width:52px;font-size:12px;padding:3px 5px" min="1" max="10" oninput="debounceSaveCatLimits()">
             </div>
             <div>
               <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Zip Code</div>
@@ -404,6 +415,38 @@
               <div style="font-size:10px;color:var(--text-muted);margin-top:2px">optional URL</div>
             </div>
           </div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px">
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Scheduled Fetch Time</div>
+              <select id="us-fetchhour" class="form-select" style="font-size:12px;padding:3px 5px">
+                <option value="">None</option>
+                <option value="0">12:00 AM</option>
+                <option value="1">1:00 AM</option>
+                <option value="2">2:00 AM</option>
+                <option value="3">3:00 AM</option>
+                <option value="4">4:00 AM</option>
+                <option value="5">5:00 AM</option>
+                <option value="6">6:00 AM</option>
+                <option value="7">7:00 AM</option>
+                <option value="8">8:00 AM</option>
+                <option value="9">9:00 AM</option>
+                <option value="10">10:00 AM</option>
+                <option value="11">11:00 AM</option>
+                <option value="12">12:00 PM</option>
+                <option value="13">1:00 PM</option>
+                <option value="14">2:00 PM</option>
+                <option value="15">3:00 PM</option>
+                <option value="16">4:00 PM</option>
+                <option value="17">5:00 PM</option>
+                <option value="18">6:00 PM</option>
+                <option value="19">7:00 PM</option>
+                <option value="20">8:00 PM</option>
+                <option value="21">9:00 PM</option>
+                <option value="22">10:00 PM</option>
+                <option value="23">11:00 PM</option>
+              </select>
+            </div>
+            
           <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px">
             <div>
               <div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Other Headlines/Keyword-Source</div>
@@ -566,6 +609,7 @@
       </table>
     </div>
   </div>
+</div>
 </main>
 <div class="onboard-overlay" id="onboard-overlay" style="display:none">
   <div class="onboard-card">
@@ -809,6 +853,8 @@
   function getStreakEmoji(days){ if(days>=30)return'🏆'; if(days>=14)return'💎'; if(days>=7)return'🔥'; if(days>=3)return'⭐'; return'🌱'; }
   const langStreaks = {};
 
+  let _navMode = false;
+  function isNavMode(){ return _navMode; }
   let headlines=[],allHeadlinesCache=[],recencyDays_value=7,collapseThreshold=5,categories=[],sources=[],keywords=[],topics=[];
   const deletedLinks=new Set();
   // topics retained as empty array for legacy compatibility only
@@ -996,12 +1042,96 @@ try{
     await applyZipCodeWeather(zip);
   }
 
+  function toggleLaunchMode(){
+    _navMode=!_navMode;
+    const newMode=_navMode?'Nav':'Full';
+    document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value===newMode);
+    applyNavMode();
+    apiPost('SaveUserSettings',{userID:USER_ID,launchMode:newMode});
+  }
+
+  function applyNavMode(){
+    const link=document.getElementById('mode-toggle-link');
+    if(link)link.textContent=_navMode?'Nav':'Full';
+    const navHeaderControls=document.getElementById('nav-header-controls');
+    const weatherBlock=document.getElementById('weather-block');
+    const navDate=document.getElementById('nav-date');
+    if(_navMode){
+      document.body.classList.add('nav-mode');
+      if(navHeaderControls)navHeaderControls.style.display='flex';
+      if(weatherBlock)weatherBlock.style.display='none';
+      if(navDate)navDate.style.display='none';
+      renderNavPanel();
+      renderNavSysHeaderBtns();
+    } else {
+      document.body.classList.remove('nav-mode');
+      if(navHeaderControls)navHeaderControls.style.display='none';
+      if(weatherBlock)weatherBlock.style.display='';
+      if(navDate)navDate.style.display='';
+    }
+  }
+
+  function renderNavSysHeaderBtns(){
+    const container=document.getElementById('nav-sysheader-btns');
+    if(!container)return;
+    const buttons=userOwnedSources
+      .filter(s=>(s.IsSysHeader===1||s.IsSysHeader===true)&&!s.IsInactive)
+      .sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
+    container.innerHTML=buttons.map(s=>{
+      const escapedURL=s.URL.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const icon=s.ThumbnailURL
+        ?`<img src="${s.ThumbnailURL}" style="width:28px;height:28px;border-radius:4px;object-fit:cover">`
+        :`<span style="font-size:18px">${s.SourceType==='File'?'📄':'🌐'}</span>`;
+      return `<button style="display:flex;flex-direction:column;align-items:center;gap:2px;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);border-radius:8px;cursor:pointer;padding:4px 8px;min-width:48px;transition:background 0.2s;flex-shrink:0" onclick="window.open('${escapedURL}','_blank','noopener')" title="${s.SourceName}">
+        ${icon}
+        <span style="font-size:10px;font-weight:700;color:white;line-height:1;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.SourceName}</span>
+      </button>`;
+    }).join('');
+  }
+
+  function renderNavPanel(){
+    const grid=document.getElementById('nav-panel-btn-grid');
+    if(!grid)return;
+    const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
+    const activeMenu=userMenu.filter(m=>!m.IsInactive).sort((a,b)=>(a.UserMenuSeq||99)-(b.UserMenuSeq||99));
+    grid.style.maxWidth=(perRow*82+((perRow-1)*6))+'px';
+    grid.innerHTML=activeMenu.map(m=>{
+      const imgHTML=m.UserMenuImage
+        ?`<img src="${m.UserMenuImage}" style="width:28px;height:28px;border-radius:4px;object-fit:cover">`
+        :`<span style="font-size:20px">📋</span>`;
+      const isActive=currentUserMenuFilter===m.UserMenuID;
+      return `<button class="nav-panel-btn ${isActive?'active':''}" id="nav-panel-btn-${m.UserMenuID}" onclick="showUserMenuItems(${m.UserMenuID},'${m.UserMenuName.replace(/'/g,"\\'")}')">
+        ${imgHTML}
+        <span class="nav-panel-btn-label">${m.UserMenuName}</span>
+      </button>`;
+    }).join('');
+    // Also add Headlines, Languages, Settings buttons
+    const sysButtons=[
+      {id:'headlines',label:'Headlines',icon:'📰',action:`showScreen('headlines')`},
+      ...userLanguages.filter(ul=>ul.IsActive==='Y').map(ul=>{
+        const lang=allLanguages.find(l=>l.LanguageID===ul.LanguageID);
+        if(!lang)return null;
+        return {id:`lang-${lang.LanguageID}`,label:lang.LanguageNameEng,icon:`<img src="${lang.FlagImage}" style="width:28px;height:auto;border-radius:2px">`,action:`visitLanguage(${lang.LanguageID},'${lang.LanguageNameEng}')`};
+      }).filter(Boolean),
+      {id:'settings',label:'Settings',icon:'⚙️',action:`showScreen('settings')`}
+    ];
+    grid.innerHTML+=sysButtons.map(b=>`
+      <button class="nav-panel-btn" onclick="${b.action}" id="nav-panel-sys-${b.id}">
+        ${typeof b.icon==='string'&&b.icon.startsWith('<')?b.icon:`<span style="font-size:20px">${b.icon}</span>`}
+        <span class="nav-panel-btn-label">${b.label}</span>
+      </button>`).join('');
+  }
+
   function setGreeting(){
     const h=new Date().getHours(),p=h<12?'morning':h<17?'afternoon':'evening';
     const n=storedUser?.name?.split(' ')[0]||'Noel';
     const navUser=document.getElementById('nav-username');if(navUser)navUser.textContent=n;
     const m={morning:[`Good morning, ${n} — let's make it a great one.`,`Good morning, ${n}. Oregon's finest day awaits.`,`Rise and shine, ${n}. The news won't read itself.`],afternoon:[`Good afternoon, ${n}. How's the day treating you?`,`Afternoon, ${n}. Time for a mid-day check-in.`],evening:[`Good evening, ${n}. Wind down with the day's news.`,`Evening, ${n}. Let's see what the world was up to.`]};
-    document.getElementById('greeting').textContent=m[p][Math.floor(Math.random()*m[p].length)];
+    const greetingEl=document.getElementById('greeting');
+    if(greetingEl)greetingEl.style.display=_navMode?'none':'';
+    if(greetingEl&&!_navMode)greetingEl.textContent=m[p][Math.floor(Math.random()*m[p].length)];
+    const appTitleEl=document.querySelector('.app-title');
+    if(appTitleEl)appTitleEl.style.display=_navMode?'none':'';
   }
 
   function setDate(){
@@ -1036,7 +1166,17 @@ try{
         </div>`;
       }).join('');
       const wUrl=window._weatherClickURL||'https://forecast.weather.gov/MapClick.php?CityName=Oregon&state=IL&site=LOT&textField1=41.9945&textField2=-89.3334';
-      document.getElementById('weather-block').innerHTML=`
+      if(_navMode){
+      const weatherBtn=document.getElementById('nav-weather-btn');
+      if(weatherBtn){
+        weatherBtn.title=`${Math.round(c.temperature_2m)}°F · ${desc} · H:${Math.round(d.temperature_2m_max[0])}° L:${Math.round(d.temperature_2m_min[0])}°`;
+        weatherBtn.innerHTML=`<span style="font-size:22px;line-height:1">${icon}</span><span style="font-size:10px;font-weight:700;color:white;line-height:1">${Math.round(c.temperature_2m)}°</span>`;
+        weatherBtn.onclick=()=>{const u=window._weatherClickURL||wUrl;window.open(u,'_blank','noopener');};
+      }
+      document.getElementById('weather-block').style.display='none';
+    } else {
+      document.getElementById('weather-block').style.display='';
+    document.getElementById('weather-block').innerHTML=`
         <a href="${wUrl}" target="_blank" style="display:flex;align-items:center;gap:10px;text-decoration:none">
           <div class="weather-icon" style="font-size:28px">${icon}</div>
           <div>
@@ -1047,7 +1187,8 @@ try{
         </a>
         <div style="width:1px;height:40px;background:rgba(255,255,255,0.25);margin:0 4px"></div>
         <div style="display:flex;gap:6px">${forecastBoxes}</div>`;
-    }catch(e){if(wb)wb.innerHTML='<div class="weather-loading">Weather unavailable</div>';}
+    }
+    }catch(e){if(wb&&!_navMode)wb.innerHTML='<div class="weather-loading">Weather unavailable</div>';}
   }
 
   async function apiPost(endpoint,body){
@@ -1086,6 +1227,12 @@ try{
       if(wb)wb.innerHTML='<div class="weather-loading">Add your zip code in Settings to see weather.</div>';
     }
     document.getElementById('us-maxheadlines').value=userSettings?.headlineSetting?.MaxHeadlines||50;
+    const launchMode=userSettings?.headlineSetting?.LaunchMode||'Full';
+    const navButtonsPerRow=userSettings?.headlineSetting?.NavButtonsPerRow||4;
+    document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value===launchMode);
+    const nbrEl=document.getElementById('us-navbuttonsperrow');if(nbrEl)nbrEl.value=navButtonsPerRow;
+    _navMode=launchMode==='Nav';
+    applyNavMode();
     document.getElementById('us-youtubemaxresults').value=userSettings?.headlineSetting?.YouTubeMaxResults||3;
     document.getElementById('us-otherperkey').value=userSettings?.headlineSetting?.OtherHeadlinesPerKeyword||3;
     collapseThreshold=userSettings?.headlineSetting?.CollapseThreshold??5;
@@ -3296,7 +3443,11 @@ let _pdfClosing=false;
       collapseThreshold=collapseThresholdVal;
       const weatherURLVal=(document.getElementById('us-weatherurl')?.value||'').trim()||null;
       window._weatherClickURL=weatherURLVal;
-      await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,fetchHour,collapseThreshold:collapseThresholdVal,weatherURL:weatherURLVal,categorySettings});
+      const launchModeVal=document.querySelector('input[name="us-launchmode"]:checked')?.value||'Full';
+      const navButtonsPerRowVal=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
+      _navMode=launchModeVal==='Nav';
+      applyNavMode();
+      await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,fetchHour,collapseThreshold:collapseThresholdVal,weatherURL:weatherURLVal,launchMode:launchModeVal,navButtonsPerRow:navButtonsPerRowVal,categorySettings});
     },800);
   }
   function updateOtherLimit(){
@@ -3329,7 +3480,9 @@ let _pdfClosing=false;
     collapseThreshold=collapseThresholdVal;
     const weatherURLVal=(document.getElementById('us-weatherurl')?.value||'').trim()||null;
     window._weatherClickURL=weatherURLVal;
-    await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,fetchHour,collapseThreshold:collapseThresholdVal,weatherURL:weatherURLVal,categorySettings});
+    const launchModeVal=document.querySelector('input[name="us-launchmode"]:checked')?.value||'Full';
+    const navButtonsPerRowVal=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
+    await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,fetchHour,collapseThreshold:collapseThresholdVal,weatherURL:weatherURLVal,launchMode:launchModeVal,navButtonsPerRow:navButtonsPerRowVal,categorySettings});
     recencyDays_value=recencyDays;
     document.getElementById('recency-val').textContent=recencyDays===1?'1 day':`${recencyDays} days`;
   }
@@ -3475,7 +3628,7 @@ function renderSettingsKeywords(){
     const kwMenuFilter=document.getElementById('kw-menu-filter')?.value||'';
     const menuOpts=`<option value="">All Menus</option>`+userMenu.map(m=>`<option value="${m.UserMenuID}" ${kwMenuFilter==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('')+`<option value="none" ${kwMenuFilter==='none'?'selected':''}>— None —</option>`;
     const ss=`style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()"`;
-    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th><select id="kw-src-filter" ${ss}>${srcOpts}</select></th><th><select id="kw-group-filter" ${ss}>${groupOpts}</select></th><th><select id="kw-menu-filter" ${ss}>${menuOpts}</select></th><th>Active</th><th>Image</th><th><a href="#" onclick="resetKwFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep)">Reset Filters</a></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th><select id="kw-src-filter" ${ss}>${srcOpts}</select></th><th><select id="kw-group-filter" ${ss}>${groupOpts}</select></th><th><select id="kw-menu-filter" ${ss}>${menuOpts}</select></th><th>Active</th><th>Image</th><th><a href="#" onclick="resetKwFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none">Reset Filters</a></th>`;
     const kwGroupFilterVal=document.getElementById('kw-group-filter')?.value||'';
     const kwSrcFilterVal=document.getElementById('kw-src-filter')?.value||'';
     const kwMenuFilterVal=document.getElementById('kw-menu-filter')?.value||'';
@@ -4487,7 +4640,7 @@ function renderMySourcesTable() {
     const menuOpts = `<option value="">All</option>`+userMenu.map(m=>`<option value="${m.UserMenuID}" ${msMenuFilter==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('')+`<option value="__none__" ${msMenuFilter==='__none__'?'selected':''}>— None —</option>`;
     const activeOpts = `<option value="">All</option><option value="active" ${msActiveFilter==='active'?'selected':''}>Active</option><option value="inactive" ${msActiveFilter==='inactive'?'selected':''}>Inactive</option>`;
 
-    if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th><select id="ms-type-filter" ${ss}>${typeOpts}</select></th><th><select id="ms-group-filter-hdr" ${ss}>${groupOpts}</select></th><th><select id="ms-menu-filter-hdr" ${ss}>${menuOpts}</select></th><th>URL</th><th><select id="ms-active-filter" ${ss}>${activeOpts}</select></th><th>Exclusions</th><th>Image</th><th><a href="#" onclick="resetMsFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep)">Reset Filters</a></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th><select id="ms-type-filter" ${ss}>${typeOpts}</select></th><th><select id="ms-group-filter-hdr" ${ss}>${groupOpts}</select></th><th><select id="ms-menu-filter-hdr" ${ss}>${menuOpts}</select></th><th>URL</th><th><select id="ms-active-filter" ${ss}>${activeOpts}</select></th><th>Exclusions</th><th>Image</th><th><a href="#" onclick="resetMsFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none">Reset Filters</a></th>`;
 
     let sorted = [...userOwnedSources].sort((a, b) => (a.Sequence || 99) - (b.Sequence || 99));
     if(msTypeFilter) sorted=sorted.filter(s=>s.SourceType===msTypeFilter);
@@ -4971,6 +5124,7 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
   // ── USER MENU ──
 
   function renderUserMenuNav(){
+    if(_navMode)renderNavPanel();
     document.querySelectorAll('.nav-btn-usermenu').forEach(b=>b.remove());
     const navDate=document.getElementById('nav-date');
     const firstLang=document.querySelector('.nav-btn-lang');

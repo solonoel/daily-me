@@ -15,7 +15,7 @@ module.exports = async function(context, req) {
 
     const settingResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT hs.RecencyDays, hs.MaxHeadlines, hs.YouTubeMaxResults, hs.OtherHeadlinesPerKeyword, hs.FetchHour, hs.DisableYoutubeToday, hs.CollapseThreshold, hs.WeatherURL, yq.QuotaUsed, yq.QuotaDate FROM [HeadlineSetting] hs CROSS JOIN YouTubeQuota yq WHERE hs.UserID=@UserID AND yq.QuotaID=1`);
+      .query(`SELECT hs.RecencyDays, hs.MaxHeadlines, hs.YouTubeMaxResults, hs.OtherHeadlinesPerKeyword, hs.FetchHour, hs.DisableYoutubeToday, hs.CollapseThreshold, hs.WeatherURL, hs.LaunchMode, hs.NavButtonsPerRow, yq.QuotaUsed, yq.QuotaDate FROM [HeadlineSetting] hs CROSS JOIN YouTubeQuota yq WHERE hs.UserID=@UserID AND yq.QuotaID=1`);
 
     const userResult = await pool.request()
       .input('UserID', sql.Int, userID)
@@ -26,7 +26,7 @@ module.exports = async function(context, req) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         user: userResult.recordset[0] || null,
-        headlineSetting: settingResult.recordset[0] || { RecencyDays: 7, MaxHeadlines: 50, YouTubeMaxResults: 3, CollapseThreshold: 5 },
+        headlineSetting: settingResult.recordset[0] || { RecencyDays: 7, MaxHeadlines: 50, YouTubeMaxResults: 3, CollapseThreshold: 5, LaunchMode: 'Full', NavButtonsPerRow: 4 },
         categorySettings: []
       })
     };

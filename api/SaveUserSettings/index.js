@@ -11,7 +11,7 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, otherHeadlinesPerKeyword, categorySettings, disableYoutubeToday, fetchHour, zipCode, collapseThreshold, weatherURL } = req.body;
+    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, otherHeadlinesPerKeyword, categorySettings, disableYoutubeToday, fetchHour, zipCode, collapseThreshold, weatherURL, launchMode, navButtonsPerRow } = req.body;
 
     if (disableYoutubeToday !== undefined) {
       const resetYT = req.body.resetYouTubeFetch === true;
@@ -40,13 +40,17 @@ module.exports = async function(context, req) {
         .input('FetchHour', sql.Int, fetchHour === undefined ? null : (fetchHour === null ? null : parseInt(fetchHour)))
         .input('CollapseThreshold', sql.Int, collapseThreshold ?? 5)
         .input('WeatherURL', sql.NVarChar(500), weatherURL !== undefined ? (weatherURL || null) : null)
+        .input('LaunchMode', sql.VarChar(10), launchMode || 'Full')
+        .input('NavButtonsPerRow', sql.Int, navButtonsPerRow || 4)
         .query(`
           UPDATE [HeadlineSetting]
           SET RecencyDays = @RecencyDays, MaxHeadlines = @MaxHeadlines, YouTubeMaxResults = @YouTubeMaxResults,
               OtherHeadlinesPerKeyword = @OtherHeadlinesPerKeyword,
               FetchHour = ISNULL(@FetchHour, FetchHour),
               CollapseThreshold = @CollapseThreshold,
-              WeatherURL = @WeatherURL
+              WeatherURL = @WeatherURL,
+              LaunchMode = @LaunchMode,
+              NavButtonsPerRow = @NavButtonsPerRow
           WHERE UserID = @UserID
         `);
     }
