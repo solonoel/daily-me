@@ -4673,14 +4673,22 @@ function renderMySitesByMenu(menuID) {
   }
   
   async function loadMySources() {
-    const data = await apiGet('GetUserOwnedSources', '&includeInactive=true');
-    userOwnedSources = Array.isArray(data) ? data : [];
-    if (!userMenu.length) {
-      const menuData = await apiGet('GetUserMenu');
-      userMenu = Array.isArray(menuData) ? menuData : [];
+    try {
+      const data = await apiGet('GetUserOwnedSources', '&includeInactive=true');
+      if (data?.error) throw new Error('GetUserOwnedSources: ' + data.error);
+      userOwnedSources = Array.isArray(data) ? data : [];
+      if (!userMenu.length) {
+        const menuData = await apiGet('GetUserMenu');
+        if (menuData?.error) throw new Error('GetUserMenu: ' + menuData.error);
+        userMenu = Array.isArray(menuData) ? menuData : [];
+      }
+      renderMySourcesTable();
+      renderSysHeaderButtons();
+    } catch(e) {
+      const tbody = document.getElementById('tbl-mysources-body');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="padding:20px;color:#e05050;font-size:13px;font-weight:600">⚠️ Error loading My Sources: ${e.message}</td></tr>`;
+      console.error('loadMySources error:', e);
     }
-    renderMySourcesTable();
-    renderSysHeaderButtons();
   }
 
  
