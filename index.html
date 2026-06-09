@@ -4246,7 +4246,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
   function downloadFetchLog(){
     const body=document.querySelector('#modal .modal-body, #modal [id="modal-body"]');
     if(!body)return;
-    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fetch Results</title><style>body{font-family:Arial,sans-serif;font-size:13px;padding:24px;max-width:900px;margin:0 auto}table{width:100%;border-collapse:collapse;margin-bottom:16px}th,td{text-align:left;padding:4px 8px;border-bottom:1px solid #ddd}th{background:#f0f7ff}h3{margin:16px 0 8px}</style></head><body>${body.innerHTML}</body></html>`;
+    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fetch Results</title><style>body{font-family:Arial,sans-serif;font-size:13px;padding:24px;max-width:900px;margin:0 auto}table{width:100%;border-collapse:collapse;margin-bottom:16px}th,td{text-align:left;padding:4px 8px;border-bottom:1px solid #ddd}th{background:#f0f7ff}h3{margin:16px 0 8px}</style></head><body>${body.innerHTML}<!-- deploy 06092026 --></body></html>`;
     const blob=new Blob([html],{type:'text/html'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
@@ -5100,5 +5100,6 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     if (Date.now() - _lastActivity > 30 * 60 * 1000) logout();
   }, 60 * 1000);
 </script>
-</body>
+<!-- deploy 06092026 --></body>
 </html>
+
