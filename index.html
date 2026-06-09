@@ -3626,6 +3626,7 @@ async function showSettingsSection(section,pushState=true){
     const secEl=document.getElementById(`settings-section-${section}`);
     if(secEl)secEl.style.display='block';
     await renderSettingsSection(section);
+    setTimeout(()=>{const _s=document.getElementById('settings-section-'+section);const _cp=document.getElementById('content-panel');const _ss=document.getElementById('screen-settings');const _g=el=>el?window.getComputedStyle(el):{};console.log('DIAG_sec',{section,secH:_s?.offsetHeight,secScH:_s?.scrollHeight,secDisp:_g(_s).display,secStyle:_s?.style.cssText,cpH:_cp?.offsetHeight,cpDisp:_g(_cp).display,cpOver:_g(_cp).overflow,cpFB:_g(_cp).flexBasis,cpStyle:_cp?.style.cssText,ssH:_ss?.offsetHeight,mainH:document.querySelector('main')?.offsetHeight,bodyClass:document.body.className,tblRows:_s?.querySelectorAll('tr').length});},300);
     if(pushState)history.pushState({screen:'settings',section},'','');
   }
 
@@ -4805,6 +4806,7 @@ function renderMySourcesTable() {
         </td>
       </tr>`;
     }).join('');
+    const _r=tbody.querySelectorAll('tr');const _s=document.getElementById('settings-section-mysources');const _cp=document.getElementById('content-panel');const _ss=document.getElementById('screen-settings');const _mn=document.querySelector('main.main');const _g=el=>el?window.getComputedStyle(el):{};console.log('DIAG_tbl',{rows:_r.length,row0H:_r[0]?.offsetHeight,tbodyH:tbody.offsetHeight,secH:_s?.offsetHeight,secScH:_s?.scrollHeight,secDisp:_g(_s).display,secStyle:_s?.style.cssText,cpH:_cp?.offsetHeight,cpDisp:_g(_cp).display,cpOver:_g(_cp).overflow,cpFB:_g(_cp).flexBasis,cpStyle:_cp?.style.cssText,ssH:_ss?.offsetHeight,mainH:_mn?.offsetHeight,mainOver:_g(_mn).overflow,bodyClass:document.body.className});
     initMySitesDragDrop(tbody);
   }  
 
