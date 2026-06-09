@@ -249,10 +249,11 @@
     .nav-panel-btn img { width:22px; height:22px; border-radius:3px; object-fit:cover; }
     .nav-panel-btn-label { font-size:9px; font-weight:600; color:#2a4a6a; white-space:nowrap; }
     .content-panel { flex:1; overflow-y:auto; padding:24px 32px; }
-    body.nav-mode .content-panel { padding-top:0; padding-bottom:0; padding-left:0; padding-right:0; overflow-x:hidden; }
-    body.nav-mode #screen-headlines > div:first-child { margin-bottom:0; }
+    body.nav-mode .content-panel { padding:0 !important; overflow-x:hidden; }
+    body.nav-mode #screen-headlines > div:first-child { margin-bottom:0; margin-top:0; }
     body.nav-mode { overflow-x:hidden; }
-    body.nav-mode .main { overflow-x:hidden; }
+    body.nav-mode .main { overflow-x:hidden; flex-direction:column; }
+    body.nav-mode .nav-panel { border-right:none; border-bottom:2px solid var(--border); flex-shrink:0; overflow-y:visible; }
     body.nav-mode .screen { animation:none; }
     @media (max-width:700px) { .settings-deck-grid { grid-template-columns:1fr; } .header { padding:14px 16px; } .main { padding:16px; } .app-title { font-size:20px; } .nav-btn { padding:8px 14px; min-width:60px; } .headline-thumb { width:72px; height:45px; } }
     .onboard-overlay { position:fixed; inset:0; background:rgba(15,30,46,0.6); z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px; }
@@ -289,7 +290,7 @@
       <span style="font-size:18px">🌡️</span><span style="font-size:10px;font-weight:700;color:white">—°</span>
     </button>
     <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0">
-      <button class="refresh-btn" onclick="refreshHeadlines()" id="nav-refresh-btn" style="font-size:11px;padding:3px 10px;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);color:white;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600">↻ Refresh</button>
+      <button class="refresh-btn" onclick="refreshHeadlines()" id="nav-refresh-btn" style="font-size:9px;padding:2px 8px;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);color:white;border-radius:5px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600">↻ Refresh</button>
       <div style="display:flex;gap:6px">
         <a href="#" onclick="setGroupExpand(true);return false;" style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.85)">Expand</a>
         <a href="#" onclick="setGroupExpand(false);return false;" style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.85)">Collapse</a>
@@ -1111,6 +1112,8 @@ try{
       const greetEl=document.getElementById('greeting');if(greetEl)greetEl.style.display='';
       const hd=document.getElementById('header-date');if(hd)hd.style.display='';
       const hds=document.getElementById('header-date-short');if(hds)hds.style.display='none';
+      const mainEl=document.querySelector('.main');if(mainEl){mainEl.style.maxWidth='';mainEl.style.width='';}
+      const header=document.querySelector('.header');if(header){header.style.maxWidth='';header.style.width='';}
       renderSysHeaderButtons();
     }
   }
@@ -1137,16 +1140,16 @@ try{
     const grid=document.getElementById('nav-panel-btn-grid');
     if(!grid)return;
     const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
-    const activeMenu=userMenu.filter(m=>!m.IsInactive).sort((a,b)=>(a.UserMenuSeq||99)-(b.UserMenuSeq||99));
+    const emptyIDs=new Set((window._emptyMenuNames||[]).map(name=>{const m=userMenu.find(u=>u.UserMenuName===name);return m?m.UserMenuID:null;}).filter(Boolean));
+    const activeMenu=userMenu.filter(m=>!m.IsInactive&&!emptyIDs.has(m.UserMenuID)).sort((a,b)=>(a.UserMenuSeq||99)-(b.UserMenuSeq||99));
     const panelWidth=(perRow*56+((perRow-1)*4))+16;
     grid.style.maxWidth=(panelWidth-16)+'px';
     const navPanel=document.getElementById('nav-panel');
     if(navPanel)navPanel.style.width=panelWidth+'px';
-    const contentPanel=document.getElementById('content-panel');
-    if(contentPanel)contentPanel.style.maxWidth=panelWidth+'px';
+    const mainEl=document.querySelector('.main');
+    if(mainEl&&_navMode){mainEl.style.maxWidth=panelWidth+'px';mainEl.style.width=panelWidth+'px';}
     const header=document.querySelector('.header');
-    if(header&&_navMode)header.style.maxWidth=panelWidth+'px';
-    document.body.style.maxWidth=_navMode?panelWidth+'px':'';
+    if(header&&_navMode){header.style.maxWidth=panelWidth+'px';header.style.width=panelWidth+'px';}
     grid.innerHTML=activeMenu.map(m=>{
       const imgHTML=m.UserMenuImage
         ?`<img src="${m.UserMenuImage}" style="width:22px;height:22px;border-radius:3px;object-fit:cover">`
