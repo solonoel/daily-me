@@ -231,7 +231,7 @@
     .searchable-combo-opt:last-child { border-bottom:none; }
     .searchable-combo-opt:hover { background:#f0f7ff; }
     body.nav-mode { display:flex; flex-direction:column; height:100vh; overflow:hidden; overflow-x:hidden; width:fit-content; min-width:0; background:none; }
-    html:has(body.nav-mode) { overflow:hidden; background:linear-gradient(160deg,#d0e8f8 0%,#e4f1fb 60%,#daeef2 100%); }
+    html:has(body.nav-mode) { overflow:hidden; width:fit-content; background:linear-gradient(160deg,#d0e8f8 0%,#e4f1fb 60%,#daeef2 100%); }
     body.nav-mode .main { display:flex; flex-direction:column; flex:1; overflow:hidden; overflow-x:hidden; padding:0; max-width:inherit; margin:0; gap:0; width:100%; }
     body.nav-mode .nav { display:none; }
     body.nav-mode .header { padding:6px 12px; min-height:unset; overflow:hidden; }
@@ -250,7 +250,7 @@
     .nav-panel-btn.active { border-color:var(--sky-deep); background:#cce0f5; }
     .nav-panel-btn img { width:22px; height:22px; border-radius:3px; object-fit:cover; }
     .nav-panel-btn-label { font-size:9px; font-weight:600; color:#2a4a6a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:56px; }
-    .content-panel { flex:1; overflow-y:auto; padding:24px 32px; }
+    .content-panel { flex:1; overflow-y:auto; }
     body.nav-mode .content-panel { padding:0 !important; overflow-x:hidden; overflow-y:auto; flex:1; }
     body.nav-mode .nav-panel { border-right:none; border-bottom:1px solid var(--border); flex-shrink:0; overflow-y:visible; padding:4px 4px 0 4px; min-width:0; }
     body.nav-mode .screen { animation:none; }
@@ -1142,6 +1142,11 @@ const panelWidth=(perRow*56+((perRow-1)*4))+16;
     if(navPanel){ navPanel.style.width=panelWidth+'px'; navPanel.style.minWidth='0'; }
     if(_navMode){
       document.body.style.overflowX='hidden';
+      // Resize window to content width when allowed (script-opened windows)
+      try{
+        const chrome=window.outerWidth-window.innerWidth;
+        window.resizeTo(panelWidth+chrome, window.outerHeight);
+      }catch(e){}
       // Lock main content and recency bar to nav panel width
       const mainEl=document.querySelector('main.main');
       const recencyBar=document.getElementById('recency-bar');
@@ -1401,10 +1406,15 @@ const panelWidth=(perRow*56+((perRow-1)*4))+16;
       }
       await loadHeadlines();
     }
-    // If opened as a language window, navigate directly to that language
+    // If opened as a language window, force Full mode and navigate to that language
     const urlParams = new URLSearchParams(window.location.search);
     const autoLangID = parseInt(urlParams.get('langID'));
     const autoLangName = urlParams.get('langName');
+    const forceMode = urlParams.get('forceMode');
+    if(forceMode === 'Full' && _navMode){
+      _navMode = false;
+      applyNavMode();
+    }
     if(autoLangID && autoLangName){
       await visitLanguage(autoLangID, decodeURIComponent(autoLangName));
     }
@@ -3541,8 +3551,6 @@ let _pdfClosing=false;
       window._weatherClickURL=weatherURLVal;
       const launchModeVal=document.querySelector('input[name="us-launchmode"]:checked')?.value||'Full';
       const navButtonsPerRowVal=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
-      _navMode=launchModeVal==='Nav';
-      applyNavMode();
       await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,fetchHour,collapseThreshold:collapseThresholdVal,weatherURL:weatherURLVal,launchMode:launchModeVal,navButtonsPerRow:navButtonsPerRowVal,categorySettings});
     },800);
   }
@@ -3608,10 +3616,10 @@ async function saveUserSettings(){
     if(pushState)history.pushState({screen:'settings',section:null},'','');
   }
 
-  async function showSettingsSection(section,pushState=true){
+async function showSettingsSection(section,pushState=true){
     currentSettingsSection=section;
     document.getElementById('settings-menu-view').style.display='none';
-    ['categories','sources','keywords','usermenu','global-sources','mysources'].forEach(s=>{
+    ['categories','sources','mysources','keywords','usermenu','global-sources'].forEach(s=>{
       const el=document.getElementById(`settings-section-${s}`);
       if(el)el.style.display='none';
     });
@@ -5361,7 +5369,7 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     const h = screen.availHeight;
     const winW = Math.round(w * 0.55);
     const left = w - winW;
-    const url = window.location.href.split('?')[0] + `?langID=${langID}&langName=${encodeURIComponent(langName)}`;
+    const url = window.location.href.split('?')[0] + `?langID=${langID}&langName=${encodeURIComponent(langName)}&forceMode=Full`;
     window.open(url, `dailyme_lang_${langID}`, `width=${winW},height=${h},left=${left},top=0,resizable=yes,scrollbars=yes`);
   }
 
