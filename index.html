@@ -11,21 +11,21 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     :root { --sky-deep: #2b7fd4; --text: #0f1e2e; --text-soft: #3a5a7a; --text-muted: #5a7a9a; --gold: #e8a020; --border: #8ab8d8; --shadow: 0 2px 12px rgba(43,127,212,0.12); }
     body { font-family:'DM Sans',sans-serif; background:linear-gradient(160deg,#d0e8f8 0%,#e4f1fb 60%,#daeef2 100%); min-height:100vh; color:var(--text); }
-    .header { background:linear-gradient(135deg,#2b7fd4 0%,#1a9fd4 100%); padding:16px 32px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 4px 24px rgba(43,127,212,0.25); position:relative; overflow:hidden; }
+    .header { background:linear-gradient(135deg,#2b7fd4 0%,#1a9fd4 100%); padding:16px 32px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 4px 24px rgba(43,127,212,0.25); position:relative; overflow:hidden; min-width:0; }
     .header::before { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,0.07); }
-    .header-left { position:relative; z-index:1; display:flex; align-items:center; gap:14px; }
+    .header-left { position:relative; z-index:1; display:flex; align-items:center; gap:14px; min-width:0; flex-shrink:1; }
     .header-logo { height:40px; width:40px; border-radius:50%; object-fit:cover; border:2px solid rgba(255,255,255,0.3); }
     .app-title { font-family:'Playfair Display',serif; font-size:26px; font-weight:600; color:white; letter-spacing:-0.5px; line-height:1; }
     .app-title span { color:rgba(255,255,255,0.6); font-weight:400; }
     .greeting { font-size:12px; color:rgba(255,255,255,0.85); margin-top:4px; font-weight:300; }
-    .weather-block { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); border-radius:16px; padding:10px 16px; position:relative; z-index:1; min-width:160px; flex-wrap:wrap; }
+    .weather-block { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); border-radius:16px; padding:10px 16px; position:relative; z-index:1; flex-wrap:wrap; }
     .weather-icon { font-size:34px; line-height:1; }
     .weather-temp { font-family:'Playfair Display',serif; font-size:24px; font-weight:600; color:white; line-height:1; }
     .weather-desc { font-size:10px; color:rgba(255,255,255,0.8); margin-top:3px; text-transform:uppercase; letter-spacing:0.8px; }
     .weather-detail { font-size:10px; color:rgba(255,255,255,0.7); margin-top:2px; }
     .weather-loading { color:rgba(255,255,255,0.7); font-size:13px; }
     .nav { background:white; border-bottom:2px solid var(--border); display:flex; align-items:stretch; padding:0 24px; box-shadow:0 2px 8px rgba(43,127,212,0.06); position:sticky; top:0; z-index:100; overflow-x:auto; }
-    .nav-btn { padding:10px 22px; font-family:'DM Sans',sans-serif; background:none; border:none; border-bottom:3px solid transparent; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px; min-width:80px; transition:all 0.2s; white-space:nowrap; flex-shrink:0; }
+    .nav-btn { padding:10px 22px; font-family:'DM Sans',sans-serif; background:none; border:none; border-bottom:3px solid transparent; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px; transition:all 0.2s; white-space:nowrap; flex-shrink:0; }
     .nav-btn:hover { background:#f0f7ff; }
     .nav-btn.active { border-bottom-color:var(--sky-deep); background:#f5faff; }
     .nav-icon { font-size:18px; line-height:1; }
@@ -33,7 +33,7 @@
     .nav-btn.active .nav-label { color:var(--sky-deep); }
     .nav-btn-usermenu.active { border:1.5px solid var(--sky-deep) !important; border-radius:6px; background:#cce0f5 !important; }
     .nav-flag { height:14px; width:auto; border-radius:2px; }
-    .main { padding:24px 32px; max-width:1100px; margin:0 auto; }
+    .main { padding:24px 32px; margin:0 auto; }
     .screen { display:none; animation:fadeIn 0.2s ease; }
     .screen.active { display:block; }
     @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
@@ -230,27 +230,29 @@
     .searchable-combo-opt { padding:7px 12px; cursor:pointer; font-size:13px; border-bottom:1px solid #eef5fc; }
     .searchable-combo-opt:last-child { border-bottom:none; }
     .searchable-combo-opt:hover { background:#f0f7ff; }
-    body.nav-mode { display:flex; flex-direction:column; height:100vh; overflow:hidden; overflow-x:hidden; }
+    body.nav-mode { display:flex; flex-direction:column; height:100vh; overflow:hidden; overflow-x:hidden; width:fit-content; min-width:0; background:none; }
+    html:has(body.nav-mode) { overflow:hidden; background:linear-gradient(160deg,#d0e8f8 0%,#e4f1fb 60%,#daeef2 100%); }
     body.nav-mode .main { display:flex; flex-direction:column; flex:1; overflow:hidden; overflow-x:hidden; padding:0; max-width:inherit; margin:0; gap:0; width:100%; }
     body.nav-mode .nav { display:none; }
     body.nav-mode .header { padding:6px 12px; min-height:unset; overflow:hidden; }
     body.nav-mode #screen-headlines > div:first-child { position:static; box-shadow:none; margin-bottom:0; }
-    body.nav-mode .header-left { flex-direction:column; align-items:flex-start; gap:2px; }
+    body.nav-mode .header-left { flex-direction:row; align-items:center; gap:4px; flex-wrap:nowrap; }
     body.nav-mode .header-logo { height:28px; width:28px; }
     body.nav-mode .app-title { font-size:13px; }
+    body.nav-mode .header-left > div { display:none; }
     body.nav-mode .greeting { display:none !important; }
     body.nav-mode #header-date { font-size:10px; margin-top:0; }
     .nav-panel { display:none; flex-direction:column; background:white; border-right:2px solid var(--border); overflow-y:auto; flex-shrink:0; padding:8px 6px; }
     body.nav-mode .nav-panel { display:flex; }
-    .nav-panel-btn-grid { display:flex; flex-wrap:wrap; gap:4px; justify-content:flex-start; }
-    .nav-panel-btn { display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 4px; border-radius:5px; border:1px solid #b0c8dc; background:white; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; min-width:56px; }
+    .nav-panel-btn-grid { display:flex; flex-wrap:wrap; gap:4px; justify-content:flex-start; min-width:0; }
+    .nav-panel-btn { display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 4px; border-radius:5px; border:1px solid #b0c8dc; background:white; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; }
     .nav-panel-btn:hover { background:#f0f7ff; border-color:var(--sky-deep); }
     .nav-panel-btn.active { border-color:var(--sky-deep); background:#cce0f5; }
     .nav-panel-btn img { width:22px; height:22px; border-radius:3px; object-fit:cover; }
-    .nav-panel-btn-label { font-size:9px; font-weight:600; color:#2a4a6a; white-space:nowrap; }
+    .nav-panel-btn-label { font-size:9px; font-weight:600; color:#2a4a6a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:56px; }
     .content-panel { flex:1; overflow-y:auto; padding:24px 32px; }
     body.nav-mode .content-panel { padding:0 !important; overflow-x:hidden; overflow-y:auto; flex:1; }
-    body.nav-mode .nav-panel { border-right:none; border-bottom:1px solid var(--border); flex-shrink:0; overflow-y:visible; padding:4px 4px 0 4px; }
+    body.nav-mode .nav-panel { border-right:none; border-bottom:1px solid var(--border); flex-shrink:0; overflow-y:visible; padding:4px 4px 0 4px; min-width:0; }
     body.nav-mode .screen { animation:none; }
     @media (max-width:700px) { .settings-deck-grid { grid-template-columns:1fr; } .header { padding:14px 16px; } .main { padding:16px; } .app-title { font-size:20px; } .nav-btn { padding:8px 14px; min-width:60px; } .headline-thumb { width:72px; height:45px; } }
     .onboard-overlay { position:fixed; inset:0; background:rgba(15,30,46,0.6); z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px; }
@@ -276,7 +278,7 @@
 <header class="header">
   <div class="header-left">
     <img src="images/DailyMe_Logo.png" alt="Daily Me" class="header-logo">
-    <a id="nav-full-link" href="#" onclick="toggleLaunchMode();return false;" style="display:none;font-size:11px;font-weight:700;color:rgba(255,255,255,0.95);border-bottom:1px dashed rgba(255,255,255,0.7);white-space:nowrap;margin-left:2px;align-self:center">Full</a>
+    <a id="nav-full-link" href="#" onclick="toggleLaunchMode();return false;" style="display:none;font-size:11px;font-weight:700;color:rgba(255,255,255,0.95);border-bottom:1px dashed rgba(255,255,255,0.7);white-space:nowrap;margin-left:4px;align-self:center;line-height:1;position:relative;top:0">Full</a>
     <div>
       <div class="app-title">Daily <span>Me</span></div>
       <div class="greeting" id="greeting"></div>
@@ -326,7 +328,6 @@
   </div>
 </nav>
 <div class="nav-panel" id="nav-panel">
-  <div id="nav-sysrow" style="display:none;align-items:center;gap:4px;flex-wrap:wrap;padding:4px 2px 4px 2px;border-bottom:1px solid var(--border);margin-bottom:4px;background:#f0f7ff;border-radius:6px 6px 0 0"></div>
   <div class="nav-panel-btn-grid" id="nav-panel-btn-grid"></div>
 </div>
 <div id="recency-bar" style="background:white;border-bottom:2px solid var(--border);padding:3px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;position:sticky;top:0;z-index:95;box-shadow:0 2px 6px rgba(43,127,212,0.06)">
@@ -1080,6 +1081,8 @@ try{
       document.body.classList.add('nav-mode');
       if(navHeaderControls)navHeaderControls.style.display='none';
       if(headerUserControls)headerUserControls.style.display='flex';
+      const modeToggleHdr=document.getElementById('mode-toggle-link-hdr');
+      if(modeToggleHdr)modeToggleHdr.style.display='none';
       if(navUserControls)navUserControls.style.display='none';
       if(weatherBlock)weatherBlock.style.display='none';
       if(navDate)navDate.style.display='none';
@@ -1090,59 +1093,27 @@ try{
       const hds=document.getElementById('header-date-short');if(hds)hds.style.display='';
       const navFullLink=document.getElementById('nav-full-link');if(navFullLink)navFullLink.style.display='inline';
       renderNavPanel();
-      renderNavSysHeaderBtns();
       document.querySelectorAll('.nav-sysheader-btn').forEach(b=>b.remove());
-      const sysRow=document.getElementById('nav-sysrow');
-      if(sysRow)sysRow.style.display='flex';
     } else {
       document.body.classList.remove('nav-mode');
       if(navHeaderControls)navHeaderControls.style.display='none';
       if(headerUserControls)headerUserControls.style.display='none';
+      const modeToggleHdr=document.getElementById('mode-toggle-link-hdr');
+      if(modeToggleHdr)modeToggleHdr.style.display='';
       if(navUserControls)navUserControls.style.display='flex';
       if(weatherBlock)weatherBlock.style.display='';
       if(navDate)navDate.style.display='';
       document.querySelectorAll('.nav-btn-usermenu,.nav-btn-lang').forEach(b=>b.style.display='');
-      const sysRow=document.getElementById('nav-sysrow');if(sysRow)sysRow.style.display='none';
       const greetEl=document.getElementById('greeting');if(greetEl)greetEl.style.display='';
       const hd=document.getElementById('header-date');if(hd)hd.style.display='';
       const hds=document.getElementById('header-date-short');if(hds)hds.style.display='none';
       const navFullLink=document.getElementById('nav-full-link');if(navFullLink)navFullLink.style.display='none';
-      document.body.style.width='';
-      document.body.style.maxWidth='';
       document.body.style.overflowX='';
-      document.documentElement.style.width='';
-      document.documentElement.style.maxWidth='';
-      document.documentElement.style.overflowX='';
       renderSysHeaderButtons();
     }
   }
 
-  function renderNavSysHeaderBtns(){
-    const container=document.getElementById('nav-sysrow');
-    if(!container)return;
-    const buttons=userOwnedSources
-      .filter(s=>(s.IsSysHeader===1||s.IsSysHeader===true)&&!s.IsInactive)
-      .sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
-    const btnStyle='display:flex;flex-direction:column;align-items:center;gap:2px;background:#e8f4ff;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;padding:4px 8px;min-width:48px;transition:background 0.2s;flex-shrink:0';
-    container.innerHTML=buttons.map(s=>{
-      const escapedURL=s.URL.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      const icon=s.ThumbnailURL
-        ?`<img src="${s.ThumbnailURL}" style="width:28px;height:28px;border-radius:4px;object-fit:cover">`
-        :`<span style="font-size:18px">${s.SourceType==='File'?'📄':'🌐'}</span>`;
-      return `<button style="${btnStyle}" onclick="window.open('${escapedURL}','_blank','noopener')" title="${s.SourceName}">
-        ${icon}
-        <span style="font-size:10px;font-weight:700;color:#1a4a6e;line-height:1;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.SourceName}</span>
-      </button>`;
-    }).join('');
-    // Append weather button into sysrow
-    const wBtn=document.getElementById('nav-weather-btn');
-    if(wBtn){
-      wBtn.style.cssText='display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:#e8f4ff;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;padding:4px 8px;min-width:40px;transition:background 0.2s;flex-shrink:0';
-      container.appendChild(wBtn);
-    }
-  }
-
-  function renderNavPanel(){
+    function renderNavPanel(){
     const grid=document.getElementById('nav-panel-btn-grid');
     if(!grid)return;
     const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
@@ -1153,12 +1124,7 @@ try{
     const navPanel=document.getElementById('nav-panel');
     if(navPanel)navPanel.style.width=panelWidth+'px';
     if(_navMode){
-      document.body.style.width=panelWidth+'px';
-      document.body.style.maxWidth=panelWidth+'px';
       document.body.style.overflowX='hidden';
-      document.documentElement.style.width=panelWidth+'px';
-      document.documentElement.style.maxWidth=panelWidth+'px';
-      document.documentElement.style.overflowX='hidden';
     }
     grid.innerHTML=activeMenu.map(m=>{
       const imgHTML=m.UserMenuImage
@@ -1172,7 +1138,6 @@ try{
     }).join('');
     // Also add Headlines, Languages, Settings buttons
     const sysButtons=[
-      {id:'headlines',label:'Headlines',icon:'📰',action:`showScreen('headlines')`},
       ...userLanguages.filter(ul=>ul.IsActive==='Y').map(ul=>{
         const lang=allLanguages.find(l=>l.LanguageID===ul.LanguageID);
         if(!lang)return null;
@@ -1185,6 +1150,30 @@ try{
         ${typeof b.icon==='string'&&b.icon.startsWith('<')?b.icon:`<span style="font-size:16px">${b.icon}</span>`}
         <span class="nav-panel-btn-label">${b.label}</span>
       </button>`).join('');
+    // Append System Header source buttons
+    const sysHeaderSources=userOwnedSources
+      .filter(s=>(s.IsSysHeader===1||s.IsSysHeader===true)&&!s.IsInactive)
+      .sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
+    sysHeaderSources.forEach(s=>{
+      const escapedURL=s.URL.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const btn=document.createElement('button');
+      btn.className='nav-panel-btn';
+      btn.title=s.SourceName;
+      btn.setAttribute('onclick',`openSourceEntry('${escapedURL}','${(s.SourceType||'').replace(/'/g,"\\'")}');`);
+      const iconHTML=s.ThumbnailURL
+        ?`<img src="${s.ThumbnailURL}" style="width:22px;height:22px;border-radius:3px;object-fit:cover">`
+        :`<span style="font-size:16px">${s.SourceType==='File'?'📄':'🌐'}</span>`;
+      btn.innerHTML=`${iconHTML}<span class="nav-panel-btn-label">${s.SourceName}</span>`;
+      grid.appendChild(btn);
+    });
+    // Append Weather button
+    const weatherNavBtn=document.createElement('button');
+    weatherNavBtn.className='nav-panel-btn';
+    weatherNavBtn.id='nav-panel-weather-btn';
+    weatherNavBtn.title='Weather';
+    weatherNavBtn.onclick=()=>{const u=window._weatherClickURL||'https://forecast.weather.gov/MapClick.php?CityName=Oregon&state=IL&site=LOT&textField1=41.9945&textField2=-89.3334';window.open(u,'_blank','noopener');};
+    weatherNavBtn.innerHTML=`<span style="font-size:22px;line-height:1" id="nav-panel-weather-icon">🌡️</span><span class="nav-panel-btn-label" id="nav-panel-weather-temp">—°</span>`;
+    grid.appendChild(weatherNavBtn);
   }
 
   function setGreeting(){
@@ -1236,11 +1225,15 @@ try{
       }).join('');
       const wUrl=window._weatherClickURL||'https://forecast.weather.gov/MapClick.php?CityName=Oregon&state=IL&site=LOT&textField1=41.9945&textField2=-89.3334';
       if(_navMode){
-      const weatherBtn=document.getElementById('nav-weather-btn');
-      if(weatherBtn){
-        weatherBtn.title=`${Math.round(c.temperature_2m)}°F · ${desc} · H:${Math.round(d.temperature_2m_max[0])}° L:${Math.round(d.temperature_2m_min[0])}°`;
-        weatherBtn.innerHTML=`<span style="font-size:22px;line-height:1">${icon}</span><span style="font-size:10px;font-weight:700;color:#1a4a6e;line-height:1">${Math.round(c.temperature_2m)}°</span>`;
-        weatherBtn.onclick=()=>{const u=window._weatherClickURL||wUrl;window.open(u,'_blank','noopener');};
+      // Update nav panel weather button if rendered
+      const navPanelIcon=document.getElementById('nav-panel-weather-icon');
+      const navPanelTemp=document.getElementById('nav-panel-weather-temp');
+      if(navPanelIcon)navPanelIcon.textContent=icon;
+      if(navPanelTemp)navPanelTemp.textContent=`${Math.round(c.temperature_2m)}°`;
+      const navPanelWeatherBtn=document.getElementById('nav-panel-weather-btn');
+      if(navPanelWeatherBtn){
+        navPanelWeatherBtn.title=`${Math.round(c.temperature_2m)}°F · ${desc} · H:${Math.round(d.temperature_2m_max[0])}° L:${Math.round(d.temperature_2m_min[0])}°`;
+        navPanelWeatherBtn.onclick=()=>{const u=window._weatherClickURL||wUrl;window.open(u,'_blank','noopener');};
       }
       document.getElementById('weather-block').style.display='none';
     } else {
@@ -3535,9 +3528,10 @@ let _pdfClosing=false;
 
   
 
-  async function saveUserSettings(){
+async function saveUserSettings(){
     if(!document.getElementById('us-recency'))return;
     if(!document.getElementById('us-recency').value)return;
+    if(document.getElementById('settings-menu-view')?.style.display==='none')return;
     const recencyDays=Math.min(14,Math.max(1,parseInt(document.getElementById('us-recency').value)||7));
     let maxHeadlines=parseInt(document.getElementById('us-maxheadlines').value);
     const youTubeMaxResults=parseInt(document.getElementById('us-youtubemaxresults').value)||3;
