@@ -1120,7 +1120,7 @@ try{
       const mainEl=document.querySelector('main.main');
       const recencyBar=document.getElementById('recency-bar');
       const header=document.querySelector('header.header');
-      if(mainEl){ mainEl.style.width=''; mainEl.style.maxWidth=''; }
+      if(mainEl){ mainEl.style.width=''; mainEl.style.maxWidth=''; mainEl.style.overflow=''; mainEl.style.overflowX=''; mainEl.style.overflowY=''; }
       if(recencyBar){ recencyBar.style.width=''; recencyBar.style.maxWidth=''; }
       if(header){ header.style.width=''; header.style.maxWidth=''; }
       renderSysHeaderButtons();
@@ -3608,12 +3608,16 @@ async function saveUserSettings(){
     if(pushState)history.pushState({screen:'settings',section:null},'','');
   }
 
-  function showSettingsSection(section,pushState=true){
+  async function showSettingsSection(section,pushState=true){
     currentSettingsSection=section;
     document.getElementById('settings-menu-view').style.display='none';
-    ['categories','sources','keywords','usermenu','global-sources'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
-    document.getElementById(`settings-section-${section}`).style.display='block';
-    renderSettingsSection(section);
+    ['categories','sources','keywords','usermenu','global-sources','mysources'].forEach(s=>{
+      const el=document.getElementById(`settings-section-${s}`);
+      if(el)el.style.display='none';
+    });
+    const secEl=document.getElementById(`settings-section-${section}`);
+    if(secEl)secEl.style.display='block';
+    await renderSettingsSection(section);
     if(pushState)history.pushState({screen:'settings',section},'','');
   }
 
@@ -3647,11 +3651,21 @@ async function saveUserSettings(){
   });
 
   async function renderSettingsSection(section){
-    if(section==='categories'){categories=await apiGet('GetCategories');renderSettingsCategories();renderCategoryTiles(null);}
-    if(section==='sources'){sources=await apiGet('GetHeadlineSources');renderSettingsSources();}
-    if(section==='mysources'){await loadMySources();}
-    if(section==='keywords'){keywords=await apiGet('GetHeadlineKeywords');renderSettingsKeywords();}
-    if(section==='usermenu'){userMenu=await apiGet('GetUserMenu');renderUserMenuTable();}
+    try{
+      if(section==='categories'){categories=await apiGet('GetCategories');renderSettingsCategories();renderCategoryTiles(null);}
+      if(section==='sources'){sources=await apiGet('GetHeadlineSources');renderSettingsSources();}
+      if(section==='mysources'){await loadMySources();}
+      if(section==='keywords'){keywords=await apiGet('GetHeadlineKeywords');renderSettingsKeywords();}
+      if(section==='usermenu'){userMenu=await apiGet('GetUserMenu');renderUserMenuTable();}
+    }catch(e){
+      console.error('renderSettingsSection error:',section,e);
+      const secEl=document.getElementById(`settings-section-${section}`);
+      if(secEl){
+        const tbody=secEl.querySelector('tbody');
+        if(tbody)tbody.innerHTML=`<tr><td colspan="10" style="padding:20px;color:#e05050;font-size:13px;font-weight:600">⚠️ Error loading ${section}: ${e.message}</td></tr>`;
+        else secEl.insertAdjacentHTML('afterbegin',`<div style="padding:20px;color:#e05050;font-size:13px;font-weight:600">⚠️ Error loading ${section}: ${e.message}</div>`);
+      }
+    }
   }
 
   function renderSettingsCategories(){
