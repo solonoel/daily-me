@@ -231,7 +231,7 @@
     .searchable-combo-opt:last-child { border-bottom:none; }
     .searchable-combo-opt:hover { background:#f0f7ff; }
     body.nav-mode { display:flex; flex-direction:column; height:100vh; overflow:hidden; overflow-x:hidden; }
-    body.nav-mode .main { display:flex; flex-direction:column; flex:1; overflow:hidden; overflow-x:hidden; padding:0; max-width:none; margin:0; gap:0; }
+    body.nav-mode .main { display:flex; flex-direction:column; flex:1; overflow:hidden; overflow-x:hidden; padding:0; max-width:inherit; margin:0; gap:0; width:100%; }
     body.nav-mode .nav { display:none; }
     body.nav-mode .header { padding:6px 12px; min-height:unset; overflow:hidden; }
     body.nav-mode #screen-headlines > div:first-child { position:static; box-shadow:none; margin-bottom:0; }
@@ -268,12 +268,15 @@
     .onboard-tip strong { color:var(--sky-deep); }
     .onboard-btn { margin-top:24px; width:100%; padding:12px; border-radius:10px; border:none; background:var(--sky-deep); color:white; font-size:14px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; transition:opacity 0.2s; }
     .onboard-btn:hover { opacity:0.9; }
+    #recency-bar { position:sticky; top:0; z-index:95; flex-shrink:0; }
+    body.nav-mode #recency-bar { top:0; }
   </style>
 </head>
 <body>
 <header class="header">
   <div class="header-left">
     <img src="images/DailyMe_Logo.png" alt="Daily Me" class="header-logo">
+    <a id="nav-full-link" href="#" onclick="toggleLaunchMode();return false;" style="display:none;font-size:11px;font-weight:700;color:rgba(255,255,255,0.95);border-bottom:1px dashed rgba(255,255,255,0.7);white-space:nowrap;margin-left:2px;align-self:center">Full</a>
     <div>
       <div class="app-title">Daily <span>Me</span></div>
       <div class="greeting" id="greeting"></div>
@@ -305,15 +308,6 @@
   <div class="weather-block" id="weather-block"><div class="weather-loading" id="weather-initial">Loading weather...</div></div>
 </header>
 <nav class="nav" id="main-nav">
-  <button class="nav-btn" onclick="showScreen('openers')" id="nav-openers" style="display:none">
-    <span class="nav-icon">☀️</span><span class="nav-label">Openers</span>
-  </button>
-  <button class="nav-btn" onclick="showScreen('headlines')" id="nav-headlines" style="display:none">
-    <span class="nav-icon">📰</span><span class="nav-label">Headlines</span>
-  </button>
-  <button class="nav-btn" onclick="showScreen('closers')" id="nav-closers" style="display:none">
-    <span class="nav-icon">🌙</span><span class="nav-label">Closers</span>
-  </button>
   <div id="nav-date" style="margin-left:auto;padding:0 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;gap:2px">
     <div id="nav-date-text" style="font-size:12px;color:var(--text-muted);white-space:nowrap"></div>
     <div style="display:flex;align-items:center;gap:6px">
@@ -332,17 +326,18 @@
   </div>
 </nav>
 <div class="nav-panel" id="nav-panel">
+  <div id="nav-sysrow" style="display:none;align-items:center;gap:4px;flex-wrap:wrap;padding:4px 2px 4px 2px;border-bottom:1px solid var(--border);margin-bottom:4px;background:#f0f7ff;border-radius:6px 6px 0 0"></div>
   <div class="nav-panel-btn-grid" id="nav-panel-btn-grid"></div>
+</div>
+<div id="recency-bar" style="background:white;border-bottom:2px solid var(--border);padding:3px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;position:sticky;top:0;z-index:95;box-shadow:0 2px 6px rgba(43,127,212,0.06)">
+  <span style="font-size:11px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="recency-val">7 days</span></span>
+  <div id="last-fetch-time" style="font-size:11px;color:var(--text-muted);display:none"></div>
+  <div id="last-yt-fetch-time" style="font-size:11px;color:var(--text-muted);display:none"></div>
+  <div id="yt-quota-warning" style="font-size:11px;font-weight:700;color:#e05050;display:none">⚠️ Youtube quota exhausted for today</div>
 </div>
 <main class="main">
   <div class="content-panel" id="content-panel">
   <div class="screen active" id="screen-headlines">
-    <div style="display:flex;align-items:center;gap:6px;padding:4px 12px;background:white;border-bottom:2px solid var(--border);margin-bottom:6px;position:sticky;top:54px;z-index:90;box-shadow:0 2px 8px rgba(43,127,212,0.06)">
-      <span style="font-size:12px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="recency-val">7 days</span></span>
-      <div id="last-fetch-time" style="font-size:12px;color:var(--text-muted);display:none"></div>
-      <div id="last-yt-fetch-time" style="font-size:12px;color:var(--text-muted);display:none"></div>
-      <div id="yt-quota-warning" style="font-size:12px;font-weight:700;color:#e05050;display:none">⚠️ Youtube quota exhausted for today</div>
-    </div>
     <div id="refresh-status" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep);margin-bottom:12px;padding:8px 14px;background:#f0f7ff;border-radius:8px;border:1px solid var(--border)"></div>
     <div id="headlines-grouped"></div>
   </div>
@@ -732,7 +727,7 @@
     <div class="modal-title">Global Sources</div>
     <div class="form-group">
       <label class="form-label">Password</label>
-      <input class="form-input" id="gs-password-input" type="password" placeholder="Enter password" autocomplete="new-password" onkeydown="if(event.key==='Enter')checkGlobalSourcesPassword()">
+      <input class="form-input" id="gs-password-input" type="password" placeholder="Enter password" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" onkeydown="if(event.key==='Enter')checkGlobalSourcesPassword()">
     </div>
     <div id="gs-password-error" style="display:none;font-size:12px;color:#e05050;margin-top:4px">Incorrect password.</div>
     <div class="modal-actions">
@@ -1083,7 +1078,7 @@ try{
     if(hdrUser)hdrUser.textContent=n;
     if(_navMode){
       document.body.classList.add('nav-mode');
-      if(navHeaderControls)navHeaderControls.style.display='flex';
+      if(navHeaderControls)navHeaderControls.style.display='none';
       if(headerUserControls)headerUserControls.style.display='flex';
       if(navUserControls)navUserControls.style.display='none';
       if(weatherBlock)weatherBlock.style.display='none';
@@ -1093,9 +1088,12 @@ try{
       const greetEl=document.getElementById('greeting');if(greetEl)greetEl.style.display='none';
       const hd=document.getElementById('header-date');if(hd)hd.style.display='none';
       const hds=document.getElementById('header-date-short');if(hds)hds.style.display='';
+      const navFullLink=document.getElementById('nav-full-link');if(navFullLink)navFullLink.style.display='inline';
       renderNavPanel();
       renderNavSysHeaderBtns();
       document.querySelectorAll('.nav-sysheader-btn').forEach(b=>b.remove());
+      const sysRow=document.getElementById('nav-sysrow');
+      if(sysRow)sysRow.style.display='flex';
     } else {
       document.body.classList.remove('nav-mode');
       if(navHeaderControls)navHeaderControls.style.display='none';
@@ -1104,32 +1102,44 @@ try{
       if(weatherBlock)weatherBlock.style.display='';
       if(navDate)navDate.style.display='';
       document.querySelectorAll('.nav-btn-usermenu,.nav-btn-lang').forEach(b=>b.style.display='');
+      const sysRow=document.getElementById('nav-sysrow');if(sysRow)sysRow.style.display='none';
       const greetEl=document.getElementById('greeting');if(greetEl)greetEl.style.display='';
       const hd=document.getElementById('header-date');if(hd)hd.style.display='';
       const hds=document.getElementById('header-date-short');if(hds)hds.style.display='none';
+      const navFullLink=document.getElementById('nav-full-link');if(navFullLink)navFullLink.style.display='none';
       document.body.style.width='';
       document.body.style.maxWidth='';
       document.body.style.overflowX='';
+      document.documentElement.style.width='';
+      document.documentElement.style.maxWidth='';
+      document.documentElement.style.overflowX='';
       renderSysHeaderButtons();
     }
   }
 
   function renderNavSysHeaderBtns(){
-    const container=document.getElementById('nav-sysheader-btns');
+    const container=document.getElementById('nav-sysrow');
     if(!container)return;
     const buttons=userOwnedSources
       .filter(s=>(s.IsSysHeader===1||s.IsSysHeader===true)&&!s.IsInactive)
       .sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
+    const btnStyle='display:flex;flex-direction:column;align-items:center;gap:2px;background:#e8f4ff;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;padding:4px 8px;min-width:48px;transition:background 0.2s;flex-shrink:0';
     container.innerHTML=buttons.map(s=>{
       const escapedURL=s.URL.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
       const icon=s.ThumbnailURL
         ?`<img src="${s.ThumbnailURL}" style="width:28px;height:28px;border-radius:4px;object-fit:cover">`
         :`<span style="font-size:18px">${s.SourceType==='File'?'📄':'🌐'}</span>`;
-      return `<button style="display:flex;flex-direction:column;align-items:center;gap:2px;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);border-radius:8px;cursor:pointer;padding:4px 8px;min-width:48px;transition:background 0.2s;flex-shrink:0" onclick="window.open('${escapedURL}','_blank','noopener')" title="${s.SourceName}">
+      return `<button style="${btnStyle}" onclick="window.open('${escapedURL}','_blank','noopener')" title="${s.SourceName}">
         ${icon}
-        <span style="font-size:10px;font-weight:700;color:white;line-height:1;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.SourceName}</span>
+        <span style="font-size:10px;font-weight:700;color:#1a4a6e;line-height:1;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.SourceName}</span>
       </button>`;
     }).join('');
+    // Append weather button into sysrow
+    const wBtn=document.getElementById('nav-weather-btn');
+    if(wBtn){
+      wBtn.style.cssText='display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:#e8f4ff;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;padding:4px 8px;min-width:40px;transition:background 0.2s;flex-shrink:0';
+      container.appendChild(wBtn);
+    }
   }
 
   function renderNavPanel(){
@@ -1146,6 +1156,9 @@ try{
       document.body.style.width=panelWidth+'px';
       document.body.style.maxWidth=panelWidth+'px';
       document.body.style.overflowX='hidden';
+      document.documentElement.style.width=panelWidth+'px';
+      document.documentElement.style.maxWidth=panelWidth+'px';
+      document.documentElement.style.overflowX='hidden';
     }
     grid.innerHTML=activeMenu.map(m=>{
       const imgHTML=m.UserMenuImage
@@ -1226,7 +1239,7 @@ try{
       const weatherBtn=document.getElementById('nav-weather-btn');
       if(weatherBtn){
         weatherBtn.title=`${Math.round(c.temperature_2m)}°F · ${desc} · H:${Math.round(d.temperature_2m_max[0])}° L:${Math.round(d.temperature_2m_min[0])}°`;
-        weatherBtn.innerHTML=`<span style="font-size:22px;line-height:1">${icon}</span><span style="font-size:10px;font-weight:700;color:white;line-height:1">${Math.round(c.temperature_2m)}°</span>`;
+        weatherBtn.innerHTML=`<span style="font-size:22px;line-height:1">${icon}</span><span style="font-size:10px;font-weight:700;color:#1a4a6e;line-height:1">${Math.round(c.temperature_2m)}°</span>`;
         weatherBtn.onclick=()=>{const u=window._weatherClickURL||wUrl;window.open(u,'_blank','noopener');};
       }
       document.getElementById('weather-block').style.display='none';
@@ -3686,7 +3699,7 @@ function renderSettingsKeywords(){
     const kwMenuFilter=document.getElementById('kw-menu-filter')?.value||'';
     const menuOpts=`<option value="">All Menus</option>`+userMenu.map(m=>`<option value="${m.UserMenuID}" ${kwMenuFilter==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('')+`<option value="none" ${kwMenuFilter==='none'?'selected':''}>— None —</option>`;
     const ss=`style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()"`;
-    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th><select id="kw-src-filter" ${ss}>${srcOpts}</select></th><th><select id="kw-group-filter" ${ss}>${groupOpts}</select></th><th><select id="kw-menu-filter" ${ss}>${menuOpts}</select></th><th>Active</th><th>Image</th><th><a href="#" onclick="resetKwFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none">Reset Filters</a></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th><select id="kw-src-filter" ${ss}>${srcOpts}</select></th><th><select id="kw-group-filter" ${ss}>${groupOpts}</select></th><th><select id="kw-menu-filter" ${ss}>${menuOpts}</select></th><th>Active</th><th>Image</th><th><a href="#" onclick="resetKwFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset Filters</a></th>`;
     const kwGroupFilterVal=document.getElementById('kw-group-filter')?.value||'';
     const kwSrcFilterVal=document.getElementById('kw-src-filter')?.value||'';
     const kwMenuFilterVal=document.getElementById('kw-menu-filter')?.value||'';
@@ -4608,10 +4621,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
   }
 
   function updateSiteTypeNavVisibility() {
-    const openerNav = document.getElementById('nav-openers');
-    const closerNav = document.getElementById('nav-closers');
-    if (openerNav) openerNav.style.display = 'none';
-    if (closerNav) closerNav.style.display = 'none';
+    // nav-openers/closers removed; handled by nav panel
   }
 
 function renderMySitesByMenu(menuID) {
@@ -4698,7 +4708,7 @@ function renderMySourcesTable() {
     const menuOpts = `<option value="">All</option>`+userMenu.map(m=>`<option value="${m.UserMenuID}" ${msMenuFilter==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('')+`<option value="__none__" ${msMenuFilter==='__none__'?'selected':''}>— None —</option>`;
     const activeOpts = `<option value="">All</option><option value="active" ${msActiveFilter==='active'?'selected':''}>Active</option><option value="inactive" ${msActiveFilter==='inactive'?'selected':''}>Inactive</option>`;
 
-    if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th><select id="ms-type-filter" ${ss}>${typeOpts}</select></th><th><select id="ms-group-filter-hdr" ${ss}>${groupOpts}</select></th><th><select id="ms-menu-filter-hdr" ${ss}>${menuOpts}</select></th><th>URL</th><th><select id="ms-active-filter" ${ss}>${activeOpts}</select></th><th>Exclusions</th><th>Image</th><th><a href="#" onclick="resetMsFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none">Reset Filters</a></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th><select id="ms-type-filter" ${ss}>${typeOpts}</select></th><th><select id="ms-group-filter-hdr" ${ss}>${groupOpts}</select></th><th><select id="ms-menu-filter-hdr" ${ss}>${menuOpts}</select></th><th>URL</th><th><select id="ms-active-filter" ${ss}>${activeOpts}</select></th><th>Exclusions</th><th>Image</th><th><a href="#" onclick="resetMsFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset Filters</a></th>`;
 
     let sorted = [...userOwnedSources].sort((a, b) => (a.Sequence || 99) - (b.Sequence || 99));
     if(msTypeFilter) sorted=sorted.filter(s=>s.SourceType===msTypeFilter);
