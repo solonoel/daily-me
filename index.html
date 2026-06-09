@@ -278,7 +278,14 @@
 <header class="header">
   <div class="header-left">
     <img src="images/DailyMe_Logo.png" alt="Daily Me" class="header-logo">
-    <a id="nav-full-link" href="#" onclick="toggleLaunchMode();return false;" style="display:none;font-size:11px;font-weight:700;color:rgba(255,255,255,0.95);border-bottom:1px dashed rgba(255,255,255,0.7);white-space:nowrap;margin-left:4px;align-self:center;line-height:1;position:relative;top:0">Full</a>
+    <div id="nav-full-link" style="display:none;flex-direction:column;align-items:flex-start;gap:2px;margin-left:4px">
+      <a href="#" onclick="toggleLaunchMode();return false;" style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.95);border-bottom:1px dashed rgba(255,255,255,0.7);white-space:nowrap;line-height:1">Full</a>
+      <div id="header-date-nav" style="font-size:10px;color:rgba(255,255,255,0.8);white-space:nowrap;line-height:1.3"></div>
+      <div style="display:flex;gap:6px">
+        <a href="#" onclick="setGroupExpand(true);return false;" style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.85);white-space:nowrap">Expand</a>
+        <a href="#" onclick="setGroupExpand(false);return false;" style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.85);white-space:nowrap">Collapse</a>
+      </div>
+    </div>
     <div>
       <div class="app-title">Daily <span>Me</span></div>
       <div class="greeting" id="greeting"></div>
@@ -307,7 +314,7 @@
     </div>
     <a onclick="logout()" style="font-size:10px;color:rgba(255,255,255,0.65);cursor:pointer;text-decoration:underline;white-space:nowrap;line-height:1">Sign out</a>
   </div>
-  <div class="weather-block" id="weather-block"><div class="weather-loading" id="weather-initial">Loading weather...</div></div>
+  <div class="weather-block" id="weather-block" style="cursor:pointer"><div class="weather-loading" id="weather-initial">Loading weather...</div></div>
 </header>
 <nav class="nav" id="main-nav">
   <div id="nav-date" style="margin-left:auto;padding:0 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;gap:2px">
@@ -1091,7 +1098,7 @@ try{
       const greetEl=document.getElementById('greeting');if(greetEl)greetEl.style.display='none';
       const hd=document.getElementById('header-date');if(hd)hd.style.display='none';
       const hds=document.getElementById('header-date-short');if(hds)hds.style.display='';
-      const navFullLink=document.getElementById('nav-full-link');if(navFullLink)navFullLink.style.display='inline';
+      const navFullLink=document.getElementById('nav-full-link');if(navFullLink)navFullLink.style.display='flex';
       renderNavPanel();
       document.querySelectorAll('.nav-sysheader-btn').forEach(b=>b.remove());
     } else {
@@ -1109,7 +1116,16 @@ try{
       const hds=document.getElementById('header-date-short');if(hds)hds.style.display='none';
       const navFullLink=document.getElementById('nav-full-link');if(navFullLink)navFullLink.style.display='none';
       document.body.style.overflowX='';
+      // Clear nav-mode width constraints
+      const mainEl=document.querySelector('main.main');
+      const recencyBar=document.getElementById('recency-bar');
+      const header=document.querySelector('header.header');
+      if(mainEl){ mainEl.style.width=''; mainEl.style.maxWidth=''; }
+      if(recencyBar){ recencyBar.style.width=''; recencyBar.style.maxWidth=''; }
+      if(header){ header.style.width=''; header.style.maxWidth=''; }
       renderSysHeaderButtons();
+      // Reload weather into the full-mode weather block
+      loadWeather();
     }
   }
 
@@ -1119,12 +1135,20 @@ try{
     const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
     const emptyIDs=new Set((window._emptyMenuNames||[]).map(name=>{const m=userMenu.find(u=>u.UserMenuName===name);return m?m.UserMenuID:null;}).filter(Boolean));
     const activeMenu=userMenu.filter(m=>!m.IsInactive&&!emptyIDs.has(m.UserMenuID)).sort((a,b)=>(a.UserMenuSeq||99)-(b.UserMenuSeq||99));
-    const panelWidth=(perRow*56+((perRow-1)*4))+16;
+const panelWidth=(perRow*56+((perRow-1)*4))+16;
     grid.style.maxWidth=(panelWidth-16)+'px';
+    grid.style.width=(panelWidth-16)+'px';
     const navPanel=document.getElementById('nav-panel');
-    if(navPanel)navPanel.style.width=panelWidth+'px';
+    if(navPanel){ navPanel.style.width=panelWidth+'px'; navPanel.style.minWidth='0'; }
     if(_navMode){
       document.body.style.overflowX='hidden';
+      // Lock main content and recency bar to nav panel width
+      const mainEl=document.querySelector('main.main');
+      const recencyBar=document.getElementById('recency-bar');
+      const header=document.querySelector('header.header');
+      if(mainEl){ mainEl.style.width=panelWidth+'px'; mainEl.style.maxWidth=panelWidth+'px'; }
+      if(recencyBar){ recencyBar.style.width=panelWidth+'px'; recencyBar.style.maxWidth=panelWidth+'px'; }
+      if(header){ header.style.width=panelWidth+'px'; header.style.maxWidth=panelWidth+'px'; }
     }
     grid.innerHTML=activeMenu.map(m=>{
       const imgHTML=m.UserMenuImage
@@ -1141,9 +1165,8 @@ try{
       ...userLanguages.filter(ul=>ul.IsActive==='Y').map(ul=>{
         const lang=allLanguages.find(l=>l.LanguageID===ul.LanguageID);
         if(!lang)return null;
-        return {id:`lang-${lang.LanguageID}`,label:lang.LanguageNameEng,icon:`<img src="${lang.FlagImage}" style="width:28px;height:auto;border-radius:2px">`,action:`visitLanguage(${lang.LanguageID},'${lang.LanguageNameEng}')`};
-      }).filter(Boolean),
-      {id:'settings',label:'Settings',icon:'⚙️',action:`showScreen('settings')`}
+        return {id:`lang-${lang.LanguageID}`,label:lang.LanguageNameEng,icon:`<img src="${lang.FlagImage}" style="width:28px;height:auto;border-radius:2px">`,action:`openLangWindow(${lang.LanguageID},'${lang.LanguageNameEng}')`};
+      }).filter(Boolean)
     ];
     grid.innerHTML+=sysButtons.map(b=>`
       <button class="nav-panel-btn" onclick="${b.action}" id="nav-panel-sys-${b.id}">
@@ -1198,6 +1221,8 @@ try{
     const mm2=String(now.getMonth()+1).padStart(2,'0'),dd2=String(now.getDate()).padStart(2,'0'),yy2=String(now.getFullYear()).slice(2);
     document.getElementById('header-date').textContent=dateStr;
     document.getElementById('header-date-short').textContent=`${days3[now.getDay()]} ${mm2}/${dd2}/${yy2}`;
+    const navDateEl=document.getElementById('header-date-nav');
+    if(navDateEl)navDateEl.textContent=`${days3[now.getDay()]} ${mm2}/${dd2}/${yy2}`;
     const navDateText=document.getElementById('nav-date-text');
     if(navDateText)navDateText.textContent=dateStr;
   }
@@ -1375,6 +1400,13 @@ try{
         } catch(e) {}
       }
       await loadHeadlines();
+    }
+    // If opened as a language window, navigate directly to that language
+    const urlParams = new URLSearchParams(window.location.search);
+    const autoLangID = parseInt(urlParams.get('langID'));
+    const autoLangName = urlParams.get('langName');
+    if(autoLangID && autoLangName){
+      await visitLanguage(autoLangID, decodeURIComponent(autoLangName));
     }
   }
 
@@ -3526,12 +3558,10 @@ let _pdfClosing=false;
     apiPost('SaveUserSettings',{userID:USER_ID,disableYoutubeToday:false});
   }
 
-  
-
 async function saveUserSettings(){
-    if(!document.getElementById('us-recency'))return;
-    if(!document.getElementById('us-recency').value)return;
-    if(document.getElementById('settings-menu-view')?.style.display==='none')return;
+    if(!document.getElementById('us-recency')?.value)return;
+    const smv = document.getElementById('settings-menu-view');
+    if(!smv || smv.style.display === 'none' || smv.offsetParent === null)return;
     const recencyDays=Math.min(14,Math.max(1,parseInt(document.getElementById('us-recency').value)||7));
     let maxHeadlines=parseInt(document.getElementById('us-maxheadlines').value);
     const youTubeMaxResults=parseInt(document.getElementById('us-youtubemaxresults').value)||3;
@@ -5309,6 +5339,16 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     window._modalMenuImage=null;
     const p=document.getElementById('m-menu-img-preview');
     if(p)p.innerHTML='🖼';
+  }
+
+  // ── LANG WINDOW ──
+  function openLangWindow(langID, langName){
+    const w = screen.availWidth;
+    const h = screen.availHeight;
+    const winW = Math.round(w * 0.55);
+    const left = w - winW;
+    const url = window.location.href.split('?')[0] + `?langID=${langID}&langName=${encodeURIComponent(langName)}`;
+    window.open(url, `dailyme_lang_${langID}`, `width=${winW},height=${h},left=${left},top=0,resizable=yes,scrollbars=yes`);
   }
 
   // ── INIT ──
