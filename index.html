@@ -292,7 +292,7 @@
       <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px" id="header-date"></div>
       <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:0;display:none" id="header-date-short"></div>
     </div>
-    <div id="header-date-nav" style="font-size:10px;color:rgba(255,255,255,0.8);white-space:nowrap;line-height:1.3;display:none"></div>
+    <span id="header-date-nav" style="font-size:10px;color:rgba(255,255,255,0.8);white-space:nowrap;line-height:1.3;display:none"></span>
   </div>
   <div id="nav-header-controls" style="display:none;align-items:center;gap:6px;position:relative;z-index:1;flex:1;overflow:hidden">
     <div id="nav-sysheader-btns" style="display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden"></div>
@@ -1493,12 +1493,33 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
       const _forceMode=_urlParams.get('forceMode');
       if(_navMode && !_forceMode){
         // Regular tab with Nav preference: reopen as correctly-sized popup
+        // Update overlay to redirect message before opening popup
+        const _lm=document.getElementById('loading-msg');
+        const _ls=document.getElementById('loading-summary');
+        const _lg=document.getElementById('loading-groups');
+        const _lw=document.getElementById('loading-weather');
+        const _lb=document.getElementById('loading-bar');
+        const _asof=document.getElementById('loading-asof');
+        if(_ls)_ls.textContent='';
+        if(_lg)_lg.textContent='';
+        if(_lw)_lw.textContent='';
+        if(_asof)_asof.textContent='';
+        if(_lb)_lb.style.width='100%';
+        if(_lm)_lm.textContent='Opening Daily Me in Nav mode...';
         const _perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
         const _panelW=(_perRow*56+((_perRow-1)*4))+32;
         const _chrome=window.outerWidth-window.innerWidth||16;
         const _url=window.location.href.split('?')[0]+'?forceMode=Nav';
         window.open(_url,'dailyme_nav',`width=${_panelW+_chrome},height=${screen.availHeight},left=0,top=0,resizable=yes,scrollbars=no`);
         try{window.close();}catch(e){}
+        // If close was blocked, show message so user knows to close this tab
+        setTimeout(()=>{
+          const _ov=document.getElementById('loading-overlay');
+          if(_ov){
+            if(_lm)_lm.textContent='';
+            if(_ls){_ls.style.fontStyle='normal';_ls.textContent='Daily Me has opened in a new window. You can close this tab.';}
+          }
+        },500);
         return; // stop — popup handles all data loading
       }
       applyNavMode(); // Full mode, or ?forceMode=Nav popup
