@@ -230,8 +230,8 @@
     .searchable-combo-opt { padding:7px 12px; cursor:pointer; font-size:13px; border-bottom:1px solid #eef5fc; }
     .searchable-combo-opt:last-child { border-bottom:none; }
     .searchable-combo-opt:hover { background:#f0f7ff; }
-    body.nav-mode { display:flex; flex-direction:column; height:100vh; overflow:hidden; overflow-x:hidden; width:fit-content; min-width:0; background:linear-gradient(160deg,#d0e8f8 0%,#e4f1fb 60%,#daeef2 100%); }
-    html:has(body.nav-mode) { overflow:hidden; width:fit-content; background:#daeef2; }
+    body.nav-mode { display:flex; flex-direction:column; height:100vh; overflow:hidden; overflow-x:hidden; min-width:0; background:linear-gradient(160deg,#d0e8f8 0%,#e4f1fb 60%,#daeef2 100%); }
+    html:has(body.nav-mode) { overflow:hidden; background:#daeef2; }
     body.nav-mode .main { display:flex; flex-direction:column; flex:1; overflow:hidden; overflow-x:hidden; padding:0; max-width:inherit; margin:0; gap:0; width:100%; }
     body.nav-mode .nav { display:none; }
     body.nav-mode .header { padding:6px 12px; min-height:unset; overflow:hidden; }
@@ -280,7 +280,7 @@
     <img src="images/DailyMe_Logo.png" alt="Daily Me" class="header-logo">
     <div id="nav-full-link" style="display:none;flex-direction:column;align-items:flex-start;gap:2px;margin-left:4px">
       <a href="#" onclick="toggleLaunchMode();return false;" style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.95);border-bottom:1px dashed rgba(255,255,255,0.7);white-space:nowrap;line-height:1">Full</a>
-      <button onclick="refreshHeadlines()" style="font-size:9px;font-weight:600;color:white;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);border-radius:5px;cursor:pointer;padding:2px 7px;font-family:'DM Sans',sans-serif;white-space:nowrap;line-height:1.4">↻ Refresh</button>
+      <button id="nav-refresh-btn2" onclick="refreshHeadlines()" style="font-size:9px;font-weight:600;color:white;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);border-radius:5px;cursor:pointer;padding:2px 7px;font-family:'DM Sans',sans-serif;white-space:nowrap;line-height:1.4">↻ Refresh</button>
       <div style="display:flex;gap:6px">
         <a href="#" onclick="setGroupExpand(true);return false;" style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.85);white-space:nowrap">Expand</a>
         <a href="#" onclick="setGroupExpand(false);return false;" style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.85);white-space:nowrap">Collapse</a>
@@ -1109,6 +1109,7 @@ try{
       const greetEl=document.getElementById('greeting');if(greetEl)greetEl.style.display='none';
       const hd=document.getElementById('header-date');if(hd)hd.style.display='none';
       const hds=document.getElementById('header-date-short');if(hds)hds.style.display='';
+      const navDateNav=document.getElementById('header-date-nav');if(navDateNav)navDateNav.style.display='';
       const navFullLink=document.getElementById('nav-full-link');if(navFullLink)navFullLink.style.display='flex';
       renderNavPanel();
       document.querySelectorAll('.nav-sysheader-btn').forEach(b=>b.remove());
@@ -1125,15 +1126,16 @@ try{
       const greetEl=document.getElementById('greeting');if(greetEl)greetEl.style.display='';
       const hd=document.getElementById('header-date');if(hd)hd.style.display='';
       const hds=document.getElementById('header-date-short');if(hds)hds.style.display='none';
+      const navDateNav=document.getElementById('header-date-nav');if(navDateNav)navDateNav.style.display='none';
       const navFullLink=document.getElementById('nav-full-link');if(navFullLink)navFullLink.style.display='none';
       document.body.style.overflowX='';
       // Clear nav-mode width constraints
       const mainEl=document.querySelector('main.main');
       const recencyBar=document.getElementById('recency-bar');
       const header=document.querySelector('header.header');
-      if(mainEl){ mainEl.style.width=''; mainEl.style.maxWidth=''; mainEl.style.overflow=''; mainEl.style.overflowX=''; mainEl.style.overflowY=''; }
-      if(recencyBar){ recencyBar.style.width=''; recencyBar.style.maxWidth=''; }
-      if(header){ header.style.width=''; header.style.maxWidth=''; }
+      if(mainEl){ mainEl.style.width=''; mainEl.style.maxWidth=''; mainEl.style.minWidth=''; mainEl.style.overflow=''; mainEl.style.overflowX=''; mainEl.style.overflowY=''; }
+      if(recencyBar){ recencyBar.style.width=''; recencyBar.style.maxWidth=''; recencyBar.style.minWidth=''; }
+      if(header){ header.style.width=''; header.style.maxWidth=''; header.style.minWidth=''; }
       renderSysHeaderButtons();
       // Reload weather into the full-mode weather block
       loadWeather();
@@ -1162,9 +1164,9 @@ const panelWidth=(perRow*56+((perRow-1)*4))+16;
       const mainEl=document.querySelector('main.main');
       const recencyBar=document.getElementById('recency-bar');
       const header=document.querySelector('header.header');
-      if(mainEl){ mainEl.style.width=panelWidth+'px'; mainEl.style.maxWidth=panelWidth+'px'; }
-      if(recencyBar){ recencyBar.style.width=panelWidth+'px'; recencyBar.style.maxWidth=panelWidth+'px'; }
-      if(header){ header.style.width=panelWidth+'px'; header.style.maxWidth=panelWidth+'px'; }
+      if(mainEl){ mainEl.style.width=''; mainEl.style.maxWidth=''; mainEl.style.minWidth=panelWidth+'px'; }
+      if(recencyBar){ recencyBar.style.width=''; recencyBar.style.maxWidth=''; recencyBar.style.minWidth=panelWidth+'px'; }
+      if(header){ header.style.width=''; header.style.maxWidth=''; header.style.minWidth=panelWidth+'px'; }
     }
     grid.innerHTML=activeMenu.map(m=>{
       const imgHTML=m.UserMenuImage
@@ -3040,7 +3042,8 @@ async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
       const btn=document.getElementById('refresh-btn'),status=document.getElementById('refresh-status');
       const teamsBtn=document.getElementById('teams-refresh-btn');
       const navBtn=document.getElementById('nav-refresh-btn');
-      [btn,teamsBtn,navBtn].forEach(b=>{if(b){b.textContent='Refreshing...';b.style.color='white';b.style.background='#1a5fa8';b.style.borderColor='#1a5fa8';b.style.fontWeight='700';b.disabled=true;}});
+      const navBtn2=document.getElementById('nav-refresh-btn2');
+      [btn,teamsBtn,navBtn,navBtn2].forEach(b=>{if(b){b.textContent='Refreshing...';b.style.color='white';b.style.background='#1a5fa8';b.style.borderColor='#1a5fa8';b.style.fontWeight='700';b.disabled=true;}});
       status.style.display='none';
       const userSettings=await apiGet('GetUserSettings');
       if(userSettings?.headlineSetting?.RecencyDays){recencyDays_value=userSettings.headlineSetting.RecencyDays;document.getElementById('recency-val').textContent=recencyDays_value===1?'1 day':`${recencyDays_value} days`;}
@@ -3051,7 +3054,7 @@ async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
       if(fetchResult?.quotaRemaining<=500&&!disableYoutube){
         localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
       }
-      [btn,teamsBtn,navBtn].forEach(b=>{if(b){b.textContent='↻ Refresh';b.style.color='';b.style.background='';b.style.borderColor='';b.style.fontWeight='';b.disabled=false;}});
+      [btn,teamsBtn,navBtn,navBtn2].forEach(b=>{if(b){b.textContent='↻ Refresh';b.style.color='';b.style.background='';b.style.borderColor='';b.style.fontWeight='';b.disabled=false;}});
       const refreshedSettings=await apiGet('GetUserSettings');
       if(refreshedSettings?.headlineSetting){
         updateQuotaDisplay(refreshedSettings.headlineSetting.QuotaUsed,refreshedSettings.headlineSetting.QuotaDate);
