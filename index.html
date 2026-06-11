@@ -634,6 +634,14 @@
   </div>
 </div>
 </main>
+<div id="loading-overlay" style="position:fixed;inset:0;background:linear-gradient(160deg,#d0e8f8 0%,#e4f1fb 60%,#daeef2 100%);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+  <img src="images/DailyMe_Logo.png" style="height:64px;width:64px;border-radius:50%;border:3px solid rgba(43,127,212,0.3)">
+  <div style="font-family:'Playfair Display',serif;font-size:28px;font-weight:600;color:#2b7fd4">Daily <span style="color:#5a7a9a;font-weight:400">Me</span></div>
+  <div id="loading-msg" style="font-size:13px;color:#5a7a9a;font-weight:500">Loading your briefing...</div>
+  <div style="width:200px;height:3px;background:#c8e0f0;border-radius:2px;overflow:hidden">
+    <div id="loading-bar" style="height:100%;width:0%;background:#2b7fd4;border-radius:2px;transition:width 0.5s ease"></div>
+  </div>
+</div>
 <div class="onboard-overlay" id="onboard-overlay" style="display:none">
   <div class="onboard-card">
     <button class="onboard-close" onclick="closeOnboarding()">✕</button>
@@ -851,6 +859,9 @@
   const storedUser = JSON.parse(localStorage.getItem('dailyme_user') || 'null');
   if (!storedUser) window.location.href = 'login.html';
   const USER_ID = storedUser?.userID || 1;
+  // Apply cached mode immediately to prevent unstyled flash during cold start
+  const _cachedMode = localStorage.getItem(`dailyme_mode_${USER_ID}`);
+  if(_cachedMode === 'Nav') document.body.classList.add('nav-mode');
 
   const catColors = {
     'World':{icon:'🌍',color:'#7a3e00',bg:'#fff0d6',dot:'#e8a020'},
@@ -1308,10 +1319,14 @@ const panelWidth=(perRow*56+((perRow-1)*4))+16;
   async function loadAll(){
     const loadStart=performance.now();
     pingLauncher();
+    const lb=document.getElementById('loading-bar');
+    const lm=document.getElementById('loading-msg');
+    if(lb)lb.style.width='20%';
     const [srcs,kwds,userSettings,langs,ulangs]=await Promise.all([
       apiGet('GetHeadlineSources'),apiGet('GetHeadlineKeywords'),
       apiGet('GetUserSettings'),apiGet('GetLanguages'),apiGet('GetUserLanguages')
     ]);
+    if(lb)lb.style.width='50%';
     categories=[];sources=Array.isArray(srcs)?srcs:[];
     keywords=Array.isArray(kwds)?kwds:[];topics=[];
     allLanguages=Array.isArray(langs)?langs:[];userLanguages=Array.isArray(ulangs)?ulangs:[];
@@ -1337,6 +1352,7 @@ const panelWidth=(perRow*56+((perRow-1)*4))+16;
     document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value===launchMode);
     const nbrEl=document.getElementById('us-navbuttonsperrow');if(nbrEl)nbrEl.value=navButtonsPerRow;
     _navMode=launchMode==='Nav';
+    localStorage.setItem(`dailyme_mode_${USER_ID}`, launchMode);
     // applyNavMode() deferred until all data is loaded below
     document.getElementById('us-youtubemaxresults').value=userSettings?.headlineSetting?.YouTubeMaxResults||3;
     document.getElementById('us-otherperkey').value=userSettings?.headlineSetting?.OtherHeadlinesPerKeyword||3;
@@ -1451,6 +1467,17 @@ const panelWidth=(perRow*56+((perRow-1)*4))+16;
     }
     if(autoLangID && autoLangName){
       await visitLanguage(autoLangID, decodeURIComponent(autoLangName));
+    }
+    // Dismiss loading overlay
+    const loadingOverlay=document.getElementById('loading-overlay');
+    if(loadingOverlay){
+      const lb2=document.getElementById('loading-bar');
+      if(lb2)lb2.style.width='100%';
+      setTimeout(()=>{
+        loadingOverlay.style.transition='opacity 0.3s';
+        loadingOverlay.style.opacity='0';
+        setTimeout(()=>loadingOverlay.remove(),300);
+      },200);
     }
   }
 
