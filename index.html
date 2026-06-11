@@ -280,7 +280,7 @@
     <img src="images/DailyMe_Logo.png" alt="Daily Me" class="header-logo">
     <div id="nav-full-link" style="display:none;flex-direction:column;align-items:flex-start;gap:2px;margin-left:4px">
       <a href="#" onclick="toggleLaunchMode();return false;" style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.95);border-bottom:1px dashed rgba(255,255,255,0.7);white-space:nowrap;line-height:1">Full</a>
-      <div id="header-date-nav" style="font-size:10px;color:rgba(255,255,255,0.8);white-space:nowrap;line-height:1.3"></div>
+      <button onclick="refreshHeadlines()" style="font-size:9px;font-weight:600;color:white;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);border-radius:5px;cursor:pointer;padding:2px 7px;font-family:'DM Sans',sans-serif;white-space:nowrap;line-height:1.4">↻ Refresh</button>
       <div style="display:flex;gap:6px">
         <a href="#" onclick="setGroupExpand(true);return false;" style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.85);white-space:nowrap">Expand</a>
         <a href="#" onclick="setGroupExpand(false);return false;" style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.85);white-space:nowrap">Collapse</a>
@@ -291,6 +291,7 @@
       <div class="greeting" id="greeting"></div>
       <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px" id="header-date"></div>
       <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:0;display:none" id="header-date-short"></div>
+      <div id="header-date-nav" style="font-size:10px;color:rgba(255,255,255,0.8);white-space:nowrap;line-height:1.3;display:none"></div>
     </div>
   </div>
   <div id="nav-header-controls" style="display:none;align-items:center;gap:6px;position:relative;z-index:1;flex:1;overflow:hidden">
@@ -1402,6 +1403,7 @@ const panelWidth=(perRow*56+((perRow-1)*4))+16;
         return; // stop — popup handles all data loading
       }
       applyNavMode(); // Full mode, or ?forceMode=Nav popup
+      try{ window.moveTo(0,0); }catch(e){}
     }
     const loadMs=Math.round(performance.now()-loadStart);
     if(loadMs>3000){
