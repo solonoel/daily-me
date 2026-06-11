@@ -1334,7 +1334,7 @@ const panelWidth=(perRow*56+((perRow-1)*4))+16;
     document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value===launchMode);
     const nbrEl=document.getElementById('us-navbuttonsperrow');if(nbrEl)nbrEl.value=navButtonsPerRow;
     _navMode=launchMode==='Nav';
-    applyNavMode();
+    // applyNavMode() deferred until all data is loaded below
     document.getElementById('us-youtubemaxresults').value=userSettings?.headlineSetting?.YouTubeMaxResults||3;
     document.getElementById('us-otherperkey').value=userSettings?.headlineSetting?.OtherHeadlinesPerKeyword||3;
     collapseThreshold=userSettings?.headlineSetting?.CollapseThreshold??5;
@@ -1387,6 +1387,22 @@ const panelWidth=(perRow*56+((perRow-1)*4))+16;
     userMenu = Array.isArray(menuData) ? menuData : [];
     renderLanguageNav();
     renderSysHeaderButtons();
+    // All data loaded — now safe to apply mode or redirect
+    {
+      const _urlParams=new URLSearchParams(window.location.search);
+      const _forceMode=_urlParams.get('forceMode');
+      if(_navMode && !_forceMode){
+        // Regular tab with Nav preference: reopen as correctly-sized popup
+        const _perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
+        const _panelW=(_perRow*56+((_perRow-1)*4))+16;
+        const _chrome=window.outerWidth-window.innerWidth||16;
+        const _url=window.location.href.split('?')[0]+'?forceMode=Nav';
+        window.open(_url,'dailyme_nav',`width=${_panelW+_chrome},height=${screen.availHeight},left=0,top=0,resizable=yes,scrollbars=no`);
+        try{window.close();}catch(e){}
+        return; // stop — popup handles all data loading
+      }
+      applyNavMode(); // Full mode, or ?forceMode=Nav popup
+    }
     const loadMs=Math.round(performance.now()-loadStart);
     if(loadMs>3000){
       const loadMsg=document.getElementById('refresh-status');
