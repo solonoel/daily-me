@@ -4042,6 +4042,25 @@ function renderSettingsKeywords(){
 
   let modalType=null,modalID=null;
 
+function isYouTubeFilteredSource(sourceID){
+    if(!sourceID) return false;
+    const src=sources.find(s=>s.SourceID===sourceID);
+    return !!(src && src.SourceType==='URL' && src.URL?.includes('youtube.com') && (src.IsFiltered===1||src.IsFiltered===true));
+  }
+
+  function validateYouTubeKeywordClauses(text){
+    const clauses=text.split(/[,;]/).map(c=>c.trim());
+    for(const clause of clauses){
+      if(!clause)return'Empty keyword clause — remove the trailing comma or semicolon.';
+      const quoteCount=(clause.match(/"/g)||[]).length;
+      if(quoteCount%2!==0)return`Unmatched quote in "${clause}" — check your " pairs.`;
+      const stripped=clause.replace(/-"([^"]+)"|-(\S+)/g,'').trim();
+      const andGroups=stripped.split('+').map(g=>g.trim()).filter(Boolean);
+      if(!andGroups.length)return`"${clause}" has no search terms besides exclusions — YouTube requires at least one positive term.`;
+    }
+    return null;
+  }
+
   async function openModal(type,id=null){
     modalType=type;modalID=id;
     window._modalKwImage=undefined;
@@ -4156,6 +4175,10 @@ function renderSettingsKeywords(){
           const sourceIDVal=sourceRaw.startsWith('shared_')?parseInt(sourceRaw.replace('shared_',''))||null:null;
           const uosIDVal=sourceRaw.startsWith('my_')?parseInt(sourceRaw.replace('my_',''))||null:null;
           const userMenuIDVal=parseInt(document.getElementById('m-menuid')?.value)||null;
+          if(isYouTubeFilteredSource(sourceIDVal)){
+            const ytErr=validateYouTubeKeywordClauses(keyword);
+            if(ytErr){alert(ytErr);return;}
+          }
           await apiPost('SaveKeyword',{action:'update',keywordID:modalID,keyword,sequence:kw?.Sequence||99,isActive:kw?.IsActive==='Y',groupLabel,sourceID:sourceIDVal,userOwnedSourceID:uosIDVal,userMenuID:userMenuIDVal,imageURL:(window._modalKwImage!==undefined?window._modalKwImage:kw?.ImageURL)||null,userID:USER_ID});
           if(kw){kw.Keyword=keyword;kw.GroupLabel=groupLabel;kw.SourceID=sourceIDVal;kw.UserOwnedSourceID=uosIDVal;kw.UserMenuID=userMenuIDVal;}
           renderSettingsKeywords();
@@ -4183,6 +4206,10 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     const sourceIDVal=sourceRaw.startsWith('shared_')?parseInt(sourceRaw.replace('shared_',''))||null:null;
     const uosIDVal=sourceRaw.startsWith('my_')?parseInt(sourceRaw.replace('my_',''))||null:null;
     const userMenuIDVal=parseInt(document.getElementById('m-menuid')?.value)||null;
+    if(isYouTubeFilteredSource(sourceIDVal)){
+      const ytErr=validateYouTubeKeywordClauses(keyword);
+      if(ytErr){alert(ytErr);return;}
+    }
     const imageURL=window._modalKwImage!==undefined?window._modalKwImage:null;
     if((groupLabel||'').toLowerCase()==='teams'&&!sourceIDVal&&!uosIDVal)return alert('Teams keywords must specify a Source.');
     // Save current entry
@@ -4264,6 +4291,10 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       const sourceIDVal=sourceRaw.startsWith('shared_')?parseInt(sourceRaw.replace('shared_',''))||null:null;
       const userOwnedSourceIDForKw=sourceRaw.startsWith('my_')?parseInt(sourceRaw.replace('my_',''))||null:null;
       const userMenuIDForKw=parseInt(document.getElementById('m-menuid')?.value)||null;
+      if(isYouTubeFilteredSource(sourceIDVal)){
+        const ytErr=validateYouTubeKeywordClauses(keyword);
+        if(ytErr){alert(ytErr);return;}
+      }
       const rawGroupLabel=document.getElementById('m-grouplabel')?.value.trim()||'';
       if(rawGroupLabel.toLowerCase()==='teams'&&!sourceIDVal&&!userOwnedSourceIDForKw){
         return alert('Teams keywords must specify a Source.');

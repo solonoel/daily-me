@@ -113,6 +113,25 @@ function matchesKeyword(text, keywordText) {
   return false;
 }
 
+// Translate our keyword clause syntax (+ AND, / OR, "phrase", -exclude) into a YouTube search "q" string.
+// Each comma/semicolon-separated clause is sent as its own search.list call.
+function translateClauseToYouTubeQuery(clause) {
+  const exclusions = [];
+  let working = clause;
+  working = working.replace(/-"([^"]+)"|-(\S+)/g, (match, phrase, word) => {
+    exclusions.push(phrase !== undefined ? phrase : word);
+    return '';
+  });
+  const andGroups = working.split('+').map(g => g.trim()).filter(Boolean);
+  const groupStrs = andGroups.map(g => {
+    const orTerms = g.split('/').map(t => t.trim().replace(/^"|"$/g, '')).filter(Boolean);
+    return orTerms.length > 1 ? orTerms.join('|') : orTerms[0];
+  }).filter(Boolean);
+  let q = groupStrs.join(' ');
+  for (const ex of exclusions) q += ` -${ex}`;
+  return q.trim();
+}
+
 function isTeamsKeyword(kw) { return kw.GroupLabel?.toLowerCase() === 'teams'; }
 function isExclusionKeyword(kw) { return kw.Keyword && kw.Keyword.trim().startsWith('-'); }
 function exclusionTerm(kw) { return kw.Keyword.trim().substring(1).trim(); }
@@ -316,6 +335,50 @@ async function fetchYouTube(source, fromDate, isFiltered, keywords, youTubeMaxRe
         }
       }
     }
+
+    // ── YouTube Search API supplemental fetch (filtered sources only) ──
+    // Catches keyword matches outside the most-recent 50 uploads, at 100 quota units per clause.
+    const matchedLinks = new Set(matched.map(a => a.link));
+    for (const kw of orderedKws) {
+      if (kw.SourceID && kw.SourceID !== source.SourceID) continue;
+      if (kw.UserOwnedSourceID) continue;
+      const clauses = kw.text.split(/[,;]/).map(c => c.trim()).filter(Boolean);
+      for (const clause of clauses) {
+        if ((kwCounts[kw.KeywordID] || 0) >= youTubeMaxResults) break;
+        if (quotaUsed.units + 100 > 9500) { context.log(`YouTube search budget exhausted — skipping remaining keyword searches`); break; }
+        const q = translateClauseToYouTubeQuery(clause);
+        if (!q) continue;
+        try {
+          const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${source.YoutubeChannelID}&type=video&order=date&q=${encodeURIComponent(q)}&publishedAfter=${fromDate.toISOString()}&maxResults=10&key=${apiKey}`;
+          const searchData = JSON.parse(await fetchUrl(searchUrl));
+          quotaUsed.units += 100;
+          for (const item of (searchData.items || [])) {
+            const videoID = item.id?.videoId;
+            if (!videoID) continue;
+            const link = `https://www.youtube.com/watch?v=${videoID}`;
+            if (matchedLinks.has(link)) continue;
+            if ((kwCounts[kw.KeywordID] || 0) >= youTubeMaxResults) break;
+            const snippet = item.snippet;
+            const a = {
+              title: snippet.title,
+              link,
+              summary: (snippet.description || '').substring(0, 500),
+              fullText: (snippet.description || '').substring(0, 2000),
+              thumbnailURL: snippet.thumbnails?.medium?.url || snippet.thumbnails?.default?.url || null,
+              channelName: snippet.channelTitle,
+              channelURL: `https://www.youtube.com/channel/${source.YoutubeChannelID}`,
+              pubDate: new Date(snippet.publishedAt),
+              keywordID: kw.KeywordID
+            };
+            if (isTeamsKeyword(kw)) a.teamsOnly = true;
+            matched.push(a);
+            matchedLinks.add(link);
+            kwCounts[kw.KeywordID] = (kwCounts[kw.KeywordID] || 0) + 1;
+          }
+        } catch(e) { context.log(`YouTube search error [${source.Name}] clause "${clause}": ${e.message}`); }
+      }
+    }
+
     return { articles: matched, fetched, recencyFiltered };
   }
   return { articles, fetched, recencyFiltered };
