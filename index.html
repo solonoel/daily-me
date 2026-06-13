@@ -1218,7 +1218,7 @@ try{
       localStorage.setItem(`dailyme_mode_${USER_ID}`,'Full');
       const {left:_fLeft,top:_fTop}=getScreenOrigin();
       const url=window.location.href.split('?')[0]+'?forceMode=Full';
-      window.open(url,'dailyme_full',`width=1200,height=${screen.availHeight},left=${_fLeft},top=${_fTop},resizable=yes,scrollbars=yes`);
+      window.open(url,'dailyme_full',`width=${screen.availWidth},height=${screen.availHeight},left=${_fLeft},top=${_fTop},resizable=yes,scrollbars=yes`);
       try{window.close();}catch(e){}
     }
   }
