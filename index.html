@@ -241,7 +241,7 @@
     body.nav-mode .app-title { font-size:13px; }
     body.nav-mode .header-left > div:not(#logo-block) { display:none; }
     body.nav-mode #logo-block { display:flex !important; flex-direction:column; align-items:center; gap:2px; position:relative; }
-    .nav-pin-link { display:none; position:absolute; font-size:9px; font-weight:700; color:rgba(255,255,255,0.85); cursor:pointer; line-height:1; text-decoration:none; padding:1px 3px; background:rgba(255,255,255,0.15); border-radius:3px; }
+    .nav-pin-link { display:none; position:absolute; font-size:10px; font-weight:700; color:rgba(255,255,255,0.85); cursor:pointer; line-height:1; text-decoration:none; padding:1px 3px; background:rgba(255,255,255,0.15); border-radius:3px; }
     body.nav-mode .nav-pin-link { display:block; }
     .nav-pin-left { top:-6px; left:-10px; }
     .nav-pin-right { bottom:-6px; left:-10px; }
@@ -283,9 +283,9 @@
 <header class="header">
   <div class="header-left">
     <div id="logo-block">
-      <a href="#" class="nav-pin-link nav-pin-left" onclick="pinNav('left');return false;" title="Pin to left">&laquo;</a>
+      <a href="#" class="nav-pin-link nav-pin-left" onclick="pinNav('left');return false;" title="Pin to left">&#9664;&#9664;</a>
       <img src="images/DailyMe_Logo.png" alt="Daily Me" class="header-logo">
-      <a href="#" class="nav-pin-link nav-pin-right" onclick="pinNav('right');return false;" title="Pin to right">&raquo;</a>
+      <a href="#" class="nav-pin-link nav-pin-right" onclick="pinNav('right');return false;" title="Pin to right">&#9654;&#9654;</a>
       <span id="header-date-nav" style="font-size:10px;color:rgba(255,255,255,0.8);white-space:nowrap;line-height:1.3;display:none"></span>
     </div>
     <div id="nav-full-link" style="display:none;flex-direction:column;align-items:flex-start;gap:2px;margin-left:4px">

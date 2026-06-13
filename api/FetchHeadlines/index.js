@@ -339,12 +339,14 @@ async function fetchYouTube(source, fromDate, isFiltered, keywords, youTubeMaxRe
     // ── YouTube Search API supplemental fetch (filtered sources only) ──
     // Catches keyword matches outside the most-recent 50 uploads, at 100 quota units per clause.
     const matchedLinks = new Set(matched.map(a => a.link));
-    for (const kw of orderedKws) {
-      if (kw.SourceID && kw.SourceID !== source.SourceID) continue;
-      if (kw.UserOwnedSourceID) continue;
+    const searchKws = orderedKws.filter(kw => kw.SourceID === source.SourceID && !kw.UserOwnedSourceID);
+    let searchCallsThisSource = 0;
+    const MAX_SEARCH_CALLS_PER_SOURCE = 6;
+    for (const kw of searchKws) {
       const clauses = kw.text.split(/[,;]/).map(c => c.trim()).filter(Boolean);
       for (const clause of clauses) {
         if ((kwCounts[kw.KeywordID] || 0) >= youTubeMaxResults) break;
+        if (searchCallsThisSource >= MAX_SEARCH_CALLS_PER_SOURCE) { context.log(`YouTube search cap reached for [${source.Name}] — skipping remaining clauses`); break; }
         if (quotaUsed.units + 100 > 9500) { context.log(`YouTube search budget exhausted — skipping remaining keyword searches`); break; }
         const q = translateClauseToYouTubeQuery(clause);
         if (!q) continue;
@@ -352,6 +354,7 @@ async function fetchYouTube(source, fromDate, isFiltered, keywords, youTubeMaxRe
           const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${source.YoutubeChannelID}&type=video&order=date&q=${encodeURIComponent(q)}&publishedAfter=${fromDate.toISOString()}&maxResults=10&key=${apiKey}`;
           const searchData = JSON.parse(await fetchUrl(searchUrl));
           quotaUsed.units += 100;
+          searchCallsThisSource++;
           for (const item of (searchData.items || [])) {
             const videoID = item.id?.videoId;
             if (!videoID) continue;
