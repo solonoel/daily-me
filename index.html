@@ -240,7 +240,11 @@
     body.nav-mode .header-logo { height:28px; width:28px; }
     body.nav-mode .app-title { font-size:13px; }
     body.nav-mode .header-left > div:not(#logo-block) { display:none; }
-    body.nav-mode #logo-block { display:flex !important; flex-direction:column; align-items:center; gap:2px; }
+    body.nav-mode #logo-block { display:flex !important; flex-direction:column; align-items:center; gap:2px; position:relative; }
+    .nav-pin-link { display:none; position:absolute; font-size:9px; font-weight:700; color:rgba(255,255,255,0.85); cursor:pointer; line-height:1; text-decoration:none; padding:1px 3px; background:rgba(255,255,255,0.15); border-radius:3px; }
+    body.nav-mode .nav-pin-link { display:block; }
+    .nav-pin-left { top:-6px; left:-10px; }
+    .nav-pin-right { bottom:-6px; left:-10px; }
     body.nav-mode .greeting { display:none !important; }
     body.nav-mode #header-date { font-size:10px; margin-top:0; }
     .nav-panel { display:none; flex-direction:column; background:white; border-right:2px solid var(--border); overflow-y:auto; flex-shrink:0; padding:8px 6px; }
@@ -279,7 +283,9 @@
 <header class="header">
   <div class="header-left">
     <div id="logo-block">
+      <a href="#" class="nav-pin-link nav-pin-left" onclick="pinNav('left');return false;" title="Pin to left">&laquo;</a>
       <img src="images/DailyMe_Logo.png" alt="Daily Me" class="header-logo">
+      <a href="#" class="nav-pin-link nav-pin-right" onclick="pinNav('right');return false;" title="Pin to right">&raquo;</a>
       <span id="header-date-nav" style="font-size:10px;color:rgba(255,255,255,0.8);white-space:nowrap;line-height:1.3;display:none"></span>
     </div>
     <div id="nav-full-link" style="display:none;flex-direction:column;align-items:flex-start;gap:2px;margin-left:4px">
@@ -1164,19 +1170,36 @@ try{
     await applyZipCodeWeather(zip);
   }
 
+  function getNavPinLeft(panelWidth,chrome){
+    const pin=localStorage.getItem(`dailyme_navpin_${USER_ID}`)||'left';
+    return pin==='right'?Math.max(0,screen.availWidth-panelWidth-chrome):0;
+  }
+
+  function pinNav(side){
+    localStorage.setItem(`dailyme_navpin_${USER_ID}`,side);
+    if(!_navMode)return;
+    const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
+    const panelWidth=(perRow*56+((perRow-1)*4))+32;
+    const chrome=window.outerWidth-window.innerWidth||16;
+    try{
+      window.moveTo(getNavPinLeft(panelWidth,chrome),0);
+      window.resizeTo(panelWidth+chrome,screen.availHeight);
+    }catch(e){}
+  }
+
   function toggleLaunchMode(){
     if(!_navMode){
-      const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
-      const panelWidth=(perRow*56+((perRow-1)*4))+32;
-      const wChrome=window.outerWidth-window.innerWidth;
-      const url=window.location.href.split('?')[0]+'?forceMode=Nav';
-      window.open(url,'dailyme_nav',`width=${panelWidth+wChrome},height=${screen.availHeight},left=${screen.availWidth-panelWidth-wChrome},top=0,resizable=yes,scrollbars=no`);
+      _navMode=true;
+      document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value==='Nav');
+      applyNavMode();
       apiPost('SaveUserSettings',{userID:USER_ID,launchMode:'Nav'});
+      localStorage.setItem(`dailyme_mode_${USER_ID}`,'Nav');
     } else {
       _navMode=false;
       document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value==='Full');
       applyNavMode();
       apiPost('SaveUserSettings',{userID:USER_ID,launchMode:'Full'});
+      localStorage.setItem(`dailyme_mode_${USER_ID}`,'Full');
       try{window.resizeTo(1200,window.outerHeight);}catch(e){}
     }
   }
@@ -1258,6 +1281,7 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
       try{
         const chrome=window.outerWidth-window.innerWidth;
         window.resizeTo(panelWidth+chrome, window.outerHeight);
+        window.moveTo(getNavPinLeft(panelWidth,chrome),window.screenY||0);
       }catch(e){}
       // Lock main content and recency bar to nav panel width
       const mainEl=document.querySelector('main.main');
@@ -1517,7 +1541,7 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
         const _panelW=(_perRow*56+((_perRow-1)*4))+32;
         const _chrome=window.outerWidth-window.innerWidth||16;
         const _url=window.location.href.split('?')[0]+'?forceMode=Nav';
-        window.open(_url,'dailyme_nav',`width=${_panelW+_chrome},height=${screen.availHeight},left=0,top=0,resizable=yes,scrollbars=no`);
+        window.open(_url,'dailyme_nav',`width=${_panelW+_chrome},height=${screen.availHeight},left=${getNavPinLeft(_panelW,_chrome)},top=0,resizable=yes,scrollbars=no`);
         try{window.close();}catch(e){}
         // If close was blocked, show message so user knows to close this tab
         setTimeout(()=>{
@@ -3447,26 +3471,12 @@ const makeSourceRow=s=>{
   }
   function openHeadline(link){
     if(!link||link==='#')return;
-    if(_navMode){
-      const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
-      const navW=(perRow*56+((perRow-1)*4))+32;
-      const winW=screen.availWidth-navW;
-      window.open(link,'dailyme_content',`width=${winW},height=${screen.availHeight},left=${navW},top=0,resizable=yes,scrollbars=yes`);
-    }else{
-      window.open(link,'_blank','noopener');
-    }
+    window.open(link,'dailyme_content','noopener');
   }
 
   function openSourceEntry(url,sourceType){
-    if(sourceType==='File'){ openFileViaLauncher(url); }
-    else if(_navMode){
-      const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
-      const navW=(perRow*56+((perRow-1)*4))+32;
-      const winW=screen.availWidth-navW;
-      window.open(url,'dailyme_content',`width=${winW},height=${screen.availHeight},left=${navW},top=0,resizable=yes,scrollbars=yes`);
-    }else{
-      window.open(url,'_blank','noopener');
-    }
+    if(sourceType==='File'){ openFileViaLauncher(url); return; }
+    window.open(url,'dailyme_content','noopener');
   }
 
   function normalizeFileUrl(path){
@@ -5617,13 +5627,7 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
   {localStorage.removeItem('dailyme_user');window.location.href='login.html';}
   setGreeting();setDate();loadAll();
 
-  // Auto-logout after 30 minutes of inactivity
-  let _lastActivity = Date.now();
-  function resetActivityTimer() { _lastActivity = Date.now(); }
-  ['click','keydown','mousemove','touchstart'].forEach(e => document.addEventListener(e, resetActivityTimer, {passive:true}));
-  setInterval(() => {
-    if (Date.now() - _lastActivity > 30 * 60 * 1000) logout();
-  }, 60 * 1000);
+  
 </script>
 <!-- deploy 06092026 --></body>
 </html>
