@@ -1171,9 +1171,14 @@ try{
     await applyZipCodeWeather(zip);
   }
 
+  function getScreenOrigin(){
+    return {left: screen.availLeft||0, top: screen.availTop||0};
+  }
+
   function getNavPinLeft(panelWidth,chrome){
     const pin=localStorage.getItem(`dailyme_navpin_${USER_ID}`)||'left';
-    return pin==='right'?Math.max(0,screen.availWidth-panelWidth-chrome):0;
+    const {left:screenLeft}=getScreenOrigin();
+    return pin==='right'?Math.max(screenLeft,screenLeft+screen.availWidth-panelWidth-chrome):screenLeft;
   }
 
   function pinNav(side){
@@ -1185,7 +1190,7 @@ try{
     const targetX=getNavPinLeft(panelWidth,chrome);
     console.log('pinNav',{side,targetX,panelWidth,chrome,screenAvailWidth:screen.availWidth,beforeX:window.screenX});
     try{
-      window.moveTo(targetX,0);
+      window.moveTo(targetX,getScreenOrigin().top);
       window.resizeTo(panelWidth+chrome,screen.availHeight);
       console.log('pinNav after',{afterX:window.screenX});
     }catch(e){console.log('pinNav error',e.message);}
@@ -1196,16 +1201,25 @@ try{
     if(!_navMode){
       _navMode=true;
       document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value==='Nav');
-      applyNavMode();
       apiPost('SaveUserSettings',{userID:USER_ID,launchMode:'Nav'});
       localStorage.setItem(`dailyme_mode_${USER_ID}`,'Nav');
+      const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
+      const panelWidth=(perRow*56+((perRow-1)*4))+32;
+      const chrome=window.outerWidth-window.innerWidth||16;
+      const left=getNavPinLeft(panelWidth,chrome);
+      const top=getScreenOrigin().top;
+      const url=window.location.href.split('?')[0]+'?forceMode=Nav';
+      window.open(url,'dailyme_nav',`width=${panelWidth+chrome},height=${screen.availHeight},left=${left},top=${top},resizable=yes,scrollbars=no`);
+      try{window.close();}catch(e){}
     } else {
       _navMode=false;
       document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value==='Full');
-      applyNavMode();
       apiPost('SaveUserSettings',{userID:USER_ID,launchMode:'Full'});
       localStorage.setItem(`dailyme_mode_${USER_ID}`,'Full');
-      try{window.resizeTo(1200,window.outerHeight);window.moveTo(0,window.screenY||0);}catch(e){}
+      const {left:_fLeft,top:_fTop}=getScreenOrigin();
+      const url=window.location.href.split('?')[0]+'?forceMode=Full';
+      window.open(url,'dailyme_full',`width=1200,height=${screen.availHeight},left=${_fLeft},top=${_fTop},resizable=yes,scrollbars=yes`);
+      try{window.close();}catch(e){}
     }
   }
 
@@ -1561,7 +1575,7 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
         const _panelW=(_perRow*56+((_perRow-1)*4))+32;
         const _chrome=window.outerWidth-window.innerWidth||16;
         const _url=window.location.href.split('?')[0]+'?forceMode=Nav';
-        window.open(_url,'dailyme_nav',`width=${_panelW+_chrome},height=${screen.availHeight},left=${getNavPinLeft(_panelW,_chrome)},top=0,resizable=yes,scrollbars=no`);
+        window.open(_url,'dailyme_nav',`width=${_panelW+_chrome},height=${screen.availHeight},left=${getNavPinLeft(_panelW,_chrome)},top=${getScreenOrigin().top},resizable=yes,scrollbars=no`);
         try{window.close();}catch(e){}
         // If close was blocked, show message so user knows to close this tab
         setTimeout(()=>{
@@ -5634,12 +5648,16 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
 
   // ── LANG WINDOW ──
   function openLangWindow(langID, langName){
-    const w = screen.availWidth;
+    const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
+    const panelWidth=(perRow*56+((perRow-1)*4))+32;
+    const chrome=window.outerWidth-window.innerWidth||16;
+    const navTotal=panelWidth+chrome;
+    const {left:screenLeft,top:screenTop}=getScreenOrigin();
     const h = screen.availHeight;
-    const winW = Math.round(w * 0.55);
-    const left = w - winW;
+    const winW = Math.max(screen.availWidth - navTotal, 320);
+    const left = screenLeft + navTotal;
     const url = window.location.href.split('?')[0] + `?langID=${langID}&langName=${encodeURIComponent(langName)}&forceMode=Full`;
-    window.open(url, `dailyme_lang_${langID}`, `width=${winW},height=${h},left=${left},top=0,resizable=yes,scrollbars=yes`);
+    window.open(url, `dailyme_lang_${langID}`, `width=${winW},height=${h},left=${left},top=${screenTop},resizable=yes,scrollbars=yes`);
   }
 
   // ── INIT ──
