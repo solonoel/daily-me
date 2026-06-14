@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background:linear-gradient(160deg,#d0e8f8 0%,#e4f1fb 60%,#daeef2 100%)">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,7 +14,7 @@
     .header { background:linear-gradient(135deg,#2b7fd4 0%,#1a9fd4 100%); padding:16px 32px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 4px 24px rgba(43,127,212,0.25); position:relative; overflow:hidden; min-width:0; }
     .header::before { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,0.07); }
     .header-left { position:relative; z-index:1; display:flex; align-items:center; gap:14px; min-width:0; flex-shrink:1; }
-    .header-logo { height:40px; width:40px; border-radius:50%; object-fit:cover; border:2px solid rgba(255,255,255,0.3); }
+    .header-logo { height:46px; width:46px; border-radius:50%; object-fit:cover; border:2px solid rgba(255,255,255,0.3); }
     .app-title { font-family:'Playfair Display',serif; font-size:26px; font-weight:600; color:white; letter-spacing:-0.5px; line-height:1; }
     .app-title span { color:rgba(255,255,255,0.6); font-weight:400; }
     .greeting { font-size:12px; color:rgba(255,255,255,0.85); margin-top:4px; font-weight:300; }
@@ -237,7 +237,7 @@
     body.nav-mode .header { padding:6px 12px; min-height:unset; overflow:hidden; }
     body.nav-mode #screen-headlines > div:first-child { position:static; box-shadow:none; margin-bottom:0; }
     body.nav-mode .header-left { flex-direction:row; align-items:center; gap:4px; flex-wrap:nowrap; }
-    body.nav-mode .header-logo { height:28px; width:28px; }
+    body.nav-mode .header-logo { height:34px; width:34px; }
     body.nav-mode .app-title { font-size:13px; }
     body.nav-mode .header-left > div:not(#logo-block) { display:none; }
     body.nav-mode #logo-block { display:flex !important; flex-direction:column; align-items:center; gap:2px; position:relative; }
@@ -283,7 +283,7 @@
       <div style="display:flex;align-items:center;gap:6px">
         <img src="images/DailyMe_Logo.png" alt="Daily Me" class="header-logo">
         <div style="display:flex;flex-direction:column;align-items:center;gap:0">
-          <a href="#" id="mode-toggle-logo" onclick="toggleLaunchMode();return false;" style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.95);border-bottom:1px dashed rgba(255,255,255,0.7);white-space:nowrap;line-height:1;margin-bottom:4px">Nav</a>
+          <a href="#" id="mode-toggle-logo" onclick="toggleLaunchMode();return false;" style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.95);border-bottom:1px dashed rgba(255,255,255,0.7);white-space:nowrap;line-height:1;margin-bottom:8px">Nav</a>
           <a href="#" class="nav-pin-link" onclick="pinNav('left');return false;" title="Pin to left">&#9664;&#9664;</a>
           <div style="height:5px"></div>
           <a href="#" class="nav-pin-link" onclick="pinNav('right');return false;" title="Pin to right">&#9654;&#9654;</a>
@@ -321,7 +321,7 @@
   <div id="header-user-controls" style="display:none;flex-direction:column;align-items:flex-end;gap:2px;position:relative;z-index:1;flex-shrink:0">
     <div style="display:flex;align-items:center;gap:6px">
       <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.85)" id="nav-username-hdr"></span>
-      <button onclick="showScreen('settings')" title="Settings" style="width:26px;height:26px;border-radius:6px;border:1.5px solid rgba(255,255,255,0.35);background:rgba(255,255,255,0.18);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px">⚙️</button>
+      <button onclick="openSettingsWindow()" title="Settings" style="width:26px;height:26px;border-radius:6px;border:1.5px solid rgba(255,255,255,0.35);background:rgba(255,255,255,0.18);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px">⚙️</button>
     </div>
     <a onclick="logout()" style="font-size:10px;color:rgba(255,255,255,0.65);cursor:pointer;text-decoration:underline;white-space:nowrap;line-height:1">Sign out</a>
   </div>
@@ -1219,10 +1219,13 @@ try{
       document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value==='Full');
       apiPost('SaveUserSettings',{userID:USER_ID,launchMode:'Full'});
       localStorage.setItem(`dailyme_mode_${USER_ID}`,'Full');
-      const {left:_fLeft,top:_fTop}=getScreenOrigin();
-      const url=window.location.href.split('?')[0]+'?forceMode=Full';
-      window.open(url,'dailyme_full',`width=${screen.availWidth},height=${screen.availHeight},left=${_fLeft},top=${_fTop},resizable=yes,scrollbars=yes`);
-      try{window.close();}catch(e){}
+      try{
+        const {left:_sl,top:_st}=getScreenOrigin();
+        window.moveTo(_sl,_st);
+        window.resizeTo(screen.availWidth,screen.availHeight);
+      }catch(e){}
+      history.replaceState({screen:'headlines',section:null},'',window.location.pathname);
+      applyNavMode();
     }
   }
 
@@ -1629,9 +1632,12 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     const autoLangID = parseInt(urlParams.get('langID'));
     const autoLangName = urlParams.get('langName');
     const forceMode = urlParams.get('forceMode');
+    const autoScreen = urlParams.get('autoScreen');
     if(forceMode === 'Full'){
       if(_navMode){ _navMode=false; applyNavMode(); }
-      try{const {left:_sl,top:_st}=getScreenOrigin();window.moveTo(_sl,_st);window.resizeTo(screen.availWidth,screen.availHeight);}catch(e){}
+      if(!autoLangID&&!autoScreen){
+        try{const {left:_sl,top:_st}=getScreenOrigin();window.moveTo(_sl,_st);window.resizeTo(screen.availWidth,screen.availHeight);}catch(e){}
+      }
     }
     if(forceMode === 'Nav'){
       _navMode = true;
@@ -1639,6 +1645,9 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     }
     if(autoLangID && autoLangName){
       await visitLanguage(autoLangID, decodeURIComponent(autoLangName));
+    }
+    if(autoScreen === 'settings'){
+      showScreen('settings');
     }
     // Dismiss loading overlay
     const loadingOverlay=document.getElementById('loading-overlay');
@@ -5652,6 +5661,18 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
   }
 
   // ── LANG WINDOW ──
+  function openSettingsWindow(){
+    const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
+    const panelWidth=(perRow*56+((perRow-1)*4))+32;
+    const chrome=window.outerWidth-window.innerWidth||16;
+    const navTotal=panelWidth+chrome;
+    const {left:screenLeft,top:screenTop}=getScreenOrigin();
+    const winW=Math.max(screen.availWidth-navTotal,320);
+    const left=screenLeft+navTotal;
+    const url=window.location.href.split('?')[0]+'?autoScreen=settings&forceMode=Full';
+    window.open(url,'dailyme_settings',`width=${winW},height=${screen.availHeight},left=${left},top=${screenTop},resizable=yes,scrollbars=yes`);
+  }
+
   function openLangWindow(langID, langName){
     const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
     const panelWidth=(perRow*56+((perRow-1)*4))+32;
