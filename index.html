@@ -281,7 +281,7 @@
   <div class="header-left">
     <div id="logo-block">
       <div style="display:flex;align-items:center;gap:6px">
-        <img src="images/DailyMe_Logo.png" alt="Daily Me" class="header-logo">
+        <img src="images/DailyMe_Logo.png" alt="Daily Me" class="header-logo" style="border-radius:0;border:none;background:transparent">
         <div style="display:flex;flex-direction:column;align-items:center;gap:0">
           <a href="#" id="mode-toggle-logo" onclick="toggleLaunchMode();return false;" style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.95);border-bottom:1px dashed rgba(255,255,255,0.7);white-space:nowrap;line-height:1;margin-bottom:8px">Nav</a>
           <a href="#" class="nav-pin-link" onclick="pinNav('left');return false;" title="Pin to left">&#9664;&#9664;</a>
@@ -291,7 +291,7 @@
       </div>
       <span id="header-date-nav" style="font-size:10px;color:rgba(255,255,255,0.8);white-space:nowrap;line-height:1.3;display:none"></span>
     </div>
-    <div id="nav-full-link" style="display:none;flex-direction:column;align-items:flex-start;gap:2px;margin-left:8px">
+    <div id="nav-full-link" style="display:none;flex-direction:column;align-items:flex-start;gap:2px;margin-left:10px">
       <button id="nav-refresh-btn2" onclick="refreshHeadlines()" style="font-size:9px;font-weight:600;color:white;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);border-radius:5px;cursor:pointer;padding:2px 7px;font-family:'DM Sans',sans-serif;white-space:nowrap;line-height:1.4">↻ Refresh</button>
       <div style="display:flex;gap:6px">
         <a href="#" onclick="setGroupExpand(true);return false;" style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.85);white-space:nowrap">Expand</a>
@@ -647,7 +647,7 @@
 </main>
 <div id="loading-overlay" style="position:fixed;inset:0;background:linear-gradient(160deg,#d0e8f8 0%,#e4f1fb 60%,#daeef2 100%);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px">
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
-    <img src="images/DailyMe_Logo.png" style="height:48px;width:48px;border-radius:50%;border:3px solid rgba(43,127,212,0.3)">
+    <img src="images/DailyMe_Logo.png" style="height:48px;width:48px;border-radius:0;border:none;background:transparent">
     <div style="font-family:'Playfair Display',serif;font-size:26px;font-weight:600;color:#2b7fd4">Daily <span style="color:#5a7a9a;font-weight:400">Me</span></div>
   </div>
   <div id="loading-weather" style="font-size:13px;color:#5a7a9a;min-height:20px"></div>
@@ -1481,6 +1481,7 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
   async function loadAll(){
     const loadStart=performance.now();
     pingLauncher();
+    if(new URLSearchParams(window.location.search).get('forceMode')==='Full') _navMode=false;
     const lb=document.getElementById('loading-bar');
     const lm=document.getElementById('loading-msg');
     if(lb)lb.style.width='20%';
