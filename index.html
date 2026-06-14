@@ -1220,6 +1220,7 @@ try{
       apiPost('SaveUserSettings',{userID:USER_ID,launchMode:'Full'});
       localStorage.setItem(`dailyme_mode_${USER_ID}`,'Full');
       try{
+        window.name='dailyme_full';
         const {left:_sl,top:_st}=getScreenOrigin();
         window.moveTo(_sl,_st);
         window.resizeTo(screen.availWidth,screen.availHeight);
@@ -5662,28 +5663,19 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
 
   // ── LANG WINDOW ──
   function openSettingsWindow(){
-    const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
-    const panelWidth=(perRow*56+((perRow-1)*4))+32;
-    const chrome=window.outerWidth-window.innerWidth||16;
-    const navTotal=panelWidth+chrome;
-    const {left:screenLeft,top:screenTop}=getScreenOrigin();
-    const winW=Math.max(screen.availWidth-navTotal,320);
-    const left=screenLeft+navTotal;
+    const navRight=(window.screenX||0)+window.outerWidth;
+    const winW=Math.max((screen.availLeft||0)+screen.availWidth-navRight,320);
+    const {top:screenTop}=getScreenOrigin();
     const url=window.location.href.split('?')[0]+'?autoScreen=settings&forceMode=Full';
-    window.open(url,'dailyme_settings',`width=${winW},height=${screen.availHeight},left=${left},top=${screenTop},resizable=yes,scrollbars=yes`);
+    window.open(url,'dailyme_settings',`width=${winW},height=${screen.availHeight},left=${navRight},top=${screenTop},resizable=yes,scrollbars=yes`);
   }
 
   function openLangWindow(langID, langName){
-    const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
-    const panelWidth=(perRow*56+((perRow-1)*4))+32;
-    const chrome=window.outerWidth-window.innerWidth||16;
-    const navTotal=panelWidth+chrome;
-    const {left:screenLeft,top:screenTop}=getScreenOrigin();
-    const h = screen.availHeight;
-    const winW = Math.max(screen.availWidth - navTotal, 320);
-    const left = screenLeft + navTotal;
-    const url = window.location.href.split('?')[0] + `?langID=${langID}&langName=${encodeURIComponent(langName)}&forceMode=Full`;
-    window.open(url, `dailyme_lang_${langID}`, `width=${winW},height=${h},left=${left},top=${screenTop},resizable=yes,scrollbars=yes`);
+    const navRight=(window.screenX||0)+window.outerWidth;
+    const winW=Math.max((screen.availLeft||0)+screen.availWidth-navRight,320);
+    const {top:screenTop}=getScreenOrigin();
+    const url=window.location.href.split('?')[0]+`?langID=${langID}&langName=${encodeURIComponent(langName)}&forceMode=Full`;
+    window.open(url,`dailyme_lang_${langID}`,`width=${winW},height=${screen.availHeight},left=${navRight},top=${screenTop},resizable=yes,scrollbars=yes`);
   }
 
   // ── INIT ──
