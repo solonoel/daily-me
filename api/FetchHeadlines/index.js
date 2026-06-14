@@ -315,8 +315,7 @@ async function fetchYouTube(source, fromDate, isFiltered, keywords, youTubeMaxRe
     const teamsKws = keywords.filter(isTeamsKeyword);
     const otherKws = keywords.filter(kw => !isTeamsKeyword(kw));
     const bySpecificity = arr => [
-      ...arr.filter(kw => kw.SourceID && kw.SourceID === source.SourceID),
-      ...arr.filter(kw => !kw.SourceID)
+      ...arr.filter(kw => kw.SourceID && kw.SourceID === source.SourceID)
     ];
     const orderedKws = [...bySpecificity(teamsKws), ...bySpecificity(otherKws)];
     for (const a of articles) {
@@ -341,7 +340,7 @@ async function fetchYouTube(source, fromDate, isFiltered, keywords, youTubeMaxRe
     const matchedLinks = new Set(matched.map(a => a.link));
     const searchKws = orderedKws.filter(kw => kw.SourceID === source.SourceID && !kw.UserOwnedSourceID);
     let searchCallsThisSource = 0;
-    const MAX_SEARCH_CALLS_PER_SOURCE = 6;
+    const MAX_SEARCH_CALLS_PER_SOURCE = 3;
     for (const kw of searchKws) {
       const clauses = kw.text.split(/[,;]/).map(c => c.trim()).filter(Boolean);
       for (const clause of clauses) {

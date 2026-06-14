@@ -280,17 +280,18 @@
 <header class="header">
   <div class="header-left">
     <div id="logo-block">
-      <div style="display:flex;align-items:center;gap:2px">
+      <div style="display:flex;align-items:center;gap:6px">
         <img src="images/DailyMe_Logo.png" alt="Daily Me" class="header-logo">
-        <div style="display:flex;flex-direction:column;gap:1px">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:0">
+          <a href="#" id="mode-toggle-logo" onclick="toggleLaunchMode();return false;" style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.95);border-bottom:1px dashed rgba(255,255,255,0.7);white-space:nowrap;line-height:1;margin-bottom:4px">Nav</a>
           <a href="#" class="nav-pin-link" onclick="pinNav('left');return false;" title="Pin to left">&#9664;&#9664;</a>
+          <div style="height:5px"></div>
           <a href="#" class="nav-pin-link" onclick="pinNav('right');return false;" title="Pin to right">&#9654;&#9654;</a>
         </div>
       </div>
       <span id="header-date-nav" style="font-size:10px;color:rgba(255,255,255,0.8);white-space:nowrap;line-height:1.3;display:none"></span>
     </div>
     <div id="nav-full-link" style="display:none;flex-direction:column;align-items:flex-start;gap:2px;margin-left:4px">
-      <a href="#" onclick="toggleLaunchMode();return false;" style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.95);border-bottom:1px dashed rgba(255,255,255,0.7);white-space:nowrap;line-height:1">Full</a>
       <button id="nav-refresh-btn2" onclick="refreshHeadlines()" style="font-size:9px;font-weight:600;color:white;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);border-radius:5px;cursor:pointer;padding:2px 7px;font-family:'DM Sans',sans-serif;white-space:nowrap;line-height:1.4">↻ Refresh</button>
       <div style="display:flex;gap:6px">
         <a href="#" onclick="setGroupExpand(true);return false;" style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.85);white-space:nowrap">Expand</a>
@@ -319,7 +320,6 @@
   </div>
   <div id="header-user-controls" style="display:none;flex-direction:column;align-items:flex-end;gap:2px;position:relative;z-index:1;flex-shrink:0">
     <div style="display:flex;align-items:center;gap:6px">
-      <a id="mode-toggle-link-hdr" href="#" onclick="toggleLaunchMode();return false;" style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.9);border-bottom:1px dashed rgba(255,255,255,0.6);white-space:nowrap">Nav</a>
       <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.85)" id="nav-username-hdr"></span>
       <button onclick="showScreen('settings')" title="Settings" style="width:26px;height:26px;border-radius:6px;border:1.5px solid rgba(255,255,255,0.35);background:rgba(255,255,255,0.18);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px">⚙️</button>
     </div>
@@ -338,7 +338,6 @@
   </div>
   <div id="nav-user-controls" style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:0 12px;border-left:1px solid var(--border);flex-shrink:0;gap:3px">
     <div style="display:flex;align-items:center;gap:6px">
-      <a id="mode-toggle-link" href="#" onclick="toggleLaunchMode();return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);white-space:nowrap">Full</a>
       <span style="font-size:12px;font-weight:600;color:var(--text-soft)" id="nav-username"></span>
       <button onclick="showScreen('settings')" title="Settings" style="width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px" id="nav-settings">⚙️</button>
     </div>
@@ -393,7 +392,10 @@
         <div class="settings-deck">
           <div class="settings-deck-title" style="justify-content:space-between;align-items:center">
             <span>📰 Headlines</span>
-            <span id="yt-quota-display" style="font-size:11px;font-weight:600;display:none;margin-left:auto"></span>
+            <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
+              <a href="#" id="fetch-results-link" onclick="openFetchLog();return false;" style="font-size:12px;font-weight:600;color:var(--sky-deep)">📋 Results</a>
+              <span id="yt-quota-display" style="font-size:11px;font-weight:600;display:none"></span>
+            </div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
             <button class="settings-nav-btn" onclick="showSettingsSection('sources')">🌐 Shared Sources</button>
@@ -488,7 +490,6 @@
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
-              <a href="#" id="fetch-results-link" onclick="openFetchLog();return false;" style="font-size:12px;font-weight:600;color:var(--sky-deep);display:none">📋 Results</a>
               <button class="settings-nav-btn" onclick="showSettingsSection('usermenu')">📋 Menu</button>
             </div>
           </div>
@@ -887,8 +888,10 @@
   // Apply cached mode immediately to prevent unstyled flash during cold start
   const _cachedMode = localStorage.getItem(`dailyme_mode_${USER_ID}`);
   if(_cachedMode === 'Nav') document.body.classList.add('nav-mode');
-  // Initialize loading overlay with cached data + live weather
-  initLoadingOverlay();
+  // Initialize loading overlay with cached data + live weather (skip on mode switches)
+const _initForceMode = new URLSearchParams(window.location.search).get('forceMode');
+if(!_initForceMode) initLoadingOverlay();
+else { const _ov=document.getElementById('loading-overlay'); if(_ov)_ov.style.display='none'; }
 
   const catColors = {
     'World':{icon:'🌍',color:'#7a3e00',bg:'#fff0d6',dot:'#e8a020'},
@@ -1228,6 +1231,8 @@ try{
     if(link)link.textContent=_navMode?'Full':'Nav';
     const linkHdr=document.getElementById('mode-toggle-link-hdr');
     if(linkHdr)linkHdr.textContent=_navMode?'Full':'Nav';
+    const linkLogo=document.getElementById('mode-toggle-logo');
+    if(linkLogo)linkLogo.textContent=_navMode?'Full':'Nav';
     const navHeaderControls=document.getElementById('nav-header-controls');
     const headerUserControls=document.getElementById('header-user-controls');
     const navUserControls=document.getElementById('nav-user-controls');
@@ -1624,9 +1629,9 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     const autoLangID = parseInt(urlParams.get('langID'));
     const autoLangName = urlParams.get('langName');
     const forceMode = urlParams.get('forceMode');
-    if(forceMode === 'Full' && _navMode){
-      _navMode = false;
-      applyNavMode();
+    if(forceMode === 'Full'){
+      if(_navMode){ _navMode=false; applyNavMode(); }
+      try{const {left:_sl,top:_st}=getScreenOrigin();window.moveTo(_sl,_st);window.resizeTo(screen.availWidth,screen.availHeight);}catch(e){}
     }
     if(forceMode === 'Nav'){
       _navMode = true;
