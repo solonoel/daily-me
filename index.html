@@ -889,7 +889,15 @@
   const _cachedMode = localStorage.getItem(`dailyme_mode_${USER_ID}`);
   if(_cachedMode === 'Nav') document.body.classList.add('nav-mode');
   // Initialize loading overlay with cached data + live weather (skip on mode switches)
+const _initForceMode = new URLSearchParams(window.location.searcconst USER_ID = storedUser?.userID || 1;
+  const _isCompanion = new URLSearchParams(window.location.search).get('mode') === 'companion';
+  // Apply cached mode immediately to prevent unstyled flash during cold start
+  const _cachedMode = localStorage.getItem(`dailyme_mode_${USER_ID}`);
+  if(_cachedMode === 'Nav' && !_isCompanion) document.body.classList.add('nav-mode');
+  // Initialize loading overlay with cached data + live weather (skip on mode switches and companion)
 const _initForceMode = new URLSearchParams(window.location.search).get('forceMode');
+const _overlayReady = (!_initForceMode && !_isCompanion) ? initLoadingOverlay() : Promise.resolve();
+if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-overlay'); if(_ov)_ov.style.display='none'; }h).get('forceMode');
 const _overlayReady = !_initForceMode ? initLoadingOverlay() : Promise.resolve();
 if(_initForceMode) { const _ov=document.getElementById('loading-overlay'); if(_ov)_ov.style.display='none'; }
 
@@ -993,6 +1001,37 @@ if(_initForceMode) { const _ov=document.getElementById('loading-overlay'); if(_o
 
   let _navMode = false;
   function isNavMode(){ return _navMode; }
+  let companionWin=null,_pendingCompanionAction=null;
+  function _companionSpecs(){
+    const navRight=(window.screenX||0)+window.outerWidth;
+    const winW=Math.max((screen.availLeft||0)+screen.availWidth-navRight,320);
+    const{top:screenTop}=getScreenOrigin();
+    const url=window.location.href.split('?')[0]+'?mode=companion';
+    return{url,specs:`width=${winW},height=${screen.availHeight},left=${navRight},top=${screenTop},resizable=yes,scrollbars=yes`,navRight,winW,screenTop};
+  }
+  function showInCompanion(action,params={}){
+    const{url,specs,navRight,winW,screenTop}=_companionSpecs();
+    if(!companionWin||companionWin.closed){
+      companionWin=window.open(url,'dailyme_companion',specs);
+      _pendingCompanionAction={action,...params};
+    }else{
+      const chrome=(companionWin.outerWidth-companionWin.innerWidth)||16;
+      try{companionWin.resizeTo(winW+chrome,screen.availHeight);companionWin.moveTo(navRight,screenTop);}catch(e){}
+      companionWin.postMessage({action,...params},window.location.origin);
+      companionWin.focus();
+    }
+  }
+  window.addEventListener('message',e=>{
+    if(e.origin!==window.location.origin)return;
+    if(e.data.action==='companionReady'&&_pendingCompanionAction){
+      const{navRight,winW,screenTop}=_companionSpecs();
+      const chrome=(companionWin?.outerWidth-companionWin?.innerWidth)||16;
+      try{companionWin.resizeTo(winW+chrome,screen.availHeight);companionWin.moveTo(navRight,screenTop);}catch(e){}
+      companionWin.postMessage(_pendingCompanionAction,window.location.origin);
+      _pendingCompanionAction=null;
+      if(companionWin)companionWin.focus();
+    }
+  });
   let headlines=[],allHeadlinesCache=[],recencyDays_value=7,collapseThreshold=5,categories=[],sources=[],keywords=[],topics=[];
   const deletedLinks=new Set();
   // topics retained as empty array for legacy compatibility only
@@ -1478,7 +1517,48 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     return res.json();
   }
 
+  async function loadCompanion(){
+    _navMode=false;setGreeting();setDate();applyNavMode();
+    const[srcs,kwds,userSettings,langs,ulangs]=await Promise.all([
+      apiGet('GetHeadlineSources'),apiGet('GetHeadlineKeywords'),
+      apiGet('GetUserSettings'),apiGet('GetLanguages'),apiGet('GetUserLanguages')
+    ]);
+    sources=Array.isArray(srcs)?srcs:[];keywords=Array.isArray(kwds)?kwds:[];
+    allLanguages=Array.isArray(langs)?langs:[];userLanguages=Array.isArray(ulangs)?ulangs:[];
+    userTimezone=Intl.DateTimeFormat().resolvedOptions().timeZone||'America/Chicago';
+    if(userSettings?.headlineSetting){
+      const hs=userSettings.headlineSetting;
+      const sv=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
+      sv('us-recency',hs.RecencyDays??7);sv('us-maxheadlines',hs.MaxHeadlines||50);
+      sv('us-youtubemaxresults',hs.YouTubeMaxResults||3);sv('us-otherperkey',hs.OtherHeadlinesPerKeyword||3);
+      sv('us-collapsethreshold',hs.CollapseThreshold??5);sv('us-weatherurl',hs.WeatherURL||'');
+      sv('us-navbuttonsperrow',hs.NavButtonsPerRow||4);
+      const fh=hs.FetchHour,fe=document.getElementById('us-fetchhour');
+      if(fe)fe.value=(fh!==null&&fh!==undefined)?String(fh):'';
+      document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value===(hs.LaunchMode||'Full'));
+      collapseThreshold=hs.CollapseThreshold??5;window._weatherClickURL=hs.WeatherURL||null;
+      recencyDays_value=hs.RecencyDays??7;
+    }
+    const zipCode=userSettings?.user?.ZipCode||userSettings?.zipCode||'';
+    const zipEl=document.getElementById('us-zipcode');if(zipEl&&zipCode)zipEl.value=zipCode;
+    renderLanguageScreens();renderLanguageCheckList();
+    const[mySitesData,menuData,cats]=await Promise.all([
+      apiGet('GetUserOwnedSources'),apiGet('GetUserMenu'),apiGet('GetCategories')
+    ]);
+    userOwnedSources=Array.isArray(mySitesData)?mySitesData:[];
+    userMenu=Array.isArray(menuData)?menuData:[];
+    categories=Array.isArray(cats)?cats:[];
+    renderLanguageNav();pingLauncher();
+    try{if(window.opener)window.opener.postMessage({action:'companionReady'},window.location.origin);}catch(e){}
+    window.addEventListener('message',e=>{
+      if(e.origin!==window.location.origin)return;
+      if(e.data.action==='showSettings'){showScreen('settings');window.focus();}
+      else if(e.data.action==='showLanguage'){visitLanguage(e.data.langID,e.data.langName);window.focus();}
+    });
+  }
+
   async function loadAll(){
+    if(_isCompanion){await loadCompanion();return;}
     const loadStart=performance.now();
     pingLauncher();
     if(new URLSearchParams(window.location.search).get('forceMode')==='Full') _navMode=false;
@@ -5671,21 +5751,8 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
   }
 
   // ── LANG WINDOW ──
-  function openSettingsWindow(){
-    const navRight=(window.screenX||0)+window.outerWidth;
-    const winW=Math.max((screen.availLeft||0)+screen.availWidth-navRight,320);
-    const {top:screenTop}=getScreenOrigin();
-    const url=window.location.href.split('?')[0]+'?autoScreen=settings&forceMode=Full';
-    window.open(url,'dailyme_settings',`width=${winW},height=${screen.availHeight},left=${navRight},top=${screenTop},resizable=yes,scrollbars=yes`);
-  }
-
-  function openLangWindow(langID, langName){
-    const navRight=(window.screenX||0)+window.outerWidth;
-    const winW=Math.max((screen.availLeft||0)+screen.availWidth-navRight,320);
-    const {top:screenTop}=getScreenOrigin();
-    const url=window.location.href.split('?')[0]+`?langID=${langID}&langName=${encodeURIComponent(langName)}&forceMode=Full`;
-    window.open(url,`dailyme_lang_${langID}`,`width=${winW},height=${screen.availHeight},left=${navRight},top=${screenTop},resizable=yes,scrollbars=yes`);
-  }
+  function openSettingsWindow(){ showInCompanion('showSettings'); }
+  function openLangWindow(langID,langName){ showInCompanion('showLanguage',{langID,langName}); }
 
   // ── INIT ──
   function logout()
