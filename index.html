@@ -1004,15 +1004,11 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
     return{url,specs:`width=${winW},height=${screen.availHeight},left=${navRight},top=${screenTop},resizable=yes,scrollbars=yes`,navRight,winW,screenTop};
   }
   function showInCompanion(action,params={}){
-    console.log('[opener] showInCompanion called',{action,params,hasWin:!!companionWin,closed:companionWin?.closed});
     const{url,specs,navRight,winW,screenTop}=_companionSpecs();
     if(!companionWin||companionWin.closed){
-      console.log('[opener] opening new companion window',url);
       companionWin=window.open(url,'dailyme_companion',specs);
       _pendingCompanionAction={action,...params};
-      console.log('[opener] pending action set',_pendingCompanionAction);
     }else{
-      console.log('[opener] reusing existing companion window, broadcasting directly');
       const chrome=(companionWin.outerWidth-companionWin.innerWidth)||16;
       try{companionWin.resizeTo(winW+chrome,screen.availHeight);companionWin.moveTo(navRight,screenTop);}catch(e){}
       _companionChannel.postMessage({action,...params});
@@ -1020,9 +1016,7 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
     }
   }
   _companionChannel.onmessage=(e)=>{
-    console.log('[opener] received broadcast',e.data,'pendingAction:',_pendingCompanionAction);
     if(e.data?.action==='companionReady'&&_pendingCompanionAction){
-      console.log('[opener] companion is ready, sending pending action',_pendingCompanionAction);
       const{navRight,winW,screenTop}=_companionSpecs();
       const chrome=(companionWin?.outerWidth-companionWin?.innerWidth)||16;
       try{companionWin.resizeTo(winW+chrome,screen.availHeight);companionWin.moveTo(navRight,screenTop);}catch(e){}
@@ -1565,11 +1559,9 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
       renderLanguageNav();pingLauncher();
     }catch(e){console.error('[companion] Error rendering nav:',e);}
     _companionChannel.onmessage=(e)=>{
-      console.log('[companion] received broadcast',e.data);
       if(e.data?.action==='showSettings'){showScreen('settings');window.focus();}
       else if(e.data?.action==='showLanguage'){visitLanguage(e.data.langID,e.data.langName);window.focus();}
     };
-    console.log('[companion] loadCompanion finished, sending ready signal');
     _companionChannel.postMessage({action:'companionReady'});
   }
 
