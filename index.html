@@ -995,6 +995,7 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
   let _navMode = false;
   function isNavMode(){ return _navMode; }
   let companionWin=null,_pendingCompanionAction=null;
+  const _companionChannel=new BroadcastChannel('dailyme_companion_msgs');
   function _companionSpecs(){
     const navRight=(window.screenX||0)+window.outerWidth;
     const winW=Math.max((screen.availLeft||0)+screen.availWidth-navRight,320);
@@ -1010,21 +1011,20 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
     }else{
       const chrome=(companionWin.outerWidth-companionWin.innerWidth)||16;
       try{companionWin.resizeTo(winW+chrome,screen.availHeight);companionWin.moveTo(navRight,screenTop);}catch(e){}
-      companionWin.postMessage({action,...params},window.location.origin);
-      companionWin.focus();
+      _companionChannel.postMessage({action,...params});
+      try{companionWin.focus();}catch(e){}
     }
   }
-  window.addEventListener('message',e=>{
-    if(e.origin!==window.location.origin)return;
-    if(e.data.action==='companionReady'&&_pendingCompanionAction){
+  _companionChannel.onmessage=(e)=>{
+    if(e.data?.action==='companionReady'&&_pendingCompanionAction){
       const{navRight,winW,screenTop}=_companionSpecs();
       const chrome=(companionWin?.outerWidth-companionWin?.innerWidth)||16;
       try{companionWin.resizeTo(winW+chrome,screen.availHeight);companionWin.moveTo(navRight,screenTop);}catch(e){}
-      companionWin.postMessage(_pendingCompanionAction,window.location.origin);
+      _companionChannel.postMessage(_pendingCompanionAction);
       _pendingCompanionAction=null;
-      if(companionWin)companionWin.focus();
+      try{companionWin.focus();}catch(e){}
     }
-  });
+  };
   let headlines=[],allHeadlinesCache=[],recencyDays_value=7,collapseThreshold=5,categories=[],sources=[],keywords=[],topics=[];
   const deletedLinks=new Set();
   // topics retained as empty array for legacy compatibility only
@@ -1542,12 +1542,11 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     userMenu=Array.isArray(menuData)?menuData:[];
     categories=Array.isArray(cats)?cats:[];
     renderLanguageNav();pingLauncher();
-    try{if(window.opener)window.opener.postMessage({action:'companionReady'},window.location.origin);}catch(e){}
-    window.addEventListener('message',e=>{
-      if(e.origin!==window.location.origin)return;
-      if(e.data.action==='showSettings'){showScreen('settings');window.focus();}
-      else if(e.data.action==='showLanguage'){visitLanguage(e.data.langID,e.data.langName);window.focus();}
-    });
+    _companionChannel.onmessage=(e)=>{
+      if(e.data?.action==='showSettings'){showScreen('settings');window.focus();}
+      else if(e.data?.action==='showLanguage'){visitLanguage(e.data.langID,e.data.langName);window.focus();}
+    };
+    _companionChannel.postMessage({action:'companionReady'});
   }
 
   async function loadAll(){
