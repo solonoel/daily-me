@@ -1004,11 +1004,15 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
     return{url,specs:`width=${winW},height=${screen.availHeight},left=${navRight},top=${screenTop},resizable=yes,scrollbars=yes`,navRight,winW,screenTop};
   }
   function showInCompanion(action,params={}){
+    console.log('[opener] showInCompanion called',{action,params,hasWin:!!companionWin,closed:companionWin?.closed});
     const{url,specs,navRight,winW,screenTop}=_companionSpecs();
     if(!companionWin||companionWin.closed){
+      console.log('[opener] opening new companion window',url);
       companionWin=window.open(url,'dailyme_companion',specs);
       _pendingCompanionAction={action,...params};
+      console.log('[opener] pending action set',_pendingCompanionAction);
     }else{
+      console.log('[opener] reusing existing companion window, broadcasting directly');
       const chrome=(companionWin.outerWidth-companionWin.innerWidth)||16;
       try{companionWin.resizeTo(winW+chrome,screen.availHeight);companionWin.moveTo(navRight,screenTop);}catch(e){}
       _companionChannel.postMessage({action,...params});
@@ -1016,7 +1020,9 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
     }
   }
   _companionChannel.onmessage=(e)=>{
+    console.log('[opener] received broadcast',e.data,'pendingAction:',_pendingCompanionAction);
     if(e.data?.action==='companionReady'&&_pendingCompanionAction){
+      console.log('[opener] companion is ready, sending pending action',_pendingCompanionAction);
       const{navRight,winW,screenTop}=_companionSpecs();
       const chrome=(companionWin?.outerWidth-companionWin?.innerWidth)||16;
       try{companionWin.resizeTo(winW+chrome,screen.availHeight);companionWin.moveTo(navRight,screenTop);}catch(e){}
@@ -1512,6 +1518,7 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
 
   async function loadCompanion(){
     _navMode=false;setGreeting();setDate();applyNavMode();
+    const _rb=document.getElementById('recency-bar');if(_rb)_rb.style.display='none';
     const[srcs,kwds,userSettings,langs,ulangs]=await Promise.all([
       apiGet('GetHeadlineSources'),apiGet('GetHeadlineKeywords'),
       apiGet('GetUserSettings'),apiGet('GetLanguages'),apiGet('GetUserLanguages')
@@ -1543,9 +1550,11 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     categories=Array.isArray(cats)?cats:[];
     renderLanguageNav();pingLauncher();
     _companionChannel.onmessage=(e)=>{
+      console.log('[companion] received broadcast',e.data);
       if(e.data?.action==='showSettings'){showScreen('settings');window.focus();}
       else if(e.data?.action==='showLanguage'){visitLanguage(e.data.langID,e.data.langName);window.focus();}
     };
+    console.log('[companion] loadCompanion finished, sending ready signal');
     _companionChannel.postMessage({action:'companionReady'});
   }
 
