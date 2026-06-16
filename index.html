@@ -1233,12 +1233,10 @@ try{
     const panelWidth=(perRow*56+((perRow-1)*4))+32;
     const chrome=window.outerWidth-window.innerWidth||16;
     const targetX=getNavPinLeft(panelWidth,chrome);
-    console.log('pinNav',{side,targetX,panelWidth,chrome,screenAvailWidth:screen.availWidth,beforeX:window.screenX});
     try{
       window.moveTo(targetX,getScreenOrigin().top);
       window.resizeTo(panelWidth+chrome,screen.availHeight);
-      console.log('pinNav after',{afterX:window.screenX});
-    }catch(e){console.log('pinNav error',e.message);}
+    }catch(e){console.error('pinNav error',e.message);}
   }
 
   function toggleLaunchMode(){
@@ -2372,7 +2370,6 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
         const englishSentence2=document.getElementById('nw-english2')?.value.trim()||null;
         const englishSentence3=document.getElementById('nw-english3')?.value.trim()||null;
         await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:editingWordID,wordsName,wordsTranslation,isVerb,gender,mastered,wordsImage:newWordImage,sampleSentence1,sampleSentence2,sampleSentence3,englishSentence1,englishSentence2,englishSentence3});
-        console.log('saving participles for edit:', editingWordID, window._fetchedPresentParticiple, window._fetchedPastParticiple);
         if(isVerb&&(window._fetchedPresentParticiple||window._fetchedPastParticiple)){
           await apiPost('SaveParticiples',{userID:USER_ID,userLanguageWordsID:editingWordID,presentParticiple:window._fetchedPresentParticiple||null,pastParticiple:window._fetchedPastParticiple||null});
           window._fetchedPresentParticiple=null;window._fetchedPastParticiple=null;
@@ -2389,7 +2386,6 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
           const sorted=[...userDecks].sort((a,b)=>new Date(b.DateAdded)-new Date(a.DateAdded));
           if(sorted.length)await apiPost('SaveUserDeck',{action:'addWord',userID:USER_ID,deckID:sorted[0].UserLanguageWordsDeckID,wordID:newWordID});
         }
-        console.log('saving participles for new word:', newWordID, window._fetchedPresentParticiple, window._fetchedPastParticiple);
         if(newWordID&&isVerb&&(window._fetchedPresentParticiple||window._fetchedPastParticiple)){
           await apiPost('SaveParticiples',{userID:USER_ID,userLanguageWordsID:newWordID,presentParticiple:window._fetchedPresentParticiple||null,pastParticiple:window._fetchedPastParticiple||null});
           window._fetchedPresentParticiple=null;window._fetchedPastParticiple=null;
@@ -3984,7 +3980,6 @@ async function showSettingsSection(section,pushState=true){
     const secEl=document.getElementById(`settings-section-${section}`);
     if(secEl)secEl.style.display='block';
     await renderSettingsSection(section);
-    setTimeout(()=>{const _s=document.getElementById('settings-section-'+section);const _cp=document.getElementById('content-panel');const _ss=document.getElementById('screen-settings');const _g=el=>el?window.getComputedStyle(el):{};console.log('DIAG_sec',{section,secH:_s?.offsetHeight,secScH:_s?.scrollHeight,secDisp:_g(_s).display,secStyle:_s?.style.cssText,cpH:_cp?.offsetHeight,cpDisp:_g(_cp).display,cpOver:_g(_cp).overflow,cpFB:_g(_cp).flexBasis,cpStyle:_cp?.style.cssText,ssH:_ss?.offsetHeight,mainH:document.querySelector('main')?.offsetHeight,bodyClass:document.body.className,tblRows:_s?.querySelectorAll('tr').length});},300);
     if(pushState)history.pushState({screen:'settings',section},'','');
   }
 
@@ -4018,15 +4013,13 @@ async function showSettingsSection(section,pushState=true){
   });
 
   async function renderSettingsSection(section){
-    console.log('renderSettingsSection called:', section);
     try{
       if(section==='categories'){categories=await apiGet('GetCategories');renderSettingsCategories();renderCategoryTiles(null);}
       if(section==='sources'){sources=await apiGet('GetHeadlineSources');renderSettingsSources();}
-      if(section==='mysources'){console.log('calling loadMySources');await loadMySources();console.log('loadMySources done');}
+      if(section==='mysources'){await loadMySources();}
       if(section==='keywords'){keywords=await apiGet('GetHeadlineKeywords');renderSettingsKeywords();}
       if(section==='usermenu'){userMenu=await apiGet('GetUserMenu');renderUserMenuTable();}
     }catch(e){
-      console.error('renderSettingsSection CAUGHT ERROR:', section, e);
       console.error('renderSettingsSection error:',section,e);
       const secEl=document.getElementById(`settings-section-${section}`);
       if(secEl){
@@ -5117,10 +5110,8 @@ function renderMySitesByMenu(menuID) {
   }
   
   async function loadMySources() {
-    console.log('loadMySources called');
     try {
       const data = await apiGet('GetUserOwnedSources', '&includeInactive=true');
-      console.log('GetUserOwnedSources response:', data);
       if (data?.error) throw new Error('GetUserOwnedSources: ' + data.error);
       userOwnedSources = Array.isArray(data) ? data : [];
       if (!userMenu.length) {
@@ -5195,7 +5186,6 @@ function renderMySourcesTable() {
         </td>
       </tr>`;
     }).join('');
-    const _r=tbody.querySelectorAll('tr');const _s=document.getElementById('settings-section-mysources');const _cp=document.getElementById('content-panel');const _ss=document.getElementById('screen-settings');const _mn=document.querySelector('main.main');const _g=el=>el?window.getComputedStyle(el):{};console.log('DIAG_tbl',{rows:_r.length,row0H:_r[0]?.offsetHeight,tbodyH:tbody.offsetHeight,secH:_s?.offsetHeight,secScH:_s?.scrollHeight,secDisp:_g(_s).display,secStyle:_s?.style.cssText,cpH:_cp?.offsetHeight,cpDisp:_g(_cp).display,cpOver:_g(_cp).overflow,cpFB:_g(_cp).flexBasis,cpStyle:_cp?.style.cssText,ssH:_ss?.offsetHeight,mainH:_mn?.offsetHeight,mainOver:_g(_mn).overflow,bodyClass:document.body.className});
     initMySitesDragDrop(tbody);
   }  
 
