@@ -1031,6 +1031,9 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
       try{companionWin.focus();}catch(e){}
     }
   };
+  window.addEventListener('beforeunload',()=>{
+    try{ if(companionWin && !companionWin.closed) companionWin.close(); }catch(e){}
+  });
   let headlines=[],allHeadlinesCache=[],recencyDays_value=7,collapseThreshold=5,categories=[],sources=[],keywords=[],topics=[];
   const deletedLinks=new Set();
   // topics retained as empty array for legacy compatibility only
