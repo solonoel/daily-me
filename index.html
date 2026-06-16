@@ -885,11 +885,6 @@
   const storedUser = JSON.parse(localStorage.getItem('dailyme_user') || 'null');
   if (!storedUser) window.location.href = 'login.html';
   const USER_ID = storedUser?.userID || 1;
-  // Apply cached mode immediately to prevent unstyled flash during cold start
-  const _cachedMode = localStorage.getItem(`dailyme_mode_${USER_ID}`);
-  if(_cachedMode === 'Nav') document.body.classList.add('nav-mode');
-  // Initialize loading overlay with cached data + live weather (skip on mode switches)
-const _initForceMode = new URLSearchParams(window.location.searcconst USER_ID = storedUser?.userID || 1;
   const _isCompanion = new URLSearchParams(window.location.search).get('mode') === 'companion';
   // Apply cached mode immediately to prevent unstyled flash during cold start
   const _cachedMode = localStorage.getItem(`dailyme_mode_${USER_ID}`);
@@ -897,9 +892,7 @@ const _initForceMode = new URLSearchParams(window.location.searcconst USER_ID = 
   // Initialize loading overlay with cached data + live weather (skip on mode switches and companion)
 const _initForceMode = new URLSearchParams(window.location.search).get('forceMode');
 const _overlayReady = (!_initForceMode && !_isCompanion) ? initLoadingOverlay() : Promise.resolve();
-if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-overlay'); if(_ov)_ov.style.display='none'; }h).get('forceMode');
-const _overlayReady = !_initForceMode ? initLoadingOverlay() : Promise.resolve();
-if(_initForceMode) { const _ov=document.getElementById('loading-overlay'); if(_ov)_ov.style.display='none'; }
+if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-overlay'); if(_ov)_ov.style.display='none'; }
 
   const catColors = {
     'World':{icon:'🌍',color:'#7a3e00',bg:'#fff0d6',dot:'#e8a020'},
