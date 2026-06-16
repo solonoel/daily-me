@@ -2,5 +2,23 @@
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": ["/login.html", "/verify.html", "/*.{css,js,png,jpg,ico,svg,woff,woff2}"]
-  }
+  },
+  "routes": [
+    {
+      "route": "/",
+      "headers": { "cache-control": "no-cache, no-store, must-revalidate" }
+    },
+    {
+      "route": "/index.html",
+      "headers": { "cache-control": "no-cache, no-store, must-revalidate" }
+    },
+    {
+      "route": "/login.html",
+      "headers": { "cache-control": "no-cache, no-store, must-revalidate" }
+    },
+    {
+      "route": "/verify.html",
+      "headers": { "cache-control": "no-cache, no-store, must-revalidate" }
+    }
+  ]
 }
