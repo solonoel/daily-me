@@ -1508,47 +1508,59 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
   }
 
   async function apiPost(endpoint,body){
-    const res=await fetch(`${API_BASE}/${endpoint}?code=${API_KEY}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    return res.json();
+    try{
+      const res=await fetch(`${API_BASE}/${endpoint}?code=${API_KEY}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const text=await res.text();
+      try{return JSON.parse(text);}catch(e){console.error(`apiPost ${endpoint} returned non-JSON (status ${res.status}):`,text);return{error:text||`HTTP ${res.status}`};}
+    }catch(e){console.error(`apiPost ${endpoint} failed:`,e);return{error:e.message};}
   }
   async function apiGet(endpoint,params=''){
-    const res=await fetch(`${API_BASE}/${endpoint}?code=${API_KEY}&userID=${USER_ID}${params}`);
-    return res.json();
+    try{
+      const res=await fetch(`${API_BASE}/${endpoint}?code=${API_KEY}&userID=${USER_ID}${params}`);
+      const text=await res.text();
+      try{return JSON.parse(text);}catch(e){console.error(`apiGet ${endpoint} returned non-JSON (status ${res.status}):`,text);return null;}
+    }catch(e){console.error(`apiGet ${endpoint} failed:`,e);return null;}
   }
 
   async function loadCompanion(){
     _navMode=false;setGreeting();setDate();applyNavMode();
     const _rb=document.getElementById('recency-bar');if(_rb)_rb.style.display='none';
-    const[srcs,kwds,userSettings,langs,ulangs]=await Promise.all([
-      apiGet('GetHeadlineSources'),apiGet('GetHeadlineKeywords'),
-      apiGet('GetUserSettings'),apiGet('GetLanguages'),apiGet('GetUserLanguages')
-    ]);
-    sources=Array.isArray(srcs)?srcs:[];keywords=Array.isArray(kwds)?kwds:[];
-    allLanguages=Array.isArray(langs)?langs:[];userLanguages=Array.isArray(ulangs)?ulangs:[];
-    userTimezone=Intl.DateTimeFormat().resolvedOptions().timeZone||'America/Chicago';
-    if(userSettings?.headlineSetting){
-      const hs=userSettings.headlineSetting;
-      const sv=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
-      sv('us-recency',hs.RecencyDays??7);sv('us-maxheadlines',hs.MaxHeadlines||50);
-      sv('us-youtubemaxresults',hs.YouTubeMaxResults||3);sv('us-otherperkey',hs.OtherHeadlinesPerKeyword||3);
-      sv('us-collapsethreshold',hs.CollapseThreshold??5);sv('us-weatherurl',hs.WeatherURL||'');
-      sv('us-navbuttonsperrow',hs.NavButtonsPerRow||4);
-      const fh=hs.FetchHour,fe=document.getElementById('us-fetchhour');
-      if(fe)fe.value=(fh!==null&&fh!==undefined)?String(fh):'';
-      document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value===(hs.LaunchMode||'Full'));
-      collapseThreshold=hs.CollapseThreshold??5;window._weatherClickURL=hs.WeatherURL||null;
-      recencyDays_value=hs.RecencyDays??7;
-    }
-    const zipCode=userSettings?.user?.ZipCode||userSettings?.zipCode||'';
-    const zipEl=document.getElementById('us-zipcode');if(zipEl&&zipCode)zipEl.value=zipCode;
-    renderLanguageScreens();renderLanguageCheckList();
-    const[mySitesData,menuData,cats]=await Promise.all([
-      apiGet('GetUserOwnedSources'),apiGet('GetUserMenu'),apiGet('GetCategories')
-    ]);
-    userOwnedSources=Array.isArray(mySitesData)?mySitesData:[];
-    userMenu=Array.isArray(menuData)?menuData:[];
-    categories=Array.isArray(cats)?cats:[];
-    renderLanguageNav();pingLauncher();
+    try{
+      const[srcs,kwds,userSettings,langs,ulangs]=await Promise.all([
+        apiGet('GetHeadlineSources'),apiGet('GetHeadlineKeywords'),
+        apiGet('GetUserSettings'),apiGet('GetLanguages'),apiGet('GetUserLanguages')
+      ]);
+      sources=Array.isArray(srcs)?srcs:[];keywords=Array.isArray(kwds)?kwds:[];
+      allLanguages=Array.isArray(langs)?langs:[];userLanguages=Array.isArray(ulangs)?ulangs:[];
+      userTimezone=Intl.DateTimeFormat().resolvedOptions().timeZone||'America/Chicago';
+      if(userSettings?.headlineSetting){
+        const hs=userSettings.headlineSetting;
+        const sv=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
+        sv('us-recency',hs.RecencyDays??7);sv('us-maxheadlines',hs.MaxHeadlines||50);
+        sv('us-youtubemaxresults',hs.YouTubeMaxResults||3);sv('us-otherperkey',hs.OtherHeadlinesPerKeyword||3);
+        sv('us-collapsethreshold',hs.CollapseThreshold??5);sv('us-weatherurl',hs.WeatherURL||'');
+        sv('us-navbuttonsperrow',hs.NavButtonsPerRow||4);
+        const fh=hs.FetchHour,fe=document.getElementById('us-fetchhour');
+        if(fe)fe.value=(fh!==null&&fh!==undefined)?String(fh):'';
+        document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value===(hs.LaunchMode||'Full'));
+        collapseThreshold=hs.CollapseThreshold??5;window._weatherClickURL=hs.WeatherURL||null;
+        recencyDays_value=hs.RecencyDays??7;
+      }
+      const zipCode=userSettings?.user?.ZipCode||userSettings?.zipCode||'';
+      const zipEl=document.getElementById('us-zipcode');if(zipEl&&zipCode)zipEl.value=zipCode;
+      renderLanguageScreens();renderLanguageCheckList();
+    }catch(e){console.error('[companion] Error loading settings/sources/keywords/languages:',e);}
+    try{
+      const[mySitesData,menuData,cats]=await Promise.all([
+        apiGet('GetUserOwnedSources'),apiGet('GetUserMenu'),apiGet('GetCategories')
+      ]);
+      userOwnedSources=Array.isArray(mySitesData)?mySitesData:[];
+      userMenu=Array.isArray(menuData)?menuData:[];
+      categories=Array.isArray(cats)?cats:[];
+    }catch(e){console.error('[companion] Error loading sources/menu/categories:',e);}
+    try{
+      renderLanguageNav();pingLauncher();
+    }catch(e){console.error('[companion] Error rendering nav:',e);}
     _companionChannel.onmessage=(e)=>{
       console.log('[companion] received broadcast',e.data);
       if(e.data?.action==='showSettings'){showScreen('settings');window.focus();}
