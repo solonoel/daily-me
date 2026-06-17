@@ -2155,7 +2155,15 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     const word=myWords.find(w=>w.UserLanguageWordsID===wordID);if(!word)return;
     const newFlag=!word.Flag;
     await apiPost('SaveUserLanguageWord',{action:'flag',userID:USER_ID,wordID,flag:newFlag});
-    word.Flag=newFlag;renderMyWords();
+    word.Flag=newFlag;
+    try{
+      const deckData=await apiGet('GetWordDecks',`&wordID=${wordID}`);
+      if(Array.isArray(deckData)){
+        word.DeckNames=deckData.map(d=>d.UserLanguageWordsDeckName).join(', ');
+        word.DeckIDs=deckData.map(d=>d.UserLanguageWordsDeckID);
+      }
+    }catch(e){}
+    renderMyWords();
   }
 
   async function markWordMastered(wordID,btn){
@@ -2816,7 +2824,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
         <td><a href="#" onclick="showDeckWords(${d.UserLanguageWordsDeckID},'${d.UserLanguageWordsDeckName.replace(/'/g,"\\'")}');return false;" style="font-size:12px;color:var(--sky-deep);font-weight:600">Words</a></td>
         <td>
           <select class="form-select" style="padding:2px 6px;font-size:11px;width:90px" onchange="changeDeckStatus(${d.UserLanguageWordsDeckID},this.value)">
-            ${['Pending','Active','Mastered'].map(s=>`<option value="${s}" ${d.Status===s?'selected':''}>${s}</option>`).join('')}
+            ${(d.UserLanguageWordsDeckName.trim().toLowerCase()==='flagged'?['Pending','Active']:['Pending','Active','Mastered']).map(s=>`<option value="${s}" ${d.Status===s?'selected':''}>${s}</option>`).join('')}
           </select>
         </td>
         <td style="text-align:center">${d.WordCount||0}</td>
@@ -2870,8 +2878,9 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
   async function addDeck(){
     const name=prompt('Deck name:');
     if(!name?.trim())return;
-    const result=await apiPost('SaveUserDeck',{action:'add',userID:USER_ID,languageID:currentLangID,deckName:name.trim()});
-    userDecks.unshift({UserLanguageWordsDeckID:result.deckID,UserLanguageWordsDeckName:name.trim(),DateAdded:new Date().toISOString(),Status:'Active',WordCount:0});
+    await apiPost('SaveUserDeck',{action:'add',userID:USER_ID,languageID:currentLangID,deckName:name.trim()});
+    const data=await apiGet('GetUserDecks',`&languageID=${currentLangID}&status=all`);
+    userDecks=Array.isArray(data)?data:[];
     const panel=document.getElementById(`lang-feature-${currentLangID}`);
     if(panel)panel.innerHTML=renderDecksHTML(currentLangID,currentLangName);
   }
