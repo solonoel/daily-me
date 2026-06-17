@@ -220,6 +220,48 @@ module.exports = async function(context, req) {
         .input('Flag', sql.Bit, flag ? 1 : 0)
         .query(`UPDATE [UserLanguageWords] SET Flag=@Flag
                 WHERE UserLanguageWordsID=@WordID AND UserID=@UserID`);
+
+      const wordLangResult = await pool.request()
+        .input('WordID', sql.Int, wordID)
+        .query(`SELECT LanguageID FROM [UserLanguageWords] WHERE UserLanguageWordsID=@WordID`);
+      const wordLanguageID = wordLangResult.recordset[0]?.LanguageID;
+
+      if (wordLanguageID) {
+        const flaggedDeckResult = await pool.request()
+          .input('UserID', sql.Int, userID)
+          .input('LanguageID', sql.Int, wordLanguageID)
+          .query(`SELECT UserLanguageWordsDeckID FROM [UserLanguageWordsDeck]
+                  WHERE UserID=@UserID AND LanguageID=@LanguageID AND LOWER(LTRIM(RTRIM(UserLanguageWordsDeckName)))='flagged'`);
+        let flaggedDeckID = flaggedDeckResult.recordset[0]?.UserLanguageWordsDeckID;
+
+        if (flag) {
+          if (!flaggedDeckID) {
+            const createResult = await pool.request()
+              .input('UserID', sql.Int, userID)
+              .input('LanguageID', sql.Int, wordLanguageID)
+              .query(`INSERT INTO [UserLanguageWordsDeck] (UserID, LanguageID, UserLanguageWordsDeckName, DateAdded, Status)
+                      VALUES (@UserID, @LanguageID, 'Flagged', GETDATE(), 'Active');
+                      SELECT SCOPE_IDENTITY() AS DeckID;`);
+            flaggedDeckID = createResult.recordset[0].DeckID;
+          }
+          await pool.request()
+            .input('DeckID', sql.Int, flaggedDeckID)
+            .input('WordID', sql.Int, wordID)
+            .query(`IF NOT EXISTS (
+                      SELECT 1 FROM [UserLanguageWordsDeckWords]
+                      WHERE UserLanguageWordsDeckID=@DeckID AND UserLanguageWordsID=@WordID
+                    )
+                    INSERT INTO [UserLanguageWordsDeckWords] (UserLanguageWordsDeckID, UserLanguageWordsID, DateAdded)
+                    VALUES (@DeckID, @WordID, GETDATE())`);
+        } else if (flaggedDeckID) {
+          await pool.request()
+            .input('DeckID', sql.Int, flaggedDeckID)
+            .input('WordID', sql.Int, wordID)
+            .query(`DELETE FROM [UserLanguageWordsDeckWords]
+                    WHERE UserLanguageWordsDeckID=@DeckID AND UserLanguageWordsID=@WordID`);
+        }
+      }
+
       context.res = {
         status: 200,
         headers: { 'Content-Type': 'application/json' },

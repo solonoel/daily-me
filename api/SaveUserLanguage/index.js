@@ -32,6 +32,22 @@ module.exports = async function(context, req) {
         .query(`INSERT INTO [UserLanguage] (UserID, LanguageID, IsActive, DateAdded)
                 VALUES (@UserID, @LanguageID, @IsActive, GETDATE())`);
     }
+
+    if (isActiveChar === 'Y') {
+      const flaggedDeckResult = await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('LanguageID', sql.Int, languageID)
+        .query(`SELECT UserLanguageWordsDeckID FROM [UserLanguageWordsDeck]
+                WHERE UserID = @UserID AND LanguageID = @LanguageID AND LOWER(LTRIM(RTRIM(UserLanguageWordsDeckName))) = 'flagged'`);
+      if (flaggedDeckResult.recordset.length === 0) {
+        await pool.request()
+          .input('UserID', sql.Int, userID)
+          .input('LanguageID', sql.Int, languageID)
+          .query(`INSERT INTO [UserLanguageWordsDeck] (UserID, LanguageID, UserLanguageWordsDeckName, DateAdded, Status)
+                  VALUES (@UserID, @LanguageID, 'Flagged', GETDATE(), 'Active')`);
+      }
+    }
+
     context.res = {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

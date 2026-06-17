@@ -22,10 +22,25 @@ module.exports = async function(context, req) {
           VALUES (@UserID, @LanguageID, @DeckName, GETDATE(), 'Active');
           SELECT SCOPE_IDENTITY() AS DeckID;
         `);
+      const newDeckID = result.recordset[0].DeckID;
+
+      if ((deckName || '').trim().toLowerCase() === 'flagged') {
+        await pool.request()
+          .input('DeckID', sql.Int, newDeckID)
+          .input('UserID', sql.Int, userID)
+          .input('LanguageID', sql.Int, languageID)
+          .query(`
+            INSERT INTO [UserLanguageWordsDeckWords] (UserLanguageWordsDeckID, UserLanguageWordsID, DateAdded)
+            SELECT @DeckID, UserLanguageWordsID, GETDATE()
+            FROM [UserLanguageWords]
+            WHERE UserID = @UserID AND LanguageID = @LanguageID AND Flag = 1
+          `);
+      }
+
       context.res = {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ success: true, deckID: result.recordset[0].DeckID })
+        body: JSON.stringify({ success: true, deckID: newDeckID })
       };
 
     } else if (action === 'update') {
