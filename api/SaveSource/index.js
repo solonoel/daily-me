@@ -69,9 +69,85 @@ module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
     const { action, sourceID, name, url, sourceType, isActive,
-            sequence, isFiltered, userID = 1 } = req.body;
+            sequence, isFiltered, userID = 1, userHeadlineSourceID, targetProfileID } = req.body;
 
-    if (action === 'add') {
+    if (action === 'copyToProfile') {
+      const lookupRequest = pool.request().input('UserID', sql.Int, userID);
+      let lookupQuery;
+      if (userHeadlineSourceID) {
+        lookupRequest.input('UserHeadlineSourceID', sql.Int, userHeadlineSourceID);
+        lookupQuery = `SELECT UserHeadlineSourceID, SourceID, IsFiltered, Exclusions, GroupLabel, UserMenuID, ImageURL
+                       FROM [UserHeadlineSource] WHERE UserHeadlineSourceID=@UserHeadlineSourceID AND UserID=@UserID`;
+      } else {
+        lookupRequest.input('SourceID', sql.Int, sourceID);
+        lookupQuery = `SELECT UserHeadlineSourceID, SourceID, IsFiltered, Exclusions, GroupLabel, UserMenuID, ImageURL
+                       FROM [UserHeadlineSource] WHERE UserID=@UserID AND SourceID=@SourceID`;
+      }
+      const srcResult = await lookupRequest.query(lookupQuery);
+      const src = srcResult.recordset[0];
+      if (!src) { context.res = { status: 404, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Source not found' }) }; return; }
+
+      let targetMenuID = null;
+      if (src.UserMenuID) {
+        const menuRowResult = await pool.request()
+          .input('UserMenuID', sql.Int, src.UserMenuID)
+          .input('UserID', sql.Int, userID)
+          .query(`SELECT UserMenuName, UserMenuImage FROM [UserMenu] WHERE UserMenuID=@UserMenuID AND UserID=@UserID`);
+        const menuRow = menuRowResult.recordset[0];
+        if (menuRow) {
+          const existingMenu = await pool.request()
+            .input('UserID', sql.Int, userID)
+            .input('TargetProfileID', sql.Int, targetProfileID)
+            .input('MenuName', sql.VarChar(60), menuRow.UserMenuName)
+            .query(`SELECT UserMenuID FROM [UserMenu]
+                    WHERE UserID=@UserID AND UserProfileID=@TargetProfileID AND LOWER(LTRIM(RTRIM(UserMenuName)))=LOWER(LTRIM(RTRIM(@MenuName)))`);
+          if (existingMenu.recordset.length > 0) {
+            targetMenuID = existingMenu.recordset[0].UserMenuID;
+          } else {
+            const seqResult = await pool.request()
+              .input('UserID', sql.Int, userID)
+              .input('TargetProfileID', sql.Int, targetProfileID)
+              .query(`SELECT ISNULL(MAX(UserMenuSeq),0)+1 AS NextSeq FROM [UserMenu] WHERE UserID=@UserID AND UserProfileID=@TargetProfileID`);
+            const nextSeq = seqResult.recordset[0].NextSeq;
+            const newMenu = await pool.request()
+              .input('UserID', sql.Int, userID)
+              .input('UserMenuSeq', sql.SmallInt, nextSeq)
+              .input('UserMenuName', sql.VarChar(60), menuRow.UserMenuName)
+              .input('UserMenuImage', sql.NVarChar(sql.MAX), menuRow.UserMenuImage)
+              .input('TargetProfileID', sql.Int, targetProfileID)
+              .query(`INSERT INTO [UserMenu] (UserID, UserMenuSeq, UserMenuName, UserMenuImage, IsInactive, UserProfileID)
+                      OUTPUT INSERTED.UserMenuID
+                      VALUES (@UserID, @UserMenuSeq, @UserMenuName, @UserMenuImage, 0, @TargetProfileID)`);
+            targetMenuID = newMenu.recordset[0].UserMenuID;
+          }
+        }
+      }
+
+      const dupCheck = await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('SourceID', sql.Int, src.SourceID)
+        .input('TargetMenuID', sql.Int, targetMenuID)
+        .query(`SELECT UserHeadlineSourceID FROM [UserHeadlineSource]
+                WHERE UserID=@UserID AND SourceID=@SourceID AND (UserMenuID=@TargetMenuID OR (UserMenuID IS NULL AND @TargetMenuID IS NULL))`);
+      if (dupCheck.recordset.length > 0) {
+        context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true, userHeadlineSourceID: dupCheck.recordset[0].UserHeadlineSourceID, created: false }) };
+        return;
+      }
+
+      const copyResult = await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('SourceID', sql.Int, src.SourceID)
+        .input('IsFiltered', sql.Bit, src.IsFiltered)
+        .input('Exclusions', sql.NVarChar(500), src.Exclusions)
+        .input('GroupLabel', sql.NVarChar(100), src.GroupLabel)
+        .input('UserMenuID', sql.Int, targetMenuID)
+        .input('ImageURL', sql.NVarChar(sql.MAX), src.ImageURL)
+        .query(`INSERT INTO [UserHeadlineSource] (UserID, SourceID, IsFiltered, IsActive, Exclusions, GroupLabel, UserMenuID, ImageURL)
+                OUTPUT INSERTED.UserHeadlineSourceID
+                VALUES (@UserID, @SourceID, @IsFiltered, 1, @Exclusions, @GroupLabel, @UserMenuID, @ImageURL)`);
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true, userHeadlineSourceID: copyResult.recordset[0].UserHeadlineSourceID, created: true }) };
+
+    } else if (action === 'add') {
       if (sourceType === 'Youtube') {
         const apiKey = process.env.YOUTUBE_API_KEY;
         let youtubeChannelID;
@@ -170,14 +246,13 @@ module.exports = async function(context, req) {
         body: JSON.stringify({ success: true }) };
 
     } else if (action === 'toggleUserActive') {
-      await pool.request()
+      const request1 = pool.request()
         .input('UserID', sql.Int, userID)
         .input('SourceID', sql.Int, sourceID)
-        .input('IsActive', sql.Bit, isActive ? 1 : 0)
-        .query(`
-          UPDATE [UserHeadlineSource] SET IsActive=@IsActive
-          WHERE UserID=@UserID AND SourceID=@SourceID
-        `);
+        .input('IsActive', sql.Bit, isActive ? 1 : 0);
+      const where1 = userHeadlineSourceID ? 'UserHeadlineSourceID=@UserHeadlineSourceID' : 'UserID=@UserID AND SourceID=@SourceID';
+      if (userHeadlineSourceID) request1.input('UserHeadlineSourceID', sql.Int, userHeadlineSourceID);
+      await request1.query(`UPDATE [UserHeadlineSource] SET IsActive=@IsActive WHERE ${where1}`);
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ success: true }) };
 
@@ -190,40 +265,37 @@ module.exports = async function(context, req) {
         body: JSON.stringify({ success: true }) };
 
     } else if (action === 'updateFiltered') {
-      await pool.request()
+      const request2 = pool.request()
         .input('UserID', sql.Int, userID)
         .input('SourceID', sql.Int, sourceID)
-        .input('IsFiltered', sql.Bit, req.body.isFiltered ? 1 : 0)
-        .query(`
-          UPDATE [UserHeadlineSource] SET IsFiltered=@IsFiltered
-          WHERE UserID=@UserID AND SourceID=@SourceID
-        `);
+        .input('IsFiltered', sql.Bit, req.body.isFiltered ? 1 : 0);
+      const where2 = userHeadlineSourceID ? 'UserHeadlineSourceID=@UserHeadlineSourceID' : 'UserID=@UserID AND SourceID=@SourceID';
+      if (userHeadlineSourceID) request2.input('UserHeadlineSourceID', sql.Int, userHeadlineSourceID);
+      await request2.query(`UPDATE [UserHeadlineSource] SET IsFiltered=@IsFiltered WHERE ${where2}`);
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ success: true }) };
 
     } else if (action === 'updateSubscription') {
-      await pool.request()
+      const request3 = pool.request()
         .input('UserID', sql.Int, userID)
         .input('SourceID', sql.Int, sourceID)
         .input('GroupLabel', sql.NVarChar(100), req.body.groupLabel || null)
         .input('UserMenuID', sql.Int, req.body.userMenuID || null)
-        .input('ImageURL', sql.NVarChar(sql.MAX), req.body.imageURL || null)
-        .query(`
-          UPDATE [UserHeadlineSource] SET GroupLabel=@GroupLabel, UserMenuID=@UserMenuID, ImageURL=@ImageURL
-          WHERE UserID=@UserID AND SourceID=@SourceID
-        `);
+        .input('ImageURL', sql.NVarChar(sql.MAX), req.body.imageURL || null);
+      const where3 = userHeadlineSourceID ? 'UserHeadlineSourceID=@UserHeadlineSourceID' : 'UserID=@UserID AND SourceID=@SourceID';
+      if (userHeadlineSourceID) request3.input('UserHeadlineSourceID', sql.Int, userHeadlineSourceID);
+      await request3.query(`UPDATE [UserHeadlineSource] SET GroupLabel=@GroupLabel, UserMenuID=@UserMenuID, ImageURL=@ImageURL WHERE ${where3}`);
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ success: true }) };
 
     } else if (action === 'updateExclusions') {
-      await pool.request()
+      const request4 = pool.request()
         .input('UserID', sql.Int, userID)
         .input('SourceID', sql.Int, sourceID)
-        .input('Exclusions', sql.NVarChar(500), req.body.exclusions || null)
-        .query(`
-          UPDATE [UserHeadlineSource] SET Exclusions=@Exclusions
-          WHERE UserID=@UserID AND SourceID=@SourceID
-        `);
+        .input('Exclusions', sql.NVarChar(500), req.body.exclusions || null);
+      const where4 = userHeadlineSourceID ? 'UserHeadlineSourceID=@UserHeadlineSourceID' : 'UserID=@UserID AND SourceID=@SourceID';
+      if (userHeadlineSourceID) request4.input('UserHeadlineSourceID', sql.Int, userHeadlineSourceID);
+      await request4.query(`UPDATE [UserHeadlineSource] SET Exclusions=@Exclusions WHERE ${where4}`);
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ success: true }) };
 

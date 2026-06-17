@@ -392,6 +392,7 @@ module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
     const userID = parseInt(req.body?.userID || req.query?.userID || 1);
+    const profileID = parseInt(req.body?.profileID || req.query?.profileID || 0) || null;
     const disableYoutube = req.body?.disableYoutube === true;
 
     // ── PREVIEW MODE ──
@@ -487,12 +488,15 @@ module.exports = async function(context, req) {
 
     const sourcesResult = await pool.request()
       .input('UserID', sql.Int, userID)
+      .input('ProfileID', sql.Int, profileID)
       .query(`SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.IsActive,
                      h.Sequence, h.YoutubeChannelID, uhs.IsFiltered, uhs.Exclusions, uhs.IsActive AS UserIsActive,
                      uhs.UserMenuID AS SourceUserMenuID
               FROM [HeadlineSource] h
               INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
+              LEFT JOIN [UserMenu] um ON um.UserMenuID = uhs.UserMenuID
               WHERE uhs.UserID = @UserID AND h.IsActive = 1 AND uhs.IsActive = 1
+                AND (uhs.UserMenuID IS NULL OR @ProfileID IS NULL OR um.UserProfileID = @ProfileID)
               ORDER BY h.Sequence, h.SourceID`);
     const sources = sourcesResult.recordset;
 
@@ -517,12 +521,15 @@ module.exports = async function(context, req) {
     // Keywords — GroupLabel='Teams' identifies teams keywords; no CategoryID
     const kwResult = await pool.request()
       .input('UserID', sql.Int, userID)
+      .input('ProfileID', sql.Int, profileID)
       .query(`SELECT k.KeywordID, k.Keyword AS text, k.GroupLabel, k.SourceID,
               k.UserOwnedSourceID, k.UserMenuID,
               u.URL AS OwnedSourceURL, u.SourceType AS OwnedSourceType, u.SourceName AS OwnedSourceName
               FROM [HeadlineKeyword] k
               LEFT JOIN [UserOwnedSource] u ON k.UserOwnedSourceID = u.UserOwnedSourceID
-              WHERE k.UserID=@UserID AND k.IsActive='Y'`);
+              LEFT JOIN [UserMenu] km ON km.UserMenuID = k.UserMenuID
+              WHERE k.UserID=@UserID AND k.IsActive='Y'
+                AND (k.UserMenuID IS NULL OR @ProfileID IS NULL OR km.UserProfileID = @ProfileID)`);
     const keywords = kwResult.recordset.map(k => ({ ...k, keywordID: k.KeywordID }));
     const hasActiveKeywords = keywords.length > 0;
 
