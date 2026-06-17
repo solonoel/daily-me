@@ -2943,11 +2943,20 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     });
   }
 
+  function shuffleArray(arr){
+    const a=[...arr];
+    for(let i=a.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [a[i],a[j]]=[a[j],a[i]];
+    }
+    return a;
+  }
+
   async function studyDeck(deckID,deckName,returnFeature='decks',returnWordID=null){
     currentDeckID=deckID;currentDeckName=deckName||'';flashcardReturnFeature=returnFeature;flashcardReturnWordID=returnWordID;
     flashcardFilter='study';flashcardIndex=0;flashcardShowTranslation=false;sentencesCache={};
     const data=await apiGet('GetDeckWords',`&deckID=${deckID}`);
-    flashcards=Array.isArray(data)?data:[];
+    flashcards=shuffleArray(Array.isArray(data)?data:[]);
     const panel=document.getElementById(`lang-feature-${currentLangID}`);
     if(panel){
       panel.innerHTML=renderFlashcardsHTML(currentLangID,currentLangName);
