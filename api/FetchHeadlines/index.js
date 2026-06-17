@@ -800,8 +800,7 @@ module.exports = async function(context, req) {
       totalInserted,
       totalDuplicates,
       totalLangFiltered,
-      youtubeQuotaUsed: quotaUsed.units,
-      youtubeQuotaRemaining: Math.max(0, 10000 - quotaUsed.units),
+      youtubeRunUnits: quotaUsed.units,
       youtubeSkipped: youtubeAlreadyFetched || disableYoutube,
       errors: logErrors,
       sourceResults: Object.entries(logSources)
@@ -822,10 +821,19 @@ module.exports = async function(context, req) {
     const newQuotaUsed = (gqDate === todayStr ? (gq?.QuotaUsed || 0) : 0) + quotaUsed.units;
     const quotaRemaining = Math.max(0, 10000 - newQuotaUsed);
 
+    fetchLog.youtubeQuotaUsed = newQuotaUsed;
+    fetchLog.youtubeQuotaRemaining = quotaRemaining;
+
     await pool.request()
       .input('QuotaUsed', sql.Int, newQuotaUsed)
       .input('QuotaDate', sql.Date, new Date())
       .query(`UPDATE YouTubeQuota SET QuotaUsed=@QuotaUsed, QuotaDate=@QuotaDate WHERE QuotaID=1`);
+
+    await pool.request()
+      .input('UserID', sql.Int, userID)
+      .input('QuotaUsed', sql.Int, newQuotaUsed)
+      .input('QuotaDate', sql.Date, new Date())
+      .query(`UPDATE [HeadlineSetting] SET QuotaUsed=@QuotaUsed, QuotaDate=@QuotaDate WHERE UserID=@UserID`);
 
     if (youtubeFetched && quotaRemaining <= 500) {
       await pool.request().input('UserID', sql.Int, userID)
@@ -851,8 +859,8 @@ module.exports = async function(context, req) {
         success: true, inserted: totalInserted, duplicates: totalDuplicates,
         sourcesProcessed: sources.length,
         youtubeSkipped: youtubeAlreadyFetched || disableYoutube,
-        quotaUsed: quotaUsed.units,
-        quotaRemaining: Math.max(0, 10000 - quotaUsed.units)
+        quotaUsed: newQuotaUsed,
+        quotaRemaining: quotaRemaining
       })
     };
   } catch(err) {
