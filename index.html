@@ -955,7 +955,7 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
         // Show cached summary instantly
         const cachedSummary=localStorage.getItem(`dailyme_briefing_summary_${USER_ID}`);
         const summaryEl=document.getElementById('loading-summary');
-        if(cachedSummary&&summaryEl)summaryEl.textContent=cachedSummary;
+        if(cachedSummary&&summaryEl)renderBriefingSummary(summaryEl,cachedSummary);
         // Wait up to 8s for fresh summary before releasing loadAll
         await Promise.race([fetchLoadingSummary(cached.groups),new Promise(r=>setTimeout(r,8000))]);
       } else {
@@ -996,6 +996,18 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
     }catch(e){}
   }
 
+  function escapeBriefingHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function renderBriefingSummary(el,text){
+    if(!el)return;
+    if(!text){el.innerHTML='';return;}
+    const items=text.split(/(?<=[.!?])\s+(?=[A-Z0-9])/).map(s=>s.trim()).filter(Boolean);
+    if(items.length<=1){el.textContent=text;return;}
+    el.innerHTML='<ul style="margin:0;padding-left:18px">'+items.map(i=>`<li style="margin-bottom:4px">${escapeBriefingHtml(i)}</li>`).join('')+'</ul>';
+  }
+
   async function fetchLoadingSummary(groups){
     const summaryEl=document.getElementById('loading-summary');
     if(!summaryEl||!groups||!groups.length)return;
@@ -1003,12 +1015,12 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
       const result=await apiPost('GetBriefingSummary',{groups});
       const text=result?.summary||'';
       if(text&&summaryEl){
-        summaryEl.textContent=text;
+        renderBriefingSummary(summaryEl,text);
         try{localStorage.setItem(`dailyme_briefing_summary_${USER_ID}`,text);}catch(e){}
       }
-      else if(summaryEl)summaryEl.textContent='';
+      else if(summaryEl)summaryEl.innerHTML='';
     }catch(e){
-      if(summaryEl)summaryEl.textContent='';
+      if(summaryEl)summaryEl.innerHTML='';
     }
   }
   const langStreaks = {};
@@ -1261,12 +1273,12 @@ try{
     }catch(e){console.error('pinNav error',e.message);}
   }
 
-  function toggleLaunchMode(){
+  async function toggleLaunchMode(){
     localStorage.setItem(`dailyme_navpin_${USER_ID}`,'left');
     if(!_navMode){
       _navMode=true;
       document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value==='Nav');
-      apiPost('SaveUserSettings',{userID:USER_ID,launchMode:'Nav'});
+      await apiPost('SaveUserSettings',{userID:USER_ID,launchMode:'Nav'});
       localStorage.setItem(`dailyme_mode_${USER_ID}`,'Nav');
       const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
       const panelWidth=(perRow*56+((perRow-1)*4))+32;
@@ -1301,13 +1313,11 @@ try{
         window.moveTo(_sl,_st);
         window.resizeTo(screen.availWidth,screen.availHeight);
       }catch(e){}
-      async function toggleLaunchMode(){
-    localStorage.setItem(`dailyme_navpin_${USER_ID}`,'left');
-    if(!_navMode){
-      _navMode=true;
-      document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value==='Nav');
-      await apiPost('SaveUserSettings',{userID:USER_ID,launchMode:'Nav'});
-      localStorage.setItem(`dailyme_mode_${USER_ID}`,'Nav');
+      history.replaceState({screen:'headlines',section:null},'',window.location.pathname);
+      applyNavMode();
+      renderHeadlines();
+    }
+  }
 
   function applyNavMode(){
     const link=document.getElementById('mode-toggle-link');
@@ -5934,7 +5944,7 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
   function logout()
   {localStorage.removeItem('dailyme_user');window.location.href='login.html';}
   setGreeting();setDate();
-  _overlayReady.then(()=>loadAll());
+  loadAll();
 
   
 </script>
