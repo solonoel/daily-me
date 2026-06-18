@@ -1027,6 +1027,7 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
 
   let _navMode = false;
   let _isPopupWindow = (_initForceMode==='Nav');
+  let _skipNavPanelResize=false;
   function isNavMode(){ return _navMode; }
   let companionWin=null,_pendingCompanionAction=null;
   const _companionChannel=new BroadcastChannel('dailyme_companion_msgs');
@@ -1312,6 +1313,7 @@ try{
           if(saved){
             window.moveTo(saved.left,saved.top);
             window.resizeTo(saved.width,saved.height);
+            _skipNavPanelResize=true;
           }else{
             const left=getNavPinLeft(panelWidth,chrome);
             window.moveTo(left,getScreenOrigin().top);
@@ -1331,6 +1333,7 @@ try{
       }
     } else {
       _navMode=false;
+      try{ if(companionWin && !companionWin.closed) companionWin.close(); }catch(e){}
       document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value==='Full');
       apiPost('SaveUserSettings',{userID:USER_ID,launchMode:'Full'});
       localStorage.setItem(`dailyme_mode_${USER_ID}`,'Full');
@@ -1421,13 +1424,17 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     const navPanel=document.getElementById('nav-panel');
     if(_navMode){
       document.body.style.overflowX='hidden';
-      // Resize/reposition window when allowed (script-opened popups)
-      try{
-        const chrome=window.outerWidth-window.innerWidth;
-        window.resizeTo(panelWidth+chrome, window.outerHeight);
-        window.moveTo(getNavPinLeft(panelWidth,chrome),window.screenY||0);
-      }catch(e){}
-      saveNavGeometry();
+      if(_skipNavPanelResize){
+        _skipNavPanelResize=false;
+      }else{
+        // Resize/reposition window when allowed (script-opened popups)
+        try{
+          const chrome=window.outerWidth-window.innerWidth;
+          window.resizeTo(panelWidth+chrome, window.outerHeight);
+          window.moveTo(getNavPinLeft(panelWidth,chrome),window.screenY||0);
+        }catch(e){}
+        saveNavGeometry();
+      }
     }
     // If the window couldn't actually shrink (e.g. switched in-place from a regular tab),
     // let the nav panel/grid fill the available width instead of leaving it blank.
@@ -1742,7 +1749,7 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     const mySitesData = await apiGet('GetUserOwnedSources');
     userOwnedSources = Array.isArray(mySitesData) ? mySitesData : [];
     updateSiteTypeNavVisibility();
-    const menuData = await apiGet('GetUserMenu');
+    const menuData = await apiGet('GetUserMenu',`&profileID=${currentUserProfileID}`);
     userMenu = Array.isArray(menuData) ? menuData : [];
     renderLanguageNav();
     renderSysHeaderButtons();
@@ -4133,12 +4140,12 @@ async function showSettingsSection(section,pushState=true){
 
   async function renderSettingsSection(section){
     try{
-      if(section==='categories'){const d=await apiGet('GetCategories');categories=Array.isArray(d)?d:categories;renderSettingsCategories();renderCategoryTiles(null);}
-      if(section==='sources'){const d=await apiGet('GetHeadlineSources');sources=Array.isArray(d)?d:sources;renderSettingsSources();}
+      if(section==='categories'){const d=await apiGet('GetCategories');categories=Array.isArray(d)?d:(Array.isArray(categories)?categories:[]);renderSettingsCategories();renderCategoryTiles(null);}
+      if(section==='sources'){const d=await apiGet('GetHeadlineSources');sources=Array.isArray(d)?d:(Array.isArray(sources)?sources:[]);renderSettingsSources();}
       if(section==='mysources'){await loadMySources();}
-      if(section==='keywords'){const d=await apiGet('GetHeadlineKeywords');keywords=Array.isArray(d)?d:keywords;renderSettingsKeywords();}
-      if(section==='usermenu'){const d=await apiGet('GetUserMenu');userMenu=Array.isArray(d)?d:userMenu;renderUserMenuTable();}
-      if(section==='profiles'){const d=await apiGet('GetUserProfiles');userProfiles=Array.isArray(d)?d:userProfiles;renderProfilesTable();}
+      if(section==='keywords'){const d=await apiGet('GetHeadlineKeywords');keywords=Array.isArray(d)?d:(Array.isArray(keywords)?keywords:[]);renderSettingsKeywords();}
+      if(section==='usermenu'){const d=await apiGet('GetUserMenu',`&profileID=${currentUserProfileID}`);userMenu=Array.isArray(d)?d:(Array.isArray(userMenu)?userMenu:[]);renderUserMenuTable();}
+      if(section==='profiles'){const d=await apiGet('GetUserProfiles');userProfiles=Array.isArray(d)?d:(Array.isArray(userProfiles)?userProfiles:[]);renderProfilesTable();}
     }catch(e){
       console.error('renderSettingsSection error:',section,e);
       const secEl=document.getElementById(`settings-section-${section}`);
@@ -5343,7 +5350,7 @@ function renderMySitesByMenu(menuID) {
       if (data?.error) throw new Error('GetUserOwnedSources: ' + data.error);
       userOwnedSources = Array.isArray(data) ? data : [];
       if (!userMenu.length) {
-        const menuData = await apiGet('GetUserMenu');
+        const menuData = await apiGet('GetUserMenu',`&profileID=${currentUserProfileID}`);
         if (menuData?.error) throw new Error('GetUserMenu: ' + menuData.error);
         userMenu = Array.isArray(menuData) ? menuData : [];
       }
