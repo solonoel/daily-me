@@ -1067,6 +1067,7 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
   // topics retained as empty array for legacy compatibility only
   let allLanguages=[],userLanguages=[];
   let currentFilter='Subscriptions',currentSettingsSection=null,groupsExpanded=false;
+  let groupCollapseState={};
   let currentLangID=null,currentLangName=null;
   let myWords=[],myWordsFilter='active',showImages=true;
   let mwSortCol='dateadded',mwSortDir='desc';
@@ -3540,7 +3541,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     if(el1)el1.textContent='⏳';
     if(el2)el2.textContent='⏳';
     requestAnimationFrame(()=>setTimeout(()=>{
-      groupsExpanded=val;teamsGroupsExpanded=val;
+      groupsExpanded=val;teamsGroupsExpanded=val;groupCollapseState={};
       ['headlines-grouped','teams-grouped','openers-list'].forEach(cid=>{
         const container=document.getElementById(cid);
         if(!container)return;
@@ -3563,6 +3564,8 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     body.style.display=open?'none':'block';
     const arrow=header.querySelector('.group-arrow');
     if(arrow)arrow.textContent=open?'▶':'▼';
+    const groupName=header.closest('.cat-group')?.dataset.group;
+    if(groupName)groupCollapseState[groupName]=!open;
   }
 
   async function deleteHeadline(headlineID,e){
@@ -3645,7 +3648,10 @@ const makeSourceRow=s=>{
       const c=groupName==='Subscriptions'?catColors['Subscriptions']:catColors[groupName]||catColors['Other'];
       const icon=groupName==='Subscriptions'?'📡':(c.icon||'📰');
       const countLabel=totalCount>1?` <span style="opacity:0.6;font-weight:500">(${totalCount})</span>`:'';
-      const draggableAttr=currentUserMenuFilter?`draggable="true" data-group="${groupName.replace(/"/g,'&quot;')}"`:'';
+      const dataGroupAttr=`data-group="${groupName.replace(/"/g,'&quot;')}"`;
+      const draggableAttr=currentUserMenuFilter?`draggable="true" ${dataGroupAttr}`:dataGroupAttr;
+      const groupExplicit=groupCollapseState[groupName];
+      const isExpanded=groupExplicit!==undefined?groupExplicit:(groupsExpanded||totalVisible<=collapseThreshold);
       const rows=items.map(h=>`
         <div class="headline-row ${h.Retain==='Y'?'retained':''}" data-headline-id="${h.HeadlineID}" onclick="openHeadline('${h.Link.replace(/'/g,"\\'")}')">
           <img src="${resolveHeadlineImage(h)||'images/newspaper.svg'}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">
@@ -3665,14 +3671,13 @@ const makeSourceRow=s=>{
         </div>`).join('');
       return `<div class="cat-group" ${draggableAttr}>
         <div class="cat-group-header" style="background:#c2ddf0;color:#1a4a6e;border-bottom:1.5px solid #1a4a6e44;cursor:pointer" onclick="toggleGroup(this)">
-          <span class="group-arrow" style="font-size:10px;margin-right:4px">${(groupsExpanded||headlines.length<=collapseThreshold)?'▼':'▶'}</span>
+          <span class="group-arrow" style="font-size:10px;margin-right:4px">${isExpanded?'▼':'▶'}</span>
           <span>${icon}</span><span style="margin-left:6px">${groupName}${countLabel}</span>
         </div>
-        <div class="cat-group-body" style="display:${(groupsExpanded||totalVisible<=collapseThreshold)?'block':'none'}">${srcRows}${rows}</div>
+        <div class="cat-group-body" style="display:${isExpanded?'block':'none'}">${srcRows}${rows}</div>
       </div>`;
     }).join('');
     if(currentUserMenuFilter)initGroupDragDrop(document.getElementById('headlines-grouped'));
-    applyGroupCollapseState();
   }
   function applyGroupCollapseState(){
     const menuSrcs=currentUserMenuFilter
@@ -3816,6 +3821,7 @@ let _pdfClosing=false;
   // ── TEAMS ──
 
   let teamsHeadlines=[], teamsGroupsExpanded=false;
+  let teamsGroupCollapseState={};
 
   async function loadTeamsHeadlines(){
     try{
@@ -3832,7 +3838,7 @@ let _pdfClosing=false;
   }
 
   function setTeamsExpand(val){
-    teamsGroupsExpanded=val;
+    teamsGroupsExpanded=val;teamsGroupCollapseState={};
     document.querySelectorAll('.teams-group-body').forEach(b=>b.style.display=val?'block':'none');
     document.querySelectorAll('.teams-group-arrow').forEach(a=>a.textContent=val?'▼':'▶');
   }
@@ -3843,6 +3849,8 @@ let _pdfClosing=false;
     body.style.display=open?'none':'block';
     const arrow=header.querySelector('.teams-group-arrow');
     if(arrow)arrow.textContent=open?'▶':'▼';
+    const groupName=header.closest('.cat-group')?.dataset.group;
+    if(groupName)teamsGroupCollapseState[groupName]=!open;
   }
 
   function renderTeamsHeadlines(){
@@ -3868,6 +3876,8 @@ let _pdfClosing=false;
     container.innerHTML=orderedKeys.map(groupName=>{
       const items=groups[groupName];
       const countLabel=items.length>1?` <span style="opacity:0.6;font-weight:500">(${items.length})</span>`:'';
+      const teamsExplicit=teamsGroupCollapseState[groupName];
+      const isExpanded=teamsExplicit!==undefined?teamsExplicit:(teamsGroupsExpanded||teamsHeadlines.length<=collapseThreshold);
       const rows=items.map(h=>`
         <div class="headline-row ${h.Retain==='Y'?'retained':''}" data-headline-id="${h.HeadlineID}" onclick="openHeadline('${h.Link.replace(/'/g,"\\'")}')">
           <img src="${resolveHeadlineImage(h)||'images/newspaper.svg'}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">
@@ -3885,12 +3895,12 @@ let _pdfClosing=false;
           <button class="retain-btn ${h.Retain==='Y'?'active':''}" onclick="toggleTeamsRetain(${h.HeadlineID},event)" title="Retain"></button>
           <button class="retain-btn" onclick="deleteTeamsHeadline(${h.HeadlineID},event)" title="Delete" style="margin-top:2px;flex-shrink:0;font-size:12px;color:var(--text-muted)" data-delete="1">✕</button>
         </div>`).join('');
-      return `<div class="cat-group">
+      return `<div class="cat-group" data-group="${groupName.replace(/"/g,'&quot;')}">
         <div class="cat-group-header" style="background:#c2ddf0;color:#1a4a6e;border-bottom:1.5px solid #1a4a6e44;cursor:pointer" onclick="toggleTeamsGroup(this)">
-          <span class="teams-group-arrow" style="font-size:10px;margin-right:4px">${(teamsGroupsExpanded||teamsHeadlines.length<=collapseThreshold)?'▼':'▶'}</span>
+          <span class="teams-group-arrow" style="font-size:10px;margin-right:4px">${isExpanded?'▼':'▶'}</span>
           <span>⚾</span><span style="margin-left:6px">${groupName}${countLabel}</span>
         </div>
-        <div class="teams-group-body" style="display:${(teamsGroupsExpanded||teamsHeadlines.length<=collapseThreshold)?'block':'none'}">${rows}</div>
+        <div class="teams-group-body" style="display:${isExpanded?'block':'none'}">${rows}</div>
       </div>`;
     }).join('');
   }
