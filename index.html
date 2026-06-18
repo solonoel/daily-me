@@ -1612,6 +1612,9 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     const _pfw=document.getElementById('profile-full-wrap');if(_pfw)_pfw.style.display='none';
     const _navBar=document.getElementById('main-nav');if(_navBar)_navBar.style.display='none';
     const _modeToggleLogo=document.getElementById('mode-toggle-logo');if(_modeToggleLogo&&_modeToggleLogo.parentElement)_modeToggleLogo.parentElement.style.display='none';
+    const _chdr=document.querySelector('header.header');if(_chdr)_chdr.style.padding='6.6px 12px';
+    const _clogo=document.querySelector('.header-logo');if(_clogo){_clogo.style.height='34px';_clogo.style.width='34px';}
+    const _cAppTitle=document.querySelector('.app-title');if(_cAppTitle)_cAppTitle.style.fontSize='13px';
     try{
       const[srcs,kwds,userSettings,langs,ulangs,profileResult]=await Promise.all([
         apiGet('GetHeadlineSources'),apiGet('GetHeadlineKeywords'),
@@ -3583,7 +3586,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     if(el1)el1.textContent='⏳';
     if(el2)el2.textContent='⏳';
     requestAnimationFrame(()=>setTimeout(()=>{
-      groupsExpanded=val;teamsGroupsExpanded=val;groupCollapseState={};
+      groupsExpanded=val;teamsGroupsExpanded=val;groupCollapseState={};teamsGroupCollapseState={};
       ['headlines-grouped','teams-grouped','openers-list'].forEach(cid=>{
         const container=document.getElementById(cid);
         if(!container)return;
@@ -4345,6 +4348,7 @@ function isYouTubeFilteredSource(sourceID){
     const catOptions=categories.map(c=>`<option value="${c.CategoryID}">${c.Name}</option>`).join('');
     const sourceTypeOptions=['Guardian','NYT','GNews','Currents','MediaStack','NewsAPI','RSS','YouTube'].map(t=>`<option value="${t}">${t}</option>`).join('');
     let title='',body='',copyKind=null;
+    try{
     if(type==='category'){
       const cat=id?categories.find(c=>c.CategoryID===id):null;title=id?'Edit Category':'Add Category';
       body=`<div class="form-group"><label class="form-label">Name</label><input class="form-input" id="m-name" value="${cat?.Name||''}"></div>`;
@@ -4433,6 +4437,11 @@ function isYouTubeFilteredSource(sourceID){
           </div>
         </div>`;
       setTimeout(()=>{ window._modalMenuImage = m?.UserMenuImage||null; },0);
+    }
+    }catch(err){
+      console.error('openModal build error:',type,id,err);
+      title=title||(id?'Edit Item':'Add Item');
+      body=`<div style="color:#e05050;font-size:13px;padding:12px;line-height:1.6">⚠️ There was a problem loading this item's details (${err.message}). Try Cancel and Edit again, or check the browser console.</div>`;
     }
     document.getElementById('modal-title').textContent=title;
     document.getElementById('modal-body').innerHTML=body;
@@ -5452,6 +5461,7 @@ function renderMySourcesTable() {
   function openMySiteModal(sourceID) {
     msEditingID = sourceID;
     msThumbnailData = null;
+    try{
     const src = sourceID ? userOwnedSources.find(s => s.UserOwnedSourceID === sourceID) : null;
     document.getElementById('mysite-modal-title').textContent = sourceID ? 'Edit Source' : 'Add Source';
     document.getElementById('ms-name').value = src?.SourceName || '';
@@ -5483,6 +5493,9 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     if (copyWrap) {
       if (sourceID) { copyWrap.style.display='flex'; copyWrap.innerHTML=renderCopyToProfileControl('mysource'); }
       else { copyWrap.style.display='none'; copyWrap.innerHTML=''; }
+    }
+    }catch(err){
+      console.error('openMySiteModal build error:',sourceID,err);
     }
     document.getElementById('mysite-modal').style.display = 'flex';
   }
