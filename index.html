@@ -4213,7 +4213,8 @@ async function showSettingsSection(section,pushState=true){
   }
 function renderSettingsKeywords(){
     const tbody=document.getElementById('tbl-keywords');
-    const sorted=[...keywords].sort((a,b)=>{
+    const profileVisible=keywords.filter(k=>!k.UserMenuID||userMenu.some(m=>m.UserMenuID===k.UserMenuID));
+    const sorted=[...profileVisible].sort((a,b)=>{
       if(kwSortCol==='Sequence')return kwSortDir==='asc'?(a.Sequence||99)-(b.Sequence||99):(b.Sequence||99)-(a.Sequence||99);
       const av=(a[kwSortCol==='Keyword'?'Keyword':'CategoryName']||'').toLowerCase();
       const bv=(b[kwSortCol==='Keyword'?'Keyword':'CategoryName']||'').toLowerCase();
@@ -4445,7 +4446,7 @@ function isYouTubeFilteredSource(sourceID){
     }
     document.getElementById('modal-title').textContent=title;
     document.getElementById('modal-body').innerHTML=body;
-    const copyControl=copyKind?renderCopyToProfileControl(copyKind):'';
+    const copyControl=(copyKind&&typeof renderCopyToProfileControl==='function')?renderCopyToProfileControl(copyKind):'';
     document.getElementById('modal-actions').innerHTML=`${copyControl}<button class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary" style="background:#22c55e" id="modal-save-new" onclick="saveModal(true)">Save & New</button>${type==='keyword'&&id?`<button class="btn-primary" style="background:#8b5cf6" onclick="saveModalAs()">Save As</button>`:''}<button class="btn-primary" onclick="saveModal()">Save</button>`;
     const saveNewBtn=document.getElementById('modal-save-new');
     if(saveNewBtn)saveNewBtn.style.display=(type==='source'&&!id&&USER_ID!==1)?'none':'';
@@ -4923,8 +4924,9 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
   function renderSettingsSources(){
     const container=document.getElementById('sources-container');
     if(!container)return;
-    const subs=sources.filter(s=>!s.IsFiltered).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
-    const filtered=sources.filter(s=>s.IsFiltered).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
+    const profileVisible=sources.filter(s=>!s.UserMenuID||userMenu.some(m=>m.UserMenuID===s.UserMenuID));
+    const subs=profileVisible.filter(s=>!s.IsFiltered).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
+    const filtered=profileVisible.filter(s=>s.IsFiltered).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
     const subRows=subs.map(s=>{
       const userIsActive=s.UserIsActive===1||s.UserIsActive===true||s.UserIsActive===null||s.UserIsActive===undefined;
       const menuItem=userMenu.find(m=>m.UserMenuID===s.UserMenuID);
@@ -5393,7 +5395,8 @@ function renderMySourcesTable() {
 
     if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th><select id="ms-type-filter" ${ss}>${typeOpts}</select></th><th><select id="ms-group-filter-hdr" ${ss}>${groupOpts}</select></th><th><select id="ms-menu-filter-hdr" ${ss}>${menuOpts}</select></th><th>URL</th><th><select id="ms-active-filter" ${ss}>${activeOpts}</select></th><th>Exclusions</th><th>Image</th><th><a href="#" onclick="resetMsFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset Filters</a></th>`;
 
-    let sorted = [...userOwnedSources].sort((a, b) => (a.Sequence || 99) - (b.Sequence || 99));
+    const profileVisible = userOwnedSources.filter(s => !s.UserMenuID || userMenu.some(m => m.UserMenuID === s.UserMenuID));
+    let sorted = [...profileVisible].sort((a, b) => (a.Sequence || 99) - (b.Sequence || 99));
     if(msTypeFilter) sorted=sorted.filter(s=>s.SourceType===msTypeFilter);
     if(msGroupFilter==='__none__') sorted=sorted.filter(s=>!s.GroupLabel);
     else if(msGroupFilter) sorted=sorted.filter(s=>s.GroupLabel===msGroupFilter);
@@ -5491,7 +5494,7 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     if (saveAsBtn) saveAsBtn.style.display = sourceID ? '' : 'none';
     const copyWrap = document.getElementById('ms-copy-profile-wrap');
     if (copyWrap) {
-      if (sourceID) { copyWrap.style.display='flex'; copyWrap.innerHTML=renderCopyToProfileControl('mysource'); }
+      if (sourceID) { copyWrap.style.display='flex'; copyWrap.innerHTML=(typeof renderCopyToProfileControl==='function')?renderCopyToProfileControl('mysource'):''; }
       else { copyWrap.style.display='none'; copyWrap.innerHTML=''; }
     }
     }catch(err){
