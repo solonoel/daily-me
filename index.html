@@ -289,9 +289,9 @@
           <a href="#" class="nav-pin-link" onclick="pinNav('right');return false;" title="Pin to right">&#9654;&#9654;</a>
         </div>
       </div>
-      <span id="header-date-nav" style="font-size:10px;color:rgba(255,255,255,0.8);white-space:nowrap;line-height:1.3;display:none"></span>
+      <span id="header-date-nav" style="font-size:10px;color:rgba(255,255,255,0.8);white-space:nowrap;line-height:1.3;margin-top:8px;display:none"></span>
     </div>
-    <div id="nav-full-link" style="display:none;flex-direction:column;align-items:flex-start;justify-content:space-evenly;height:100%;gap:2px;margin-left:10px">
+    <div id="nav-full-link" style="display:none;flex-direction:column;align-items:flex-start;justify-content:space-evenly;height:100%;gap:2px;margin-left:14px">
       <select id="profile-select-nav" onchange="changeProfile(this.value)" title="Profile" style="font-size:9px;font-weight:600;color:white;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);border-radius:5px;cursor:pointer;padding:2px 6px;font-family:'DM Sans',sans-serif;max-width:120px"></select>
       <button id="nav-refresh-btn2" onclick="refreshHeadlines()" style="font-size:9px;font-weight:600;color:white;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);border-radius:5px;cursor:pointer;padding:2px 7px;font-family:'DM Sans',sans-serif;white-space:nowrap;line-height:1.4">↻ Refresh</button>
       <div style="display:flex;gap:6px">
@@ -305,7 +305,7 @@
       <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px" id="header-date"></div>
       <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:0;display:none" id="header-date-short"></div>
     </div>
-    <div style="margin-left:16px;display:flex;flex-direction:column;gap:2px">
+    <div id="profile-full-wrap" style="margin-left:16px;display:flex;flex-direction:column;gap:2px">
       <select id="profile-select-full" onchange="changeProfile(this.value)" title="Profile" style="font-size:12px;font-weight:600;color:white;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);border-radius:6px;padding:4px 8px;cursor:pointer;font-family:'DM Sans',sans-serif"></select>
     </div>
     </div>
@@ -1014,6 +1014,7 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
   const langStreaks = {};
 
   let _navMode = false;
+  let _isPopupWindow = (_initForceMode==='Nav');
   function isNavMode(){ return _navMode; }
   let companionWin=null,_pendingCompanionAction=null;
   const _companionChannel=new BroadcastChannel('dailyme_companion_msgs');
@@ -1270,11 +1271,24 @@ try{
       const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
       const panelWidth=(perRow*56+((perRow-1)*4))+32;
       const chrome=window.outerWidth-window.innerWidth||16;
-      const left=getNavPinLeft(panelWidth,chrome);
-      const top=getScreenOrigin().top;
-      const url=window.location.href.split('?')[0]+'?forceMode=Nav';
-      window.open(url,'dailyme_nav',`width=${panelWidth+chrome},height=${screen.availHeight},left=${left},top=${top},resizable=yes,scrollbars=no`);
-      try{window.close();}catch(e){}
+      if(_isPopupWindow){
+        // Already in a resizable popup (just came from Nav mode) — resize in place, no reload
+        try{
+          window.name='dailyme_nav';
+          const left=getNavPinLeft(panelWidth,chrome);
+          window.moveTo(left,getScreenOrigin().top);
+          window.resizeTo(panelWidth+chrome,screen.availHeight);
+        }catch(e){}
+        history.replaceState({screen:'headlines',section:null},'',window.location.pathname);
+        applyNavMode();
+      }else{
+        // Plain browser tab — must reopen as a popup for resizeTo/moveTo to work
+        const left=getNavPinLeft(panelWidth,chrome);
+        const top=getScreenOrigin().top;
+        const url=window.location.href.split('?')[0]+'?forceMode=Nav';
+        window.open(url,'dailyme_nav',`width=${panelWidth+chrome},height=${screen.availHeight},left=${left},top=${top},resizable=yes,scrollbars=no`);
+        try{window.close();}catch(e){}
+      }
     } else {
       _navMode=false;
       document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value==='Full');
@@ -1322,6 +1336,7 @@ try{
       const hds=document.getElementById('header-date-short');if(hds)hds.style.display='';
       const navDateNav=document.getElementById('header-date-nav');if(navDateNav)navDateNav.style.display='';
       const navFullLink=document.getElementById('nav-full-link');if(navFullLink)navFullLink.style.display='flex';
+      const profileFullWrap=document.getElementById('profile-full-wrap');if(profileFullWrap)profileFullWrap.style.display='none';
       renderNavPanel();
       document.querySelectorAll('.nav-sysheader-btn').forEach(b=>b.remove());
     } else {
@@ -1339,6 +1354,7 @@ try{
       const hds=document.getElementById('header-date-short');if(hds)hds.style.display='none';
       const navDateNav=document.getElementById('header-date-nav');if(navDateNav)navDateNav.style.display='none';
       const navFullLink=document.getElementById('nav-full-link');if(navFullLink)navFullLink.style.display='none';
+      const profileFullWrap=document.getElementById('profile-full-wrap');if(profileFullWrap)profileFullWrap.style.display='flex';
       document.body.style.overflowX='';
       // Clear nav-mode width constraints
       const mainEl=document.querySelector('main.main');
@@ -4057,12 +4073,12 @@ async function showSettingsSection(section,pushState=true){
 
   async function renderSettingsSection(section){
     try{
-      if(section==='categories'){categories=await apiGet('GetCategories');renderSettingsCategories();renderCategoryTiles(null);}
-      if(section==='sources'){sources=await apiGet('GetHeadlineSources');renderSettingsSources();}
+      if(section==='categories'){const d=await apiGet('GetCategories');categories=Array.isArray(d)?d:categories;renderSettingsCategories();renderCategoryTiles(null);}
+      if(section==='sources'){const d=await apiGet('GetHeadlineSources');sources=Array.isArray(d)?d:sources;renderSettingsSources();}
       if(section==='mysources'){await loadMySources();}
-      if(section==='keywords'){keywords=await apiGet('GetHeadlineKeywords');renderSettingsKeywords();}
-      if(section==='usermenu'){userMenu=await apiGet('GetUserMenu');renderUserMenuTable();}
-      if(section==='profiles'){userProfiles=await apiGet('GetUserProfiles');renderProfilesTable();}
+      if(section==='keywords'){const d=await apiGet('GetHeadlineKeywords');keywords=Array.isArray(d)?d:keywords;renderSettingsKeywords();}
+      if(section==='usermenu'){const d=await apiGet('GetUserMenu');userMenu=Array.isArray(d)?d:userMenu;renderUserMenuTable();}
+      if(section==='profiles'){const d=await apiGet('GetUserProfiles');userProfiles=Array.isArray(d)?d:userProfiles;renderProfilesTable();}
     }catch(e){
       console.error('renderSettingsSection error:',section,e);
       const secEl=document.getElementById(`settings-section-${section}`);
