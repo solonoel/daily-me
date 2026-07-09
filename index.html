@@ -121,7 +121,9 @@
     .form-row { display:flex; gap:12px; }
     .form-row .form-group { flex:1; }
     .form-checkbox-row { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text); }
-    .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+    .modal-actions { display:flex; gap:10px; justify-content:space-between; align-items:center; margin-top:20px; flex-wrap:wrap; }
+    .modal-actions-group { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+    .btn-compact { padding:6px 12px !important; font-size:12px !important; }
     .btn-primary { padding:9px 20px; border-radius:8px; border:none; background:var(--sky-deep); color:white; font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; }
     .btn-primary:hover { opacity:0.9; }
     .btn-secondary { padding:9px 20px; border-radius:8px; border:1.5px solid var(--border); background:white; color:var(--text-soft); font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; }
@@ -779,11 +781,32 @@
       <label class="form-checkbox-row"><input type="checkbox" id="ms-inactive"> Inactive</label>
     </div>
     <div class="modal-actions">
-      <div id="ms-copy-profile-wrap" style="display:none;gap:6px;align-items:center;margin-right:auto"></div>
-      <button class="btn-secondary" onclick="closeMySiteModal()">Cancel</button>
-      <button class="btn-primary" style="background:#22c55e" onclick="saveMySite(true)">Save & New</button>
-      <button class="btn-primary" style="background:#8b5cf6;display:none" id="ms-save-as-btn" onclick="saveMySiteAs()">Save As</button>
-      <button class="btn-primary" onclick="saveMySite()">Save</button>
+      <div class="modal-actions-group">
+        <button class="btn-primary btn-compact" style="background:#8b5cf6;display:none" id="ms-save-as-btn" onclick="saveMySiteAs()">Copy</button>
+        <button class="btn-secondary btn-compact" style="display:none" id="ms-copy-profile-btn" onclick="openCopyToProfileModal('mysource',msEditingID)">Copy to Profile</button>
+        <button class="btn-primary btn-compact" style="background:#22c55e" onclick="saveMySite(true)">Save &amp; New</button>
+      </div>
+      <div class="modal-actions-group">
+        <button class="btn-secondary btn-compact" onclick="closeMySiteModal()">Cancel</button>
+        <button class="btn-primary btn-compact" onclick="saveMySite()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="copy-profile-modal" style="display:none" onclick="if(event.target===this)closeCopyToProfileModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:340px">
+    <div class="modal-title">Copy to Profile</div>
+    <div class="form-group">
+      <label class="form-label">Target Profile</label>
+      <select class="form-select" id="copy-profile-select"></select>
+    </div>
+    <div id="copy-profile-status" style="font-size:12px;color:var(--sky-deep);font-weight:600;min-height:16px"></div>
+    <div class="modal-actions">
+      <div class="modal-actions-group"></div>
+      <div class="modal-actions-group">
+        <button class="btn-secondary btn-compact" onclick="closeCopyToProfileModal()">Cancel</button>
+        <button class="btn-primary btn-compact" onclick="confirmCopyToProfile()">Copy</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1063,6 +1086,20 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
   window.addEventListener('beforeunload',()=>{
     try{ if(companionWin && !companionWin.closed) companionWin.close(); }catch(e){}
   });
+  function preloadCompanion(){
+    if(_isCompanion)return;
+    if(companionWin && !companionWin.closed)return;
+    const url=window.location.href.split('?')[0]+'?mode=companion';
+    const{left:screenLeft,top:screenTop}=getScreenOrigin();
+    // Browsers won't let a script open a truly invisible window — shrink it into
+    // a corner instead. showInCompanion() resizes/repositions it for real use later.
+    const tinySpecs=`width=100,height=80,left=${screenLeft+screen.availWidth-110},top=${screenTop+screen.availHeight-90},resizable=yes,scrollbars=no`;
+    companionWin=window.open(url,'dailyme_companion',tinySpecs);
+    try{ window.focus(); }catch(e){}
+  }
+  // If this window IS the Nav popup, pre-open the companion (Settings/Language) window
+  // now, in parallel with this window's own loading, so opening Settings later is instant.
+  if(_initForceMode==='Nav') preloadCompanion();
   let headlines=[],allHeadlinesCache=[],recencyDays_value=7,collapseThreshold=5,categories=[],sources=[],keywords=[],topics=[];
   const deletedLinks=new Set();
   // topics retained as empty array for legacy compatibility only
@@ -1323,6 +1360,7 @@ try{
         history.replaceState({screen:'headlines',section:null},'',window.location.pathname);
         applyNavMode();
         renderHeadlines();
+        preloadCompanion();
       }else{
         // Plain browser tab — must reopen as a popup for resizeTo/moveTo to work
         const left=getNavPinLeft(panelWidth,chrome);
@@ -1334,6 +1372,7 @@ try{
     } else {
       _navMode=false;
       try{ if(companionWin && !companionWin.closed) companionWin.close(); }catch(e){}
+      _companionChannel.postMessage({action:'closeCompanion'});
       document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value==='Full');
       apiPost('SaveUserSettings',{userID:USER_ID,launchMode:'Full'});
       localStorage.setItem(`dailyme_mode_${USER_ID}`,'Full');
@@ -1616,13 +1655,13 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     const _clogo=document.querySelector('.header-logo');if(_clogo){_clogo.style.height='34px';_clogo.style.width='34px';}
     const _cAppTitle=document.querySelector('.app-title');if(_cAppTitle)_cAppTitle.style.fontSize='13px';
     try{
-      const[srcs,kwds,userSettings,langs,ulangs,profileResult]=await Promise.all([
-        apiGet('GetHeadlineSources'),apiGet('GetHeadlineKeywords'),
+      const[kwds,userSettings,langs,ulangs,profileResult]=await Promise.all([
+        apiGet('GetHeadlineKeywords'),
         apiGet('GetUserSettings'),apiGet('GetLanguages'),apiGet('GetUserLanguages'),
         apiGet('GetCurrentProfile')
       ]);
       currentUserProfileID=profileResult?.currentUserProfileID||null;
-      sources=Array.isArray(srcs)?srcs:[];keywords=Array.isArray(kwds)?kwds:[];
+      sources=[];keywords=Array.isArray(kwds)?kwds:[];
       allLanguages=Array.isArray(langs)?langs:[];userLanguages=Array.isArray(ulangs)?ulangs:[];
       userTimezone=Intl.DateTimeFormat().resolvedOptions().timeZone||'America/Chicago';
       if(userSettings?.headlineSetting){
@@ -1643,12 +1682,13 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
       renderLanguageScreens();renderLanguageCheckList();
     }catch(e){console.error('[companion] Error loading settings/sources/keywords/languages:',e);}
     try{
-      const[mySitesData,menuData,cats]=await Promise.all([
-        apiGet('GetUserOwnedSources'),apiGet('GetUserMenu',`&profileID=${currentUserProfileID||''}`),apiGet('GetCategories')
+      const[mySitesData,menuData,cats,srcsData]=await Promise.all([
+        apiGet('GetUserOwnedSources'),apiGet('GetUserMenu',`&profileID=${currentUserProfileID||''}`),apiGet('GetCategories'),apiGet('GetHeadlineSources',`&profileID=${currentUserProfileID||''}`)
       ]);
       userOwnedSources=Array.isArray(mySitesData)?mySitesData:[];
       userMenu=Array.isArray(menuData)?menuData:[];
       categories=Array.isArray(cats)?cats:[];
+      sources=Array.isArray(srcsData)?srcsData:sources;
     }catch(e){console.error('[companion] Error loading sources/menu/categories:',e);}
     try{
       renderLanguageNav();pingLauncher();
@@ -1656,6 +1696,7 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     _companionChannel.onmessage=(e)=>{
       if(e.data?.action==='showSettings'){showScreen('settings');window.focus();}
       else if(e.data?.action==='showLanguage'){visitLanguage(e.data.langID,e.data.langName);window.focus();}
+      else if(e.data?.action==='closeCompanion'){window.close();}
     };
     _companionChannel.postMessage({action:'companionReady'});
   }
@@ -1668,8 +1709,8 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     const lb=document.getElementById('loading-bar');
     const lm=document.getElementById('loading-msg');
     if(lb)lb.style.width='20%';
-    const [srcs,kwds,userSettings,langs,ulangs,profileResult,profilesData]=await Promise.all([
-      apiGet('GetHeadlineSources'),apiGet('GetHeadlineKeywords'),
+    const [kwds,userSettings,langs,ulangs,profileResult,profilesData]=await Promise.all([
+      apiGet('GetHeadlineKeywords'),
       apiGet('GetUserSettings'),apiGet('GetLanguages'),apiGet('GetUserLanguages'),
       apiGet('GetCurrentProfile'),apiGet('GetUserProfiles')
     ]);
@@ -1677,7 +1718,7 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     userProfiles=Array.isArray(profilesData)?profilesData:[];
     renderProfileSelects();
     if(lb)lb.style.width='50%';
-    categories=[];sources=Array.isArray(srcs)?srcs:[];
+    categories=[];sources=[];
     keywords=Array.isArray(kwds)?kwds:[];topics=[];
     allLanguages=Array.isArray(langs)?langs:[];userLanguages=Array.isArray(ulangs)?ulangs:[];
     if(userSettings?.headlineSetting?.RecencyDays){
@@ -1749,11 +1790,15 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
       }
     }catch(e){}
     renderLanguageScreens();renderLanguageCheckList();
-    const mySitesData = await apiGet('GetUserOwnedSources');
+    const [mySitesData,menuData,srcsData] = await Promise.all([
+      apiGet('GetUserOwnedSources'),
+      apiGet('GetUserMenu',`&profileID=${currentUserProfileID}`),
+      apiGet('GetHeadlineSources',`&profileID=${currentUserProfileID}`)
+    ]);
     userOwnedSources = Array.isArray(mySitesData) ? mySitesData : [];
     updateSiteTypeNavVisibility();
-    const menuData = await apiGet('GetUserMenu',`&profileID=${currentUserProfileID}`);
     userMenu = Array.isArray(menuData) ? menuData : [];
+    sources = Array.isArray(srcsData) ? srcsData : sources;
     renderLanguageNav();
     renderSysHeaderButtons();
     // All data loaded — now safe to apply mode or redirect
@@ -4079,7 +4124,7 @@ async function saveUserSettings(){
     const wasOnSettings=document.getElementById('screen-settings')?.classList.contains('active');
     if(wasOnSettings&&name!=='settings'){
       try{saveUserSettings();}catch(e){console.error('Auto-save failed:',e);}
-      if(currentSettingsSection==='sources'){apiGet('GetHeadlineSources').then(srcs=>{if(Array.isArray(srcs))sources=srcs;});}
+      if(currentSettingsSection==='sources'){apiGet('GetHeadlineSources',`&profileID=${currentUserProfileID}`).then(srcs=>{if(Array.isArray(srcs))sources=srcs;});}
     }
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -4144,7 +4189,7 @@ async function showSettingsSection(section,pushState=true){
   async function renderSettingsSection(section){
     try{
       if(section==='categories'){const d=await apiGet('GetCategories');categories=Array.isArray(d)?d:(Array.isArray(categories)?categories:[]);renderSettingsCategories();renderCategoryTiles(null);}
-      if(section==='sources'){const d=await apiGet('GetHeadlineSources');sources=Array.isArray(d)?d:(Array.isArray(sources)?sources:[]);renderSettingsSources();}
+      if(section==='sources'){const d=await apiGet('GetHeadlineSources',`&profileID=${currentUserProfileID}`);sources=Array.isArray(d)?d:(Array.isArray(sources)?sources:[]);renderSettingsSources();}
       if(section==='mysources'){await loadMySources();}
       if(section==='keywords'){const d=await apiGet('GetHeadlineKeywords');keywords=Array.isArray(d)?d:(Array.isArray(keywords)?keywords:[]);renderSettingsKeywords();}
       if(section==='usermenu'){const d=await apiGet('GetUserMenu',`&profileID=${currentUserProfileID}`);userMenu=Array.isArray(d)?d:(Array.isArray(userMenu)?userMenu:[]);renderUserMenuTable();}
@@ -4446,8 +4491,14 @@ function isYouTubeFilteredSource(sourceID){
     }
     document.getElementById('modal-title').textContent=title;
     document.getElementById('modal-body').innerHTML=body;
-    const copyControl=(copyKind&&typeof renderCopyToProfileControl==='function')?renderCopyToProfileControl(copyKind):'';
-    document.getElementById('modal-actions').innerHTML=`${copyControl}<button class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary" style="background:#22c55e" id="modal-save-new" onclick="saveModal(true)">Save & New</button>${type==='keyword'&&id?`<button class="btn-primary" style="background:#8b5cf6" onclick="saveModalAs()">Save As</button>`:''}<button class="btn-primary" onclick="saveModal()">Save</button>`;
+    const canCopy=id&&(type==='keyword'||type==='menu');
+    const leftBtns=[
+      canCopy?`<button class="btn-primary btn-compact" style="background:#8b5cf6" onclick="saveModalAs()">Copy</button>`:'',
+      (copyKind&&id)?`<button class="btn-secondary btn-compact" onclick="openCopyToProfileModal('${copyKind}',${id})">Copy to Profile</button>`:'',
+      `<button class="btn-primary btn-compact" style="background:#22c55e" id="modal-save-new" onclick="saveModal(true)">Save &amp; New</button>`
+    ].filter(Boolean).join('');
+    const rightBtns=`<button class="btn-secondary btn-compact" onclick="closeModal()">Cancel</button><button class="btn-primary btn-compact" onclick="saveModal()">Save</button>`;
+    document.getElementById('modal-actions').innerHTML=`<div class="modal-actions-group">${leftBtns}</div><div class="modal-actions-group">${rightBtns}</div>`;
     const saveNewBtn=document.getElementById('modal-save-new');
     if(saveNewBtn)saveNewBtn.style.display=(type==='source'&&!id&&USER_ID!==1)?'none':'';
     document.getElementById('modal').style.display='flex';
@@ -4482,42 +4533,54 @@ function isYouTubeFilteredSource(sourceID){
   function closeModalOverlay(e){if(e.target===document.getElementById('modal'))closeModal();}
 
   async function saveModalAs(){
-    if(modalType!=='keyword'||!modalID)return;
-    const keyword=document.getElementById('m-keyword').value.trim();
-    if(!keyword)return alert('Keyword is required before saving as.');
-    const clauses=keyword.split(/[,;]/).map(c=>c.trim()).filter(Boolean);
-    for(const clause of clauses){
-const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
+    if(!modalID)return;
+    if(modalType==='keyword'){
+      const keyword=document.getElementById('m-keyword').value.trim();
+      if(!keyword)return alert('Keyword is required before copying.');
+      const clauses=keyword.split(/[,;]/).map(c=>c.trim()).filter(Boolean);
+      for(const clause of clauses){
+        const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
         const tokens=stripped.split(/[+\/]/).map(t=>t.trim().replace(/^-/,'')).filter(Boolean);
-      for(const token of tokens){if(token.includes(' '))return alert(`Multi-word phrase must be in quotes: "${token}"`);}
+        for(const token of tokens){if(token.includes(' '))return alert(`Multi-word phrase must be in quotes: "${token}"`);}
+      }
+      const groupLabel=document.getElementById('m-grouplabel')?.value.trim()||null;
+      const sourceRaw=document.getElementById('m-source')?.value||'';
+      const sourceIDVal=sourceRaw.startsWith('shared_')?parseInt(sourceRaw.replace('shared_',''))||null:null;
+      const uosIDVal=sourceRaw.startsWith('my_')?parseInt(sourceRaw.replace('my_',''))||null:null;
+      const userMenuIDVal=parseInt(document.getElementById('m-menuid')?.value)||null;
+      if(isYouTubeFilteredSource(sourceIDVal)){const ytErr=validateYouTubeKeywordClauses(keyword);if(ytErr){alert(ytErr);return;}}
+      const imageURL=window._modalKwImage!==undefined?window._modalKwImage:null;
+      if((groupLabel||'').toLowerCase()==='teams'&&!sourceIDVal&&!uosIDVal)return alert('Teams keywords must specify a Source.');
+      const kw=keywords.find(k=>k.KeywordID===modalID);
+      await apiPost('SaveKeyword',{action:'update',keywordID:modalID,keyword,sequence:kw?.Sequence||99,isActive:kw?.IsActive==='Y',groupLabel,sourceID:sourceIDVal,userOwnedSourceID:uosIDVal,userMenuID:userMenuIDVal,imageURL:imageURL||null,userID:USER_ID});
+      const updSrcName=sourceIDVal?(sources.find(s=>s.SourceID===sourceIDVal)?.Name||null):uosIDVal?(userOwnedSources.find(s=>s.UserOwnedSourceID===uosIDVal)?.SourceName||null):null;
+      if(kw){kw.Keyword=keyword;kw.GroupLabel=groupLabel;kw.SourceID=sourceIDVal;kw.UserOwnedSourceID=uosIDVal;kw.UserMenuID=userMenuIDVal;kw.ImageURL=imageURL||null;kw.SourceName=updSrcName;}
+      markSettingsChanged();
+      const sequence=(Math.max(...keywords.map(k=>k.Sequence||0),0))+1;
+      const result=await apiPost('SaveKeyword',{action:'add',keyword,sequence,groupLabel,sourceID:sourceIDVal,userOwnedSourceID:uosIDVal,userMenuID:userMenuIDVal,imageURL:imageURL||null,userID:USER_ID});
+      if(!result?.keywordID){alert('Failed to create duplicate.');return;}
+      keywords.push({KeywordID:result.keywordID,Keyword:keyword,GroupLabel:groupLabel,SourceID:sourceIDVal,UserOwnedSourceID:uosIDVal,UserMenuID:userMenuIDVal,SourceName:updSrcName,ImageURL:imageURL||null,Sequence:sequence,IsActive:'Y'});
+      renderSettingsKeywords();
+      await openModal('keyword',result.keywordID);
+      const kwInput=document.getElementById('m-keyword');
+      if(kwInput){kwInput.value='';setTimeout(()=>kwInput.focus(),50);}
+    }else if(modalType==='menu'){
+      const name=document.getElementById('m-menuname')?.value.trim();
+      if(!name)return alert('Name is required before copying.');
+      const imageURL=window._modalMenuImage!==undefined?window._modalMenuImage:null;
+      await apiPost('SaveUserMenu',{action:'update',userID:USER_ID,menuID:modalID,menuName:name,menuImage:imageURL,isInactive:false});
+      const m=userMenu.find(m=>m.UserMenuID===modalID);
+      if(m){m.UserMenuName=name;m.UserMenuImage=imageURL;}
+      renderUserMenuTable();renderUserMenuNav();
+      const seq=(Math.max(...userMenu.map(m=>m.UserMenuSeq||0),0))+1;
+      const result=await apiPost('SaveUserMenu',{action:'add',userID:USER_ID,menuName:name,menuImage:imageURL,sequence:seq,profileID:currentUserProfileID});
+      if(!result?.menuID){alert('Failed to create duplicate.');return;}
+      userMenu.push({UserMenuID:result.menuID,UserMenuSeq:seq,UserMenuName:name,UserMenuImage:imageURL,IsInactive:0});
+      renderUserMenuTable();renderUserMenuNav();
+      await openModal('menu',result.menuID);
+      const nameInput=document.getElementById('m-menuname');
+      if(nameInput){nameInput.value='';setTimeout(()=>nameInput.focus(),50);}
     }
-    const groupLabel=document.getElementById('m-grouplabel')?.value.trim()||null;
-    const sourceRaw=document.getElementById('m-source')?.value||'';
-    const sourceIDVal=sourceRaw.startsWith('shared_')?parseInt(sourceRaw.replace('shared_',''))||null:null;
-    const uosIDVal=sourceRaw.startsWith('my_')?parseInt(sourceRaw.replace('my_',''))||null:null;
-    const userMenuIDVal=parseInt(document.getElementById('m-menuid')?.value)||null;
-    if(isYouTubeFilteredSource(sourceIDVal)){
-      const ytErr=validateYouTubeKeywordClauses(keyword);
-      if(ytErr){alert(ytErr);return;}
-    }
-    const imageURL=window._modalKwImage!==undefined?window._modalKwImage:null;
-    if((groupLabel||'').toLowerCase()==='teams'&&!sourceIDVal&&!uosIDVal)return alert('Teams keywords must specify a Source.');
-    // Save current entry
-    const kw=keywords.find(k=>k.KeywordID===modalID);
-    await apiPost('SaveKeyword',{action:'update',keywordID:modalID,keyword,sequence:kw?.Sequence||99,isActive:kw?.IsActive==='Y',groupLabel,sourceID:sourceIDVal,userOwnedSourceID:uosIDVal,userMenuID:userMenuIDVal,imageURL:imageURL||null,userID:USER_ID});
-    const updSrcName=sourceIDVal?(sources.find(s=>s.SourceID===sourceIDVal)?.Name||null):uosIDVal?(userOwnedSources.find(s=>s.UserOwnedSourceID===uosIDVal)?.SourceName||null):null;
-    if(kw){kw.Keyword=keyword;kw.GroupLabel=groupLabel;kw.SourceID=sourceIDVal;kw.UserOwnedSourceID=uosIDVal;kw.UserMenuID=userMenuIDVal;kw.ImageURL=imageURL||null;kw.SourceName=updSrcName;}
-    markSettingsChanged();
-    // Create duplicate (keyword value used as temp — user will overwrite)
-    const sequence=(Math.max(...keywords.map(k=>k.Sequence||0),0))+1;
-    const result=await apiPost('SaveKeyword',{action:'add',keyword,sequence,groupLabel,sourceID:sourceIDVal,userOwnedSourceID:uosIDVal,userMenuID:userMenuIDVal,imageURL:imageURL||null,userID:USER_ID});
-    if(!result?.keywordID){alert('Failed to create duplicate.');return;}
-    keywords.push({KeywordID:result.keywordID,Keyword:keyword,GroupLabel:groupLabel,SourceID:sourceIDVal,UserOwnedSourceID:uosIDVal,UserMenuID:userMenuIDVal,SourceName:updSrcName,ImageURL:imageURL||null,Sequence:sequence,IsActive:'Y'});
-    renderSettingsKeywords();
-    // Open edit modal for new entry and clear keyword field
-    await openModal('keyword',result.keywordID);
-    const kwInput=document.getElementById('m-keyword');
-    if(kwInput){kwInput.value='';setTimeout(()=>kwInput.focus(),50);}
   }
 
   async function saveModal(addAnother=false){
@@ -4533,7 +4596,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     }else if(modalType==='source'){
       if(!modalID&&USER_ID!==1){
         const sourceID=parseInt(document.getElementById('m-source-pick').value);
-        await apiPost('SaveSource',{action:'add',sourceID,userID:USER_ID});
+        await apiPost('SaveSource',{action:'add',sourceID,userID:USER_ID,profileID:currentUserProfileID});
         const allSourcesRes=await fetch(`${API_BASE}/GetHeadlineSources?code=${API_KEY}&userID=${USER_ID}&all=true`);
         const allSources=await allSourcesRes.json();const picked=allSources.find(s=>s.SourceID===sourceID);if(picked)sources.push(picked);
       }else{
@@ -4556,7 +4619,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
           const name=document.getElementById('m-name').value.trim(),url=document.getElementById('m-url').value.trim();
           const sourceType=document.getElementById('m-type').value;
           if(!url)return alert('URL is required');
-          const result=await apiPost('SaveSource',{action:'add',name,url,sourceType,userID:USER_ID});sources.push({SourceID:result.sourceID,Name:name,URL:url,SourceType:sourceType,IsActive:'Y'});
+          const result=await apiPost('SaveSource',{action:'add',name,url,sourceType,userID:USER_ID,profileID:currentUserProfileID});sources.push({SourceID:result.sourceID,Name:name,URL:url,SourceType:sourceType,IsActive:'Y'});
         }
       }
       renderSettingsSources();
@@ -4924,9 +4987,8 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
   function renderSettingsSources(){
     const container=document.getElementById('sources-container');
     if(!container)return;
-    const profileVisible=sources.filter(s=>!s.UserMenuID||userMenu.some(m=>m.UserMenuID===s.UserMenuID));
-    const subs=profileVisible.filter(s=>!s.IsFiltered).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
-    const filtered=profileVisible.filter(s=>s.IsFiltered).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
+    const subs=sources.filter(s=>!s.IsFiltered).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
+    const filtered=sources.filter(s=>s.IsFiltered).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
     const subRows=subs.map(s=>{
       const userIsActive=s.UserIsActive===1||s.UserIsActive===true||s.UserIsActive===null||s.UserIsActive===undefined;
       const menuItem=userMenu.find(m=>m.UserMenuID===s.UserMenuID);
@@ -5200,8 +5262,12 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     if(!profileID||profileID===currentUserProfileID)return;
     await setCurrentProfile(profileID);
     renderProfileSelects();
-    const menuData=await apiGet('GetUserMenu',`&profileID=${currentUserProfileID}`);
+    const [menuData,srcsData]=await Promise.all([
+      apiGet('GetUserMenu',`&profileID=${currentUserProfileID}`),
+      apiGet('GetHeadlineSources',`&profileID=${currentUserProfileID}`)
+    ]);
     userMenu=Array.isArray(menuData)?menuData:[];
+    sources=Array.isArray(srcsData)?srcsData:sources;
     renderUserMenuNav();
     const firstMenuItem=userMenu.find(m=>!m.IsInactive);
     currentUserMenuID=firstMenuItem?firstMenuItem.UserMenuID:null;
@@ -5278,6 +5344,54 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     userProfiles=userProfiles.filter(p=>p.UserProfileID!==profileID);
     renderProfilesTable();
     renderProfileSelects();
+  }
+
+  // ── COPY TO PROFILE ──
+
+  let _copyProfileKind=null,_copyProfileItemID=null;
+
+  function openCopyToProfileModal(kind,id){
+    if(!id)return;
+    _copyProfileKind=kind;_copyProfileItemID=id;
+    const sel=document.getElementById('copy-profile-select');
+    const opts=userProfiles.filter(p=>!p.Inactive&&p.UserProfileID!==currentUserProfileID)
+      .sort((a,b)=>(a.Name||'').localeCompare(b.Name||''))
+      .map(p=>`<option value="${p.UserProfileID}">${p.Name}</option>`).join('');
+    if(sel)sel.innerHTML=opts||'<option value="">No other profiles</option>';
+    const status=document.getElementById('copy-profile-status');
+    if(status)status.textContent='';
+    document.getElementById('copy-profile-modal').style.display='flex';
+  }
+
+  function closeCopyToProfileModal(){
+    document.getElementById('copy-profile-modal').style.display='none';
+    _copyProfileKind=null;_copyProfileItemID=null;
+  }
+
+  async function confirmCopyToProfile(){
+    const sel=document.getElementById('copy-profile-select');
+    const targetProfileID=parseInt(sel?.value);
+    if(!targetProfileID)return alert('Select a profile to copy to.');
+    const status=document.getElementById('copy-profile-status');
+    if(status)status.textContent='Copying...';
+    const endpoints={
+      source:{fn:'SaveSource',idKey:'sourceID'},
+      mysource:{fn:'SaveUserOwnedSource',idKey:'sourceID'},
+      keyword:{fn:'SaveKeyword',idKey:'keywordID'},
+      menu:{fn:'SaveUserMenu',idKey:'menuID'}
+    };
+    const cfg=endpoints[_copyProfileKind];
+    if(!cfg)return;
+    const body={action:'copyToProfile',userID:USER_ID,targetProfileID};
+    body[cfg.idKey]=_copyProfileItemID;
+    const result=await apiPost(cfg.fn,body);
+    if(result?.error){
+      if(status)status.textContent='';
+      alert('Could not copy: '+result.error);
+      return;
+    }
+    if(status)status.textContent='✓ Copied';
+    setTimeout(()=>closeCopyToProfileModal(),900);
   }
 
   // ── MY SITES ──
@@ -5492,11 +5606,8 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     else { msThumbnailData = null; preview.innerHTML = '🌐'; }
     const saveAsBtn = document.getElementById('ms-save-as-btn');
     if (saveAsBtn) saveAsBtn.style.display = sourceID ? '' : 'none';
-    const copyWrap = document.getElementById('ms-copy-profile-wrap');
-    if (copyWrap) {
-      if (sourceID) { copyWrap.style.display='flex'; copyWrap.innerHTML=(typeof renderCopyToProfileControl==='function')?renderCopyToProfileControl('mysource'):''; }
-      else { copyWrap.style.display='none'; copyWrap.innerHTML=''; }
-    }
+    const copyProfileBtn = document.getElementById('ms-copy-profile-btn');
+    if (copyProfileBtn) copyProfileBtn.style.display = sourceID ? '' : 'none';
     }catch(err){
       console.error('openMySiteModal build error:',sourceID,err);
     }
@@ -5852,7 +5963,7 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     status.textContent='Saving...';
     try{
       const nextSeq=(Math.max(...globalSources.map(s=>s.Sequence||0),0))+1;
-      const result=await apiPost('SaveSource',{action:'add',name:name.trim(),url,sourceType:type,sequence:nextSeq,youtubeChannelID:_investigateResolvedChannelID||null,userID:USER_ID});
+      const result=await apiPost('SaveSource',{action:'add',name:name.trim(),url,sourceType:type,sequence:nextSeq,youtubeChannelID:_investigateResolvedChannelID||null,userID:USER_ID,profileID:currentUserProfileID});
       if(result.sourceID){
         globalSources.push({SourceID:result.sourceID,Name:name.trim(),URL:url,SourceType:type,Sequence:nextSeq,DateAdded:new Date().toISOString().split('T')[0]});
         renderGlobalSourcesTable();
