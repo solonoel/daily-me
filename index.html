@@ -735,6 +735,7 @@
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="API" onchange="updateMsTypeFields()"> API</label>
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="RSS" onchange="updateMsTypeFields()"> RSS</label>
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="URL" onchange="updateMsTypeFields()"> URL</label>
+        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="YT Subscription" onchange="updateMsTypeFields()"> YT Subscription</label>
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="File" onchange="updateMsTypeFields()"> File</label>
       </div>
     </div>
@@ -3869,7 +3870,7 @@ let _pdfClosing=false;
     if(menuSel){
       const sysOpts=menuSel.querySelectorAll('option[value="__sysheader__"], option[disabled]');
       sysOpts.forEach(o=>o.remove());
-      if(type==='URL'||type==='File'){
+      if(type==='URL'||type==='File'||type==='YT Subscription'){
         const sep=document.createElement('option');
         sep.disabled=true;sep.textContent='─────────────';sep.style.cssText='font-size:4px;line-height:1;padding:0';
         menuSel.appendChild(sep);
@@ -3888,7 +3889,7 @@ let _pdfClosing=false;
     const browseStatus=document.getElementById('ms-browse-status');
     if(urlLabel)urlLabel.textContent=type==='File'?'File Path':'URL';
     if(fileNote)fileNote.style.display=type==='File'?'':'none';
-    if(urlInput)urlInput.placeholder=type==='File'?'Full path e.g. C:\\Documents\\report.pdf or \\\\server\\share\\file.pdf':'';
+    if(urlInput)urlInput.placeholder=type==='File'?'Full path e.g. C:\\Documents\\report.pdf or \\\\server\\share\\file.pdf':(type==='YT Subscription'?'https://www.youtube.com/@ChannelName':'');
     if(browseBtn)browseBtn.style.display=type==='File'?'':'none';
     if(browseStatus)browseStatus.style.display='none';
     // Show/hide launcher panel in modal
@@ -5595,7 +5596,7 @@ function renderMySourcesTable() {
     const menuSel = document.getElementById('ms-menuid');
     if (menuSel) {
       const type = src ? ((!src.SourceType || src.SourceType === 'Website') ? 'URL' : src.SourceType) : null;
-      const showSysHeader = !type || type === 'URL' || type === 'File';
+      const showSysHeader = !type || type === 'URL' || type === 'File' || type === 'YT Subscription';
 const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
       menuSel.innerHTML = '<option value="">— None —</option>' +
         userMenu.filter(m => !m.IsInactive).map(m => `<option value="${m.UserMenuID}" ${!isSysHeader&&src?.UserMenuID==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('') +
@@ -5673,13 +5674,15 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     const thumbnailURL = msThumbnailData || null;
     if (msEditingID) {
       const userMenuIDForSave = userMenuID === '__sysheader__' ? null : userMenuID;
-      await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, userMenuID: userMenuIDForSave, groupLabel, isSysHeader: userMenuID === '__sysheader__' ? 1 : 0 });
+      const result = await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, userMenuID: userMenuIDForSave, groupLabel, isSysHeader: userMenuID === '__sysheader__' ? 1 : 0 });
+      if (result?.error) { alert('Could not save: ' + result.error); return; }
       const src = userOwnedSources.find(s => s.UserOwnedSourceID === msEditingID);
-      if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; src.UserMenuID = userMenuID; src.GroupLabel = groupLabel; src.IsSysHeader = userMenuID === '__sysheader__' ? 1 : 0; }
+      if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; src.UserMenuID = userMenuID; src.GroupLabel = groupLabel; src.IsSysHeader = userMenuID === '__sysheader__' ? 1 : 0; src.YoutubeChannelID = result.youtubeChannelID || null; }
     } else {
       const userMenuIDForSave = userMenuID === '__sysheader__' ? null : userMenuID;
       const result = await apiPost('SaveUserOwnedSource', { action: 'add', userID: USER_ID, sourceName, url, sourceType, description, thumbnailURL, exclusions, userMenuID: userMenuIDForSave, groupLabel, isSysHeader: userMenuID === '__sysheader__' ? 1 : 0 });
-      userOwnedSources.push({ UserOwnedSourceID: result.sourceID, SourceName: sourceName, URL: url, SourceType: sourceType, Description: description, ThumbnailURL: thumbnailURL, Exclusions: exclusions, IsInactive: 0, Sequence: 99, UserMenuID: userMenuID, GroupLabel: groupLabel, IsSysHeader: userMenuID === '__sysheader__' ? 1 : 0 });
+      if (result?.error) { alert('Could not save: ' + result.error); return; }
+      userOwnedSources.push({ UserOwnedSourceID: result.sourceID, SourceName: sourceName, URL: url, SourceType: sourceType, Description: description, ThumbnailURL: thumbnailURL, Exclusions: exclusions, IsInactive: 0, Sequence: 99, UserMenuID: userMenuID, GroupLabel: groupLabel, IsSysHeader: userMenuID === '__sysheader__' ? 1 : 0, YoutubeChannelID: result.youtubeChannelID || null });
     }
     renderMySourcesTable();
     if (addAnother) { msEditingID = null; msThumbnailData = null; openMySiteModal(null); }
@@ -5702,12 +5705,14 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     const isInactive = document.getElementById('ms-inactive').checked;
     const thumbnailURL = msThumbnailData || null;
     // Save current
-    await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, userMenuID: userMenuIDForSave, groupLabel, isSysHeader });
+    const updateResult = await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, userMenuID: userMenuIDForSave, groupLabel, isSysHeader });
+    if (updateResult?.error) { alert('Could not save: ' + updateResult.error); return; }
     const src = userOwnedSources.find(s => s.UserOwnedSourceID === msEditingID);
-    if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; src.UserMenuID = userMenuID; src.GroupLabel = groupLabel; src.IsSysHeader = isSysHeader; }
+    if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; src.UserMenuID = userMenuID; src.GroupLabel = groupLabel; src.IsSysHeader = isSysHeader; src.YoutubeChannelID = updateResult.youtubeChannelID || null; }
     // Create copy with placeholder name
     const result = await apiPost('SaveUserOwnedSource', { action: 'add', userID: USER_ID, sourceName: 'New Name Here', url, sourceType, description, thumbnailURL, exclusions, userMenuID: userMenuIDForSave, groupLabel, isSysHeader });
-    userOwnedSources.push({ UserOwnedSourceID: result.sourceID, SourceName: 'New Name Here', URL: url, SourceType: sourceType, Description: description, ThumbnailURL: thumbnailURL, Exclusions: exclusions, IsInactive: 0, Sequence: 99, UserMenuID: userMenuID, GroupLabel: groupLabel, IsSysHeader: isSysHeader });
+    if (result?.error) { alert('Could not create copy: ' + result.error); return; }
+    userOwnedSources.push({ UserOwnedSourceID: result.sourceID, SourceName: 'New Name Here', URL: url, SourceType: sourceType, Description: description, ThumbnailURL: thumbnailURL, Exclusions: exclusions, IsInactive: 0, Sequence: 99, UserMenuID: userMenuID, GroupLabel: groupLabel, IsSysHeader: isSysHeader, YoutubeChannelID: result.youtubeChannelID || null });
     renderMySourcesTable();
     openMySiteModal(result.sourceID);
     setTimeout(() => { const n = document.getElementById('ms-name'); if (n) { n.select(); n.focus(); } }, 50);
