@@ -10,7 +10,20 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { userID = 1, languageID, isActive } = req.body;
+    const { userID = 1, languageID, isActive, action, sequences } = req.body;
+
+    if (action === 'reorder') {
+      for (const s of (sequences || [])) {
+        await pool.request()
+          .input('UserID', sql.Int, userID)
+          .input('LanguageID', sql.Int, s.languageID)
+          .input('MenuSeq', sql.SmallInt, s.sequence)
+          .query(`UPDATE [UserLanguage] SET MenuSeq=@MenuSeq WHERE UserID=@UserID AND LanguageID=@LanguageID`);
+      }
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) };
+      return;
+    }
+
     const isActiveChar = isActive ? 'Y' : 'N';
     const existing = await pool.request()
       .input('UserID', sql.Int, userID)

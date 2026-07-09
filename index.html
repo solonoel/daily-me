@@ -1459,7 +1459,11 @@ try{
     if(!grid)return;
     const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
     const emptyIDs=new Set((window._emptyMenuNames||[]).map(name=>{const m=userMenu.find(u=>u.UserMenuName===name);return m?m.UserMenuID:null;}).filter(Boolean));
-    const activeMenu=userMenu.filter(m=>!m.IsInactive&&!emptyIDs.has(m.UserMenuID)).sort((a,b)=>(a.UserMenuSeq||99)-(b.UserMenuSeq||99));
+    const activeMenu=userMenu.filter(m=>!m.IsInactive&&!emptyIDs.has(m.UserMenuID)).map(m=>({kind:'menu',seq:m.UserMenuSeq||99,data:m}));
+    const activeLangs=userLanguages.filter(ul=>ul.IsActive==='Y').map(ul=>{
+      const lang=allLanguages.find(l=>l.LanguageID===ul.LanguageID);
+      return lang?{kind:'lang',seq:ul.MenuSeq||99,data:lang}:null;
+    }).filter(Boolean);
 const panelWidth=(perRow*56+((perRow-1)*4))+32;
     const navPanel=document.getElementById('nav-panel');
     if(_navMode){
@@ -1501,7 +1505,15 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     };
     applyPanelSizing();
     if(_navMode)setTimeout(applyPanelSizing,80);
-    grid.innerHTML=activeMenu.map(m=>{
+    grid.innerHTML=[...activeMenu,...activeLangs].sort((a,b)=>a.seq-b.seq).map(item=>{
+      if(item.kind==='lang'){
+        const lang=item.data;
+        return `<button class="nav-panel-btn" onclick="openLangWindow(${lang.LanguageID},'${lang.LanguageNameEng}')" id="nav-panel-sys-lang-${lang.LanguageID}">
+          <img src="${lang.FlagImage}" style="width:28px;height:auto;border-radius:2px">
+          <span class="nav-panel-btn-label">${lang.LanguageNameEng}</span>
+        </button>`;
+      }
+      const m=item.data;
       const imgHTML=m.UserMenuImage
         ?`<img src="${m.UserMenuImage}" style="width:22px;height:22px;border-radius:3px;object-fit:cover">`
         :`<span style="font-size:16px">📋</span>`;
@@ -1511,19 +1523,6 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
         <span class="nav-panel-btn-label">${m.UserMenuName}</span>
       </button>`;
     }).join('');
-    // Also add Headlines, Languages, Settings buttons
-    const sysButtons=[
-      ...userLanguages.filter(ul=>ul.IsActive==='Y').map(ul=>{
-        const lang=allLanguages.find(l=>l.LanguageID===ul.LanguageID);
-        if(!lang)return null;
-        return {id:`lang-${lang.LanguageID}`,label:lang.LanguageNameEng,icon:`<img src="${lang.FlagImage}" style="width:28px;height:auto;border-radius:2px">`,action:`openLangWindow(${lang.LanguageID},'${lang.LanguageNameEng}')`};
-      }).filter(Boolean)
-    ];
-    grid.innerHTML+=sysButtons.map(b=>`
-      <button class="nav-panel-btn" onclick="${b.action}" id="nav-panel-sys-${b.id}">
-        ${typeof b.icon==='string'&&b.icon.startsWith('<')?b.icon:`<span style="font-size:16px">${b.icon}</span>`}
-        <span class="nav-panel-btn-label">${b.label}</span>
-      </button>`).join('');
     // Append System Header source buttons
     const sysHeaderSources=userOwnedSources
       .filter(s=>(s.IsSysHeader===1||s.IsSysHeader===true)&&!s.IsInactive)
@@ -1939,19 +1938,9 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     });
   }
 
-  function renderLanguageNav(){
+function renderLanguageNav(){
     renderSysHeaderButtons();
     renderUserMenuNav();
-    document.querySelectorAll('.nav-btn-lang').forEach(b=>b.remove());
-    const navDate=document.getElementById('nav-date');
-    userLanguages.filter(ul=>ul.IsActive==='Y').forEach(ul=>{
-      const lang=allLanguages.find(l=>l.LanguageID===ul.LanguageID);if(!lang)return;
-      const btn=document.createElement('button');
-      btn.className='nav-btn nav-btn-lang';btn.id=`nav-lang-${lang.LanguageID}`;
-      btn.onclick=()=>visitLanguage(lang.LanguageID,lang.LanguageNameEng);
-      btn.innerHTML=`<img src="${lang.FlagImage}" class="nav-flag" alt="${lang.LanguageNameEng}"><span class="nav-label">${lang.LanguageNameEng}</span>`;
-      navDate.parentNode.insertBefore(btn,navDate);
-    });
   }
 
   async function visitLanguage(langID,langName){
@@ -6031,29 +6020,57 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
 
   function renderUserMenuNav(){
     if(_navMode)renderNavPanel();
-    document.querySelectorAll('.nav-btn-usermenu').forEach(b=>b.remove());
+    document.querySelectorAll('.nav-btn-usermenu,.nav-btn-lang').forEach(b=>b.remove());
     const navDate=document.getElementById('nav-date');
-    const firstLang=document.querySelector('.nav-btn-lang');
-    const insertBefore=firstLang||navDate;
-    [...userMenu].filter(m=>!m.IsInactive).sort((a,b)=>(a.UserMenuSeq||99)-(b.UserMenuSeq||99)).forEach(m=>{
+    const menuItems=[...userMenu].filter(m=>!m.IsInactive).map(m=>({kind:'menu',seq:m.UserMenuSeq||99,data:m}));
+    const langItems=userLanguages.filter(ul=>ul.IsActive==='Y').map(ul=>{
+      const lang=allLanguages.find(l=>l.LanguageID===ul.LanguageID);
+      return lang?{kind:'lang',seq:ul.MenuSeq||99,data:{ul,lang}}:null;
+    }).filter(Boolean);
+    [...menuItems,...langItems].sort((a,b)=>a.seq-b.seq).forEach(item=>{
       const btn=document.createElement('button');
-      btn.className='nav-btn nav-btn-usermenu';
-      btn.id=`nav-usermenu-${m.UserMenuID}`;
-      btn.onclick=()=>showUserMenuItems(m.UserMenuID,m.UserMenuName);
-      const imgHTML=m.UserMenuImage
-        ?`<img src="${m.UserMenuImage}" style="width:22px;height:22px;border-radius:4px;object-fit:cover;flex-shrink:0">`
-        :`<span class="nav-icon">📋</span>`;
-      btn.innerHTML=`<div style="display:flex;align-items:center;gap:2px">${imgHTML}<span class="nav-menu-count" style="font-size:10px;font-weight:700;color:var(--sky-deep)"></span></div><span class="nav-label">${m.UserMenuName}</span>`;
-      insertBefore.parentNode.insertBefore(btn,insertBefore);
+      if(item.kind==='menu'){
+        const m=item.data;
+        btn.className='nav-btn nav-btn-usermenu';
+        btn.id=`nav-usermenu-${m.UserMenuID}`;
+        btn.onclick=()=>showUserMenuItems(m.UserMenuID,m.UserMenuName);
+        const imgHTML=m.UserMenuImage
+          ?`<img src="${m.UserMenuImage}" style="width:22px;height:22px;border-radius:4px;object-fit:cover;flex-shrink:0">`
+          :`<span class="nav-icon">📋</span>`;
+        btn.innerHTML=`<div style="display:flex;align-items:center;gap:2px">${imgHTML}<span class="nav-menu-count" style="font-size:10px;font-weight:700;color:var(--sky-deep)"></span></div><span class="nav-label">${m.UserMenuName}</span>`;
+      }else{
+        const {lang}=item.data;
+        btn.className='nav-btn nav-btn-lang';
+        btn.id=`nav-lang-${lang.LanguageID}`;
+        btn.onclick=()=>visitLanguage(lang.LanguageID,lang.LanguageNameEng);
+        btn.innerHTML=`<img src="${lang.FlagImage}" class="nav-flag" alt="${lang.LanguageNameEng}"><span class="nav-label">${lang.LanguageNameEng}</span>`;
+      }
+      navDate.parentNode.insertBefore(btn,navDate);
     });
   }
 
   function renderUserMenuTable(){
     const tbody=document.getElementById('tbl-usermenu-body');
     if(!tbody)return;
-    const sorted=[...userMenu].sort((a,b)=>(a.UserMenuSeq||99)-(b.UserMenuSeq||99));
-    tbody.innerHTML=sorted.map(m=>`
-      <tr draggable="true" data-id="${m.UserMenuID}">
+    const menuItems=userMenu.map(m=>({kind:'menu',seq:m.UserMenuSeq||99,data:m}));
+    const langItems=userLanguages.filter(ul=>ul.IsActive==='Y').map(ul=>{
+      const lang=allLanguages.find(l=>l.LanguageID===ul.LanguageID);
+      return lang?{kind:'lang',seq:ul.MenuSeq||99,data:lang}:null;
+    }).filter(Boolean);
+    const sorted=[...menuItems,...langItems].sort((a,b)=>a.seq-b.seq);
+    tbody.innerHTML=sorted.map(item=>{
+      if(item.kind==='lang'){
+        const l=item.data;
+        return `<tr draggable="true" data-id="${l.LanguageID}" data-type="lang">
+          <td style="width:30px;color:var(--text-muted)">⠿</td>
+          <td><strong>${l.LanguageNameEng}</strong> <span style="font-size:10px;color:var(--text-muted);font-weight:400">(language)</span></td>
+          <td><img src="${l.FlagImage}" style="width:36px;height:24px;object-fit:cover;border-radius:3px;border:1px solid var(--border)"></td>
+          <td><button class="toggle on" disabled style="opacity:0.5;cursor:default" title="Managed in Languages settings"></button></td>
+          <td style="font-size:11px;color:var(--text-muted);font-style:italic">Managed in Languages settings</td>
+        </tr>`;
+      }
+      const m=item.data;
+      return `<tr draggable="true" data-id="${m.UserMenuID}" data-type="menu">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
         <td><strong>${m.UserMenuName}</strong></td>
         <td>
@@ -6070,7 +6087,8 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
           <button class="btn-icon" onclick="openModal('menu',${m.UserMenuID})">✏️</button>
           <button class="btn-icon danger" onclick="deleteUserMenuItem(${m.UserMenuID})">🗑️</button>
         </td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
     initUserMenuDragDrop(tbody);
   }
 
@@ -6082,9 +6100,16 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
         tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('dragging','drag-over'));
         if(!dragMoved)return;
         const rows=[...tbody.querySelectorAll('tr[draggable]')];
-        const sequences=rows.map((r,i)=>({menuID:parseInt(r.dataset.id),sequence:i+1}));
-        sequences.forEach(s=>{const m=userMenu.find(m=>m.UserMenuID===s.menuID);if(m)m.UserMenuSeq=s.sequence;});
-        apiPost('SaveUserMenu',{action:'reorder',userID:USER_ID,sequences});
+        const menuSequences=[],langSequences=[];
+        rows.forEach((r,i)=>{
+          const seq=i+1;
+          if(r.dataset.type==='lang')langSequences.push({languageID:parseInt(r.dataset.id),sequence:seq});
+          else menuSequences.push({menuID:parseInt(r.dataset.id),sequence:seq});
+        });
+        menuSequences.forEach(s=>{const m=userMenu.find(m=>m.UserMenuID===s.menuID);if(m)m.UserMenuSeq=s.sequence;});
+        langSequences.forEach(s=>{const ul=userLanguages.find(ul=>ul.LanguageID===s.languageID);if(ul)ul.MenuSeq=s.sequence;});
+        if(menuSequences.length)apiPost('SaveUserMenu',{action:'reorder',userID:USER_ID,sequences:menuSequences});
+        if(langSequences.length)apiPost('SaveUserLanguage',{action:'reorder',userID:USER_ID,sequences:langSequences});
         renderUserMenuNav();
       });
       row.addEventListener('dragover',e=>{e.preventDefault();tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('drag-over'));if(row!==dragSrc)row.classList.add('drag-over');});
