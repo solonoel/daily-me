@@ -69,7 +69,7 @@ module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
     const { action, sourceID, name, url, sourceType, isActive,
-            sequence, isFiltered, userID = 1, userHeadlineSourceID, targetProfileID } = req.body;
+            sequence, isFiltered, userID = 1, userHeadlineSourceID, targetProfileID, profileID } = req.body;
 
     if (action === 'copyToProfile') {
       const lookupRequest = pool.request().input('UserID', sql.Int, userID);
@@ -127,8 +127,9 @@ module.exports = async function(context, req) {
         .input('UserID', sql.Int, userID)
         .input('SourceID', sql.Int, src.SourceID)
         .input('TargetMenuID', sql.Int, targetMenuID)
+        .input('TargetProfileID', sql.Int, targetProfileID)
         .query(`SELECT UserHeadlineSourceID FROM [UserHeadlineSource]
-                WHERE UserID=@UserID AND SourceID=@SourceID AND (UserMenuID=@TargetMenuID OR (UserMenuID IS NULL AND @TargetMenuID IS NULL))`);
+                WHERE UserID=@UserID AND SourceID=@SourceID AND UserProfileID=@TargetProfileID AND (UserMenuID=@TargetMenuID OR (UserMenuID IS NULL AND @TargetMenuID IS NULL))`);
       if (dupCheck.recordset.length > 0) {
         context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true, userHeadlineSourceID: dupCheck.recordset[0].UserHeadlineSourceID, created: false }) };
         return;
@@ -142,9 +143,10 @@ module.exports = async function(context, req) {
         .input('GroupLabel', sql.NVarChar(100), src.GroupLabel)
         .input('UserMenuID', sql.Int, targetMenuID)
         .input('ImageURL', sql.NVarChar(sql.MAX), src.ImageURL)
-        .query(`INSERT INTO [UserHeadlineSource] (UserID, SourceID, IsFiltered, IsActive, Exclusions, GroupLabel, UserMenuID, ImageURL)
+        .input('TargetProfileID', sql.Int, targetProfileID)
+        .query(`INSERT INTO [UserHeadlineSource] (UserID, SourceID, IsFiltered, IsActive, Exclusions, GroupLabel, UserMenuID, ImageURL, UserProfileID)
                 OUTPUT INSERTED.UserHeadlineSourceID
-                VALUES (@UserID, @SourceID, @IsFiltered, 1, @Exclusions, @GroupLabel, @UserMenuID, @ImageURL)`);
+                VALUES (@UserID, @SourceID, @IsFiltered, 1, @Exclusions, @GroupLabel, @UserMenuID, @ImageURL, @TargetProfileID)`);
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true, userHeadlineSourceID: copyResult.recordset[0].UserHeadlineSourceID, created: true }) };
 
     } else if (action === 'add') {
@@ -176,9 +178,10 @@ module.exports = async function(context, req) {
         await pool.request()
           .input('UserID', sql.Int, userID)
           .input('SourceID', sql.Int, newSourceID)
+          .input('ProfileID', sql.Int, profileID || null)
           .query(`
-            IF NOT EXISTS (SELECT 1 FROM [UserHeadlineSource] WHERE UserID=@UserID AND SourceID=@SourceID)
-            INSERT INTO [UserHeadlineSource] (UserID, SourceID, IsFiltered, IsActive) VALUES (@UserID, @SourceID, 0, 1)
+            IF NOT EXISTS (SELECT 1 FROM [UserHeadlineSource] WHERE UserID=@UserID AND SourceID=@SourceID AND (UserProfileID=@ProfileID OR (UserProfileID IS NULL AND @ProfileID IS NULL)))
+            INSERT INTO [UserHeadlineSource] (UserID, SourceID, IsFiltered, IsActive, UserProfileID) VALUES (@UserID, @SourceID, 0, 1, @ProfileID)
           `);
         context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ success: true, sourceID: newSourceID, youtubeChannelID }) };
@@ -187,9 +190,10 @@ module.exports = async function(context, req) {
         await pool.request()
           .input('UserID', sql.Int, userID)
           .input('SourceID', sql.Int, sourceID)
+          .input('ProfileID', sql.Int, profileID || null)
           .query(`
-            IF NOT EXISTS (SELECT 1 FROM [UserHeadlineSource] WHERE UserID=@UserID AND SourceID=@SourceID)
-            INSERT INTO [UserHeadlineSource] (UserID, SourceID, IsFiltered, IsActive) VALUES (@UserID, @SourceID, 1, 1)
+            IF NOT EXISTS (SELECT 1 FROM [UserHeadlineSource] WHERE UserID=@UserID AND SourceID=@SourceID AND (UserProfileID=@ProfileID OR (UserProfileID IS NULL AND @ProfileID IS NULL)))
+            INSERT INTO [UserHeadlineSource] (UserID, SourceID, IsFiltered, IsActive, UserProfileID) VALUES (@UserID, @SourceID, 1, 1, @ProfileID)
           `);
         context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ success: true, sourceID }) };
@@ -212,9 +216,10 @@ module.exports = async function(context, req) {
         await pool.request()
           .input('UserID', sql.Int, userID)
           .input('SourceID', sql.Int, newSourceID)
+          .input('ProfileID', sql.Int, profileID || null)
           .query(`
-            IF NOT EXISTS (SELECT 1 FROM [UserHeadlineSource] WHERE UserID=@UserID AND SourceID=@SourceID)
-            INSERT INTO [UserHeadlineSource] (UserID, SourceID, IsFiltered, IsActive) VALUES (@UserID, @SourceID, 1, 1)
+            IF NOT EXISTS (SELECT 1 FROM [UserHeadlineSource] WHERE UserID=@UserID AND SourceID=@SourceID AND (UserProfileID=@ProfileID OR (UserProfileID IS NULL AND @ProfileID IS NULL)))
+            INSERT INTO [UserHeadlineSource] (UserID, SourceID, IsFiltered, IsActive, UserProfileID) VALUES (@UserID, @SourceID, 1, 1, @ProfileID)
           `);
         context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ success: true, sourceID: newSourceID }) };

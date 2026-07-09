@@ -9,6 +9,7 @@ module.exports = async function(context, req) {
     const pool = await sql.connect(config);
     const userID = parseInt(req.query.userID || '1');
     const allSources = req.query.all === 'true';
+    const profileID = req.query.profileID ? parseInt(req.query.profileID) : null;
     let result;
     if (allSources) {
       result = await pool.request()
@@ -19,17 +20,20 @@ module.exports = async function(context, req) {
           ORDER BY Sequence, Name
         `);
     } else {
-      result = await pool.request()
-        .input('UserID', sql.Int, userID)
-        .query(`
+      const request = pool.request().input('UserID', sql.Int, userID);
+      let query = `
           SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.IsActive AS GlobalIsActive,
                  h.Sequence, h.DateAdded, h.YoutubeChannelID, uhs.IsFiltered, uhs.Exclusions,
                  uhs.IsActive AS UserIsActive, uhs.GroupLabel, uhs.UserMenuID, uhs.ImageURL
           FROM [HeadlineSource] h
           INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
-          WHERE uhs.UserID = @UserID
-          ORDER BY h.Sequence, h.Name
-        `);
+          WHERE uhs.UserID = @UserID`;
+      if (profileID) {
+        request.input('ProfileID', sql.Int, profileID);
+        query += ` AND uhs.UserProfileID = @ProfileID`;
+      }
+      query += ` ORDER BY h.Sequence, h.Name`;
+      result = await request.query(query);
     }
     context.res = {
       status: 200,
