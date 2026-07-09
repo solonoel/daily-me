@@ -3686,7 +3686,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   function renderHeadlines(){
 
     const menuSources=currentUserMenuFilter
-      ?userOwnedSources.filter(s=>!s.IsInactive&&s.UserMenuID===currentUserMenuFilter).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99))
+      ?userOwnedSources.filter(s=>!s.IsInactive&&s.UserMenuID===currentUserMenuFilter&&s.SourceType!=='YT Subscription').sort((a,b)=>(a.Sequence||99)-(b.Sequence||99))
       :[];
 const makeSourceRow=s=>{
       const defaultIcon=s.SourceType==='File'?'📄':'🌐';
@@ -5118,9 +5118,10 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
 
   async function openFetchLog(){
     try{
-      const data=await apiGet('GetFetchLog');
+      const [data,effData]=await Promise.all([apiGet('GetFetchLog'),apiGet('GetFetchResults')]);
       if(data?.error){alert('No fetch log available yet. Run a refresh first.');return;}
       const log=data;
+      const effectiveness=Array.isArray(effData)?effData:[];
       const fmt=n=>String(n||0).padStart(4,' ');
       let html=`<div style="font-family:'DM Sans',sans-serif;font-size:12px;line-height:1.6">`;
       // Summary
@@ -5227,6 +5228,32 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
             <div style="margin-bottom:8px">
               <div style="font-weight:700;color:var(--sky-deep);margin-bottom:2px">${s.source} (${s.count})</div>
               ${s.titles.map(t=>`<div style="padding-left:12px;color:var(--text-soft);border-left:2px solid var(--border);margin-bottom:2px">• ${t}</div>`).join('')}
+            </div>`).join('')}
+        </div>`;
+      }
+      // Source & Keyword Effectiveness (30-day history)
+      if(effectiveness.length){
+        const typeLabels={SharedSource:'🌐 Shared Sources',MySource:'🔗 My Sources',Keyword:'🔍 Keywords'};
+        const groups=['SharedSource','MySource','Keyword'].map(t=>({type:t,rows:effectiveness.filter(e=>e.EntityType===t).sort((a,b)=>(b.Count30d||0)-(a.Count30d||0))})).filter(g=>g.rows.length);
+        html+=`<div style="margin-bottom:14px">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">📈 Effectiveness — Last 30 Days</div>
+          ${groups.map(g=>`
+            <div style="margin-bottom:10px">
+              <div style="font-weight:700;color:var(--sky-deep);margin-bottom:4px;font-size:12px">${typeLabels[g.type]}</div>
+              <table style="width:100%;border-collapse:collapse;font-size:11px">
+                <thead><tr style="background:#f5f9ff;border-bottom:1.5px solid var(--border)">
+                  <th style="text-align:left;padding:4px 8px">Name</th>
+                  <th style="text-align:left;padding:4px 8px">Last Retrieved</th>
+                  <th style="text-align:right;padding:4px 8px">Hits (30d)</th>
+                </tr></thead>
+                <tbody>
+                  ${g.rows.map(r=>`<tr style="border-bottom:1px solid #eef5fc">
+                    <td style="padding:3px 8px">${r.DisplayName}</td>
+                    <td style="padding:3px 8px;color:${r.LastRetrieved?'var(--text-soft)':'#e05050'}">${r.LastRetrieved?formatDate(r.LastRetrieved,true):'never'}</td>
+                    <td style="text-align:right;padding:3px 8px;font-weight:700;color:${r.Count30d?'var(--sky-deep)':'var(--text-muted)'}">${r.Count30d||0}</td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>
             </div>`).join('')}
         </div>`;
       }
@@ -5424,7 +5451,7 @@ function renderMySitesByMenu(menuID) {
       return;
     }
     const menuItem = userMenu.find(m => m.UserMenuID === menuID);
-    const active = userOwnedSources.filter(s => !s.IsInactive && s.UserMenuID === menuID)
+    const active = userOwnedSources.filter(s => !s.IsInactive && s.UserMenuID === menuID && s.SourceType !== 'YT Subscription')
       .sort((a, b) => (a.Sequence || 99) - (b.Sequence || 99));
     const title = menuItem ? `<div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--text);margin-bottom:12px">${menuItem.UserMenuName}</div>` : '';
     if (!active.length) {

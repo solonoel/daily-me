@@ -500,6 +500,13 @@ module.exports = async function(context, req) {
               ORDER BY h.Sequence, h.SourceID`);
     const sources = sourcesResult.recordset;
 
+    const uosYTResult = await pool.request()
+      .input('UserID', sql.Int, userID)
+      .query(`SELECT UserOwnedSourceID, SourceName, URL, YoutubeChannelID, UserMenuID, Exclusions
+              FROM [UserOwnedSource]
+              WHERE UserID = @UserID AND SourceType = 'YT Subscription' AND IsInactive = 0`);
+    const uosYTSources = uosYTResult.recordset;
+
     function parseExclusions(str) {
       if (!str) return [];
       const terms = [];
@@ -558,6 +565,7 @@ module.exports = async function(context, req) {
     let totalLangFiltered = 0, totalDuplicates = 0;
     let allArticles = [];
     let youtubeFetched = false;
+    const activityLogEntries = [];
 
     // ── MAIN SOURCE LOOP ──
     for (const source of sources) {
@@ -643,12 +651,53 @@ module.exports = async function(context, req) {
           if (!a.duration) a.duration = null;
           if (a.isSubscription === undefined) a.isSubscription = false;
         });
+        if (source.SourceType === 'API' || source.SourceType === 'RSS' || (source.SourceType === 'URL' && source.URL?.includes('youtube.com'))) {
+          activityLogEntries.push({ entityType: 'SharedSource', entityID: source.SourceID });
+        }
         context.log(`Source [${source.Name}]: ${articles.length} articles`);
         allArticles = allArticles.concat(articles);
       } catch(err) {
         context.log(`Error fetching from ${source.Name}: ${err.message}`);
         logErrors.push({ source: source.Name, error: err.message });
         if (logSources[source.Name]) logSources[source.Name].error = err.message;
+      }
+    }
+
+    // ── FETCH MY SOURCES: YT SUBSCRIPTION (unfiltered, like a Shared subscription) ──
+    for (const uosYT of uosYTSources) {
+      const srcLabel = uosYT.SourceName || 'My YouTube Source';
+      const srcLog = { fetched: 0, langFiltered: 0, recencyFiltered: 0, matched: 0, unmatched: [] };
+      logSources[srcLabel] = srcLog;
+      try {
+        if (disableYoutube) { srcLog.skipped = 'disabled'; continue; }
+        if (youtubeAlreadyFetched) { srcLog.skipped = 'already fetched today'; continue; }
+        if (!uosYT.YoutubeChannelID) { srcLog.skipped = 'no channel ID'; continue; }
+        const ytSourceObj = { Name: srcLabel, YoutubeChannelID: uosYT.YoutubeChannelID, Exclusions: uosYT.Exclusions };
+        const ytResult = await fetchYouTube(ytSourceObj, fromDate, false, keywords, youTubeMaxResults, context, quotaUsed);
+        let articles = ytResult.articles;
+        srcLog.fetched = ytResult.fetched;
+        srcLog.recencyFiltered = ytResult.recencyFiltered;
+        const lr = await filterByLanguage(articles, uniqueLangCodes);
+        srcLog.langFiltered = lr._langFiltered?.length || 0;
+        totalLangFiltered += srcLog.langFiltered;
+        articles = lr;
+        articles = articles.filter(a => !sourceExcludesArticle(ytSourceObj, a));
+        articles.forEach(a => {
+          a.isSubscription = true;
+          a.userOwnedSourceID = uosYT.UserOwnedSourceID;
+          a.sourceID = null;
+          a.sourceName = srcLabel;
+          a.sourceType = 'YT Subscription';
+          a.sourceUserMenuID = uosYT.UserMenuID || null;
+        });
+        youtubeFetched = true;
+        activityLogEntries.push({ entityType: 'MySource', entityID: uosYT.UserOwnedSourceID });
+        context.log(`My Source (YT Subscription) [${srcLabel}]: ${articles.length} articles`);
+        allArticles = allArticles.concat(articles);
+      } catch(err) {
+        context.log(`Error fetching My Source (YT Subscription) ${srcLabel}: ${err.message}`);
+        logErrors.push({ source: srcLabel, error: err.message });
+        logSources[srcLabel].error = err.message;
       }
     }
 
@@ -689,6 +738,9 @@ module.exports = async function(context, req) {
         const matched = uosArticles.filter(a => a.keywordID);
         logSources[uosSource.Name].matched += matched.length;
         allArticles = allArticles.concat(matched);
+        if (uosKw.OwnedSourceType === 'RSS') {
+          activityLogEntries.push({ entityType: 'MySource', entityID: uosID });
+        }
         context.log(`UserOwnedSource [${uosSource.Name}]: ${uosArticles.length} fetched, ${matched.length} matched`);
       } catch(err) {
         context.log(`Error fetching UserOwnedSource ${uosSource.Name}: ${err.message}`);
@@ -749,17 +801,20 @@ module.exports = async function(context, req) {
     // Build log stats
     const keywordMatchCounts = {};
     const unmatchedBySource = {};
+    const matchedKeywordIDs = new Set();
     for (const a of unique) {
       if (a.isSubscription) continue;
       if (a.keywordID) {
         const kw = kwResult.recordset.find(k => k.KeywordID === a.keywordID);
         if (kw) keywordMatchCounts[kw.text] = (keywordMatchCounts[kw.text] || 0) + 1;
+        matchedKeywordIDs.add(a.keywordID);
       } else if (!a.teamsOnly) {
         const src = a.sourceName || 'Unknown';
         if (!unmatchedBySource[src]) unmatchedBySource[src] = [];
         unmatchedBySource[src].push(a.title);
       }
     }
+    matchedKeywordIDs.forEach(id => activityLogEntries.push({ entityType: 'Keyword', entityID: id }));
     const zeroKeywords = kwResult.recordset.filter(k => !keywordMatchCounts[k.text]).map(k => k.text);
 
     let totalInserted = 0;
@@ -852,6 +907,19 @@ module.exports = async function(context, req) {
       .input('UserID', sql.Int, userID)
       .input('LastFetchLog', sql.NVarChar(sql.MAX), JSON.stringify(fetchLog))
       .query(`UPDATE [HeadlineSetting] SET LastFetchLog=@LastFetchLog WHERE UserID=@UserID`);
+
+    // Record source/keyword activity for the Fetch Results effectiveness screen
+    for (const entry of activityLogEntries) {
+      try {
+        await pool.request()
+          .input('EntityType', sql.VarChar(20), entry.entityType)
+          .input('EntityID', sql.Int, entry.entityID)
+          .input('UserID', sql.Int, userID)
+          .query(`INSERT INTO SourceActivityLog (EntityType, EntityID, UserID) VALUES (@EntityType, @EntityID, @UserID)`);
+      } catch(logErr) { context.log(`SourceActivityLog insert error: ${logErr.message}`); }
+    }
+    await pool.request()
+      .query(`DELETE FROM SourceActivityLog WHERE OccurredDate < DATEADD(day, -35, GETDATE())`);
 
     // Purge exclusions older than recencyDays
     await pool.request()
