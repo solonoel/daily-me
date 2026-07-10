@@ -12,12 +12,13 @@ module.exports = async function(context, req) {
       .input('UserID', sql.Int, userID)
       .query(`
         SELECT h.SourceID AS EntityID, 'SharedSource' AS EntityType, h.Name AS DisplayName, h.SourceType,
-               act.LastRetrieved, ISNULL(act.Count30d,0) AS Count30d
+               act.LastRetrieved, ISNULL(act.Count30d,0) AS Count30d, ISNULL(act.Count90d,0) AS Count90d
         FROM HeadlineSource h
         INNER JOIN UserHeadlineSource uhs ON h.SourceID = uhs.SourceID AND uhs.UserID=@UserID
         OUTER APPLY (
           SELECT MAX(OccurredDate) AS LastRetrieved,
-                 SUM(CASE WHEN OccurredDate >= DATEADD(day,-30,GETDATE()) THEN 1 ELSE 0 END) AS Count30d
+                 SUM(CASE WHEN OccurredDate >= DATEADD(day,-30,GETDATE()) THEN 1 ELSE 0 END) AS Count30d,
+                 SUM(CASE WHEN OccurredDate >= DATEADD(day,-90,GETDATE()) THEN 1 ELSE 0 END) AS Count90d
           FROM SourceActivityLog
           WHERE EntityType='SharedSource' AND EntityID=h.SourceID AND UserID=@UserID
         ) act
@@ -26,11 +27,12 @@ module.exports = async function(context, req) {
         UNION ALL
 
         SELECT u.UserOwnedSourceID, 'MySource', u.SourceName, u.SourceType,
-               act.LastRetrieved, ISNULL(act.Count30d,0)
+               act.LastRetrieved, ISNULL(act.Count30d,0), ISNULL(act.Count90d,0)
         FROM UserOwnedSource u
         OUTER APPLY (
           SELECT MAX(OccurredDate) AS LastRetrieved,
-                 SUM(CASE WHEN OccurredDate >= DATEADD(day,-30,GETDATE()) THEN 1 ELSE 0 END) AS Count30d
+                 SUM(CASE WHEN OccurredDate >= DATEADD(day,-30,GETDATE()) THEN 1 ELSE 0 END) AS Count30d,
+                 SUM(CASE WHEN OccurredDate >= DATEADD(day,-90,GETDATE()) THEN 1 ELSE 0 END) AS Count90d
           FROM SourceActivityLog
           WHERE EntityType='MySource' AND EntityID=u.UserOwnedSourceID AND UserID=@UserID
         ) act
@@ -39,11 +41,12 @@ module.exports = async function(context, req) {
         UNION ALL
 
         SELECT k.KeywordID, 'Keyword', k.Keyword, 'Keyword',
-               act.LastRetrieved, ISNULL(act.Count30d,0)
+               act.LastRetrieved, ISNULL(act.Count30d,0), ISNULL(act.Count90d,0)
         FROM HeadlineKeyword k
         OUTER APPLY (
           SELECT MAX(OccurredDate) AS LastRetrieved,
-                 SUM(CASE WHEN OccurredDate >= DATEADD(day,-30,GETDATE()) THEN 1 ELSE 0 END) AS Count30d
+                 SUM(CASE WHEN OccurredDate >= DATEADD(day,-30,GETDATE()) THEN 1 ELSE 0 END) AS Count30d,
+                 SUM(CASE WHEN OccurredDate >= DATEADD(day,-90,GETDATE()) THEN 1 ELSE 0 END) AS Count90d
           FROM SourceActivityLog
           WHERE EntityType='Keyword' AND EntityID=k.KeywordID AND UserID=@UserID
         ) act

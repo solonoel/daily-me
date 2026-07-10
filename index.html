@@ -3446,7 +3446,7 @@ async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
       if(kwName)return kwLabel&&kwLabel.toLowerCase()!==kwName.toLowerCase()?kwLabel:kwName;
     }
     if(!h.KeywordID){
-      if(h.SourceGroupLabel)return h.SourceGroupLabel;
+      if(h.SourceGroupLabel||h.OwnedSourceGroupLabel)return h.SourceGroupLabel||h.OwnedSourceGroupLabel;
       if(h.ChannelName)return 'Subscriptions';
     }
     return 'Other';
@@ -3675,7 +3675,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   function renderHeadlines(){
 
     const menuSources=currentUserMenuFilter
-      ?userOwnedSources.filter(s=>!s.IsInactive&&s.UserMenuID===currentUserMenuFilter&&s.SourceType!=='YT Subscription').sort((a,b)=>(a.Sequence||99)-(b.Sequence||99))
+      ?userOwnedSources.filter(s=>!s.IsInactive&&s.UserMenuID===currentUserMenuFilter&&s.SourceType!=='YT Subscription'&&!(s.IsSysHeader===1||s.IsSysHeader===true)).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99))
       :[];
 const makeSourceRow=s=>{
       const defaultIcon=s.SourceType==='File'?'📄':'🌐';
@@ -5119,14 +5119,13 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 20px">
           <div>🕐 Time: <strong>${new Date(log.timestamp).toLocaleString()}</strong></div>
           <div>⏱ Duration: <strong>${log.durationSeconds}s</strong></div>
-          <div>📥 Fetched: <strong>${log.totalFetched}</strong></div>
           <div>✅ Inserted: <strong>${log.totalInserted}</strong></div>
           <div>🔁 Duplicates: <strong>${log.totalDuplicates}</strong></div>
           <div>🌐 Lang filtered: <strong>${log.totalLangFiltered}</strong></div>
-          <div>📺 YT quota used: <strong>${log.youtubeQuotaUsed}</strong></div>
-          <div style="color:${log.youtubeQuotaRemaining<500?'#e05050':log.youtubeQuotaRemaining<2000?'#e8a020':'inherit'}">📺 YT remaining: <strong>${log.youtubeQuotaRemaining?.toLocaleString()}</strong></div>
           <div>📅 Recency: <strong>${log.recencyDays} days</strong></div>
-          <div>📺 YT skipped: <strong>${log.youtubeSkipped?'Yes':'No'}</strong></div>
+          <div>📺 YT used this run: <strong>${log.youtubeRunUnits}</strong></div>
+          <div>📺 YT used today: <strong>${log.youtubeQuotaUsed}</strong></div>
+          <div style="color:${log.youtubeQuotaRemaining<500?'#e05050':log.youtubeQuotaRemaining<2000?'#e8a020':'inherit'}">📺 YT remaining: <strong>${log.youtubeQuotaRemaining?.toLocaleString()}</strong></div>
         </div>
       </div>`;
       // Errors
@@ -5142,43 +5141,27 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
           <strong>🔕 Hidden menus (no results):</strong> ${window._emptyMenuNames.join(', ')}
         </div>`;
       }
-      // Sources
-      html+=`<div style="margin-bottom:14px">
-        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">🌐 Sources (by fetch count)</div>
-        <table style="width:100%;border-collapse:collapse;font-size:11px">
-          <thead><tr style="background:#f5f9ff;border-bottom:1.5px solid var(--border)">
-            <th style="text-align:left;padding:4px 8px">Source</th>
-            <th style="text-align:right;padding:4px 8px">Fetched</th>
-            <th style="text-align:right;padding:4px 8px">Matched</th>
-            <th style="text-align:right;padding:4px 8px">-Lang</th>
-            <th style="text-align:right;padding:4px 8px">-Recency</th>
-            <th style="text-align:left;padding:4px 8px">Note</th>
-          </tr></thead>
-          <tbody>
-            ${log.sourceResults.map(s=>`<tr style="border-bottom:1px solid #eef5fc">
-              <td style="padding:3px 8px">${s.name}</td>
-              <td style="text-align:right;padding:3px 8px">${s.fetched}</td>
-              <td style="text-align:right;padding:3px 8px">${s.matched}</td>
-              <td style="text-align:right;padding:3px 8px">${s.langFiltered||0}</td>
-              <td style="text-align:right;padding:3px 8px">${s.recencyFiltered||0}</td>
-              <td style="padding:3px 8px;color:${s.error?'#e05050':s.skipped?'#e8a020':'var(--text-muted)'}">${s.error||s.skipped||''}</td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>`;
-      // Keywords
-      if(log.keywordResults?.length){
+      // Inserted (every entry retrieved this run)
+      if(log.insertedItems?.length){
         html+=`<div style="margin-bottom:14px">
-          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">🔍 Keyword Hits (by count)</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">📥 Inserted (${log.insertedItems.length})</div>
           <table style="width:100%;border-collapse:collapse;font-size:11px">
             <thead><tr style="background:#f5f9ff;border-bottom:1.5px solid var(--border)">
+              <th style="text-align:left;padding:4px 8px">Menu</th>
+              <th style="text-align:left;padding:4px 8px">Group</th>
+              <th style="text-align:left;padding:4px 8px">Source</th>
               <th style="text-align:left;padding:4px 8px">Keyword</th>
-              <th style="text-align:right;padding:4px 8px">Hits</th>
+              <th style="text-align:left;padding:4px 8px">Article</th>
+              <th style="text-align:left;padding:4px 8px">Duration</th>
             </tr></thead>
             <tbody>
-              ${log.keywordResults.map(k=>`<tr style="border-bottom:1px solid #eef5fc">
-                <td style="padding:3px 8px">${k.keyword}</td>
-                <td style="text-align:right;padding:3px 8px;font-weight:700;color:var(--sky-deep)">${k.count}</td>
+              ${log.insertedItems.map(i=>`<tr style="border-bottom:1px solid #eef5fc">
+                <td style="padding:3px 8px">${i.menuName||'—'}</td>
+                <td style="padding:3px 8px">${i.groupName||'—'}</td>
+                <td style="padding:3px 8px">${i.sourceName||'—'}</td>
+                <td style="padding:3px 8px">${i.keyword||''}</td>
+                <td style="padding:3px 8px">${i.articleName||''}</td>
+                <td style="padding:3px 8px">${i.duration||''}</td>
               </tr>`).join('')}
             </tbody>
           </table>
@@ -5209,43 +5192,60 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
           </table>
         </div>`;
       }
-      // Unmatched by source
-      if(log.unmatchedBySource?.length){
-        html+=`<div style="margin-bottom:14px">
-          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">❓ Unmatched Articles by Source</div>
-          ${log.unmatchedBySource.map(s=>`
-            <div style="margin-bottom:8px">
-              <div style="font-weight:700;color:var(--sky-deep);margin-bottom:2px">${s.source} (${s.count})</div>
-              ${s.titles.map(t=>`<div style="padding-left:12px;color:var(--text-soft);border-left:2px solid var(--border);margin-bottom:2px">• ${t}</div>`).join('')}
-            </div>`).join('')}
-        </div>`;
-      }
-      // Source & Keyword Effectiveness (30-day history)
+      // Fetch History (90-day effectiveness)
       if(effectiveness.length){
         const typeLabels={SharedSource:'🌐 Shared Sources',MySource:'🔗 My Sources',Keyword:'🔍 Keywords'};
-        const groups=['SharedSource','MySource','Keyword'].map(t=>({type:t,rows:effectiveness.filter(e=>e.EntityType===t).sort((a,b)=>(b.Count30d||0)-(a.Count30d||0))})).filter(g=>g.rows.length);
+        const groups=['SharedSource','MySource','Keyword'].map(t=>({type:t,rows:effectiveness.filter(e=>e.EntityType===t).sort((a,b)=>(b.Count90d||0)-(a.Count90d||0))})).filter(g=>g.rows.length);
         html+=`<div style="margin-bottom:14px">
-          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">📈 Effectiveness — Last 30 Days</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">📈 Fetch History</div>
           ${groups.map(g=>`
             <div style="margin-bottom:10px">
               <div style="font-weight:700;color:var(--sky-deep);margin-bottom:4px;font-size:12px">${typeLabels[g.type]}</div>
               <table style="width:100%;border-collapse:collapse;font-size:11px">
                 <thead><tr style="background:#f5f9ff;border-bottom:1.5px solid var(--border)">
-                  <th style="text-align:left;padding:4px 8px">Name</th>
-                  <th style="text-align:left;padding:4px 8px">Last Retrieved</th>
+                  <th style="text-align:right;padding:4px 8px">Hits (90d)</th>
                   <th style="text-align:right;padding:4px 8px">Hits (30d)</th>
+                  <th style="text-align:left;padding:4px 8px">Last Retrieved</th>
+                  <th style="text-align:left;padding:4px 8px">Name</th>
                 </tr></thead>
                 <tbody>
                   ${g.rows.map(r=>`<tr style="border-bottom:1px solid #eef5fc">
-                    <td style="padding:3px 8px">${r.DisplayName}</td>
-                    <td style="padding:3px 8px;color:${r.LastRetrieved?'var(--text-soft)':'#e05050'}">${r.LastRetrieved?formatDate(r.LastRetrieved,true):'never'}</td>
+                    <td style="text-align:right;padding:3px 8px;font-weight:700;color:${r.Count90d?'var(--sky-deep)':'var(--text-muted)'}">${r.Count90d||0}</td>
                     <td style="text-align:right;padding:3px 8px;font-weight:700;color:${r.Count30d?'var(--sky-deep)':'var(--text-muted)'}">${r.Count30d||0}</td>
+                    <td style="padding:3px 8px;color:${r.LastRetrieved?'var(--text-soft)':'#e05050'}">${r.LastRetrieved?formatDate(r.LastRetrieved,true):'never'}</td>
+                    <td style="padding:3px 8px">${r.DisplayName}</td>
                   </tr>`).join('')}
                 </tbody>
               </table>
             </div>`).join('')}
         </div>`;
       }
+      // Sources (by fetch count) — moved to end of report
+      html+=`<div style="margin-bottom:14px">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">🌐 Sources (by fetch count)</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead><tr style="background:#f5f9ff;border-bottom:1.5px solid var(--border)">
+            <th style="text-align:left;padding:4px 8px">Source</th>
+            <th style="text-align:right;padding:4px 8px">Inserted</th>
+            <th style="text-align:right;padding:4px 8px">Fetched</th>
+            <th style="text-align:right;padding:4px 8px">Matched</th>
+            <th style="text-align:right;padding:4px 8px">-Lang</th>
+            <th style="text-align:right;padding:4px 8px">-Recency</th>
+            <th style="text-align:left;padding:4px 8px">Note</th>
+          </tr></thead>
+          <tbody>
+            ${log.sourceResults.map(s=>`<tr style="border-bottom:1px solid #eef5fc">
+              <td style="padding:3px 8px">${s.name}</td>
+              <td style="text-align:right;padding:3px 8px">${s.inserted||0}</td>
+              <td style="text-align:right;padding:3px 8px">${s.fetched}</td>
+              <td style="text-align:right;padding:3px 8px">${s.matched}</td>
+              <td style="text-align:right;padding:3px 8px">${s.langFiltered||0}</td>
+              <td style="text-align:right;padding:3px 8px">${s.recencyFiltered||0}</td>
+              <td style="padding:3px 8px;color:${s.error?'#e05050':s.skipped?'#e8a020':'var(--text-muted)'}">${s.error||s.skipped||''}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
       html+=`</div>`;
       // Show in modal
       document.getElementById('modal-title').textContent='📋 Fetch Results';

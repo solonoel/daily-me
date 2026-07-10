@@ -31,6 +31,7 @@ module.exports = async function(context, req) {
              h.SourceID, hs.Name AS SourceName,
              uhs.GroupLabel AS SourceGroupLabel,
              uhs.UserMenuID AS SourceUserMenuID,
+             uos.GroupLabel AS OwnedSourceGroupLabel,
              (SELECT TOP 1 k2.ImageURL FROM [HeadlineKeyword] k2
               WHERE k2.UserID = @UserID AND k2.GroupLabel = k.GroupLabel
               AND k2.GroupLabel IS NOT NULL AND k2.ImageURL IS NOT NULL) AS KeywordGroupImage
@@ -38,6 +39,7 @@ module.exports = async function(context, req) {
       LEFT JOIN [HeadlineKeyword] k ON h.KeywordID = k.KeywordID
       LEFT JOIN [HeadlineSource] hs ON h.SourceID = hs.SourceID
       LEFT JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID AND uhs.UserID = @UserID
+      LEFT JOIN [UserOwnedSource] uos ON h.UserOwnedSourceID = uos.UserOwnedSourceID
       WHERE h.UserID = @UserID
       AND COALESCE(h.PublishedDate, h.CreatedDate) >= DATEADD(day, -@RecencyDays, GETDATE())
       ORDER BY

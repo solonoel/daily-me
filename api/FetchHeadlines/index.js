@@ -136,6 +136,20 @@ function isTeamsKeyword(kw) { return kw.GroupLabel?.toLowerCase() === 'teams'; }
 function isExclusionKeyword(kw) { return kw.Keyword && kw.Keyword.trim().startsWith('-'); }
 function exclusionTerm(kw) { return kw.Keyword.trim().substring(1).trim(); }
 
+// Mirrors index.html's resolveGroupLabel() so the Inserted report matches what the user sees on screen
+function resolveGroupName(a, kw) {
+  if (a.keywordID && kw) {
+    const kwLabel = kw.GroupLabel && kw.GroupLabel.trim() !== '' ? kw.GroupLabel.trim() : null;
+    const kwName = kw.text || null;
+    if (kwName) return (kwLabel && kwLabel.toLowerCase() !== kwName.toLowerCase()) ? kwLabel : kwName;
+  }
+  if (!a.keywordID) {
+    if (a.sourceGroupLabel) return a.sourceGroupLabel;
+    if (a.channelName) return 'Subscriptions';
+  }
+  return 'Other';
+}
+
 // Teams identified by GroupLabel='Teams', not by CategoryID
 function applyKeywordMatching(articles, keywords) {
   const teamsKeywords = keywords.filter(isTeamsKeyword);
@@ -491,7 +505,7 @@ module.exports = async function(context, req) {
       .input('ProfileID', sql.Int, profileID)
       .query(`SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.IsActive,
                      h.Sequence, h.YoutubeChannelID, uhs.IsFiltered, uhs.Exclusions, uhs.IsActive AS UserIsActive,
-                     uhs.UserMenuID AS SourceUserMenuID
+                     uhs.UserMenuID AS SourceUserMenuID, uhs.GroupLabel AS SourceGroupLabel
               FROM [HeadlineSource] h
               INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
               LEFT JOIN [UserMenu] um ON um.UserMenuID = uhs.UserMenuID
@@ -502,7 +516,7 @@ module.exports = async function(context, req) {
 
     const uosYTResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT UserOwnedSourceID, SourceName, URL, YoutubeChannelID, UserMenuID, Exclusions
+      .query(`SELECT UserOwnedSourceID, SourceName, URL, YoutubeChannelID, UserMenuID, Exclusions, GroupLabel
               FROM [UserOwnedSource]
               WHERE UserID = @UserID AND SourceType = 'YT Subscription' AND IsInactive = 0`);
     const uosYTSources = uosYTResult.recordset;
@@ -542,9 +556,10 @@ module.exports = async function(context, req) {
 
     const menuResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT UserMenuID, UserMenuSeq FROM [UserMenu] WHERE UserID=@UserID AND IsInactive=0`);
+      .query(`SELECT UserMenuID, UserMenuName, UserMenuSeq FROM [UserMenu] WHERE UserID=@UserID AND IsInactive=0`);
     const menuSeqMap = {};
-    for (const m of menuResult.recordset) menuSeqMap[m.UserMenuID] = m.UserMenuSeq ?? 99;
+    const menuNameMap = {};
+    for (const m of menuResult.recordset) { menuSeqMap[m.UserMenuID] = m.UserMenuSeq ?? 99; menuNameMap[m.UserMenuID] = m.UserMenuName; }
     const kwMenuMap = {};
     for (const k of keywords) {
       if (k.UserMenuID) kwMenuMap[k.KeywordID] = { userMenuID: k.UserMenuID, menuSeq: menuSeqMap[k.UserMenuID] ?? 99 };
@@ -644,6 +659,7 @@ module.exports = async function(context, req) {
           a.sourceID = source.SourceID;
           a.sourceType = source.SourceType;
           a.sourceUserMenuID = source.SourceUserMenuID || null;
+          a.sourceGroupLabel = source.SourceGroupLabel || null;
           if (!a.keywordID) a.keywordID = null;
           if (!a.thumbnailURL) a.thumbnailURL = null;
           if (!a.channelName) a.channelName = null;
@@ -689,6 +705,7 @@ module.exports = async function(context, req) {
           a.sourceName = srcLabel;
           a.sourceType = 'YT Subscription';
           a.sourceUserMenuID = uosYT.UserMenuID || null;
+          a.sourceGroupLabel = uosYT.GroupLabel || null;
         });
         youtubeFetched = true;
         activityLogEntries.push({ entityType: 'MySource', entityID: uosYT.UserOwnedSourceID });
@@ -800,7 +817,6 @@ module.exports = async function(context, req) {
 
     // Build log stats
     const keywordMatchCounts = {};
-    const unmatchedBySource = {};
     const matchedKeywordIDs = new Set();
     for (const a of unique) {
       if (a.isSubscription) continue;
@@ -808,18 +824,18 @@ module.exports = async function(context, req) {
         const kw = kwResult.recordset.find(k => k.KeywordID === a.keywordID);
         if (kw) keywordMatchCounts[kw.text] = (keywordMatchCounts[kw.text] || 0) + 1;
         matchedKeywordIDs.add(a.keywordID);
-      } else if (!a.teamsOnly) {
-        const src = a.sourceName || 'Unknown';
-        if (!unmatchedBySource[src]) unmatchedBySource[src] = [];
-        unmatchedBySource[src].push(a.title);
       }
     }
     matchedKeywordIDs.forEach(id => activityLogEntries.push({ entityType: 'Keyword', entityID: id }));
     const zeroKeywords = kwResult.recordset.filter(k => !keywordMatchCounts[k.text]).map(k => k.text);
 
     let totalInserted = 0;
+    const insertedItems = [];
     for (const a of selected) {
       try {
+        const menuID = a.keywordID ? (kwMenuMap[a.keywordID]?.userMenuID || null) : (a.sourceUserMenuID || null);
+        const menuSeqVal = a.keywordID ? (kwMenuMap[a.keywordID]?.menuSeq || null) : (a.sourceUserMenuID ? (menuSeqMap[a.sourceUserMenuID] ?? null) : null);
+        const kw = a.keywordID ? kwResult.recordset.find(k => k.KeywordID === a.keywordID) : null;
         await pool.request()
           .input('UserID', sql.Int, userID)
           .input('HeadlineName', sql.NVarChar(500), (a.title || '').substring(0, 500))
@@ -830,27 +846,42 @@ module.exports = async function(context, req) {
           .input('ChannelName', sql.NVarChar(200), a.channelName || null)
           .input('ChannelURL', sql.NVarChar(500), a.channelURL || null)
           .input('SourceID', sql.Int, a.sourceID || null)
+          .input('UserOwnedSourceID', sql.Int, a.userOwnedSourceID || null)
           .input('Duration', sql.VarChar(20), a.duration || null)
           .input('PublishedDate', sql.DateTime, a.pubDate || null)
-          .input('UserMenuID', sql.Int, a.keywordID ? (kwMenuMap[a.keywordID]?.userMenuID || null) : (a.sourceUserMenuID || null))
-          .input('MenuSeq', sql.SmallInt, a.keywordID ? (kwMenuMap[a.keywordID]?.menuSeq || null) : (a.sourceUserMenuID ? (menuSeqMap[a.sourceUserMenuID] ?? null) : null))
+          .input('UserMenuID', sql.Int, menuID)
+          .input('MenuSeq', sql.SmallInt, menuSeqVal)
           .query(`INSERT INTO [Headline]
                     (UserID, HeadlineName, Link, Summary, CreatedDate, Retain,
-                     KeywordID, ThumbnailURL, ChannelName, ChannelURL, SourceID, Duration, PublishedDate,
+                     KeywordID, ThumbnailURL, ChannelName, ChannelURL, SourceID, UserOwnedSourceID, Duration, PublishedDate,
                      UserMenuID, MenuSeq)
                   VALUES
                     (@UserID, @HeadlineName, @Link, @Summary, GETDATE(), 'N',
-                     @KeywordID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID, @Duration, @PublishedDate,
+                     @KeywordID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID, @UserOwnedSourceID, @Duration, @PublishedDate,
                      @UserMenuID, @MenuSeq)`);
         totalInserted++;
         if (logSources[a.sourceName]) {
+          logSources[a.sourceName].inserted = (logSources[a.sourceName].inserted || 0) + 1;
           if (a.keywordID) logSources[a.sourceName].matched++;
-          else logSources[a.sourceName].unmatched.push(a.title);
         }
+        insertedItems.push({
+          menuName: menuID ? (menuNameMap[menuID] || '') : '',
+          groupName: resolveGroupName(a, kw),
+          sourceName: a.sourceName || '',
+          keyword: kw ? kw.text : '',
+          articleName: a.title || '',
+          duration: a.duration || ''
+        });
       } catch(insertErr) {
         context.log(`Insert error: ${insertErr.message} | title: ${a.title?.substring(0,50)}`);
       }
     }
+    insertedItems.sort((x, y) =>
+      x.menuName.localeCompare(y.menuName) ||
+      x.groupName.localeCompare(y.groupName) ||
+      x.sourceName.localeCompare(y.sourceName) ||
+      x.keyword.localeCompare(y.keyword)
+    );
 
     const fetchDuration = ((Date.now() - fetchStart) / 1000).toFixed(1);
     const fetchLog = {
@@ -863,14 +894,12 @@ module.exports = async function(context, req) {
       totalDuplicates,
       totalLangFiltered,
       youtubeRunUnits: quotaUsed.units,
-      youtubeSkipped: youtubeAlreadyFetched || disableYoutube,
       errors: logErrors,
+      insertedItems,
       sourceResults: Object.entries(logSources)
-        .map(([name, s]) => ({ name, fetched: s.fetched || 0, langFiltered: s.langFiltered || 0, recencyFiltered: s.recencyFiltered || 0, matched: s.matched || 0, skipped: s.skipped || null, error: s.error || null }))
+        .map(([name, s]) => ({ name, fetched: s.fetched || 0, langFiltered: s.langFiltered || 0, recencyFiltered: s.recencyFiltered || 0, matched: s.matched || 0, inserted: s.inserted || 0, skipped: s.skipped || null, error: s.error || null }))
         .sort((a, b) => b.fetched - a.fetched),
-      keywordResults: Object.entries(keywordMatchCounts).map(([kw, count]) => ({ keyword: kw, count })).sort((a, b) => b.count - a.count),
       zeroHitKeywords: zeroKeywords,
-      unmatchedBySource: Object.entries(unmatchedBySource).sort((a, b) => a[0].localeCompare(b[0])).map(([source, titles]) => ({ source, count: titles.length, titles })),
       gerdesVideos: selected.filter(a => a.sourceID === 34).map(a => ({ title: a.title, pubDate: a.pubDate ? new Date(a.pubDate).toLocaleDateString('en-US') : '—' }))
     };
 
@@ -919,7 +948,7 @@ module.exports = async function(context, req) {
       } catch(logErr) { context.log(`SourceActivityLog insert error: ${logErr.message}`); }
     }
     await pool.request()
-      .query(`DELETE FROM SourceActivityLog WHERE OccurredDate < DATEADD(day, -35, GETDATE())`);
+      .query(`DELETE FROM SourceActivityLog WHERE OccurredDate < DATEADD(day, -90, GETDATE())`);
 
     // Purge exclusions older than recencyDays
     await pool.request()
