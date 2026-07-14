@@ -301,6 +301,7 @@
         <a href="#" onclick="setGroupExpand(false);return false;" style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.85);white-space:nowrap">Collapse</a>
       </div>
     </div>
+    <div id="nav-mode-sysheader-btns" style="display:none;align-items:center;flex-wrap:wrap;gap:3px;max-width:56px;margin-left:10px"></div>
     <div>
       <div class="app-title">Daily <span>Me</span></div>
       <div class="greeting" id="greeting"></div>
@@ -453,6 +454,15 @@
               <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">On Weather Click</div>
               <input type="text" id="us-weatherurl" class="form-input" style="width:180px;font-size:12px;padding:3px 5px" placeholder="https://...">
               <div style="font-size:10px;color:var(--text-muted);margin-top:2px">optional URL</div>
+            </div>
+            <div id="log-folder-row">
+              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Log Download Folder</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="chooseLogFolder()">Choose Folder</button>
+                <span id="log-folder-status" style="font-size:11px;color:var(--text-soft)">Not set</span>
+                <a href="#" id="log-folder-clear" onclick="clearLogFolder();return false;" style="display:none;font-size:11px;color:#e05050">Clear</a>
+              </div>
+              <div style="font-size:10px;color:var(--text-muted);margin-top:2px">auto-saves after each refresh · Chrome/Edge only</div>
             </div>
           </div>
           <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px">
@@ -1063,6 +1073,7 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
     return{url,specs:`width=${winW},height=${screen.availHeight},left=${navRight},top=${screenTop},resizable=yes,scrollbars=yes`,navRight,winW,screenTop};
   }
   function showInCompanion(action,params={}){
+    try{localStorage.setItem(`dailyme_companion_last_action_${USER_ID}`,JSON.stringify({action,...params}));}catch(e){}
     const{url,specs,navRight,winW,screenTop}=_companionSpecs();
     if(!companionWin||companionWin.closed){
       companionWin=window.open(url,'dailyme_companion',specs);
@@ -1423,6 +1434,7 @@ try{
       const navFullLink=document.getElementById('nav-full-link');if(navFullLink)navFullLink.style.display='flex';
       const profileFullWrap=document.getElementById('profile-full-wrap');if(profileFullWrap)profileFullWrap.style.display='none';
       renderNavPanel();
+      renderNavModeSysHeaderButtons();
       document.querySelectorAll('.nav-sysheader-btn').forEach(b=>b.remove());
     } else {
       document.body.classList.remove('nav-mode');
@@ -1449,6 +1461,7 @@ try{
       if(recencyBar){ recencyBar.style.width=''; recencyBar.style.maxWidth=''; recencyBar.style.minWidth=''; }
       if(header){ header.style.width=''; header.style.maxWidth=''; header.style.minWidth=''; }
       renderSysHeaderButtons();
+      renderNavModeSysHeaderButtons();
       // Reload weather into the full-mode weather block
       loadWeather();
     }
@@ -1523,22 +1536,7 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
         <span class="nav-panel-btn-label">${m.UserMenuName}</span>
       </button>`;
     }).join('');
-    // Append System Header source buttons
-    const sysHeaderSources=userOwnedSources
-      .filter(s=>(s.IsSysHeader===1||s.IsSysHeader===true)&&!s.IsInactive)
-      .sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
-    sysHeaderSources.forEach(s=>{
-      const escapedURL=s.URL.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      const btn=document.createElement('button');
-      btn.className='nav-panel-btn';
-      btn.title=s.SourceName;
-      btn.setAttribute('onclick',`openSourceEntry('${escapedURL}','${(s.SourceType||'').replace(/'/g,"\\'")}');`);
-      const iconHTML=s.ThumbnailURL
-        ?`<img src="${s.ThumbnailURL}" style="width:22px;height:22px;border-radius:3px;object-fit:cover">`
-        :`<span style="font-size:16px">${s.SourceType==='File'?'📄':'🌐'}</span>`;
-      btn.innerHTML=`${iconHTML}<span class="nav-panel-btn-label">${s.SourceName}</span>`;
-      grid.appendChild(btn);
-    });
+    // System Header sources now render in the header bar (renderNavModeSysHeaderButtons), not here.
     // Append Weather button
     const weatherNavBtn=document.createElement('button');
     weatherNavBtn.className='nav-panel-btn';
@@ -1680,6 +1678,7 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
       const zipCode=userSettings?.user?.ZipCode||userSettings?.zipCode||'';
       const zipEl=document.getElementById('us-zipcode');if(zipEl&&zipCode)zipEl.value=zipCode;
       renderLanguageScreens();renderLanguageCheckList();
+      initLogFolderUI();
     }catch(e){console.error('[companion] Error loading settings/sources/keywords/languages:',e);}
     try{
       const[mySitesData,menuData,cats,srcsData]=await Promise.all([
@@ -1699,6 +1698,13 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
       else if(e.data?.action==='closeCompanion'){window.close();}
     };
     _companionChannel.postMessage({action:'companionReady'});
+    // Replay the last requested screen — handles a direct refresh (F5) of this window,
+    // since a raw reload never receives a BroadcastChannel message from the main window.
+    try{
+      const lastAction=JSON.parse(localStorage.getItem(`dailyme_companion_last_action_${USER_ID}`)||'null');
+      if(lastAction?.action==='showSettings')showScreen('settings');
+      else if(lastAction?.action==='showLanguage'&&lastAction.langID)await visitLanguage(lastAction.langID,lastAction.langName);
+    }catch(e){}
   }
 
   async function loadAll(){
@@ -1790,6 +1796,7 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
       }
     }catch(e){}
     renderLanguageScreens();renderLanguageCheckList();
+    initLogFolderUI();
     const [mySitesData,menuData,srcsData] = await Promise.all([
       apiGet('GetUserOwnedSources'),
       apiGet('GetUserMenu',`&profileID=${currentUserProfileID}`),
@@ -1938,8 +1945,34 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     });
   }
 
+  function renderNavModeSysHeaderButtons(){
+    const container=document.getElementById('nav-mode-sysheader-btns');
+    if(!container)return;
+    if(!_navMode){container.style.display='none';container.innerHTML='';return;}
+    container.innerHTML='';
+    const buttons=userOwnedSources
+      .filter(s=>(s.IsSysHeader===1||s.IsSysHeader===true)&&!s.IsInactive)
+      .sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
+    if(!buttons.length){container.style.display='none';return;}
+    container.style.display='flex';
+    buttons.forEach(s=>{
+      const btn=document.createElement('button');
+      btn.className='nav-mode-sysheader-btn';
+      btn.title=s.SourceName;
+      btn.style.cssText='width:22px;height:22px;padding:0;border-radius:5px;border:1.5px solid rgba(255,255,255,0.35);background:rgba(255,255,255,0.18);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;transition:background 0.2s';
+      btn.onmouseenter=()=>btn.style.background='rgba(255,255,255,0.3)';
+      btn.onmouseleave=()=>btn.style.background='rgba(255,255,255,0.18)';
+      btn.onclick=()=>openSourceEntry(s.URL,s.SourceType||'');
+      btn.innerHTML=s.ThumbnailURL
+        ?`<img src="${s.ThumbnailURL}" style="width:100%;height:100%;object-fit:cover">`
+        :`<span style="font-size:11px;line-height:1;color:white">${s.SourceType==='File'?'📄':'🌐'}</span>`;
+      container.appendChild(btn);
+    });
+  }
+
 function renderLanguageNav(){
     renderSysHeaderButtons();
+    renderNavModeSysHeaderButtons();
     renderUserMenuNav();
   }
 
@@ -3531,6 +3564,7 @@ async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
         updateQuotaDisplay(refreshedSettings.headlineSetting.QuotaUsed,refreshedSettings.headlineSetting.QuotaDate);
       }
       const link=document.getElementById('fetch-results-link');if(link)link.style.display='inline';
+      autoSaveFetchLogIfEnabled();
 const now=new Date();
       const ts=fmtDT(now);
       const lft=document.getElementById('last-fetch-time');if(lft){lft.textContent=`refresh: ${ts}`;lft.style.display='';}
@@ -4817,7 +4851,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       const otherCol='';
       return `<tr draggable="true" data-id="${s.SourceID}" data-seq="${s.Sequence||999}">
         <td style="width:30px;text-align:center;color:var(--text-muted)">⠿</td>
-        <td><strong>${s.Name}</strong></td>
+        <td><strong>${s.Name}</strong>${s.SourceType==='Youtube'&&!s.YoutubeChannelID?' <span style="color:#e05050;font-weight:700;font-size:11px">(No ChannelID)</span>':''}</td>
         <td><span class="badge">${s.SourceType||'—'}</span></td>
         <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)" title="${s.URL}">${s.URL}</td>
         <td style="font-size:12px">${s.DateAdded?formatDate(s.DateAdded):'—'}</td>
@@ -4865,6 +4899,11 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     if(src?.YoutubeChannelID){
       gsResolvedChannelID=src.YoutubeChannelID;
       document.getElementById('gs-channelid-display').textContent=`Channel ID: ${src.YoutubeChannelID}`;
+      document.getElementById('gs-channelid-display').style.color='var(--sky-deep)';
+      document.getElementById('gs-channelid-display').style.display='block';
+    }else if(sourceID&&src?.SourceType==='Youtube'){
+      document.getElementById('gs-channelid-display').textContent='No Channel ID';
+      document.getElementById('gs-channelid-display').style.color='#e05050';
       document.getElementById('gs-channelid-display').style.display='block';
     }
     document.getElementById('gs-source-modal').style.display='flex';
@@ -5105,11 +5144,140 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
   }
 
-  async function openFetchLog(){
+  // ── LOG DOWNLOAD FOLDER (File System Access API — Chrome/Edge only) ──
+
+  const LOG_FOLDER_KEY=`logFolder_${USER_ID}`;
+
+  function openHandleDB(){
+    return new Promise((resolve,reject)=>{
+      const req=indexedDB.open('dailyme_fs',1);
+      req.onupgradeneeded=()=>{req.result.createObjectStore('handles');};
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);
+    });
+  }
+  async function idbGet(key){
+    const db=await openHandleDB();
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction('handles','readonly');
+      const req=tx.objectStore('handles').get(key);
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);
+    });
+  }
+  async function idbSet(key,value){
+    const db=await openHandleDB();
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction('handles','readwrite');
+      tx.objectStore('handles').put(value,key);
+      tx.oncomplete=()=>resolve();
+      tx.onerror=()=>reject(tx.error);
+    });
+  }
+  async function idbDelete(key){
+    const db=await openHandleDB();
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction('handles','readwrite');
+      tx.objectStore('handles').delete(key);
+      tx.oncomplete=()=>resolve();
+      tx.onerror=()=>reject(tx.error);
+    });
+  }
+
+  function updateLogFolderStatusUI(name,granted,notFound=false){
+    const statusEl=document.getElementById('log-folder-status');
+    const clearLink=document.getElementById('log-folder-clear');
+    if(statusEl)statusEl.textContent=name?(notFound?`⚠️ ${name} — folder not found, please reselect`:granted?`✓ ${name}`:`⚠️ ${name} — click Choose Folder to re-authorize`):'Not set';
+    if(clearLink)clearLink.style.display=name?'inline':'none';
+  }
+
+  async function checkLogFolderExists(handle){
     try{
-      const [data,effData]=await Promise.all([apiGet('GetFetchLog'),apiGet('GetFetchResults')]);
-      if(data?.error){alert('No fetch log available yet. Run a refresh first.');return;}
-      const log=data;
+      const iter=handle.values();
+      await iter.next();
+      return true;
+    }catch(e){
+      return false; // deleted/moved folders throw NotFoundError here
+    }
+  }
+
+  async function initLogFolderUI(){
+    const row=document.getElementById('log-folder-row');
+    if(!('showDirectoryPicker' in window)){
+      if(row)row.style.display='none';
+      return;
+    }
+    if(row)row.style.display='';
+    try{
+      const handle=await idbGet(LOG_FOLDER_KEY);
+      if(handle){
+        const perm=await handle.queryPermission({mode:'readwrite'});
+        if(perm==='granted'){
+          const exists=await checkLogFolderExists(handle);
+          if(!exists){updateLogFolderStatusUI(handle.name,false,true);return;}
+        }
+        updateLogFolderStatusUI(handle.name,perm==='granted');
+      }else{
+        updateLogFolderStatusUI(null,false);
+      }
+    }catch(e){updateLogFolderStatusUI(null,false);}
+  }
+
+  async function chooseLogFolder(){
+    if(!('showDirectoryPicker' in window)){alert('This feature requires Chrome or Edge.');return;}
+    try{
+      const handle=await window.showDirectoryPicker({mode:'readwrite'});
+      await idbSet(LOG_FOLDER_KEY,handle);
+      updateLogFolderStatusUI(handle.name,true);
+    }catch(e){ /* user cancelled the picker */ }
+  }
+
+  async function clearLogFolder(){
+    await idbDelete(LOG_FOLDER_KEY);
+    updateLogFolderStatusUI(null,false);
+  }
+
+  async function pruneOldLogFiles(dirHandle){
+    const cutoff=Date.now()-(30*24*60*60*1000);
+    try{
+      for await (const [name,entryHandle] of dirHandle.entries()){
+        if(entryHandle.kind!=='file'||!name.startsWith('DailyMe Log - '))continue;
+        try{
+          const file=await entryHandle.getFile();
+          if(file.lastModified<cutoff)await dirHandle.removeEntry(name);
+        }catch(e){}
+      }
+    }catch(e){}
+  }
+
+  async function autoSaveFetchLogIfEnabled(){
+    if(!('showDirectoryPicker' in window))return;
+    let handle;
+    try{
+      handle=await idbGet(LOG_FOLDER_KEY);
+      if(!handle)return;
+      const perm=await handle.queryPermission({mode:'readwrite'});
+      if(perm!=='granted')return; // needs a user click to re-authorize — skip silently
+    }catch(e){return;}
+    try{
+      const bodyHtml=await buildFetchLogHTML();
+      if(!bodyHtml)return;
+      const fullHtml=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fetch Results</title><style>body{font-family:Arial,sans-serif;font-size:13px;padding:24px;max-width:900px;margin:0 auto}table{width:100%;border-collapse:collapse;margin-bottom:16px}th,td{text-align:left;padding:4px 8px;border-bottom:1px solid #ddd}th{background:#f0f7ff}h3{margin:16px 0 8px}</style></head><body>${bodyHtml}</body></html>`;
+      const now=new Date();
+      const pad=n=>String(n).padStart(2,'0');
+      const filename=`DailyMe Log - ${now.getFullYear()}.${pad(now.getMonth()+1)}.${pad(now.getDate())} ${pad(now.getHours())}.${pad(now.getMinutes())}.html`;
+      const fileHandle=await handle.getFileHandle(filename,{create:true});
+      const writable=await fileHandle.createWritable();
+      await writable.write(fullHtml);
+      await writable.close();
+      await pruneOldLogFiles(handle);
+    }catch(e){console.error('Auto-save log failed:',e);}
+  }
+
+  async function buildFetchLogHTML(){
+    const [data,effData]=await Promise.all([apiGet('GetFetchLog'),apiGet('GetFetchResults')]);
+    if(data?.error)return null;
+    const log=data;
       const effectiveness=Array.isArray(effData)?effData:[];
       const fmt=n=>String(n||0).padStart(4,' ');
       let html=`<div style="font-family:'DM Sans',sans-serif;font-size:12px;line-height:1.6">`;
@@ -5198,7 +5366,14 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
         const groups=['SharedSource','MySource','Keyword'].map(t=>({type:t,rows:effectiveness.filter(e=>e.EntityType===t).sort((a,b)=>(b.Count90d||0)-(a.Count90d||0))})).filter(g=>g.rows.length);
         html+=`<div style="margin-bottom:14px">
           <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">📈 Fetch History</div>
-          ${groups.map(g=>`
+          ${groups.map(g=>{
+            const sourceHeader=g.type==='Keyword'?'<th style="text-align:left;padding:4px 8px">Source</th>':'';
+            const extraHeader=g.type==='SharedSource'
+              ?'<th style="text-align:left;padding:4px 8px">Active</th><th style="text-align:left;padding:4px 8px">Filtered</th><th style="text-align:left;padding:4px 8px">Menu</th>'
+              :g.type==='MySource'
+              ?'<th style="text-align:left;padding:4px 8px">Active</th><th style="text-align:left;padding:4px 8px">Type</th><th style="text-align:left;padding:4px 8px">Menu</th>'
+              :'<th style="text-align:left;padding:4px 8px">Active</th><th style="text-align:left;padding:4px 8px">Menu</th>';
+            return `
             <div style="margin-bottom:10px">
               <div style="font-weight:700;color:var(--sky-deep);margin-bottom:4px;font-size:12px">${typeLabels[g.type]}</div>
               <table style="width:100%;border-collapse:collapse;font-size:11px">
@@ -5206,18 +5381,31 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
                   <th style="text-align:right;padding:4px 8px">Hits (90d)</th>
                   <th style="text-align:right;padding:4px 8px">Hits (30d)</th>
                   <th style="text-align:left;padding:4px 8px">Last Retrieved</th>
+                  ${sourceHeader}
                   <th style="text-align:left;padding:4px 8px">Name</th>
+                  ${extraHeader}
                 </tr></thead>
                 <tbody>
-                  ${g.rows.map(r=>`<tr style="border-bottom:1px solid #eef5fc">
-                    <td style="text-align:right;padding:3px 8px;font-weight:700;color:${r.Count90d?'var(--sky-deep)':'var(--text-muted)'}">${r.Count90d||0}</td>
-                    <td style="text-align:right;padding:3px 8px;font-weight:700;color:${r.Count30d?'var(--sky-deep)':'var(--text-muted)'}">${r.Count30d||0}</td>
-                    <td style="padding:3px 8px;color:${r.LastRetrieved?'var(--text-soft)':'#e05050'}">${r.LastRetrieved?formatDate(r.LastRetrieved,true):'never'}</td>
-                    <td style="padding:3px 8px">${r.DisplayName}</td>
-                  </tr>`).join('')}
+                  ${g.rows.map(r=>{
+                    const sourceCol=g.type==='Keyword'?`<td style="padding:3px 8px;color:var(--text-soft)">${r.SourceName||'—'}</td>`:'';
+                    const extraCols=g.type==='SharedSource'
+                      ?`<td style="padding:3px 8px">${r.IsActive==='Y'?'✅':'—'}</td><td style="padding:3px 8px">${r.IsFiltered==='Y'?'✅':'—'}</td><td style="padding:3px 8px;color:var(--text-soft)">${r.MenuName||'—'}</td>`
+                      :g.type==='MySource'
+                      ?`<td style="padding:3px 8px">${r.IsActive==='Y'?'✅':'—'}</td><td style="padding:3px 8px"><span class="badge">${r.SourceType||'—'}</span></td><td style="padding:3px 8px;color:var(--text-soft)">${r.MenuName||'—'}</td>`
+                      :`<td style="padding:3px 8px">${r.IsActive==='Y'?'✅':'—'}</td><td style="padding:3px 8px;color:var(--text-soft)">${r.MenuName||'—'}</td>`;
+                    return `<tr style="border-bottom:1px solid #eef5fc">
+                      <td style="text-align:right;padding:3px 8px;font-weight:700;color:${r.Count90d?'var(--sky-deep)':'var(--text-muted)'}">${r.Count90d||0}</td>
+                      <td style="text-align:right;padding:3px 8px;font-weight:700;color:${r.Count30d?'var(--sky-deep)':'var(--text-muted)'}">${r.Count30d||0}</td>
+                      <td style="padding:3px 8px;color:${r.LastRetrieved?'var(--text-soft)':'#e05050'}">${r.LastRetrieved?formatDate(r.LastRetrieved,true):'never'}</td>
+                      ${sourceCol}
+                      <td style="padding:3px 8px">${r.DisplayName}</td>
+                      ${extraCols}
+                    </tr>`;
+                  }).join('')}
                 </tbody>
               </table>
-            </div>`).join('')}
+            </div>`;
+          }).join('')}
         </div>`;
       }
       // Sources (by fetch count) — moved to end of report
@@ -5228,9 +5416,9 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
             <th style="text-align:left;padding:4px 8px">Source</th>
             <th style="text-align:right;padding:4px 8px">Inserted</th>
             <th style="text-align:right;padding:4px 8px">Fetched</th>
-            <th style="text-align:right;padding:4px 8px">Matched</th>
-            <th style="text-align:right;padding:4px 8px">-Lang</th>
             <th style="text-align:right;padding:4px 8px">-Recency</th>
+            <th style="text-align:right;padding:4px 8px">-Lang</th>
+            <th style="text-align:right;padding:4px 8px">Matched</th>
             <th style="text-align:left;padding:4px 8px">Note</th>
           </tr></thead>
           <tbody>
@@ -5238,16 +5426,22 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
               <td style="padding:3px 8px">${s.name}</td>
               <td style="text-align:right;padding:3px 8px">${s.inserted||0}</td>
               <td style="text-align:right;padding:3px 8px">${s.fetched}</td>
-              <td style="text-align:right;padding:3px 8px">${s.matched}</td>
-              <td style="text-align:right;padding:3px 8px">${s.langFiltered||0}</td>
               <td style="text-align:right;padding:3px 8px">${s.recencyFiltered||0}</td>
+              <td style="text-align:right;padding:3px 8px">${s.langFiltered||0}</td>
+              <td style="text-align:right;padding:3px 8px">${s.matched}</td>
               <td style="padding:3px 8px;color:${s.error?'#e05050':s.skipped?'#e8a020':'var(--text-muted)'}">${s.error||s.skipped||''}</td>
             </tr>`).join('')}
           </tbody>
         </table>
       </div>`;
       html+=`</div>`;
-      // Show in modal
+      return html;
+  }
+
+  async function openFetchLog(){
+    try{
+      const html=await buildFetchLogHTML();
+      if(html===null){alert('No fetch log available yet. Run a refresh first.');return;}
       document.getElementById('modal-title').textContent='📋 Fetch Results';
       document.getElementById('modal-body').innerHTML=`<div style="max-height:65vh;overflow-y:auto">${html}</div>`;
       document.getElementById('modal-actions').innerHTML=`<button class="btn-primary" onclick="downloadFetchLog()">⬇ Download</button><button class="btn-secondary" onclick="closeModal()">Close</button>`;
@@ -5498,6 +5692,7 @@ function renderMySitesByMenu(menuID) {
       }
       renderMySourcesTable();
       renderSysHeaderButtons();
+      renderNavModeSysHeaderButtons();
     } catch(e) {
       const tbody = document.getElementById('tbl-mysources-body');
       if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="padding:20px;color:#e05050;font-size:13px;font-weight:600">⚠️ Error loading My Sources: ${e.message}</td></tr>`;
