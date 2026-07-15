@@ -1,4 +1,5 @@
 const sql = require('mssql');
+const https = require('https');
 const config = {
   server: 'brunsusa-sql.database.windows.net',
   database: 'DailyMeDB',
@@ -6,6 +7,66 @@ const config = {
   password: process.env.DB_PASSWORD,
   options: { encrypt: true, trustServerCertificate: false, connectTimeout: 60000, requestTimeout: 60000 }
 };
+
+async function resolveYoutubeChannelID(url, apiKey) {
+  const channelMatch = url.match(/\/channel\/(UC[\w-]+)/);
+  if (channelMatch) return channelMatch[1];
+
+  const handleMatch = url.match(/@([\w-]+)/);
+  if (!handleMatch) throw new Error('Could not parse YouTube URL. Use https://www.youtube.com/@ChannelName format.');
+  const handle = handleMatch[1];
+
+  function fetchText(fetchUrl) {
+    return new Promise((resolve, reject) => {
+      const client = fetchUrl.startsWith('https') ? https : require('http');
+      const options = { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36' } };
+      client.get(fetchUrl, options, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          return fetchText(res.headers.location).then(resolve).catch(reject);
+        }
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => resolve(data));
+      }).on('error', reject);
+    });
+  }
+
+  function fetchJson(apiUrl) {
+    return new Promise((resolve, reject) => {
+      https.get(apiUrl, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(new Error('Parse error')); } });
+      }).on('error', reject);
+    });
+  }
+
+  try {
+    const d1 = await fetchJson(`https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=${encodeURIComponent(handle)}&key=${apiKey}`);
+    if (d1?.items?.[0]?.id) return d1.items[0].id;
+  } catch(e) {}
+
+  try {
+    const d2 = await fetchJson(`https://www.googleapis.com/youtube/v3/channels?part=id&forUsername=${encodeURIComponent(handle)}&key=${apiKey}`);
+    if (d2?.items?.[0]?.id) return d2.items[0].id;
+  } catch(e) {}
+
+  try {
+    const html = await fetchText(`https://www.youtube.com/@${handle}`);
+    const match = html.match(/"channelId"\s*:\s*"(UC[\w-]+)"/) ||
+                  html.match(/itemprop="channelId"\s+content="(UC[\w-]+)"/) ||
+                  html.match(/"externalId"\s*:\s*"(UC[\w-]+)"/);
+    if (match) return match[1];
+  } catch(e) {}
+
+  try {
+    const d4 = await fetchJson(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(handle)}&type=channel&maxResults=1&key=${apiKey}`);
+    if (d4?.items?.[0]?.id?.channelId) return d4.items[0].id.channelId;
+  } catch(e) {}
+
+  throw new Error(`YouTube channel not found for @${handle}. Verify the URL is correct.`);
+}
+
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
@@ -16,7 +77,7 @@ module.exports = async function(context, req) {
       const srcResult = await pool.request()
         .input('SourceID', sql.Int, sourceID)
         .input('UserID', sql.Int, userID)
-        .query(`SELECT SourceName, Description, SourceType, URL, ThumbnailURL, Exclusions, UserMenuID, GroupLabel, IsSysHeader
+        .query(`SELECT SourceName, Description, SourceType, URL, ThumbnailURL, Exclusions, UserMenuID, GroupLabel, IsSysHeader, YoutubeChannelID
                 FROM UserOwnedSource WHERE UserOwnedSourceID=@SourceID AND UserID=@UserID`);
       const src = srcResult.recordset[0];
       if (!src) { context.res = { status: 404, body: JSON.stringify({ error: 'Source not found' }) }; return; }
@@ -73,13 +134,23 @@ module.exports = async function(context, req) {
         .input('UserMenuID', sql.Int, targetMenuID)
         .input('GroupLabel', sql.VarChar(100), src.GroupLabel)
         .input('IsSysHeader', sql.Bit, src.IsSysHeader)
+        .input('YoutubeChannelID', sql.NVarChar(50), src.YoutubeChannelID || null)
         .query(`INSERT INTO UserOwnedSource
-                  (UserID,SourceName,Description,SourceType,URL,ThumbnailURL,Exclusions,Sequence,IsInactive,UserMenuID,GroupLabel,IsSysHeader)
-                VALUES (@UserID,@SourceName,@Description,@SourceType,@URL,@ThumbnailURL,@Exclusions,@Sequence,0,@UserMenuID,@GroupLabel,@IsSysHeader);
+                  (UserID,SourceName,Description,SourceType,URL,ThumbnailURL,Exclusions,Sequence,IsInactive,UserMenuID,GroupLabel,IsSysHeader,YoutubeChannelID)
+                VALUES (@UserID,@SourceName,@Description,@SourceType,@URL,@ThumbnailURL,@Exclusions,@Sequence,0,@UserMenuID,@GroupLabel,@IsSysHeader,@YoutubeChannelID);
                 SELECT SCOPE_IDENTITY() AS sourceID`);
       context.res = { status: 200, body: JSON.stringify({ success: true, sourceID: copyResult.recordset[0].sourceID }) };
 
     } else if (action === 'add') {
+      let youtubeChannelID = null;
+      if (sourceType === 'YT Sub') {
+        try {
+          youtubeChannelID = await resolveYoutubeChannelID(url, process.env.YOUTUBE_API_KEY);
+        } catch(e) {
+          context.res = { status: 400, body: JSON.stringify({ error: e.message }) };
+          return;
+        }
+      }
       const maxSeq = await pool.request()
         .input('UserID', sql.Int, userID)
         .query(`SELECT ISNULL(MAX(Sequence),0)+1 AS nextSeq FROM UserOwnedSource WHERE UserID=@UserID`);
@@ -96,13 +167,23 @@ module.exports = async function(context, req) {
         .input('UserMenuID', sql.Int, userMenuID || null)
         .input('GroupLabel', sql.VarChar(100), groupLabel || null)
         .input('IsSysHeader', sql.Bit, isSysHeader ? 1 : 0)
+        .input('YoutubeChannelID', sql.NVarChar(50), youtubeChannelID)
         .query(`INSERT INTO UserOwnedSource
-                  (UserID,SourceName,Description,SourceType,URL,ThumbnailURL,Exclusions,Sequence,IsInactive,UserMenuID,GroupLabel,IsSysHeader)
-                VALUES (@UserID,@SourceName,@Description,@SourceType,@URL,@ThumbnailURL,@Exclusions,@Sequence,0,@UserMenuID,@GroupLabel,@IsSysHeader);
+                  (UserID,SourceName,Description,SourceType,URL,ThumbnailURL,Exclusions,Sequence,IsInactive,UserMenuID,GroupLabel,IsSysHeader,YoutubeChannelID)
+                VALUES (@UserID,@SourceName,@Description,@SourceType,@URL,@ThumbnailURL,@Exclusions,@Sequence,0,@UserMenuID,@GroupLabel,@IsSysHeader,@YoutubeChannelID);
                 SELECT SCOPE_IDENTITY() AS sourceID`);
-      context.res = { status: 200, body: JSON.stringify({ sourceID: result.recordset[0].sourceID }) };
+      context.res = { status: 200, body: JSON.stringify({ sourceID: result.recordset[0].sourceID, youtubeChannelID }) };
 
     } else if (action === 'update') {
+      let youtubeChannelID = null;
+      if (sourceType === 'YT Sub') {
+        try {
+          youtubeChannelID = await resolveYoutubeChannelID(url, process.env.YOUTUBE_API_KEY);
+        } catch(e) {
+          context.res = { status: 400, body: JSON.stringify({ error: e.message }) };
+          return;
+        }
+      }
       await pool.request()
         .input('SourceID', sql.Int, sourceID)
         .input('UserID', sql.Int, userID)
@@ -116,13 +197,14 @@ module.exports = async function(context, req) {
         .input('UserMenuID', sql.Int, userMenuID || null)
         .input('GroupLabel', sql.VarChar(100), groupLabel || null)
         .input('IsSysHeader', sql.Bit, isSysHeader ? 1 : 0)
+        .input('YoutubeChannelID', sql.NVarChar(50), youtubeChannelID)
         .query(`UPDATE UserOwnedSource
                 SET SourceName=@SourceName, Description=@Description, SourceType=@SourceType,
                     URL=@URL, ThumbnailURL=@ThumbnailURL, Exclusions=@Exclusions,
                     IsInactive=@IsInactive, UserMenuID=@UserMenuID, GroupLabel=@GroupLabel,
-                    IsSysHeader=@IsSysHeader
+                    IsSysHeader=@IsSysHeader, YoutubeChannelID=@YoutubeChannelID
                 WHERE UserOwnedSourceID=@SourceID AND UserID=@UserID`);
-      context.res = { status: 200, body: JSON.stringify({ success: true }) };
+      context.res = { status: 200, body: JSON.stringify({ success: true, youtubeChannelID }) };
 
     } else if (action === 'delete') {
       await pool.request()
@@ -140,6 +222,26 @@ module.exports = async function(context, req) {
           .query(`UPDATE UserOwnedSource SET Sequence=@Sequence WHERE UserOwnedSourceID=@SourceID AND UserID=@UserID`);
       }
       context.res = { status: 200, body: JSON.stringify({ success: true }) };
+
+    } else if (action === 'backfillYoutubeChannelIDs') {
+      const pending = await pool.request()
+        .input('UserID', sql.Int, userID)
+        .query(`SELECT UserOwnedSourceID, URL FROM UserOwnedSource
+                WHERE UserID=@UserID AND SourceType='YT Sub' AND YoutubeChannelID IS NULL`);
+      const results = [];
+      for (const row of pending.recordset) {
+        try {
+          const channelID = await resolveYoutubeChannelID(row.URL, process.env.YOUTUBE_API_KEY);
+          await pool.request()
+            .input('SourceID', sql.Int, row.UserOwnedSourceID)
+            .input('YoutubeChannelID', sql.NVarChar(50), channelID)
+            .query(`UPDATE UserOwnedSource SET YoutubeChannelID=@YoutubeChannelID WHERE UserOwnedSourceID=@SourceID`);
+          results.push({ sourceID: row.UserOwnedSourceID, url: row.URL, success: true, channelID });
+        } catch(e) {
+          results.push({ sourceID: row.UserOwnedSourceID, url: row.URL, success: false, error: e.message });
+        }
+      }
+      context.res = { status: 200, body: JSON.stringify({ success: true, count: results.length, results }) };
 
     } else {
       context.res = { status: 400, body: 'Unknown action' };

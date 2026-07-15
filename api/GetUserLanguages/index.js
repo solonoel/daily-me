@@ -11,12 +11,16 @@ module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
     const userID = parseInt(req.query.userID || '1');
+    const profileID = req.query.profileID ? parseInt(req.query.profileID) : null;
     const result = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT ul.UserLanguageID, ul.LanguageID, ul.IsActive, ul.DateAdded,
+      .input('UserProfileID', sql.Int, profileID)
+      .query(`SELECT ul.UserLanguageID, ul.LanguageID, ul.IsActive, ul.DateAdded, ulp.MenuSeq,
                      l.LanguageName, l.LanguageNameEng, l.FlagImage
               FROM [UserLanguage] ul
               JOIN [Language] l ON ul.LanguageID = l.LanguageID
+              LEFT JOIN [UserLanguageProfile] ulp
+                     ON ulp.LanguageID = ul.LanguageID AND ulp.UserProfileID = @UserProfileID
               WHERE ul.UserID = @UserID
               ORDER BY l.SequenceNo`);
     context.res = {

@@ -518,7 +518,7 @@ module.exports = async function(context, req) {
       .input('UserID', sql.Int, userID)
       .query(`SELECT UserOwnedSourceID, SourceName, URL, YoutubeChannelID, UserMenuID, Exclusions, GroupLabel
               FROM [UserOwnedSource]
-              WHERE UserID = @UserID AND SourceType = 'YT Subscription' AND IsInactive = 0`);
+              WHERE UserID = @UserID AND SourceType = 'YT Sub' AND IsInactive = 0`);
     const uosYTSources = uosYTResult.recordset;
 
     function parseExclusions(str) {
@@ -667,9 +667,8 @@ module.exports = async function(context, req) {
           if (!a.duration) a.duration = null;
           if (a.isSubscription === undefined) a.isSubscription = false;
         });
-        if (source.SourceType === 'API' || source.SourceType === 'RSS' || (source.SourceType === 'URL' && source.URL?.includes('youtube.com'))) {
-          activityLogEntries.push({ entityType: 'SharedSource', entityID: source.SourceID });
-        }
+        // Hit logging moved to insert-time below — only sources that actually produce a newly-inserted
+        // headline this run should count as a "hit." Track eligibility here without logging yet.
         context.log(`Source [${source.Name}]: ${articles.length} articles`);
         allArticles = allArticles.concat(articles);
       } catch(err) {
@@ -679,7 +678,7 @@ module.exports = async function(context, req) {
       }
     }
 
-    // ── FETCH MY SOURCES: YT SUBSCRIPTION (unfiltered, like a Shared subscription) ──
+    // ── FETCH MY SOURCES: YT SUB (unfiltered, like a Shared subscription) ──
     for (const uosYT of uosYTSources) {
       const srcLabel = uosYT.SourceName || 'My YouTube Source';
       const srcLog = { fetched: 0, langFiltered: 0, recencyFiltered: 0, matched: 0, unmatched: [] };
@@ -703,16 +702,15 @@ module.exports = async function(context, req) {
           a.userOwnedSourceID = uosYT.UserOwnedSourceID;
           a.sourceID = null;
           a.sourceName = srcLabel;
-          a.sourceType = 'YT Subscription';
+          a.sourceType = 'YT Sub';
           a.sourceUserMenuID = uosYT.UserMenuID || null;
           a.sourceGroupLabel = uosYT.GroupLabel || null;
         });
         youtubeFetched = true;
-        activityLogEntries.push({ entityType: 'MySource', entityID: uosYT.UserOwnedSourceID });
-        context.log(`My Source (YT Subscription) [${srcLabel}]: ${articles.length} articles`);
+        context.log(`My Source (YT Sub) [${srcLabel}]: ${articles.length} articles`);
         allArticles = allArticles.concat(articles);
       } catch(err) {
-        context.log(`Error fetching My Source (YT Subscription) ${srcLabel}: ${err.message}`);
+        context.log(`Error fetching My Source (YT Sub) ${srcLabel}: ${err.message}`);
         logErrors.push({ source: srcLabel, error: err.message });
         logSources[srcLabel].error = err.message;
       }
@@ -755,9 +753,6 @@ module.exports = async function(context, req) {
         const matched = uosArticles.filter(a => a.keywordID);
         logSources[uosSource.Name].matched += matched.length;
         allArticles = allArticles.concat(matched);
-        if (uosKw.OwnedSourceType === 'RSS') {
-          activityLogEntries.push({ entityType: 'MySource', entityID: uosID });
-        }
         context.log(`UserOwnedSource [${uosSource.Name}]: ${uosArticles.length} fetched, ${matched.length} matched`);
       } catch(err) {
         context.log(`Error fetching UserOwnedSource ${uosSource.Name}: ${err.message}`);
@@ -863,6 +858,12 @@ module.exports = async function(context, req) {
         if (logSources[a.sourceName]) {
           logSources[a.sourceName].inserted = (logSources[a.sourceName].inserted || 0) + 1;
           if (a.keywordID) logSources[a.sourceName].matched++;
+        }
+        // Log a "hit" only now — this article was actually inserted, not just fetched/matched
+        if (a.sourceID) {
+          activityLogEntries.push({ entityType: 'SharedSource', entityID: a.sourceID });
+        } else if (a.userOwnedSourceID) {
+          activityLogEntries.push({ entityType: 'MySource', entityID: a.userOwnedSourceID });
         }
         insertedItems.push({
           menuName: menuID ? (menuNameMap[menuID] || '') : '',

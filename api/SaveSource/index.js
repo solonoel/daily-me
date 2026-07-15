@@ -150,7 +150,7 @@ module.exports = async function(context, req) {
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true, userHeadlineSourceID: copyResult.recordset[0].UserHeadlineSourceID, created: true }) };
 
     } else if (action === 'add') {
-      if (sourceType === 'Youtube') {
+      if (sourceType === 'YT Sub') {
         const apiKey = process.env.YOUTUBE_API_KEY;
         let youtubeChannelID;
         try {
@@ -166,7 +166,7 @@ module.exports = async function(context, req) {
         const result = await pool.request()
           .input('Name', sql.NVarChar(200), name)
           .input('URL', sql.NVarChar(500), url)
-          .input('SourceType', sql.NVarChar(20), 'Youtube')
+          .input('SourceType', sql.NVarChar(20), sourceType)
           .input('Sequence', sql.Int, nextSeq)
           .input('YoutubeChannelID', sql.NVarChar(50), youtubeChannelID)
           .query(`

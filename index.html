@@ -746,7 +746,7 @@
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="API" onchange="updateMsTypeFields()"> API</label>
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="RSS" onchange="updateMsTypeFields()"> RSS</label>
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="URL" onchange="updateMsTypeFields()"> URL</label>
-        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="YT Subscription" onchange="updateMsTypeFields()"> YT Subscription</label>
+        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="YT Sub" onchange="updateMsTypeFields()"> YT Sub</label>
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="File" onchange="updateMsTypeFields()"> File</label>
       </div>
     </div>
@@ -768,6 +768,7 @@
       </div>
       <div id="ms-file-note" style="display:none;font-size:11px;color:var(--text-muted);margin-top:4px">Enter the full file path including drive letter and folder.</div>
       <div id="ms-browse-status" style="display:none;font-size:11px;color:#e05050;margin-top:4px">📂 Browse requires the Daily Me Launcher to be running. Go to <strong>Settings → File Launcher</strong> to set it up.</div>
+      <div id="ms-channelid-display" style="display:none;margin-top:6px;font-size:12px;font-weight:600"></div>
     </div>
     <div class="form-group">
       <label class="form-label">Description</label>
@@ -850,6 +851,7 @@
         <label class="form-checkbox-row"><input type="radio" name="gs-type" value="API" onchange="updateGsTypeFields()"> API</label>
         <label class="form-checkbox-row"><input type="radio" name="gs-type" value="RSS" onchange="updateGsTypeFields()"> RSS</label>
         <label class="form-checkbox-row"><input type="radio" name="gs-type" value="URL" onchange="updateGsTypeFields()"> URL</label>
+        <label class="form-checkbox-row"><input type="radio" name="gs-type" value="YT Sub" onchange="updateGsTypeFields()"> YT Sub</label>
       </div>
     </div>
     <div class="form-group">
@@ -1694,10 +1696,27 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     try{
       renderLanguageNav();pingLauncher();
     }catch(e){console.error('[companion] Error rendering nav:',e);}
-    _companionChannel.onmessage=(e)=>{
+    _companionChannel.onmessage=async(e)=>{
       if(e.data?.action==='showSettings'){showScreen('settings');window.focus();}
       else if(e.data?.action==='showLanguage'){visitLanguage(e.data.langID,e.data.langName);window.focus();}
       else if(e.data?.action==='closeCompanion'){window.close();}
+      else if(e.data?.action==='profileChanged'){
+        currentUserProfileID=e.data.profileID;
+        const [menuData,srcsData,ulangsData]=await Promise.all([
+          apiGet('GetUserMenu',`&profileID=${currentUserProfileID||''}`),
+          apiGet('GetHeadlineSources',`&profileID=${currentUserProfileID||''}`),
+          apiGet('GetUserLanguages',`&profileID=${currentUserProfileID||''}`)
+        ]);
+        userMenu=Array.isArray(menuData)?menuData:[];
+        sources=Array.isArray(srcsData)?srcsData:sources;
+        userLanguages=Array.isArray(ulangsData)?ulangsData:userLanguages;
+        renderLanguageScreens();renderLanguageCheckList();renderLanguageNav();
+        const settingsScreenEl=document.getElementById('screen-settings');
+        if(settingsScreenEl?.classList.contains('active')){
+          if(currentSettingsSection){await renderSettingsSection(currentSettingsSection);}
+          else{showSettingsMenu(false);}
+        }
+      }
     };
     _companionChannel.postMessage({action:'companionReady'});
     // Replay the last requested screen — handles a direct refresh (F5) of this window,
@@ -3712,7 +3731,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
   function renderHeadlines(){
 
     const menuSources=currentUserMenuFilter
-      ?userOwnedSources.filter(s=>!s.IsInactive&&s.UserMenuID===currentUserMenuFilter&&s.SourceType!=='YT Subscription'&&!(s.IsSysHeader===1||s.IsSysHeader===true)).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99))
+      ?userOwnedSources.filter(s=>!s.IsInactive&&s.UserMenuID===currentUserMenuFilter&&s.SourceType!=='YT Sub'&&!(s.IsSysHeader===1||s.IsSysHeader===true)).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99))
       :[];
 const makeSourceRow=s=>{
       const defaultIcon=s.SourceType==='File'?'📄':'🌐';
@@ -3896,7 +3915,7 @@ let _pdfClosing=false;
     if(menuSel){
       const sysOpts=menuSel.querySelectorAll('option[value="__sysheader__"], option[disabled]');
       sysOpts.forEach(o=>o.remove());
-      if(type==='URL'||type==='File'||type==='YT Subscription'){
+      if(type==='URL'||type==='File'||type==='YT Sub'){
         const sep=document.createElement('option');
         sep.disabled=true;sep.textContent='─────────────';sep.style.cssText='font-size:4px;line-height:1;padding:0';
         menuSel.appendChild(sep);
@@ -3915,7 +3934,7 @@ let _pdfClosing=false;
     const browseStatus=document.getElementById('ms-browse-status');
     if(urlLabel)urlLabel.textContent=type==='File'?'File Path':'URL';
     if(fileNote)fileNote.style.display=type==='File'?'':'none';
-    if(urlInput)urlInput.placeholder=type==='File'?'Full path e.g. C:\\Documents\\report.pdf or \\\\server\\share\\file.pdf':(type==='YT Subscription'?'https://www.youtube.com/@ChannelName':'');
+    if(urlInput)urlInput.placeholder=type==='File'?'Full path e.g. C:\\Documents\\report.pdf or \\\\server\\share\\file.pdf':(type==='YT Sub'?'https://www.youtube.com/@ChannelName':'');
     if(browseBtn)browseBtn.style.display=type==='File'?'':'none';
     if(browseStatus)browseStatus.style.display='none';
     // Show/hide launcher panel in modal
@@ -4855,7 +4874,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       return `<tr draggable="true" data-id="${s.SourceID}" data-seq="${s.Sequence||999}">
         <td style="width:30px;text-align:center;color:var(--text-muted)">⠿</td>
         <td><strong>${s.Name}</strong>${s.SourceType==='Youtube'&&!s.YoutubeChannelID?' <span style="color:#e05050;font-weight:700;font-size:11px">(No ChannelID)</span>':''}</td>
-        <td><span class="badge">${s.SourceType||'—'}</span></td>
+        <td><span class="badge">${s.SourceType||'—'}</span>${s.SourceType==='YT Sub'&&!s.YoutubeChannelID?' <span style="color:#e05050;font-weight:700;font-size:11px">(no ID)</span>':''}</td>
         <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)" title="${s.URL}">${s.URL}</td>
         <td style="font-size:12px">${s.DateAdded?formatDate(s.DateAdded):'—'}</td>
         <td>${otherCol}</td>
@@ -4896,7 +4915,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     document.getElementById('gs-channel-status').textContent='';
     document.getElementById('gs-channelid-display').style.display='none';
     document.getElementById('gs-channelid-display').textContent='';
-    const type=(src?.SourceType==='Youtube')?'URL':(src?.SourceType||null);
+    const type=src?.SourceType||null;
     document.querySelectorAll('input[name="gs-type"]').forEach(r=>r.checked=!!(type&&r.value===type));
     updateGsTypeFields();
     if(src?.YoutubeChannelID){
@@ -4904,7 +4923,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       document.getElementById('gs-channelid-display').textContent=`Channel ID: ${src.YoutubeChannelID}`;
       document.getElementById('gs-channelid-display').style.color='var(--sky-deep)';
       document.getElementById('gs-channelid-display').style.display='block';
-    }else if(sourceID&&src?.SourceType==='Youtube'){
+    }else if(sourceID&&src?.SourceType==='YT Sub'){
       document.getElementById('gs-channelid-display').textContent='No Channel ID';
       document.getElementById('gs-channelid-display').style.color='#e05050';
       document.getElementById('gs-channelid-display').style.display='block';
@@ -4919,8 +4938,8 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
 
   function updateGsTypeFields(){
     const type=document.querySelector('input[name="gs-type"]:checked')?.value||'RSS';
-    document.getElementById('gs-channel-lookup').style.display=type==='Youtube'?'block':'none';
-    if(type!=='Youtube'){
+    document.getElementById('gs-channel-lookup').style.display=type==='YT Sub'?'block':'none';
+    if(type!=='YT Sub'){
       document.getElementById('gs-channelid-display').style.display='none';
       gsResolvedChannelID=null;
     }
@@ -4934,7 +4953,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     status.textContent='Looking up...';status.style.color='var(--text-muted)';
     display.style.display='none';gsResolvedChannelID=null;
     try{
-      const result=await apiPost('SaveSource',{action:'add',sourceType:'Youtube',url,name:'__lookup__',userID:USER_ID});
+      const result=await apiPost('SaveSource',{action:'add',sourceType:'YT Sub',url,name:'__lookup__',userID:USER_ID});
       if(result.youtubeChannelID){
         gsResolvedChannelID=result.youtubeChannelID;
         status.textContent='✓ Found';status.style.color='#22c55e';
@@ -4953,15 +4972,22 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     const sourceType=document.querySelector('input[name="gs-type"]:checked')?.value||'RSS';
     if(!name)return alert('Name is required');
     if(!url)return alert('URL is required');
+    const isYoutubeURL=/youtube\.com\/@/i.test(url);
+    if(sourceType==='YT Sub'&&!isYoutubeURL){
+      return alert('YT Sub sources must have a URL containing "youtube.com/@" (e.g. https://www.youtube.com/@ChannelName).');
+    }
+    if(sourceType!=='YT Sub'&&isYoutubeURL){
+      return alert('This URL looks like a YouTube channel. Please select "YT Sub" as the Type instead.');
+    }
     if(sourceType==='URL'){
       try{new URL(url);}catch(e){return alert('Enter a valid web address (e.g. https://www.example.com)');}
       if(!/^https?:\/\/.+\..+/.test(url))return alert('URL must start with http:// or https://');
     }
-    if(sourceType==='Youtube'&&!gsResolvedChannelID&&!gsEditingID){
+    if(sourceType==='YT Sub'&&!gsResolvedChannelID&&!gsEditingID){
       const status=document.getElementById('gs-channel-status');
       if(status){status.textContent='Looking up channel...';status.style.color='var(--text-muted)';}
       try{
-        const lookupResult=await apiPost('SaveSource',{action:'add',sourceType:'Youtube',url,name:'__lookup__',userID:USER_ID});
+        const lookupResult=await apiPost('SaveSource',{action:'add',sourceType:'YT Sub',url,name:'__lookup__',userID:USER_ID});
         if(lookupResult.youtubeChannelID){
           gsResolvedChannelID=lookupResult.youtubeChannelID;
           if(lookupResult.sourceID)await apiPost('SaveSource',{action:'delete',sourceID:lookupResult.sourceID,globalDelete:true,userID:USER_ID});
@@ -5249,7 +5275,8 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
         if(entryHandle.kind!=='file'||!name.startsWith('DailyMe Log - '))continue;
         try{
           const file=await entryHandle.getFile();
-          if(file.lastModified<cutoff)await dirHandle.removeEntry(name);
+          // Remove old files, and also remove any 0-byte files regardless of age (failed/interrupted writes)
+          if(file.lastModified<cutoff||file.size===0)await dirHandle.removeEntry(name);
         }catch(e){}
       }
     }catch(e){}
@@ -5271,10 +5298,23 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       const now=new Date();
       const pad=n=>String(n).padStart(2,'0');
       const filename=`DailyMe Log - ${now.getFullYear()}.${pad(now.getMonth()+1)}.${pad(now.getDate())} ${pad(now.getHours())}.${pad(now.getMinutes())}.html`;
-      const fileHandle=await handle.getFileHandle(filename,{create:true});
-      const writable=await fileHandle.createWritable();
+      const tempFilename=`.tmp-${Date.now()}-${filename}`;
+      const tempHandle=await handle.getFileHandle(tempFilename,{create:true});
+      const writable=await tempHandle.createWritable();
       await writable.write(fullHtml);
       await writable.close();
+      // Verify the temp file actually has content before promoting it — never leave a 0-byte file at the real name
+      const verifyFile=await tempHandle.getFile();
+      if(verifyFile.size===0){
+        try{await handle.removeEntry(tempFilename);}catch(e){}
+        console.error('Auto-save log: write verification failed, temp file was empty. Aborting save.');
+        return;
+      }
+      const finalHandle=await handle.getFileHandle(filename,{create:true});
+      const finalWritable=await finalHandle.createWritable();
+      await finalWritable.write(await tempHandle.getFile());
+      await finalWritable.close();
+      try{await handle.removeEntry(tempFilename);}catch(e){}
       await pruneOldLogFiles(handle);
     }catch(e){console.error('Auto-save log failed:',e);}
   }
@@ -5368,7 +5408,12 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       // Fetch History (90-day effectiveness)
       if(effectiveness.length){
         const typeLabels={SharedSource:'🌐 Shared Sources',MySource:'🔗 My Sources',Keyword:'🔍 Keywords'};
-        const groups=['SharedSource','MySource','Keyword'].map(t=>({type:t,rows:effectiveness.filter(e=>e.EntityType===t).sort((a,b)=>(b.Count90d||0)-(a.Count90d||0))})).filter(g=>g.rows.length);
+        const groups=['SharedSource','MySource','Keyword'].map(t=>{
+          let rows=effectiveness.filter(e=>e.EntityType===t);
+          if(t==='MySource') rows=rows.filter(e=>e.SourceType!=='URL'&&e.SourceType!=='File');
+          rows.sort((a,b)=>(b.Count90d||0)-(a.Count90d||0));
+          return {type:t,rows};
+        }).filter(g=>g.rows.length);
         html+=`<div style="margin-bottom:14px">
           <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">📈 Fetch History</div>
           ${groups.map(g=>{
@@ -5462,6 +5507,26 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     return newest;
   }
 
+  function openHtmlInNewTab(html){
+    const win=window.open('','_blank','noopener');
+    if(!win){alert('Could not open a new tab — check your popup blocker.');return;}
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+  }
+
+  function warnIfLogStale(fileTimestamp){
+    const savedTs=localStorage.getItem(`dailyme_last_fetch_time_${USER_ID}`);
+    if(!savedTs)return;
+    const lastRefresh=new Date(savedTs).getTime();
+    const graceMs=2*60*1000;
+    if(lastRefresh-fileTimestamp>graceMs){
+      const fileDate=new Date(fileTimestamp);
+      const refreshDate=new Date(lastRefresh);
+      alert(`⚠️ This log is from an earlier run.\n\nFile saved: ${fmtDT(fileDate)}\nMost recent refresh: ${fmtDT(refreshDate)}\n\nThe latest run's log may not have saved correctly.`);
+    }
+  }
+
   async function openFetchLog(){
     // If a log download folder is set and accessible, open the most recent saved file directly
     try{
@@ -5472,9 +5537,9 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
           const fileHandle=await getMostRecentLogFileHandle();
           if(fileHandle){
             const file=await fileHandle.getFile();
-            const url=URL.createObjectURL(file);
-            window.open(url,'_blank','noopener');
-            setTimeout(()=>URL.revokeObjectURL(url),60000);
+            const text=await file.text();
+            warnIfLogStale(file.lastModified);
+            openHtmlInNewTab(text);
             return;
           }
         }
@@ -5495,13 +5560,45 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     try{
       const handle=await idbGet(LOG_FOLDER_KEY);
       if(!handle){alert('No log download folder is set.');return;}
-      const fileHandle=await getMostRecentLogFileHandle();
-      if(!fileHandle){alert('No saved log files found in the folder yet.');return;}
-      const file=await fileHandle.getFile();
-      const url=URL.createObjectURL(file);
-      window.open(url,'_blank','noopener');
-      setTimeout(()=>URL.revokeObjectURL(url),60000);
+      const perm=await handle.queryPermission({mode:'read'});
+      if(perm!=='granted'){
+        const req=await handle.requestPermission({mode:'read'});
+        if(req!=='granted'){alert('Permission to the log folder was not granted.');return;}
+      }
+      const files=[];
+      for await (const [name,entryHandle] of handle.entries()){
+        if(entryHandle.kind!=='file'||!name.startsWith('DailyMe Log - '))continue;
+        const file=await entryHandle.getFile();
+        files.push({name,entryHandle,lastModified:file.lastModified});
+      }
+      if(!files.length){alert('No saved log files found in the folder yet.');return;}
+      files.sort((a,b)=>b.lastModified-a.lastModified);
+      renderSavedResultsModal(files);
     }catch(e){alert('Error opening saved results: '+e.message);}
+  }
+
+  function renderSavedResultsModal(files){
+    const rows=files.map((f,i)=>{
+      const d=new Date(f.lastModified);
+      const dt=fmtDT(d);
+      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 14px;border-bottom:1px solid #eef5fc">
+        <a href="#" onclick="openSavedResultFile(${i});return false;" style="font-size:13px;color:var(--sky-deep);font-weight:600;text-decoration:none">${f.name}</a>
+        <span style="font-size:11px;color:var(--text-muted);white-space:nowrap">${dt}</span>
+      </div>`;
+    }).join('');
+    window._savedResultsFiles=files;
+    document.getElementById('modal-title').textContent='📂 Saved Results';
+    document.getElementById('modal-body').innerHTML=`<div style="max-height:65vh;overflow-y:auto;border:1.5px solid var(--border);border-radius:8px">${rows}</div>`;
+    document.getElementById('modal-actions').innerHTML=`<div class="modal-actions-group"></div><div class="modal-actions-group"><button class="btn-secondary" onclick="closeModal()">Close</button></div>`;
+    document.getElementById('modal').style.display='flex';
+  }
+
+  async function openSavedResultFile(index){
+    const f=window._savedResultsFiles?.[index];if(!f)return;
+    const file=await f.entryHandle.getFile();
+    const text=await file.text();
+    warnIfLogStale(file.lastModified);
+    openHtmlInNewTab(text);
   }
 
   // ── PROFILES ──
@@ -5552,6 +5649,14 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     }
     allHeadlinesCache=[];
     await loadHeadlines(true);
+    const settingsScreenEl=document.getElementById('screen-settings');
+    if(settingsScreenEl?.classList.contains('active')){
+      if(currentSettingsSection){await renderSettingsSection(currentSettingsSection);}
+      else{showSettingsMenu(false);}
+    }
+    if(!_isCompanion){
+      try{_companionChannel.postMessage({action:'profileChanged',profileID:currentUserProfileID});}catch(e){}
+    }
   }
 
   function renderProfilesTable(){
@@ -5691,7 +5796,7 @@ function renderMySitesByMenu(menuID) {
       return;
     }
     const menuItem = userMenu.find(m => m.UserMenuID === menuID);
-    const active = userOwnedSources.filter(s => !s.IsInactive && s.UserMenuID === menuID && s.SourceType !== 'YT Subscription')
+    const active = userOwnedSources.filter(s => !s.IsInactive && s.UserMenuID === menuID && s.SourceType !== 'YT Sub')
       .sort((a, b) => (a.Sequence || 99) - (b.Sequence || 99));
     const title = menuItem ? `<div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--text);margin-bottom:12px">${menuItem.UserMenuName}</div>` : '';
     if (!active.length) {
@@ -5795,7 +5900,7 @@ function renderMySourcesTable() {
       return `<tr draggable="true" data-id="${s.UserOwnedSourceID}">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
         <td><strong>${s.SourceName}</strong></td>
-        <td><span class="badge">${s.SourceType}</span></td>
+        <td><span class="badge">${s.SourceType}</span>${s.SourceType==='YT Sub'&&!s.YoutubeChannelID?' <span style="color:#e05050;font-weight:700;font-size:11px">(no ID)</span>':''}</td>
         <td>${groupLabel}</td>
         <td>${menuLabel}</td>
         <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)">${s.URL}</td>
@@ -5861,10 +5966,24 @@ function renderMySourcesTable() {
     document.querySelectorAll('input[name="ms-type"]').forEach(r => r.checked = !!(type && r.value === type));
     updateMsTypeFields();
     if(type === 'File') updateModalLauncherPanel();
+    const channelDisplay=document.getElementById('ms-channelid-display');
+    if(channelDisplay){
+      if(src?.YoutubeChannelID){
+        channelDisplay.textContent=`Channel ID: ${src.YoutubeChannelID}`;
+        channelDisplay.style.color='var(--sky-deep)';
+        channelDisplay.style.display='block';
+      }else if(sourceID&&src?.SourceType==='YT Sub'){
+        channelDisplay.textContent='No Channel ID';
+        channelDisplay.style.color='#e05050';
+        channelDisplay.style.display='block';
+      }else{
+        channelDisplay.style.display='none';
+      }
+    }
     const menuSel = document.getElementById('ms-menuid');
     if (menuSel) {
       const type = src ? ((!src.SourceType || src.SourceType === 'Website') ? 'URL' : src.SourceType) : null;
-      const showSysHeader = !type || type === 'URL' || type === 'File' || type === 'YT Subscription';
+      const showSysHeader = !type || type === 'URL' || type === 'File' || type === 'YT Sub';
 const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
       menuSel.innerHTML = '<option value="">— None —</option>' +
         userMenu.filter(m => !m.IsInactive).map(m => `<option value="${m.UserMenuID}" ${!isSysHeader&&src?.UserMenuID==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('') +
