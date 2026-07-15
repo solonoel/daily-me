@@ -321,7 +321,14 @@ async function fetchYouTube(source, fromDate, isFiltered, keywords, youTubeMaxRe
         pubDate
       });
     }
-  } catch(e) { context.log(`YouTube error [${source.Name}]: ${e.message}`); }
+  } catch(e) {
+    context.log(`YouTube error [${source.Name}]: ${e.message}`);
+    if (/quota/i.test(e.message || '')) {
+      quotaUsed.exceeded = true;
+      quotaUsed.exceededAt = { source: source.Name, stage: 'playlistItems', calculatedUnitsUsed: quotaUsed.units, timestamp: new Date().toISOString() };
+      context.log(`YouTube quota exceeded (server-confirmed) at calculated ${quotaUsed.units} units — halting further YouTube calls.`);
+    }
+  }
 
   if (isFiltered) {
     const matched = [];
@@ -356,11 +363,12 @@ async function fetchYouTube(source, fromDate, isFiltered, keywords, youTubeMaxRe
     let searchCallsThisSource = 0;
     const MAX_SEARCH_CALLS_PER_SOURCE = 3;
     for (const kw of searchKws) {
+      if (quotaUsed.exceeded) break;
       const clauses = kw.text.split(/[,;]/).map(c => c.trim()).filter(Boolean);
       for (const clause of clauses) {
+        if (quotaUsed.exceeded) break;
         if ((kwCounts[kw.KeywordID] || 0) >= youTubeMaxResults) break;
-        if (searchCallsThisSource >= MAX_SEARCH_CALLS_PER_SOURCE) { context.log(`YouTube search cap reached for [${source.Name}] — skipping remaining clauses`); break; }
-        if (quotaUsed.units + 100 > 9500) { context.log(`YouTube search budget exhausted — skipping remaining keyword searches`); break; }
+        if (searchCallsThisSource >= MAX_SEARCH_CALLS_PER_SOURCE) { context.log(`YouTube search cap reached for [${source.Name}] - skipping remaining clauses`); break; }
         const q = translateClauseToYouTubeQuery(clause);
         if (!q) continue;
         try {
@@ -391,7 +399,14 @@ async function fetchYouTube(source, fromDate, isFiltered, keywords, youTubeMaxRe
             matchedLinks.add(link);
             kwCounts[kw.KeywordID] = (kwCounts[kw.KeywordID] || 0) + 1;
           }
-        } catch(e) { context.log(`YouTube search error [${source.Name}] clause "${clause}": ${e.message}`); }
+        } catch(e) {
+          context.log(`YouTube search error [${source.Name}] clause "${clause}": ${e.message}`);
+          if (/quota/i.test(e.message || '')) {
+            quotaUsed.exceeded = true;
+            quotaUsed.exceededAt = { source: source.Name, stage: 'search.list', keyword: kw.text, clause, calculatedUnitsUsed: quotaUsed.units, timestamp: new Date().toISOString() };
+            context.log(`YouTube quota exceeded (server-confirmed) at calculated ${quotaUsed.units} units - halting further YouTube calls.`);
+          }
+        }
       }
     }
 
@@ -431,6 +446,17 @@ module.exports = async function(context, req) {
           if (!channelID) throw new Error('YouTube channel not found for @' + handle);
           context._resolvedYoutubeChannelID = channelID;
           const videosData = JSON.parse(await fetchUrl(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelID}&type=video&order=date&maxResults=20&key=${apiKey}`));
+          // Track this 100-unit preview search against the shared daily quota total
+          try {
+            const gqPreview = (await pool.request().query(`SELECT QuotaUsed, QuotaDate FROM YouTubeQuota WHERE QuotaID=1`)).recordset[0];
+            const todayPreviewStr = new Date().toISOString().split('T')[0];
+            const gqPreviewDate = gqPreview?.QuotaDate ? new Date(gqPreview.QuotaDate).toISOString().split('T')[0] : null;
+            const previewNewTotal = (gqPreviewDate === todayPreviewStr ? (gqPreview?.QuotaUsed || 0) : 0) + 100;
+            await pool.request()
+              .input('QuotaUsed', sql.Int, previewNewTotal)
+              .input('QuotaDate', sql.Date, new Date())
+              .query(`UPDATE YouTubeQuota SET QuotaUsed=@QuotaUsed, QuotaDate=@QuotaDate WHERE QuotaID=1`);
+          } catch(qe) { context.log(`Preview quota tracking failed (non-fatal): ${qe.message}`); }
           articles = (videosData.items || []).map(item => ({
             title: item.snippet.title,
             link: `https://www.youtube.com/watch?v=${item.id?.videoId}`,
@@ -487,7 +513,7 @@ module.exports = async function(context, req) {
 
     const today = new Date().toISOString().split('T')[0];
     const quotaDate = settings.QuotaDate ? new Date(settings.QuotaDate).toISOString().split('T')[0] : null;
-    const quotaUsed = { units: quotaDate === today ? (settings.QuotaUsed || 0) : 0 };
+    const quotaUsed = { units: quotaDate === today ? (settings.QuotaUsed || 0) : 0, exceeded: false, exceededAt: null };
 
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - recencyDays);
@@ -915,6 +941,8 @@ module.exports = async function(context, req) {
 
     fetchLog.youtubeQuotaUsed = newQuotaUsed;
     fetchLog.youtubeQuotaRemaining = quotaRemaining;
+    fetchLog.youtubeQuotaExceeded = quotaUsed.exceeded;
+    fetchLog.youtubeQuotaExceededAt = quotaUsed.exceededAt;
 
     await pool.request()
       .input('QuotaUsed', sql.Int, newQuotaUsed)

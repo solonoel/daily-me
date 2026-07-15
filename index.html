@@ -5507,24 +5507,26 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     return newest;
   }
 
-  function openHtmlInNewTab(html){
-    const win=window.open('','_blank','noopener');
-    if(!win){alert('Could not open a new tab — check your popup blocker.');return;}
+function openHtmlInNewTab(html, fileTimestamp){
+    const win = window.open('', '_blank', 'noopener');
+    if (!win) { alert('Could not open a new tab — check your popup blocker.'); return; }
     win.document.open();
     win.document.write(html);
     win.document.close();
-  }
-
-  function warnIfLogStale(fileTimestamp){
-    const savedTs=localStorage.getItem(`dailyme_last_fetch_time_${USER_ID}`);
-    if(!savedTs)return;
-    const lastRefresh=new Date(savedTs).getTime();
-    const graceMs=2*60*1000;
-    if(lastRefresh-fileTimestamp>graceMs){
-      const fileDate=new Date(fileTimestamp);
-      const refreshDate=new Date(lastRefresh);
+    if (fileTimestamp !== undefined && isLogStale(fileTimestamp)) {
+      const savedTs = localStorage.getItem(`dailyme_last_fetch_time_${USER_ID}`);
+      const fileDate = new Date(fileTimestamp);
+      const refreshDate = new Date(savedTs);
       alert(`⚠️ This log is from an earlier run.\n\nFile saved: ${fmtDT(fileDate)}\nMost recent refresh: ${fmtDT(refreshDate)}\n\nThe latest run's log may not have saved correctly.`);
     }
+  }
+
+function isLogStale(fileTimestamp){
+    const savedTs = localStorage.getItem(`dailyme_last_fetch_time_${USER_ID}`);
+    if (!savedTs) return false;
+    const lastRefresh = new Date(savedTs).getTime();
+    const graceMs = 2 * 60 * 1000;
+    return (lastRefresh - fileTimestamp > graceMs);
   }
 
   async function openFetchLog(){
@@ -5534,14 +5536,13 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       if(handle){
         const perm=await handle.queryPermission({mode:'read'});
         if(perm==='granted'){
-          const fileHandle=await getMostRecentLogFileHandle();
-          if(fileHandle){
-            const file=await fileHandle.getFile();
-            const text=await file.text();
-            warnIfLogStale(file.lastModified);
-            openHtmlInNewTab(text);
-            return;
-          }
+const fileHandle = await getMostRecentLogFileHandle();
+        if (fileHandle) {
+          const file = await fileHandle.getFile();
+          const text = await file.text();
+          openHtmlInNewTab(text, file.lastModified);
+          return;
+        }
         }
       }
     }catch(e){console.error('openFetchLog: falling back to modal —',e);}
@@ -5593,12 +5594,11 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     document.getElementById('modal').style.display='flex';
   }
 
-  async function openSavedResultFile(index){
+async function openSavedResultFile(index){
     const f=window._savedResultsFiles?.[index];if(!f)return;
     const file=await f.entryHandle.getFile();
     const text=await file.text();
-    warnIfLogStale(file.lastModified);
-    openHtmlInNewTab(text);
+    openHtmlInNewTab(text,file.lastModified);
   }
 
   // ── PROFILES ──
