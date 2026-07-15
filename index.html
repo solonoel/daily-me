@@ -401,6 +401,7 @@
             <span>📰 Headlines</span>
             <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
               <a href="#" id="fetch-results-link" onclick="openFetchLog();return false;" style="font-size:12px;font-weight:600;color:var(--sky-deep)">📋 Results</a>
+              <a href="#" id="saved-results-link" onclick="openSavedResults();return false;" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep)">📂 Saved Results</a>
               <span id="yt-quota-display" style="font-size:11px;font-weight:600;display:none"></span>
             </div>
           </div>
@@ -1653,12 +1654,13 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     const _clogo=document.querySelector('.header-logo');if(_clogo){_clogo.style.height='34px';_clogo.style.width='34px';}
     const _cAppTitle=document.querySelector('.app-title');if(_cAppTitle)_cAppTitle.style.fontSize='13px';
     try{
-      const[kwds,userSettings,langs,ulangs,profileResult]=await Promise.all([
+      const[kwds,userSettings,langs,profileResult]=await Promise.all([
         apiGet('GetHeadlineKeywords'),
-        apiGet('GetUserSettings'),apiGet('GetLanguages'),apiGet('GetUserLanguages'),
+        apiGet('GetUserSettings'),apiGet('GetLanguages'),
         apiGet('GetCurrentProfile')
       ]);
       currentUserProfileID=profileResult?.currentUserProfileID||null;
+      const ulangs=await apiGet('GetUserLanguages',`&profileID=${currentUserProfileID||''}`);
       sources=[];keywords=Array.isArray(kwds)?kwds:[];
       allLanguages=Array.isArray(langs)?langs:[];userLanguages=Array.isArray(ulangs)?ulangs:[];
       userTimezone=Intl.DateTimeFormat().resolvedOptions().timeZone||'America/Chicago';
@@ -1715,13 +1717,14 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     const lb=document.getElementById('loading-bar');
     const lm=document.getElementById('loading-msg');
     if(lb)lb.style.width='20%';
-    const [kwds,userSettings,langs,ulangs,profileResult,profilesData]=await Promise.all([
+    const [kwds,userSettings,langs,profileResult,profilesData]=await Promise.all([
       apiGet('GetHeadlineKeywords'),
-      apiGet('GetUserSettings'),apiGet('GetLanguages'),apiGet('GetUserLanguages'),
+      apiGet('GetUserSettings'),apiGet('GetLanguages'),
       apiGet('GetCurrentProfile'),apiGet('GetUserProfiles')
     ]);
     currentUserProfileID=profileResult?.currentUserProfileID||null;
     userProfiles=Array.isArray(profilesData)?profilesData:[];
+    const ulangs=await apiGet('GetUserLanguages',`&profileID=${currentUserProfileID||''}`);
     renderProfileSelects();
     if(lb)lb.style.width='50%';
     categories=[];sources=[];
@@ -2074,7 +2077,7 @@ function renderLanguageNav(){
 
   async function toggleUserLanguage(languageID,checkbox){
     const isActive=checkbox.checked;
-    await apiPost('SaveUserLanguage',{userID:USER_ID,languageID,isActive});
+    await apiPost('SaveUserLanguage',{userID:USER_ID,languageID,isActive,profileID:currentUserProfileID});
     const existing=userLanguages.find(ul=>ul.LanguageID===languageID);
     if(existing)existing.IsActive=isActive?'Y':'N';else userLanguages.push({LanguageID:languageID,IsActive:'Y'});
     renderLanguageNav();renderLanguageScreens();renderLanguageCheckList();
@@ -5189,6 +5192,8 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     const clearLink=document.getElementById('log-folder-clear');
     if(statusEl)statusEl.textContent=name?(notFound?`⚠️ ${name} — folder not found, please reselect`:granted?`✓ ${name}`:`⚠️ ${name} — click Choose Folder to re-authorize`):'Not set';
     if(clearLink)clearLink.style.display=name?'inline':'none';
+    const savedLink=document.getElementById('saved-results-link');
+    if(savedLink)savedLink.style.display=(name&&granted&&!notFound)?'inline':'none';
   }
 
   async function checkLogFolderExists(handle){
@@ -5438,7 +5443,44 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       return html;
   }
 
+  async function getMostRecentLogFileHandle(){
+    const handle=await idbGet(LOG_FOLDER_KEY);
+    if(!handle)return null;
+    const perm=await handle.queryPermission({mode:'read'});
+    if(perm!=='granted'){
+      const req=await handle.requestPermission({mode:'read'});
+      if(req!=='granted')return null;
+    }
+    let newest=null,newestTime=0;
+    try{
+      for await (const [name,entryHandle] of handle.entries()){
+        if(entryHandle.kind!=='file'||!name.startsWith('DailyMe Log - '))continue;
+        const file=await entryHandle.getFile();
+        if(file.lastModified>newestTime){newestTime=file.lastModified;newest=entryHandle;}
+      }
+    }catch(e){return null;}
+    return newest;
+  }
+
   async function openFetchLog(){
+    // If a log download folder is set and accessible, open the most recent saved file directly
+    try{
+      const handle=await idbGet(LOG_FOLDER_KEY);
+      if(handle){
+        const perm=await handle.queryPermission({mode:'read'});
+        if(perm==='granted'){
+          const fileHandle=await getMostRecentLogFileHandle();
+          if(fileHandle){
+            const file=await fileHandle.getFile();
+            const url=URL.createObjectURL(file);
+            window.open(url,'_blank','noopener');
+            setTimeout(()=>URL.revokeObjectURL(url),60000);
+            return;
+          }
+        }
+      }
+    }catch(e){console.error('openFetchLog: falling back to modal —',e);}
+    // Fallback: no folder set, or no saved file found — build the log live in a modal
     try{
       const html=await buildFetchLogHTML();
       if(html===null){alert('No fetch log available yet. Run a refresh first.');return;}
@@ -5447,6 +5489,19 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       document.getElementById('modal-actions').innerHTML=`<button class="btn-primary" onclick="downloadFetchLog()">⬇ Download</button><button class="btn-secondary" onclick="closeModal()">Close</button>`;
       document.getElementById('modal').style.display='flex';
     }catch(e){alert('Error loading fetch log: '+e.message);}
+  }
+
+  async function openSavedResults(){
+    try{
+      const handle=await idbGet(LOG_FOLDER_KEY);
+      if(!handle){alert('No log download folder is set.');return;}
+      const fileHandle=await getMostRecentLogFileHandle();
+      if(!fileHandle){alert('No saved log files found in the folder yet.');return;}
+      const file=await fileHandle.getFile();
+      const url=URL.createObjectURL(file);
+      window.open(url,'_blank','noopener');
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
+    }catch(e){alert('Error opening saved results: '+e.message);}
   }
 
   // ── PROFILES ──
@@ -5473,12 +5528,14 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     if(!profileID||profileID===currentUserProfileID)return;
     await setCurrentProfile(profileID);
     renderProfileSelects();
-    const [menuData,srcsData]=await Promise.all([
+    const [menuData,srcsData,ulangsData]=await Promise.all([
       apiGet('GetUserMenu',`&profileID=${currentUserProfileID}`),
-      apiGet('GetHeadlineSources',`&profileID=${currentUserProfileID}`)
+      apiGet('GetHeadlineSources',`&profileID=${currentUserProfileID}`),
+      apiGet('GetUserLanguages',`&profileID=${currentUserProfileID}`)
     ]);
     userMenu=Array.isArray(menuData)?menuData:[];
     sources=Array.isArray(srcsData)?srcsData:sources;
+    userLanguages=Array.isArray(ulangsData)?ulangsData:userLanguages;
     renderUserMenuNav();
     const firstMenuItem=userMenu.find(m=>!m.IsInactive);
     currentUserMenuID=firstMenuItem?firstMenuItem.UserMenuID:null;
@@ -6304,7 +6361,7 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
         menuSequences.forEach(s=>{const m=userMenu.find(m=>m.UserMenuID===s.menuID);if(m)m.UserMenuSeq=s.sequence;});
         langSequences.forEach(s=>{const ul=userLanguages.find(ul=>ul.LanguageID===s.languageID);if(ul)ul.MenuSeq=s.sequence;});
         if(menuSequences.length)apiPost('SaveUserMenu',{action:'reorder',userID:USER_ID,sequences:menuSequences});
-        if(langSequences.length)apiPost('SaveUserLanguage',{action:'reorder',userID:USER_ID,sequences:langSequences});
+        if(langSequences.length)apiPost('SaveUserLanguage',{action:'reorder',userID:USER_ID,profileID:currentUserProfileID,sequences:langSequences});
         renderUserMenuNav();
       });
       row.addEventListener('dragover',e=>{e.preventDefault();tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('drag-over'));if(row!==dragSrc)row.classList.add('drag-over');});
