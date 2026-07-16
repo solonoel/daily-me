@@ -8,8 +8,10 @@ module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
     const userID = parseInt(req.query.userID || '1');
+    const profileID = parseInt(req.query.profileID || 0) || null;
     const result = await pool.request()
       .input('UserID', sql.Int, userID)
+      .input('UserProfileID', sql.Int, profileID)
       .query(`
         SELECT h.SourceID AS EntityID, 'SharedSource' AS EntityType, h.Name AS DisplayName, h.SourceType,
                CASE WHEN uhs.IsActive=0 THEN 'N' ELSE 'Y' END AS IsActive,
@@ -27,6 +29,7 @@ module.exports = async function(context, req) {
           FROM SourceActivityLog
           WHERE EntityType='SharedSource' AND EntityID=h.SourceID AND UserID=@UserID
         ) act
+        WHERE (@UserProfileID IS NULL OR uhs.UserProfileID=@UserProfileID)
 
         UNION ALL
 
@@ -45,7 +48,7 @@ module.exports = async function(context, req) {
           FROM SourceActivityLog
           WHERE EntityType='MySource' AND EntityID=u.UserOwnedSourceID AND UserID=@UserID
         ) act
-        WHERE u.UserID=@UserID
+        WHERE u.UserID=@UserID AND (@UserProfileID IS NULL OR u.UserProfileID=@UserProfileID)
 
         UNION ALL
 
@@ -66,7 +69,7 @@ module.exports = async function(context, req) {
           FROM SourceActivityLog
           WHERE EntityType='Keyword' AND EntityID=k.KeywordID AND UserID=@UserID
         ) act
-        WHERE k.UserID=@UserID
+        WHERE k.UserID=@UserID AND (@UserProfileID IS NULL OR k.UserProfileID=@UserProfileID)
 
         ORDER BY EntityType, DisplayName
       `);

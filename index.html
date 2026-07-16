@@ -5378,7 +5378,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
   }
 
   async function buildFetchLogHTML(){
-    const [data,effData]=await Promise.all([apiGet('GetFetchLog'),apiGet('GetFetchResults')]);
+    const [data,effData]=await Promise.all([apiGet('GetFetchLog',`&profileID=${currentUserProfileID||''}`),apiGet('GetFetchResults',`&profileID=${currentUserProfileID||''}`)]);
     if(data?.error)return null;
     const log=data;
       const effectiveness=Array.isArray(effData)?effData:[];
@@ -6119,14 +6119,14 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     const thumbnailURL = msThumbnailData || null;
     if (msEditingID) {
       const userMenuIDForSave = userMenuID === '__sysheader__' ? null : userMenuID;
-      const result = await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, userMenuID: userMenuIDForSave, groupLabel, isSysHeader: userMenuID === '__sysheader__' ? 1 : 0 });
+      const result = await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, userMenuID: userMenuIDForSave, groupLabel, isSysHeader: userMenuID === '__sysheader__' ? 1 : 0, profileID: currentUserProfileID });
       if (result?.error) { alert('Could not save: ' + result.error); return; }
       if (sourceType === 'YT Sub' && !result?.youtubeChannelID) { alert('Warning: channel ID could not be confirmed. Please verify this source after saving.'); }
       const src = userOwnedSources.find(s => s.UserOwnedSourceID === msEditingID);
       if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; src.UserMenuID = userMenuID; src.GroupLabel = groupLabel; src.IsSysHeader = userMenuID === '__sysheader__' ? 1 : 0; src.YoutubeChannelID = result.youtubeChannelID || null; }
     } else {
       const userMenuIDForSave = userMenuID === '__sysheader__' ? null : userMenuID;
-      const result = await apiPost('SaveUserOwnedSource', { action: 'add', userID: USER_ID, sourceName, url, sourceType, description, thumbnailURL, exclusions, userMenuID: userMenuIDForSave, groupLabel, isSysHeader: userMenuID === '__sysheader__' ? 1 : 0 });
+      const result = await apiPost('SaveUserOwnedSource', { action: 'add', userID: USER_ID, sourceName, url, sourceType, description, thumbnailURL, exclusions, userMenuID: userMenuIDForSave, groupLabel, isSysHeader: userMenuID === '__sysheader__' ? 1 : 0, profileID: currentUserProfileID });
       if (result?.error) { alert('Could not save: ' + result.error); return; }
       userOwnedSources.push({ UserOwnedSourceID: result.sourceID, SourceName: sourceName, URL: url, SourceType: sourceType, Description: description, ThumbnailURL: thumbnailURL, Exclusions: exclusions, IsInactive: 0, Sequence: 99, UserMenuID: userMenuID, GroupLabel: groupLabel, IsSysHeader: userMenuID === '__sysheader__' ? 1 : 0, YoutubeChannelID: result.youtubeChannelID || null });
     }
@@ -6151,12 +6151,12 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     const isInactive = document.getElementById('ms-inactive').checked;
     const thumbnailURL = msThumbnailData || null;
     // Save current
-    const updateResult = await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, userMenuID: userMenuIDForSave, groupLabel, isSysHeader });
+    const updateResult = await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, userMenuID: userMenuIDForSave, groupLabel, isSysHeader, profileID: currentUserProfileID });
     if (updateResult?.error) { alert('Could not save: ' + updateResult.error); return; }
     const src = userOwnedSources.find(s => s.UserOwnedSourceID === msEditingID);
     if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; src.UserMenuID = userMenuID; src.GroupLabel = groupLabel; src.IsSysHeader = isSysHeader; src.YoutubeChannelID = updateResult.youtubeChannelID || null; }
     // Create copy with placeholder name
-    const result = await apiPost('SaveUserOwnedSource', { action: 'add', userID: USER_ID, sourceName: 'New Name Here', url, sourceType, description, thumbnailURL, exclusions, userMenuID: userMenuIDForSave, groupLabel, isSysHeader });
+    const result = await apiPost('SaveUserOwnedSource', { action: 'add', userID: USER_ID, sourceName: 'New Name Here', url, sourceType, description, thumbnailURL, exclusions, userMenuID: userMenuIDForSave, groupLabel, isSysHeader, profileID: currentUserProfileID });
     if (result?.error) { alert('Could not create copy: ' + result.error); return; }
     userOwnedSources.push({ UserOwnedSourceID: result.sourceID, SourceName: 'New Name Here', URL: url, SourceType: sourceType, Description: description, ThumbnailURL: thumbnailURL, Exclusions: exclusions, IsInactive: 0, Sequence: 99, UserMenuID: userMenuID, GroupLabel: groupLabel, IsSysHeader: isSysHeader, YoutubeChannelID: result.youtubeChannelID || null });
     renderMySourcesTable();
@@ -6651,12 +6651,12 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     if(aaEditingID){
       const src=userOwnedSources.find(s=>s.UserOwnedSourceID===aaEditingID);
       const sourceName=src&&src.SourceName===description?description:`${description} (${dateStamp})`;
-      const result=await apiPost('SaveUserOwnedSource',{action:'update',userID:USER_ID,sourceID:aaEditingID,sourceName,url,sourceType:'URL',description:null,thumbnailURL:src?.ThumbnailURL||null,exclusions:null,isInactive:false,userMenuID,groupLabel:'Articles'});
+      const result=await apiPost('SaveUserOwnedSource',{action:'update',userID:USER_ID,sourceID:aaEditingID,sourceName,url,sourceType:'URL',description:null,thumbnailURL:src?.ThumbnailURL||null,exclusions:null,isInactive:false,userMenuID,groupLabel:'Articles',profileID:currentUserProfileID});
       if(result?.error){alert('Could not save: '+result.error);return;}
       if(src){src.SourceName=sourceName;src.URL=url;src.UserMenuID=userMenuID;src.GroupLabel='Articles';}
     }else{
       const sourceName=`${description} (${dateStamp})`;
-      const result=await apiPost('SaveUserOwnedSource',{action:'add',userID:USER_ID,sourceName,url,sourceType:'URL',description:null,thumbnailURL:null,exclusions:null,userMenuID,groupLabel:'Articles'});
+      const result=await apiPost('SaveUserOwnedSource',{action:'add',userID:USER_ID,sourceName,url,sourceType:'URL',description:null,thumbnailURL:null,exclusions:null,userMenuID,groupLabel:'Articles',profileID:currentUserProfileID});
       if(result?.error){alert('Could not save: '+result.error);return;}
       userOwnedSources.push({UserOwnedSourceID:result.sourceID,SourceName:sourceName,URL:url,SourceType:'URL',Description:null,ThumbnailURL:null,Exclusions:null,IsInactive:0,Sequence:99,UserMenuID:userMenuID,GroupLabel:'Articles',IsSysHeader:0});
     }

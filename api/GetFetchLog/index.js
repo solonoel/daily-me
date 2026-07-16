@@ -8,9 +8,11 @@ module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
     const userID = parseInt(req.query.userID || '1');
+    const profileID = parseInt(req.query.profileID || 0) || null;
     const result = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT LastFetchLog FROM HeadlineSetting WHERE UserID = @UserID`);
+      .input('UserProfileID', sql.Int, profileID)
+      .query(`SELECT LastFetchLog FROM ProfileFetchLog WHERE UserID = @UserID AND UserProfileID = @UserProfileID`);
     const log = result.recordset[0]?.LastFetchLog;
     context.res = {
       status: 200,

@@ -546,12 +546,16 @@ module.exports = async function(context, req) {
               ORDER BY h.Sequence, h.SourceID`);
     const sources = sourcesResult.recordset;
 
-    const uosYTResult = await pool.request()
-      .input('UserID', sql.Int, userID)
-      .query(`SELECT UserOwnedSourceID, SourceName, URL, YoutubeChannelID, UserMenuID, Exclusions, GroupLabel
-              FROM [UserOwnedSource]
-              WHERE UserID = @UserID AND SourceType = 'YT Sub' AND IsInactive = 0`);
+const uosYTResult = await pool.request()
+  .input('UserID', sql.Int, userID)
+  .input('ProfileID', sql.Int, profileID)
+  .query(`SELECT u.UserOwnedSourceID, u.SourceName, u.URL, u.YoutubeChannelID, u.UserMenuID, u.Exclusions, u.GroupLabel
+          FROM [UserOwnedSource] u
+          LEFT JOIN [UserMenu] um ON um.UserMenuID = u.UserMenuID
+          WHERE u.UserID = @UserID AND u.SourceType = 'YT Sub' AND u.IsInactive = 0
+            AND (u.UserMenuID IS NULL OR @ProfileID IS NULL OR um.UserProfileID = @ProfileID)`);
     const uosYTSources = uosYTResult.recordset;
+    
 
     function parseExclusions(str) {
       if (!str) return [];
@@ -973,8 +977,18 @@ module.exports = async function(context, req) {
 
     await pool.request()
       .input('UserID', sql.Int, userID)
+      .input('UserProfileID', sql.Int, profileID)
       .input('LastFetchLog', sql.NVarChar(sql.MAX), JSON.stringify(fetchLog))
-      .query(`UPDATE [HeadlineSetting] SET LastFetchLog=@LastFetchLog WHERE UserID=@UserID`);
+      .query(`
+        MERGE [ProfileFetchLog] AS target
+        USING (SELECT @UserID AS UserID, @UserProfileID AS UserProfileID) AS src
+          ON target.UserID = src.UserID AND target.UserProfileID = src.UserProfileID
+        WHEN MATCHED THEN
+          UPDATE SET LastFetchLog = @LastFetchLog, LastUpdated = GETDATE()
+        WHEN NOT MATCHED THEN
+          INSERT (UserID, UserProfileID, LastFetchLog, LastUpdated)
+          VALUES (@UserID, @UserProfileID, @LastFetchLog, GETDATE());
+      `);
 
     // Record source/keyword activity for the Fetch Results effectiveness screen
     for (const entry of activityLogEntries) {
