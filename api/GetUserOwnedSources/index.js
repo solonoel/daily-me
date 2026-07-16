@@ -16,7 +16,7 @@ module.exports = async function(context, req) {
       .input('UserID', sql.Int, userID)
       .query(`SELECT UserOwnedSourceID, SourceName, Description, SourceType, URL,
                      ThumbnailURL, Exclusions, Sequence, IsInactive, DateAdded,
-                     UserMenuID, GroupLabel, IsSysHeader
+                     UserMenuID, GroupLabel, IsSysHeader, YoutubeChannelID
               FROM UserOwnedSource
               WHERE UserID = @UserID ${whereInactive}
               ORDER BY Sequence, UserOwnedSourceID`);

@@ -358,7 +358,7 @@
   <span style="font-size:11px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="recency-val">7 days</span></span>
   <div id="last-fetch-time" style="font-size:11px;color:var(--text-muted);display:none"></div>
   <div id="last-yt-fetch-time" style="font-size:11px;color:var(--text-muted);display:none"></div>
-  <div id="yt-quota-warning" style="font-size:11px;font-weight:700;color:#e05050;display:none">⚠️ Youtube quota exhausted for today</div>
+  <div id="yt-quota-warning" style="font-size:11px;font-weight:700;color:#e05050;display:none"></div>
 </div>
 <main class="main">
   <div class="content-panel" id="content-panel">
@@ -378,7 +378,7 @@
         <div style="display:flex;align-items:center;gap:6px;padding:4px 12px">
           <span style="font-size:10px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="teams-recency-val">7 days</span></span>
           <div id="teams-last-fetch-time" style="font-size:10px;color:var(--text-muted);display:none"></div>
-          <div id="teams-yt-quota-warning" style="font-size:10px;font-weight:700;color:#e05050;display:none">⚠️ Youtube quota exhausted for today</div>
+          <div id="teams-yt-quota-warning" style="font-size:10px;font-weight:700;color:#e05050;display:none"></div>
           <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
             <button class="refresh-btn" onclick="refreshHeadlines()" id="teams-refresh-btn" style="flex-shrink:0">↻ Refresh</button>
           </div>
@@ -1791,11 +1791,12 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
       const link=document.getElementById('fetch-results-link');
       if(link)link.style.display='inline';
     }
-    const quotaLow=(userSettings?.headlineSetting?.QuotaUsed||0)>=9500;
+    const quotaLow=userSettings?.headlineSetting?.DisableYoutubeToday===true||userSettings?.headlineSetting?.DisableYoutubeToday===1;
     const ytWarn=document.getElementById('yt-quota-warning');
     const teamsYtWarn=document.getElementById('teams-yt-quota-warning');
-    if(ytWarn)ytWarn.style.display=quotaLow?'':'none';
-    if(teamsYtWarn)teamsYtWarn.style.display=quotaLow?'':'none';
+    const quotaLowText='⚠️ Youtube quota exhausted for today';
+    if(ytWarn){ytWarn.style.display=quotaLow?'':'none';if(quotaLow)ytWarn.textContent=quotaLowText;}
+    if(teamsYtWarn){teamsYtWarn.style.display=quotaLow?'':'none';if(quotaLow)teamsYtWarn.textContent=quotaLowText;}
     const savedTs=localStorage.getItem(`dailyme_last_fetch_time_${USER_ID}`);
     const lft=document.getElementById('last-fetch-time');if(lft&&savedTs){const d=new Date(savedTs);if(!isNaN(d)){lft.textContent=`refresh: ${fmtDT(d)}`;lft.style.display='';}}
     const savedYtTs=localStorage.getItem(`dailyme_last_yt_fetch_time_${USER_ID}`);
@@ -3573,12 +3574,15 @@ async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
       status.style.display='none';
       const userSettings=await apiGet('GetUserSettings');
       if(userSettings?.headlineSetting?.RecencyDays){recencyDays_value=userSettings.headlineSetting.RecencyDays;document.getElementById('recency-val').textContent=recencyDays_value===1?'1 day':`${recencyDays_value} days`;}
-      const disableYoutube=localStorage.getItem(`dailyme_yt_disabled_${USER_ID}`)==='1';
+      const ytDisabledDate=localStorage.getItem(`dailyme_yt_disabled_${USER_ID}`);
+      const todayISO=new Date().toISOString().slice(0,10);
+      const disableYoutube=ytDisabledDate===todayISO;
+      if(ytDisabledDate&&ytDisabledDate!==todayISO){localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);}
       await apiPost('CleanHeadlines',{userID:USER_ID,recencyDays:recencyDays_value});
       localStorage.removeItem(`dailyme_settings_changed_${USER_ID}`);
       const fetchResult=await apiPost('FetchHeadlines',{userID:USER_ID,disableYoutube,profileID:currentUserProfileID});
-      if(fetchResult?.quotaRemaining<=500&&!disableYoutube){
-        localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,'1');
+      if(fetchResult?.youtubeQuotaExceeded&&!disableYoutube){
+        localStorage.setItem(`dailyme_yt_disabled_${USER_ID}`,todayISO);
       }
       [btn,teamsBtn,navBtn,navBtn2].forEach(b=>{if(b){b.textContent='↻ Refresh';b.style.color='';b.style.background='';b.style.borderColor='';b.style.fontWeight='';b.disabled=false;}});
       const refreshedSettings=await apiGet('GetUserSettings');
@@ -3593,9 +3597,10 @@ const now=new Date();
       const tlft=document.getElementById('teams-last-fetch-time');if(tlft){tlft.textContent=`refresh: ${ts}`;tlft.style.display='';}
       const ytWarn=document.getElementById('yt-quota-warning');
       const teamsYtWarn=document.getElementById('teams-yt-quota-warning');
-      const showYtWarn=(fetchResult?.quotaRemaining!==undefined&&fetchResult.quotaRemaining<=500);
-      if(ytWarn)ytWarn.style.display=showYtWarn?'':'none';
-      if(teamsYtWarn)teamsYtWarn.style.display=showYtWarn?'':'none';
+      const showYtWarn=disableYoutube||fetchResult?.youtubeQuotaExceeded===true;
+      const ytWarnText=(fetchResult?.youtubeQuotaExceeded===true)?'⚠️ Youtube quota exhausted for today':'⚠️ Youtube skipped (disabled earlier today)';
+      if(ytWarn){ytWarn.style.display=showYtWarn?'':'none';if(showYtWarn)ytWarn.textContent=ytWarnText;}
+      if(teamsYtWarn){teamsYtWarn.style.display=showYtWarn?'':'none';if(showYtWarn)teamsYtWarn.textContent=ytWarnText;}
       const trv=document.getElementById('teams-recency-val');if(trv)trv.textContent=recencyDays_value===1?'1 day':`${recencyDays_value} days`;
       localStorage.setItem(`dailyme_last_fetch_time_${USER_ID}`,now.toISOString());
       localStorage.setItem(`dailyme_last_fetch_recency_${USER_ID}`,String(recencyDays_value));
@@ -5508,7 +5513,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
   }
 
 function openHtmlInNewTab(html, fileTimestamp){
-    const win = window.open('', '_blank', 'noopener');
+    const win = window.open('', '_blank');
     if (!win) { alert('Could not open a new tab — check your popup blocker.'); return; }
     win.document.open();
     win.document.write(html);
@@ -6063,6 +6068,7 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
       const userMenuIDForSave = userMenuID === '__sysheader__' ? null : userMenuID;
       const result = await apiPost('SaveUserOwnedSource', { action: 'update', userID: USER_ID, sourceID: msEditingID, sourceName, url, sourceType, description, thumbnailURL, exclusions, isInactive, userMenuID: userMenuIDForSave, groupLabel, isSysHeader: userMenuID === '__sysheader__' ? 1 : 0 });
       if (result?.error) { alert('Could not save: ' + result.error); return; }
+      if (sourceType === 'YT Sub' && !result?.youtubeChannelID) { alert('Warning: channel ID could not be confirmed. Please verify this source after saving.'); }
       const src = userOwnedSources.find(s => s.UserOwnedSourceID === msEditingID);
       if (src) { src.SourceName = sourceName; src.URL = url; src.SourceType = sourceType; src.Description = description; src.ThumbnailURL = thumbnailURL; src.Exclusions = exclusions; src.IsInactive = isInactive ? 1 : 0; src.UserMenuID = userMenuID; src.GroupLabel = groupLabel; src.IsSysHeader = userMenuID === '__sysheader__' ? 1 : 0; src.YoutubeChannelID = result.youtubeChannelID || null; }
     } else {

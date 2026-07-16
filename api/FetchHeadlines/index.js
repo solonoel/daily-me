@@ -503,7 +503,7 @@ module.exports = async function(context, req) {
     const settingResult = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`SELECT RecencyDays, MaxHeadlines, YouTubeMaxResults, OtherHeadlinesPerKeyword,
-              LastYouTubeFetch, QuotaUsed, QuotaDate
+              LastYouTubeFetch, QuotaUsed, QuotaDate, DisableYoutubeToday
               FROM [HeadlineSetting] WHERE UserID = @UserID`);
     const settings = settingResult.recordset[0] || {};
     const recencyDays = settings.RecencyDays || 7;
@@ -514,6 +514,12 @@ module.exports = async function(context, req) {
     const today = new Date().toISOString().split('T')[0];
     const quotaDate = settings.QuotaDate ? new Date(settings.QuotaDate).toISOString().split('T')[0] : null;
     const quotaUsed = { units: quotaDate === today ? (settings.QuotaUsed || 0) : 0, exceeded: false, exceededAt: null };
+
+    if (settings.DisableYoutubeToday && quotaDate !== today) {
+      await pool.request().input('UserID', sql.Int, userID)
+        .query(`UPDATE [HeadlineSetting] SET DisableYoutubeToday=0 WHERE UserID=@UserID`);
+      settings.DisableYoutubeToday = false;
+    }
 
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - recencyDays);
@@ -637,6 +643,7 @@ module.exports = async function(context, req) {
               if (disableYoutube) { srcLog.skipped = 'disabled'; continue; }
               if (youtubeAlreadyFetched) { srcLog.skipped = 'already fetched today'; continue; }
               if (!source.YoutubeChannelID) { srcLog.skipped = 'no channel ID'; continue; }
+              if (quotaUsed.exceeded) { srcLog.skipped = 'quota exceeded this run'; continue; }
               const ytResult = await fetchYouTube(source, fromDate, isFiltered, keywords, youTubeMaxResults, context, quotaUsed);
               articles = ytResult.articles;
               srcLog.fetched = ytResult.fetched;
@@ -713,6 +720,7 @@ module.exports = async function(context, req) {
         if (disableYoutube) { srcLog.skipped = 'disabled'; continue; }
         if (youtubeAlreadyFetched) { srcLog.skipped = 'already fetched today'; continue; }
         if (!uosYT.YoutubeChannelID) { srcLog.skipped = 'no channel ID'; continue; }
+        if (quotaUsed.exceeded) { srcLog.skipped = 'quota exceeded this run'; continue; }
         const ytSourceObj = { Name: srcLabel, YoutubeChannelID: uosYT.YoutubeChannelID, Exclusions: uosYT.Exclusions };
         const ytResult = await fetchYouTube(ytSourceObj, fromDate, false, keywords, youTubeMaxResults, context, quotaUsed);
         let articles = ytResult.articles;
@@ -955,7 +963,7 @@ module.exports = async function(context, req) {
       .input('QuotaDate', sql.Date, new Date())
       .query(`UPDATE [HeadlineSetting] SET QuotaUsed=@QuotaUsed, QuotaDate=@QuotaDate WHERE UserID=@UserID`);
 
-    if (youtubeFetched && quotaRemaining <= 500) {
+    if (quotaUsed.exceeded) {
       await pool.request().input('UserID', sql.Int, userID)
         .query(`UPDATE [HeadlineSetting] SET DisableYoutubeToday=1 WHERE UserID=@UserID`);
       fetchLog.youtubeQuotaAutoDisabled = true;
@@ -993,7 +1001,9 @@ module.exports = async function(context, req) {
         sourcesProcessed: sources.length,
         youtubeSkipped: youtubeAlreadyFetched || disableYoutube,
         quotaUsed: newQuotaUsed,
-        quotaRemaining: quotaRemaining
+        quotaRemaining: quotaRemaining,
+        youtubeQuotaExceeded: quotaUsed.exceeded,
+        youtubeQuotaExceededAt: quotaUsed.exceededAt
       })
     };
   } catch(err) {
