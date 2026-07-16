@@ -11,7 +11,7 @@ module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
     const { action, keywordID, keyword, isActive, sequence, sequences,
-            groupLabel, imageURL, sourceID, userOwnedSourceID, userMenuID, userID = 1, targetProfileID } = req.body;
+            groupLabel, imageURL, sourceID, userOwnedSourceID, userMenuID, userID = 1, targetProfileID, profileID } = req.body;
 
     const resetYouTube = async () => {
       await pool.request()
@@ -20,6 +20,10 @@ module.exports = async function(context, req) {
     };
 
     if (action === 'copyToProfile') {
+      if (!targetProfileID) {
+        context.res = { status: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'targetProfileID is required' }) };
+        return;
+      }
       const srcResult = await pool.request()
         .input('KeywordID', sql.Int, keywordID)
         .input('UserID', sql.Int, userID)
@@ -75,15 +79,20 @@ module.exports = async function(context, req) {
         .input('SourceID', sql.Int, src.SourceID)
         .input('UserOwnedSourceID', sql.Int, src.UserOwnedSourceID)
         .input('UserMenuID', sql.Int, targetMenuID)
+        .input('UserProfileID', sql.Int, targetProfileID)
         .query(`
-          INSERT INTO [HeadlineKeyword] (UserID, Keyword, IsActive, Sequence, GroupLabel, ImageURL, SourceID, UserOwnedSourceID, UserMenuID, CreatedDate)
-          VALUES (@UserID, @Keyword, 'Y', @Sequence, @GroupLabel, @ImageURL, @SourceID, @UserOwnedSourceID, @UserMenuID, GETDATE());
+          INSERT INTO [HeadlineKeyword] (UserID, Keyword, IsActive, Sequence, GroupLabel, ImageURL, SourceID, UserOwnedSourceID, UserMenuID, UserProfileID, CreatedDate)
+          VALUES (@UserID, @Keyword, 'Y', @Sequence, @GroupLabel, @ImageURL, @SourceID, @UserOwnedSourceID, @UserMenuID, @UserProfileID, GETDATE());
           SELECT SCOPE_IDENTITY() AS KeywordID;
         `);
       await resetYouTube();
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true, keywordID: copyResult.recordset[0].KeywordID }) };
 
     } else if (action === 'add') {
+      if (!profileID) {
+        context.res = { status: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'profileID is required' }) };
+        return;
+      }
       const result = await pool.request()
         .input('UserID', sql.Int, userID)
         .input('Keyword', sql.NVarChar(200), keyword)
@@ -93,9 +102,10 @@ module.exports = async function(context, req) {
         .input('SourceID', sql.Int, sourceID || null)
         .input('UserOwnedSourceID', sql.Int, userOwnedSourceID || null)
         .input('UserMenuID', sql.Int, userMenuID || null)
+        .input('UserProfileID', sql.Int, profileID)
         .query(`
-          INSERT INTO [HeadlineKeyword] (UserID, Keyword, IsActive, Sequence, GroupLabel, ImageURL, SourceID, UserOwnedSourceID, UserMenuID, CreatedDate)
-          VALUES (@UserID, @Keyword, 'Y', @Sequence, @GroupLabel, @ImageURL, @SourceID, @UserOwnedSourceID, @UserMenuID, GETDATE());
+          INSERT INTO [HeadlineKeyword] (UserID, Keyword, IsActive, Sequence, GroupLabel, ImageURL, SourceID, UserOwnedSourceID, UserMenuID, UserProfileID, CreatedDate)
+          VALUES (@UserID, @Keyword, 'Y', @Sequence, @GroupLabel, @ImageURL, @SourceID, @UserOwnedSourceID, @UserMenuID, @UserProfileID, GETDATE());
           SELECT SCOPE_IDENTITY() AS KeywordID;
         `);
       await resetYouTube();
@@ -106,7 +116,7 @@ module.exports = async function(context, req) {
       };
 
     } else if (action === 'update') {
-      await pool.request()
+      const request = pool.request()
         .input('KeywordID', sql.Int, keywordID)
         .input('Keyword', sql.NVarChar(200), keyword)
         .input('IsActive', sql.Char(1), isActive ? 'Y' : 'N')
@@ -116,12 +126,17 @@ module.exports = async function(context, req) {
         .input('SourceID', sql.Int, sourceID || null)
         .input('UserOwnedSourceID', sql.Int, userOwnedSourceID || null)
         .input('UserMenuID', sql.Int, userMenuID || null)
-        .input('UserID', sql.Int, userID)
-        .query(`
+        .input('UserID', sql.Int, userID);
+      let profileSet = '';
+      if (profileID) {
+        request.input('UserProfileID', sql.Int, profileID);
+        profileSet = ', UserProfileID=@UserProfileID';
+      }
+      await request.query(`
           UPDATE [HeadlineKeyword]
           SET Keyword=@Keyword, IsActive=@IsActive,
               Sequence=@Sequence, GroupLabel=@GroupLabel, ImageURL=@ImageURL,
-              SourceID=@SourceID, UserOwnedSourceID=@UserOwnedSourceID, UserMenuID=@UserMenuID
+              SourceID=@SourceID, UserOwnedSourceID=@UserOwnedSourceID, UserMenuID=@UserMenuID${profileSet}
           WHERE KeywordID=@KeywordID AND UserID=@UserID
         `);
       await resetYouTube();
