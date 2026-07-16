@@ -405,11 +405,15 @@
               <span id="yt-quota-display" style="font-size:11px;font-weight:600;display:none"></span>
             </div>
           </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
             <button class="settings-nav-btn" onclick="showSettingsSection('sources')">🌐 Shared Sources</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('mysources')">🔗 My Sources</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('keywords')">🔍 Keywords</button>
             <button class="settings-nav-btn" onclick="openArticleAddModal()"><span id="article-add-icon"></span> Article Add</button>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+              <span id="settings-save-status" style="font-size:11px;color:var(--sky-deep);font-weight:600"></span>
+              <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="saveAllSettings()">💾 Save</button>
+            </div>
           </div>
           <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px">
             <div>
@@ -1334,6 +1338,18 @@ try{
     await apiPost('SaveUserSettings',{userID:USER_ID,zipCode:zip});
     if(status){status.textContent='✓ Saved';setTimeout(()=>status.textContent='',3000);}
     await applyZipCodeWeather(zip);
+  }
+
+  async function saveAllSettings(){
+    const status=document.getElementById('settings-save-status');
+    if(status)status.textContent='Saving...';
+    await saveUserSettings();
+    const zip=(document.getElementById('us-zipcode')?.value||'').trim();
+    if(zip&&zip.length===5&&/^\d{5}$/.test(zip)){
+      await apiPost('SaveUserSettings',{userID:USER_ID,zipCode:zip});
+      await applyZipCodeWeather(zip);
+    }
+    if(status){status.textContent='✓ Saved';setTimeout(()=>{if(status.textContent==='✓ Saved')status.textContent='';},3000);}
   }
 
   function getScreenOrigin(){
@@ -4645,7 +4661,7 @@ function isYouTubeFilteredSource(sourceID){
       if(kw){kw.Keyword=keyword;kw.GroupLabel=groupLabel;kw.SourceID=sourceIDVal;kw.UserOwnedSourceID=uosIDVal;kw.UserMenuID=userMenuIDVal;kw.ImageURL=imageURL||null;kw.SourceName=updSrcName;}
       markSettingsChanged();
       const sequence=(Math.max(...keywords.map(k=>k.Sequence||0),0))+1;
-      const result=await apiPost('SaveKeyword',{action:'add',keyword,sequence,groupLabel,sourceID:sourceIDVal,userOwnedSourceID:uosIDVal,userMenuID:userMenuIDVal,imageURL:imageURL||null,userID:USER_ID});
+      const result=await apiPost('SaveKeyword',{action:'add',keyword,sequence,groupLabel,sourceID:sourceIDVal,userOwnedSourceID:uosIDVal,userMenuID:userMenuIDVal,imageURL:imageURL||null,userID:USER_ID,profileID:currentUserProfileID});
       if(!result?.keywordID){alert('Failed to create duplicate.');return;}
       keywords.push({KeywordID:result.keywordID,Keyword:keyword,GroupLabel:groupLabel,SourceID:sourceIDVal,UserOwnedSourceID:uosIDVal,UserMenuID:userMenuIDVal,SourceName:updSrcName,ImageURL:imageURL||null,Sequence:sequence,IsActive:'Y'});
       renderSettingsKeywords();
@@ -4747,7 +4763,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
         const updSrcName=sourceIDVal?(sources.find(s=>s.SourceID===sourceIDVal)?.Name||null):userOwnedSourceIDForKw?(userOwnedSources.find(s=>s.UserOwnedSourceID===userOwnedSourceIDForKw)?.SourceName||null):null;
         if(kw){kw.Keyword=keyword;kw.GroupLabel=groupLabel;kw.SourceID=sourceIDVal;kw.UserOwnedSourceID=userOwnedSourceIDForKw;kw.UserMenuID=userMenuIDForKw;kw.SourceName=updSrcName;}
       }else{
-        const result=await apiPost('SaveKeyword',{action:'add',keyword,sequence,groupLabel,sourceID:sourceIDVal,userOwnedSourceID:userOwnedSourceIDForKw,userMenuID:userMenuIDForKw,imageURL:window._modalKwImage||null,userID:USER_ID});
+        const result=await apiPost('SaveKeyword',{action:'add',keyword,sequence,groupLabel,sourceID:sourceIDVal,userOwnedSourceID:userOwnedSourceIDForKw,userMenuID:userMenuIDForKw,imageURL:window._modalKwImage||null,userID:USER_ID,profileID:currentUserProfileID});
         const newSrcName=sourceIDVal?(sources.find(s=>s.SourceID===sourceIDVal)?.Name||null):userOwnedSourceIDForKw?(userOwnedSources.find(s=>s.UserOwnedSourceID===userOwnedSourceIDForKw)?.SourceName||null):null;
         keywords.push({KeywordID:result.keywordID,Keyword:keyword,GroupLabel:groupLabel,SourceID:sourceIDVal,UserOwnedSourceID:userOwnedSourceIDForKw,UserMenuID:userMenuIDForKw,SourceName:newSrcName,ImageURL:window._modalKwImage||null,Sequence:sequence,IsActive:'Y'});
       }
