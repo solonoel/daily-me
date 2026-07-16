@@ -420,8 +420,9 @@
               </div>
             </div>
             <div>
-              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Nav Buttons/Row</div>
-              <input type="number" id="us-navbuttonsperrow" class="form-input" style="width:52px;font-size:12px;padding:3px 5px" min="1" max="10" oninput="debounceSaveCatLimits()">
+              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Nav Width</div>
+              <input type="number" id="us-navbuttonsperrow" class="form-input" style="width:60px;font-size:12px;padding:3px 5px" min="120" max="800" step="4" oninput="debounceSaveCatLimits()">
+              <div style="font-size:10px;color:var(--text-muted);margin-top:2px">px</div>
             </div>
             <div>
               <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Zip Code</div>
@@ -1367,8 +1368,7 @@ try{
   function pinNav(side){
     localStorage.setItem(`dailyme_navpin_${USER_ID}`,side);
     if(!_navMode)return;
-    const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
-    const panelWidth=(perRow*56+((perRow-1)*4))+32;
+    const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||328;
     const chrome=window.outerWidth-window.innerWidth||16;
     const targetX=getNavPinLeft(panelWidth,chrome);
     try{
@@ -1385,8 +1385,7 @@ try{
       document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value==='Nav');
       await apiPost('SaveUserSettings',{userID:USER_ID,launchMode:'Nav'});
       localStorage.setItem(`dailyme_mode_${USER_ID}`,'Nav');
-      const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
-      const panelWidth=(perRow*56+((perRow-1)*4))+32;
+      const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||328;
       const chrome=window.outerWidth-window.innerWidth||16;
       if(_isPopupWindow){
         // Already in a resizable popup (just came from Nav mode) — restore its previous size/position, no reload
@@ -1504,14 +1503,13 @@ try{
     function renderNavPanel(){
     const grid=document.getElementById('nav-panel-btn-grid');
     if(!grid)return;
-    const perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
     const emptyIDs=new Set((window._emptyMenuNames||[]).map(name=>{const m=userMenu.find(u=>u.UserMenuName===name);return m?m.UserMenuID:null;}).filter(Boolean));
     const activeMenu=userMenu.filter(m=>!m.IsInactive&&!emptyIDs.has(m.UserMenuID)).map(m=>({kind:'menu',seq:m.UserMenuSeq||99,data:m}));
     const activeLangs=userLanguages.filter(ul=>ul.IsActive==='Y').map(ul=>{
       const lang=allLanguages.find(l=>l.LanguageID===ul.LanguageID);
       return lang?{kind:'lang',seq:ul.MenuSeq||99,data:lang}:null;
     }).filter(Boolean);
-const panelWidth=(perRow*56+((perRow-1)*4))+32;
+const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||328;
     const navPanel=document.getElementById('nav-panel');
     if(_navMode){
       document.body.style.overflowX='hidden';
@@ -1687,13 +1685,16 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     const _clogo=document.querySelector('.header-logo');if(_clogo){_clogo.style.height='34px';_clogo.style.width='34px';}
     const _cAppTitle=document.querySelector('.app-title');if(_cAppTitle)_cAppTitle.style.fontSize='13px';
     try{
-      const[kwds,userSettings,langs,profileResult]=await Promise.all([
+      const[kwds,langs,profileResult]=await Promise.all([
         apiGet('GetHeadlineKeywords'),
-        apiGet('GetUserSettings'),apiGet('GetLanguages'),
+        apiGet('GetLanguages'),
         apiGet('GetCurrentProfile')
       ]);
       currentUserProfileID=profileResult?.currentUserProfileID||null;
-      const ulangs=await apiGet('GetUserLanguages',`&profileID=${currentUserProfileID||''}`);
+      const [ulangs,userSettings]=await Promise.all([
+        apiGet('GetUserLanguages',`&profileID=${currentUserProfileID||''}`),
+        apiGet('GetUserSettings',`&profileID=${currentUserProfileID||''}`)
+      ]);
       sources=[];keywords=Array.isArray(kwds)?kwds:[];
       allLanguages=Array.isArray(langs)?langs:[];userLanguages=Array.isArray(ulangs)?ulangs:[];
       userTimezone=Intl.DateTimeFormat().resolvedOptions().timeZone||'America/Chicago';
@@ -1703,7 +1704,7 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
         sv('us-recency',hs.RecencyDays??7);sv('us-maxheadlines',hs.MaxHeadlines||50);
         sv('us-youtubemaxresults',hs.YouTubeMaxResults||3);sv('us-otherperkey',hs.OtherHeadlinesPerKeyword||3);
         sv('us-collapsethreshold',hs.CollapseThreshold??5);sv('us-weatherurl',hs.WeatherURL||'');
-        sv('us-navbuttonsperrow',hs.NavButtonsPerRow||4);
+        sv('us-navbuttonsperrow',hs.NavWidth||328);
         const fh=hs.FetchHour,fe=document.getElementById('us-fetchhour');
         if(fe)fe.value=(fh!==null&&fh!==undefined)?String(fh):'';
         document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value===(hs.LaunchMode||'Full'));
@@ -1767,12 +1768,13 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     const lb=document.getElementById('loading-bar');
     const lm=document.getElementById('loading-msg');
     if(lb)lb.style.width='20%';
-    const [kwds,userSettings,langs,profileResult,profilesData]=await Promise.all([
+    const [kwds,langs,profileResult,profilesData]=await Promise.all([
       apiGet('GetHeadlineKeywords'),
-      apiGet('GetUserSettings'),apiGet('GetLanguages'),
+      apiGet('GetLanguages'),
       apiGet('GetCurrentProfile'),apiGet('GetUserProfiles')
     ]);
     currentUserProfileID=profileResult?.currentUserProfileID||null;
+    const userSettings=await apiGet('GetUserSettings',`&profileID=${currentUserProfileID||''}`);
     userProfiles=Array.isArray(profilesData)?profilesData:[];
     const ulangs=await apiGet('GetUserLanguages',`&profileID=${currentUserProfileID||''}`);
     renderProfileSelects();
@@ -1798,9 +1800,9 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
     }
     document.getElementById('us-maxheadlines').value=userSettings?.headlineSetting?.MaxHeadlines||50;
     const launchMode=userSettings?.headlineSetting?.LaunchMode||'Full';
-    const navButtonsPerRow=userSettings?.headlineSetting?.NavButtonsPerRow||4;
+    const navWidth=userSettings?.headlineSetting?.NavWidth||328;
     document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value===launchMode);
-    const nbrEl=document.getElementById('us-navbuttonsperrow');if(nbrEl)nbrEl.value=navButtonsPerRow;
+    const nbrEl=document.getElementById('us-navbuttonsperrow');if(nbrEl)nbrEl.value=navWidth;
     _navMode=launchMode==='Nav';
     localStorage.setItem(`dailyme_mode_${USER_ID}`, launchMode);
     // applyNavMode() deferred until all data is loaded below
@@ -1881,8 +1883,7 @@ const panelWidth=(perRow*56+((perRow-1)*4))+32;
         if(_asof)_asof.textContent='';
         if(_lb)_lb.style.width='100%';
         if(_lm)_lm.textContent='Opening Daily Me in Nav mode...';
-        const _perRow=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
-        const _panelW=(_perRow*56+((_perRow-1)*4))+32;
+        const _panelW=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||328;
         const _chrome=window.outerWidth-window.innerWidth||16;
         const _url=window.location.href.split('?')[0]+'?forceMode=Nav';
         window.open(_url,'dailyme_nav',`width=${_panelW+_chrome},height=${screen.availHeight},left=${getNavPinLeft(_panelW,_chrome)},top=${getScreenOrigin().top},resizable=yes,scrollbars=no`);
@@ -4165,8 +4166,8 @@ let _pdfClosing=false;
       const weatherURLVal=(document.getElementById('us-weatherurl')?.value||'').trim()||null;
       window._weatherClickURL=weatherURLVal;
       const launchModeVal=document.querySelector('input[name="us-launchmode"]:checked')?.value||'Full';
-      const navButtonsPerRowVal=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
-      await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,fetchHour,collapseThreshold:collapseThresholdVal,weatherURL:weatherURLVal,launchMode:launchModeVal,navButtonsPerRow:navButtonsPerRowVal,categorySettings});
+      const navWidthVal=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||328;
+      await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,fetchHour,collapseThreshold:collapseThresholdVal,weatherURL:weatherURLVal,launchMode:launchModeVal,navWidth:navWidthVal,profileID:currentUserProfileID,categorySettings});
     },800);
   }
   function updateOtherLimit(){
@@ -6651,7 +6652,6 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
 
   async function deleteArticleFromModal(){
     if(!aaEditingID)return;
-    if(!confirm('Delete this article?'))return;
     await apiPost('SaveUserOwnedSource',{action:'delete',userID:USER_ID,sourceID:aaEditingID});
     userOwnedSources=userOwnedSources.filter(s=>s.UserOwnedSourceID!==aaEditingID);
     closeArticleAddModal();
@@ -6661,7 +6661,6 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
   }
 
   async function deleteArticleInline(sourceID){
-    if(!confirm('Delete this article?'))return;
     await apiPost('SaveUserOwnedSource',{action:'delete',userID:USER_ID,sourceID});
     userOwnedSources=userOwnedSources.filter(s=>s.UserOwnedSourceID!==sourceID);
     renderHeadlines();

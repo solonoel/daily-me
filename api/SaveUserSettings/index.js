@@ -1,5 +1,7 @@
 const sql = require('mssql');
 
+const DEFAULT_NAV_WIDTH = 328;
+
 const config = {
   server: 'brunsusa-sql.database.windows.net',
   database: 'DailyMeDB',
@@ -11,7 +13,7 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, otherHeadlinesPerKeyword, categorySettings, disableYoutubeToday, fetchHour, zipCode, collapseThreshold, weatherURL, launchMode, navButtonsPerRow } = req.body;
+    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, otherHeadlinesPerKeyword, categorySettings, disableYoutubeToday, fetchHour, zipCode, collapseThreshold, weatherURL, launchMode, navWidth, profileID } = req.body;
 
     if (disableYoutubeToday !== undefined) {
       const resetYT = req.body.resetYouTubeFetch === true;
@@ -30,6 +32,21 @@ module.exports = async function(context, req) {
         .query(`UPDATE [User] SET ZipCode = @ZipCode WHERE UserID = @UserID`);
     }
 
+    if (navWidth !== undefined && profileID) {
+      await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('UserProfileID', sql.Int, profileID)
+        .input('SettingKey', sql.VarChar(50), 'NavWidth')
+        .input('SettingValue', sql.NVarChar(500), String(navWidth || DEFAULT_NAV_WIDTH))
+        .query(`
+          MERGE UserProfileSetting AS target
+          USING (SELECT @UserID AS UserID, @UserProfileID AS UserProfileID, @SettingKey AS SettingKey) AS src
+          ON target.UserID = src.UserID AND target.UserProfileID = src.UserProfileID AND target.SettingKey = src.SettingKey
+          WHEN MATCHED THEN UPDATE SET SettingValue = @SettingValue
+          WHEN NOT MATCHED THEN INSERT (UserID, UserProfileID, SettingKey, SettingValue) VALUES (@UserID, @UserProfileID, @SettingKey, @SettingValue);
+        `);
+    }
+
     if (recencyDays || maxHeadlines || fetchHour !== undefined || collapseThreshold !== undefined) {
       await pool.request()
         .input('UserID', sql.Int, userID)
@@ -41,7 +58,6 @@ module.exports = async function(context, req) {
         .input('CollapseThreshold', sql.Int, collapseThreshold ?? 5)
         .input('WeatherURL', sql.NVarChar(500), weatherURL !== undefined ? (weatherURL || null) : null)
         .input('LaunchMode', sql.VarChar(10), launchMode || 'Full')
-        .input('NavButtonsPerRow', sql.Int, navButtonsPerRow || 4)
         .query(`
           UPDATE [HeadlineSetting]
           SET RecencyDays = @RecencyDays, MaxHeadlines = @MaxHeadlines, YouTubeMaxResults = @YouTubeMaxResults,
@@ -49,8 +65,7 @@ module.exports = async function(context, req) {
               FetchHour = ISNULL(@FetchHour, FetchHour),
               CollapseThreshold = @CollapseThreshold,
               WeatherURL = @WeatherURL,
-              LaunchMode = @LaunchMode,
-              NavButtonsPerRow = @NavButtonsPerRow
+              LaunchMode = @LaunchMode
           WHERE UserID = @UserID
         `);
     }
