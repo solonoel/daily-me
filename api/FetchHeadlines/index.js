@@ -540,9 +540,8 @@ module.exports = async function(context, req) {
                      uhs.UserMenuID AS SourceUserMenuID, uhs.GroupLabel AS SourceGroupLabel
               FROM [HeadlineSource] h
               INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
-              LEFT JOIN [UserMenu] um ON um.UserMenuID = uhs.UserMenuID
               WHERE uhs.UserID = @UserID AND h.IsActive = 1 AND uhs.IsActive = 1
-                AND (uhs.UserMenuID IS NULL OR @ProfileID IS NULL OR um.UserProfileID = @ProfileID)
+                AND (@ProfileID IS NULL OR uhs.UserProfileID = @ProfileID)
               ORDER BY h.Sequence, h.SourceID`);
     const sources = sourcesResult.recordset;
 
@@ -551,9 +550,8 @@ const uosYTResult = await pool.request()
   .input('ProfileID', sql.Int, profileID)
   .query(`SELECT u.UserOwnedSourceID, u.SourceName, u.URL, u.YoutubeChannelID, u.UserMenuID, u.Exclusions, u.GroupLabel
           FROM [UserOwnedSource] u
-          LEFT JOIN [UserMenu] um ON um.UserMenuID = u.UserMenuID
           WHERE u.UserID = @UserID AND u.SourceType = 'YT Sub' AND u.IsInactive = 0
-            AND (u.UserMenuID IS NULL OR @ProfileID IS NULL OR um.UserProfileID = @ProfileID)`);
+            AND (@ProfileID IS NULL OR u.UserProfileID = @ProfileID)`);
     const uosYTSources = uosYTResult.recordset;
     
 
@@ -584,9 +582,8 @@ const uosYTResult = await pool.request()
               u.URL AS OwnedSourceURL, u.SourceType AS OwnedSourceType, u.SourceName AS OwnedSourceName
               FROM [HeadlineKeyword] k
               LEFT JOIN [UserOwnedSource] u ON k.UserOwnedSourceID = u.UserOwnedSourceID
-              LEFT JOIN [UserMenu] km ON km.UserMenuID = k.UserMenuID
               WHERE k.UserID=@UserID AND k.IsActive='Y'
-                AND (k.UserMenuID IS NULL OR @ProfileID IS NULL OR km.UserProfileID = @ProfileID)`);
+                AND (@ProfileID IS NULL OR k.UserProfileID = @ProfileID)`);
     const keywords = kwResult.recordset.map(k => ({ ...k, keywordID: k.KeywordID }));
     const hasActiveKeywords = keywords.length > 0;
 
