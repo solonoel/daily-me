@@ -409,6 +409,7 @@
             <button class="settings-nav-btn" onclick="showSettingsSection('sources')">🌐 Shared Sources</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('mysources')">🔗 My Sources</button>
             <button class="settings-nav-btn" onclick="showSettingsSection('keywords')">🔍 Keywords</button>
+            <button class="settings-nav-btn" onclick="openArticleAddModal()"><span id="article-add-icon"></span> Article Add</button>
           </div>
           <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px">
             <div>
@@ -806,6 +807,33 @@
     </div>
   </div>
 </div>
+<div class="modal-overlay" id="article-add-modal" style="display:none" onclick="if(event.target===this)closeArticleAddModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="article-add-modal-title">🔭 Add Article</div>
+    <div class="form-group">
+      <label class="form-label">Menu</label>
+      <select class="form-select" id="aa-menuid"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <input class="form-input" id="aa-description" placeholder="Article name">
+      <div style="font-size:10px;color:var(--text-muted);margin-top:4px">Today's date is appended automatically on save, e.g. "Article Name (07.16.2026)"</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">URL</label>
+      <input class="form-input" id="aa-url" placeholder="https://...">
+    </div>
+    <div class="modal-actions">
+      <div class="modal-actions-group" id="aa-delete-group" style="display:none">
+        <button class="btn-secondary btn-compact" style="border-color:#e05050;color:#e05050" onclick="deleteArticleFromModal()">🗑️ Delete</button>
+      </div>
+      <div class="modal-actions-group">
+        <button class="btn-secondary btn-compact" onclick="closeArticleAddModal()">Cancel</button>
+        <button class="btn-primary btn-compact" onclick="saveArticleAdd()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="copy-profile-modal" style="display:none" onclick="if(event.target===this)closeCopyToProfileModal()">
   <div class="modal" onclick="event.stopPropagation()" style="max-width:340px">
     <div class="modal-title">Copy to Profile</div>
@@ -881,6 +909,7 @@
         <label class="form-checkbox-row"><input type="radio" name="inv-type" value="API" onchange="updateInvestigateFields()"> API</label>
         <label class="form-checkbox-row"><input type="radio" name="inv-type" value="RSS" onchange="updateInvestigateFields()"> RSS</label>
         <label class="form-checkbox-row"><input type="radio" name="inv-type" value="URL" onchange="updateInvestigateFields()"> URL</label>
+        <label class="form-checkbox-row"><input type="radio" name="inv-type" value="YT Sub" onchange="updateInvestigateFields()"> YT Sub</label>
         </div>
       </div>
     </div>
@@ -974,6 +1003,8 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
   };
 
   function getStreakEmoji(days){ if(days>=30)return'🏆'; if(days>=14)return'💎'; if(days>=7)return'🔥'; if(days>=3)return'⭐'; return'🌱'; }
+
+  const BINOCULARS_SVG='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="6" cy="16" r="3.5"/><circle cx="18" cy="16" r="3.5"/><path d="M9 15h6"/><path d="M8 12.5V7a2 2 0 0 1 2-2h1"/><path d="M16 12.5V7a2 2 0 0 1-2-2h-1"/><path d="M11 5h2"/></svg>';
 
   async function initLoadingOverlay(){
     // Show cached headline groups immediately
@@ -3742,8 +3773,12 @@ const makeSourceRow=s=>{
       const defaultIcon=s.SourceType==='File'?'📄':'🌐';
       const thumb=s.ThumbnailURL?`<img src="${s.ThumbnailURL}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">`:`<div style="width:100px;height:62px;border-radius:6px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">${defaultIcon}</div>`;
       const escapedURL = s.URL.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      if(_navMode)return `<div class="headline-row" onclick="openSourceEntry('${escapedURL}','${(s.SourceType||'').replace(/'/g,"\\'")}');return false;">${thumb}<div class="headline-body"><div class="headline-row-title">${s.SourceName}</div><div class="headline-row-meta"><span class="badge">${s.SourceType}</span></div></div></div>`;
-      return `<div class="headline-row" onclick="openSourceEntry('${escapedURL}','${(s.SourceType||'').replace(/'/g,"\\'")}');return false;">${thumb}<div class="headline-body"><div class="headline-row-title">${s.SourceName}</div>${s.Description?`<div class="headline-row-summary">${s.Description}</div>`:''}<div class="headline-row-meta"><span class="badge">${s.SourceType}</span></div></div></div>`;
+      const isArticle = s.GroupLabel==='Articles';
+      const articleBtns = isArticle ? `
+        <button class="retain-btn" onclick="event.stopPropagation();openArticleAddModal(${s.UserOwnedSourceID})" title="Edit" style="margin-top:2px;flex-shrink:0;font-size:12px;color:var(--text-muted)" data-delete="1">✏️</button>
+        <button class="retain-btn" onclick="event.stopPropagation();deleteArticleInline(${s.UserOwnedSourceID})" title="Delete" style="margin-top:2px;flex-shrink:0;font-size:12px;color:var(--text-muted)" data-delete="1">✕</button>` : '';
+      if(_navMode)return `<div class="headline-row" onclick="openSourceEntry('${escapedURL}','${(s.SourceType||'').replace(/'/g,"\\'")}');return false;">${thumb}<div class="headline-body"><div class="headline-row-title">${s.SourceName}</div><div class="headline-row-meta"><span class="badge">${s.SourceType}</span></div></div>${articleBtns}</div>`;
+      return `<div class="headline-row" onclick="openSourceEntry('${escapedURL}','${(s.SourceType||'').replace(/'/g,"\\'")}');return false;">${thumb}<div class="headline-body"><div class="headline-row-title">${s.SourceName}</div>${s.Description?`<div class="headline-row-summary">${s.Description}</div>`:''}<div class="headline-row-meta"><span class="badge">${s.SourceType}</span></div></div>${articleBtns}</div>`;
     };
     const sourceRowsByGroup={};
     menuSources.forEach(s=>{
@@ -3770,6 +3805,7 @@ const makeSourceRow=s=>{
     });
 
     const orderedKeys=Object.keys(groups).sort((a,b)=>{
+      if(a==='Articles')return 1;if(b==='Articles')return -1;
       if(currentUserMenuFilter){
         const ms=menuGroupSeqs[currentUserMenuFilter]||{};
         const sa=ms[a]??Infinity,sb=ms[b]??Infinity;
@@ -3800,11 +3836,11 @@ const makeSourceRow=s=>{
             <div class="headline-row-title">${h.HeadlineName}</div>
             ${_navMode?'':(h.Summary?`<div class="headline-row-summary">${h.Summary}</div>`:'')}
             <div class="headline-row-meta">
-              ${_navMode?`<span class="badge">${h.ChannelName?'YouTube':'Article'}</span>`:(()=>{const rel=h.PublishedDate&&h.CreatedDate?formatReleased(h.PublishedDate,h.CreatedDate):null;const dt=formatDate(h.PublishedDate||h.CreatedDate,true);return`<span class="headline-row-source">${rel?`${rel} ago (${dt})`:`date: ${dt}`}</span>`;})()}
-              ${_navMode?'':`<span class="headline-row-source">source: ${h.SourceName||'—'}</span>`}
-              ${_navMode?'':(h.Keyword||h.Topic?`<span class="headline-row-source">keyword: ${h.Keyword||h.Topic}</span>`:'')}
-              ${_navMode?'':(h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:'')}
-              ${_navMode?'':(h.Duration?`<span class="headline-row-source">length: ${h.Duration}</span>`:'')}
+              ${(()=>{const rel=h.PublishedDate&&h.CreatedDate?formatReleased(h.PublishedDate,h.CreatedDate):null;const dt=formatDate(h.PublishedDate||h.CreatedDate,true);return`<span class="headline-row-source">${rel?`${rel} ago (${dt})`:`date: ${dt}`}</span>`;})()}
+              ${h.ChannelName?'':`<span class="headline-row-source">source: ${h.SourceName||'—'}</span>`}
+              ${(h.Keyword||h.Topic?`<span class="headline-row-source">keyword: ${h.Keyword||h.Topic}</span>`:'')}
+              ${(h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:'')}
+              ${(h.Duration?`<span class="headline-row-source">length: ${h.Duration}</span>`:'')}
             </div>
           </div>
           <button class="retain-btn ${h.Retain==='Y'?'active':''}" onclick="toggleRetain(${h.HeadlineID},event)" title="Retain"></button>
@@ -4027,7 +4063,7 @@ let _pdfClosing=false;
             ${h.Summary?`<div class="headline-row-summary">${h.Summary}</div>`:''}
             <div class="headline-row-meta">
               <span class="headline-row-source">date: ${formatDate(h.PublishedDate||h.CreatedDate,true)}</span>
-              <span class="headline-row-source">source: ${h.SourceName||'—'}</span>
+              ${h.ChannelName?'':`<span class="headline-row-source">source: ${h.SourceName||'—'}</span>`}
               <span class="headline-row-source">keyword: ${h.Keyword||h.Topic||'—'}</span>
               ${h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:''}
               ${h.Duration?`<span class="headline-row-source">length: ${h.Duration}</span>`:''}
@@ -4443,7 +4479,7 @@ function isYouTubeFilteredSource(sourceID){
     window._modalMenuImage=undefined;
     window._modalSubImage=undefined;
     const catOptions=categories.map(c=>`<option value="${c.CategoryID}">${c.Name}</option>`).join('');
-    const sourceTypeOptions=['Guardian','NYT','GNews','Currents','MediaStack','NewsAPI','RSS','YouTube'].map(t=>`<option value="${t}">${t}</option>`).join('');
+    const sourceTypeOptions=['Guardian','NYT','GNews','Currents','MediaStack','NewsAPI','RSS'].map(t=>`<option value="${t}">${t}</option>`).join('');
     let title='',body='',copyKind=null;
     try{
     if(type==='category'){
@@ -4878,7 +4914,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       const otherCol='';
       return `<tr draggable="true" data-id="${s.SourceID}" data-seq="${s.Sequence||999}">
         <td style="width:30px;text-align:center;color:var(--text-muted)">⠿</td>
-        <td><strong>${s.Name}</strong>${s.SourceType==='Youtube'&&!s.YoutubeChannelID?' <span style="color:#e05050;font-weight:700;font-size:11px">(No ChannelID)</span>':''}</td>
+        <td><strong>${s.Name}</strong></td>
         <td><span class="badge">${s.SourceType||'—'}</span>${s.SourceType==='YT Sub'&&!s.YoutubeChannelID?' <span style="color:#e05050;font-weight:700;font-size:11px">(no ID)</span>':''}</td>
         <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)" title="${s.URL}">${s.URL}</td>
         <td style="font-size:12px">${s.DateAdded?formatDate(s.DateAdded):'—'}</td>
@@ -6294,11 +6330,12 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     const type=document.querySelector('input[name="inv-type"]:checked')?.value||'RSS';
     const note=document.getElementById('inv-url-note');
     const urlInput=document.getElementById('inv-url');
+    const searchBtn=document.getElementById('inv-search-btn');
     if(type==='RSS'){
       if(note)note.textContent='(RSS feed URL — required)';
       urlInput.placeholder='https://feeds.example.com/rss';
-    }else if(type==='Youtube'){
-      if(note)note.textContent='(YouTube channel URL — e.g. https://www.youtube.com/@ChannelName)';
+    }else if(type==='YT Sub'){
+      if(note)note.textContent='(YouTube channel URL — e.g. https://www.youtube.com/@ChannelName — click Apply directly, no search needed)';
       urlInput.placeholder='https://www.youtube.com/@ChannelName';
     }else if(type==='URL'){
       if(note)note.textContent='(web page URL — must start with https://)';
@@ -6307,6 +6344,7 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
       if(note)note.textContent='(leave blank — searches all active API sources with keyword)';
       urlInput.placeholder='(optional)';
     }
+    if(searchBtn)searchBtn.style.display=(type==='YT Sub')?'none':'';
   }
 
   async function runInvestigateSearch(){
@@ -6320,7 +6358,6 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     status.textContent='';
     results.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">⏳ Fetching...</div>';
     if(type==='RSS'&&!url){alert('Enter a URL first.');btn.disabled=false;btn.textContent='Search';return;}
-    if(type==='Youtube'&&!url){alert('Enter a YouTube channel URL first.');btn.disabled=false;btn.textContent='Search';return;}
     if(type==='URL'){
       if(!url){alert('Enter a web page URL first.');btn.disabled=false;btn.textContent='Search';return;}
       try{new URL(url);}catch(e){alert('Enter a valid web address (e.g. https://www.example.com)');btn.disabled=false;btn.textContent='Search';return;}
@@ -6354,7 +6391,7 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
   async function applyInvestigateSource(){
     const type=document.querySelector('input[name="inv-type"]:checked')?.value||'RSS';
     const url=document.getElementById('inv-url').value.trim();
-    if((type==='RSS'||type==='Youtube')&&!url){alert('Enter a URL first.');return;}
+    if((type==='RSS'||type==='YT Sub')&&!url){alert('Enter a URL first.');return;}
     const name=prompt('Source name:');
     if(!name?.trim())return;
     const status=document.getElementById('inv-status');
@@ -6549,15 +6586,99 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     if(p)p.innerHTML='🖼';
   }
 
+  // ── ARTICLE ADD ──
+
+  let aaEditingID=null;
+
+  function pad2(n){return String(n).padStart(2,'0');}
+
+  function openArticleAddModal(sourceIDToEdit=null){
+    aaEditingID=sourceIDToEdit;
+    const menuSel=document.getElementById('aa-menuid');
+    if(menuSel){
+      menuSel.innerHTML='<option value="">— None —</option>'+
+        userMenu.filter(m=>!m.IsInactive).map(m=>`<option value="${m.UserMenuID}">${m.UserMenuName}</option>`).join('');
+    }
+    const titleEl=document.getElementById('article-add-modal-title');
+    const deleteGroup=document.getElementById('aa-delete-group');
+    if(sourceIDToEdit){
+      const src=userOwnedSources.find(s=>s.UserOwnedSourceID===sourceIDToEdit);
+      if(titleEl)titleEl.innerHTML=`${BINOCULARS_SVG} Edit Article`;
+      if(deleteGroup)deleteGroup.style.display='';
+      document.getElementById('aa-description').value=src?.SourceName||'';
+      document.getElementById('aa-url').value=src?.URL||'';
+      if(menuSel&&src?.UserMenuID)menuSel.value=src.UserMenuID;
+    }else{
+      if(titleEl)titleEl.innerHTML=`${BINOCULARS_SVG} Add Article`;
+      if(deleteGroup)deleteGroup.style.display='none';
+      document.getElementById('aa-description').value='';
+      document.getElementById('aa-url').value='';
+      if(menuSel)menuSel.value='';
+    }
+    document.getElementById('article-add-modal').style.display='flex';
+  }
+
+  function closeArticleAddModal(){
+    document.getElementById('article-add-modal').style.display='none';
+    aaEditingID=null;
+  }
+
+  async function saveArticleAdd(){
+    const description=document.getElementById('aa-description').value.trim();
+    const url=document.getElementById('aa-url').value.trim();
+    const userMenuID=parseInt(document.getElementById('aa-menuid')?.value)||null;
+    if(!description)return alert('Description is required');
+    if(!url)return alert('URL is required');
+    const now=new Date();
+    const dateStamp=`${pad2(now.getMonth()+1)}.${pad2(now.getDate())}.${now.getFullYear()}`;
+    if(aaEditingID){
+      const src=userOwnedSources.find(s=>s.UserOwnedSourceID===aaEditingID);
+      const sourceName=src&&src.SourceName===description?description:`${description} (${dateStamp})`;
+      const result=await apiPost('SaveUserOwnedSource',{action:'update',userID:USER_ID,sourceID:aaEditingID,sourceName,url,sourceType:'URL',description:null,thumbnailURL:src?.ThumbnailURL||null,exclusions:null,isInactive:false,userMenuID,groupLabel:'Articles'});
+      if(result?.error){alert('Could not save: '+result.error);return;}
+      if(src){src.SourceName=sourceName;src.URL=url;src.UserMenuID=userMenuID;src.GroupLabel='Articles';}
+    }else{
+      const sourceName=`${description} (${dateStamp})`;
+      const result=await apiPost('SaveUserOwnedSource',{action:'add',userID:USER_ID,sourceName,url,sourceType:'URL',description:null,thumbnailURL:null,exclusions:null,userMenuID,groupLabel:'Articles'});
+      if(result?.error){alert('Could not save: '+result.error);return;}
+      userOwnedSources.push({UserOwnedSourceID:result.sourceID,SourceName:sourceName,URL:url,SourceType:'URL',Description:null,ThumbnailURL:null,Exclusions:null,IsInactive:0,Sequence:99,UserMenuID:userMenuID,GroupLabel:'Articles',IsSysHeader:0});
+    }
+    closeArticleAddModal();
+    allHeadlinesCache=[];
+    await loadHeadlines(true);
+    if(currentSettingsSection==='mysources')renderMySourcesTable();
+  }
+
+  async function deleteArticleFromModal(){
+    if(!aaEditingID)return;
+    if(!confirm('Delete this article?'))return;
+    await apiPost('SaveUserOwnedSource',{action:'delete',userID:USER_ID,sourceID:aaEditingID});
+    userOwnedSources=userOwnedSources.filter(s=>s.UserOwnedSourceID!==aaEditingID);
+    closeArticleAddModal();
+    allHeadlinesCache=[];
+    await loadHeadlines(true);
+    if(currentSettingsSection==='mysources')renderMySourcesTable();
+  }
+
+  async function deleteArticleInline(sourceID){
+    if(!confirm('Delete this article?'))return;
+    await apiPost('SaveUserOwnedSource',{action:'delete',userID:USER_ID,sourceID});
+    userOwnedSources=userOwnedSources.filter(s=>s.UserOwnedSourceID!==sourceID);
+    renderHeadlines();
+    if(currentSettingsSection==='mysources')renderMySourcesTable();
+  }
+
   // ── LANG WINDOW ──
   function openSettingsWindow(){ showInCompanion('showSettings'); }
   function openLangWindow(langID,langName){ showInCompanion('showLanguage',{langID,langName}); }
 
-  // ── INIT ──
+// ── INIT ──
   function logout()
   {localStorage.removeItem('dailyme_user');window.location.href='login.html';}
   setGreeting();setDate();
   loadAll();
+  document.addEventListener('DOMContentLoaded',()=>{const ic=document.getElementById('article-add-icon');if(ic)ic.innerHTML=BINOCULARS_SVG;});
+  {const ic=document.getElementById('article-add-icon');if(ic)ic.innerHTML=BINOCULARS_SVG;}
 
   
 </script>
