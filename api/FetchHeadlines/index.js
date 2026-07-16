@@ -638,8 +638,10 @@ module.exports = async function(context, req) {
             break;
           }
           case 'RSS':  articles = await fetchRSS(source); break;
+          case 'YT Sub':
           case 'URL': {
-            if (source.URL?.includes('youtube.com')) {
+            const isYoutubeSource = source.SourceType === 'YT Sub' || source.URL?.includes('youtube.com');
+            if (isYoutubeSource) {
               if (disableYoutube) { srcLog.skipped = 'disabled'; continue; }
               if (youtubeAlreadyFetched) { srcLog.skipped = 'already fetched today'; continue; }
               if (!source.YoutubeChannelID) { srcLog.skipped = 'no channel ID'; continue; }
@@ -661,7 +663,7 @@ module.exports = async function(context, req) {
           }
           default: articles = await fetchRSS(source);
         }
-          if (source.URL?.includes('youtube.com') && source.SourceType === 'URL') {
+          if (source.SourceType === 'YT Sub' || (source.URL?.includes('youtube.com') && source.SourceType === 'URL')) {
           // fetched/langFiltered/recencyFiltered already set above in YouTube branch
         } else {
           srcLog.fetched = articles.length;
