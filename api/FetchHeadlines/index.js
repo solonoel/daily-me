@@ -651,11 +651,14 @@ const uosYTResult = await pool.request()
               articles = ytResult.articles;
               srcLog.fetched = ytResult.fetched;
               srcLog.recencyFiltered = ytResult.recencyFiltered;
+              context.log(`[DEBUG ${source.Name}] STAGE1 after fetchYouTube: ${articles.length} articles, isFiltered=${isFiltered}`);
               const lr = await filterByLanguage(articles, uniqueLangCodes);
               srcLog.langFiltered = lr._langFiltered?.length || 0;
               totalLangFiltered += srcLog.langFiltered;
               articles = lr;
+              context.log(`[DEBUG ${source.Name}] STAGE2 after filterByLanguage: ${articles.length} articles, removed=${srcLog.langFiltered}`);
               articles.forEach(a => { a.isSubscription = !isFiltered; });
+              context.log(`[DEBUG ${source.Name}] STAGE3 after isSubscription set: ${articles.length} articles, sample.isSubscription=${articles[0]?.isSubscription}`);
               youtubeFetched = true;
             } else {
               articles = await fetchPageURL(source);
@@ -685,11 +688,16 @@ const uosYTResult = await pool.request()
             });
             articles = applyKeywordMatching(articles, applicableKeywords);
             articles = articles.filter(a => a.keywordID);
+            context.log(`[DEBUG ${source.Name}] STAGE4 filtered-source keyword matching: ${articles.length} articles remain`);
           } else {
+            context.log(`[DEBUG ${source.Name}] STAGE4 unfiltered-source: isSubscription BEFORE forced reset=${articles[0]?.isSubscription}, ${articles.length} articles`);
             articles.forEach(a => { a.isSubscription = false; });
+            context.log(`[DEBUG ${source.Name}] STAGE4b unfiltered-source: isSubscription AFTER forced reset=${articles[0]?.isSubscription}`);
           }
 
+        const beforeExclusions = articles.length;
         articles = articles.filter(a => !sourceExcludesArticle(source, a));
+        context.log(`[DEBUG ${source.Name}] STAGE5 after sourceExcludesArticle: ${articles.length} articles (was ${beforeExclusions})`);
         articles.forEach(a => {
           a.sourceName = source.Name;
           a.sourceID = source.SourceID;
@@ -705,8 +713,8 @@ const uosYTResult = await pool.request()
         });
         // Hit logging moved to insert-time below — only sources that actually produce a newly-inserted
         // headline this run should count as a "hit." Track eligibility here without logging yet.
-        context.log(`Source [${source.Name}]: ${articles.length} articles`);
-        allArticles = allArticles.concat(articles);
+context.log(`Source [${source.Name}]: ${articles.length} articles, isSubscription=${articles[0]?.isSubscription}, keywordID=${articles[0]?.keywordID}, link=${articles[0]?.link}, sample=${articles[0]?.title}`);
+allArticles = allArticles.concat(articles);
       } catch(err) {
         context.log(`Error fetching from ${source.Name}: ${err.message}`);
         logErrors.push({ source: source.Name, error: err.message });
@@ -812,11 +820,18 @@ const uosYTResult = await pool.request()
 
     // Deduplicate
     const seen = new Set();
+    const gerdesAllArticles = allArticles.filter(a => a.sourceName?.includes('Gerdes'));
+    context.log(`[DEBUG Gerdes] allArticles before dedup: ${gerdesAllArticles.length}, links: ${JSON.stringify(gerdesAllArticles.map(a=>a.link))}`);
     const unique = allArticles.filter(a => {
-      if (!a.link || seen.has(a.link) || existingLinks.has(a.link) || exclusionLinks.has(a.link)) return false;
+      if (!a.link) { if(a.sourceName?.includes('Gerdes')) context.log(`[DEBUG DEDUP] dropped: no link, title=${a.title}`); return false; }
+      if (seen.has(a.link)) { if(a.sourceName?.includes('Gerdes')) context.log(`[DEBUG DEDUP] dropped: duplicate in this run, link=${a.link}`); return false; }
+      if (existingLinks.has(a.link)) { if(a.sourceName?.includes('Gerdes')) context.log(`[DEBUG DEDUP] dropped: already in Headline table, link=${a.link}`); return false; }
+      if (exclusionLinks.has(a.link)) { if(a.sourceName?.includes('Gerdes')) context.log(`[DEBUG DEDUP] dropped: in HeadlineExclusion, link=${a.link}`); return false; }
       seen.add(a.link); return true;
     });
     unique.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
+    const gerdesUnique = unique.filter(a => a.sourceName?.includes('Gerdes'));
+    context.log(`[DEBUG Gerdes] survives dedup: ${gerdesUnique.length}`);
 
     // Selection — no per-category limits
     const placedLinks = new Set();
@@ -829,6 +844,7 @@ const uosYTResult = await pool.request()
         selected.push(a);
       }
     }
+    context.log(`[DEBUG Gerdes] placed after Pass1 (subscriptions): ${gerdesUnique.filter(a=>placedLinks.has(a.link)).length} of ${gerdesUnique.length}`);
     // Pass 2: Teams
     if (hasActiveKeywords) {
       for (const a of unique) {
@@ -836,6 +852,7 @@ const uosYTResult = await pool.request()
         if (a.teamsOnly) { placedLinks.add(a.link); selected.push(a); }
       }
     }
+    context.log(`[DEBUG Gerdes] placed after Pass2 (teams): ${gerdesUnique.filter(a=>placedLinks.has(a.link)).length} of ${gerdesUnique.length}`);
     // Pass 3: All remaining keyword-matched
     if (hasActiveKeywords) {
       for (const a of unique) {
@@ -844,6 +861,7 @@ const uosYTResult = await pool.request()
         selected.push(a);
       }
     }
+    context.log(`[DEBUG Gerdes] placed after Pass3 (catch-all): ${gerdesUnique.filter(a=>placedLinks.has(a.link)).length} of ${gerdesUnique.length}, hasActiveKeywords=${hasActiveKeywords}`);
 
     context.log(`unique: ${unique.length}, selected: ${selected.length}`);
 
