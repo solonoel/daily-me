@@ -885,6 +885,7 @@ allArticles = allArticles.concat(articles);
         const kw = a.keywordID ? kwResult.recordset.find(k => k.KeywordID === a.keywordID) : null;
         await pool.request()
           .input('UserID', sql.Int, userID)
+          .input('UserProfileID', sql.Int, profileID)
           .input('HeadlineName', sql.NVarChar(500), (a.title || '').substring(0, 500))
           .input('Link', sql.NVarChar(500), (a.link || '').substring(0, 500))
           .input('Summary', sql.NVarChar(1000), (a.summary || '').substring(0, 1000))
@@ -899,11 +900,11 @@ allArticles = allArticles.concat(articles);
           .input('UserMenuID', sql.Int, menuID)
           .input('MenuSeq', sql.SmallInt, menuSeqVal)
           .query(`INSERT INTO [Headline]
-                    (UserID, HeadlineName, Link, Summary, CreatedDate, Retain,
+                    (UserID, UserProfileID, HeadlineName, Link, Summary, CreatedDate, Retain,
                      KeywordID, ThumbnailURL, ChannelName, ChannelURL, SourceID, UserOwnedSourceID, Duration, PublishedDate,
                      UserMenuID, MenuSeq)
                   VALUES
-                    (@UserID, @HeadlineName, @Link, @Summary, GETDATE(), 'N',
+                    (@UserID, @UserProfileID, @HeadlineName, @Link, @Summary, GETDATE(), 'N',
                      @KeywordID, @ThumbnailURL, @ChannelName, @ChannelURL, @SourceID, @UserOwnedSourceID, @Duration, @PublishedDate,
                      @UserMenuID, @MenuSeq)`);
         totalInserted++;
