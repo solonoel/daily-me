@@ -18,7 +18,7 @@ module.exports = async function(context, req) {
 
     const settingResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT hs.RecencyDays, hs.MaxHeadlines, hs.YouTubeMaxResults, hs.OtherHeadlinesPerKeyword, hs.FetchHour, hs.DisableYoutubeToday, hs.CollapseThreshold, hs.WeatherURL, hs.LaunchMode, yq.QuotaUsed, yq.QuotaDate FROM [HeadlineSetting] hs CROSS JOIN YouTubeQuota yq WHERE hs.UserID=@UserID AND yq.QuotaID=1`);
+      .query(`SELECT hs.RecencyDays, hs.MaxHeadlines, hs.YouTubeMaxResults, hs.OtherHeadlinesPerKeyword, hs.FetchHour, hs.DisableYoutubeToday, hs.CollapseThreshold, hs.WeatherURL, hs.LaunchMode, hs.EnableLogging, yq.QuotaUsed, yq.QuotaDate FROM [HeadlineSetting] hs CROSS JOIN YouTubeQuota yq WHERE hs.UserID=@UserID AND yq.QuotaID=1`);
 
     const userResult = await pool.request()
       .input('UserID', sql.Int, userID)

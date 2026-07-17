@@ -13,7 +13,7 @@ const config = {
 module.exports = async function(context, req) {
   try {
     const pool = await sql.connect(config);
-    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, otherHeadlinesPerKeyword, categorySettings, disableYoutubeToday, fetchHour, zipCode, collapseThreshold, weatherURL, launchMode, navWidth, profileID } = req.body;
+    const { userID = 1, recencyDays, maxHeadlines, youTubeMaxResults, otherHeadlinesPerKeyword, categorySettings, disableYoutubeToday, fetchHour, zipCode, collapseThreshold, weatherURL, launchMode, navWidth, profileID, enableLogging } = req.body;
 
     if (disableYoutubeToday !== undefined) {
       const resetYT = req.body.resetYouTubeFetch === true;
@@ -68,6 +68,13 @@ module.exports = async function(context, req) {
               LaunchMode = @LaunchMode
           WHERE UserID = @UserID
         `);
+    }
+
+    if (enableLogging !== undefined) {
+      await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('EnableLogging', sql.Bit, enableLogging ? 1 : 0)
+        .query(`UPDATE [HeadlineSetting] SET EnableLogging = @EnableLogging WHERE UserID = @UserID`);
     }
 
     let maxAdjusted = false;

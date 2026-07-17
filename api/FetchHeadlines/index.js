@@ -503,13 +503,15 @@ module.exports = async function(context, req) {
     const settingResult = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`SELECT RecencyDays, MaxHeadlines, YouTubeMaxResults, OtherHeadlinesPerKeyword,
-              LastYouTubeFetch, QuotaUsed, QuotaDate, DisableYoutubeToday
+              LastYouTubeFetch, QuotaUsed, QuotaDate, DisableYoutubeToday, EnableLogging
               FROM [HeadlineSetting] WHERE UserID = @UserID`);
     const settings = settingResult.recordset[0] || {};
     const recencyDays = settings.RecencyDays || 7;
     const maxHeadlines = settings.MaxHeadlines || 50;
     const youTubeMaxResults = settings.YouTubeMaxResults || 3;
     const youtubeAlreadyFetched = false;
+    const enableLogging = settings.EnableLogging === true || settings.EnableLogging === 1;
+    function debugLog(msg) { if (enableLogging) context.log(`[DEBUG] ${msg}`); }
 
     const today = new Date().toISOString().split('T')[0];
     const quotaDate = settings.QuotaDate ? new Date(settings.QuotaDate).toISOString().split('T')[0] : null;
