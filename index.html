@@ -432,7 +432,7 @@
               <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Zip Code</div>
               <div style="display:flex;align-items:center;gap:8px">
                 <input type="text" id="us-zipcode" class="form-input" style="width:80px;font-size:12px;padding:3px 5px" maxlength="5" placeholder="12345">
-                <button class="btn-primary" style="padding:4px 10px;font-size:12px" onclick="saveZipCode()">Save</button>
+                <a href="#" onclick="saveZipCode();return false;" style="font-size:12px;font-weight:600;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep)">Apply Zip</a>
                 <span id="zip-status" style="font-size:11px;color:var(--sky-deep);font-weight:600"></span>
               </div>
             </div>
@@ -1572,31 +1572,8 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
         saveNavGeometry();
       }
     }
-    // If the window couldn't actually shrink (e.g. switched in-place from a regular tab),
-    // let the nav panel/grid fill the available width instead of leaving it blank.
-    const applyPanelSizing=()=>{
-      const isNarrow=!_navMode||window.innerWidth<=panelWidth+60;
-      if(isNarrow){
-        grid.style.maxWidth=(panelWidth-16)+'px';
-        grid.style.width=(panelWidth-16)+'px';
-        if(navPanel){ navPanel.style.width=panelWidth+'px'; navPanel.style.minWidth='0'; }
-      } else {
-        grid.style.maxWidth='';
-        grid.style.width='100%';
-        if(navPanel){ navPanel.style.width='100%'; navPanel.style.minWidth='0'; }
-      }
-      if(_navMode){
-        const mainEl=document.querySelector('main.main');
-        const recencyBar=document.getElementById('recency-bar');
-        const header=document.querySelector('header.header');
-        const lockWidth=isNarrow?panelWidth+'px':'';
-        if(mainEl){ mainEl.style.width=''; mainEl.style.maxWidth=''; mainEl.style.minWidth=lockWidth; }
-        if(recencyBar){ recencyBar.style.width=''; recencyBar.style.maxWidth=''; recencyBar.style.minWidth=lockWidth; }
-        if(header){ header.style.width=''; header.style.maxWidth=''; header.style.minWidth=lockWidth; }
-      }
-    };
-    applyPanelSizing();
-    if(_navMode)setTimeout(applyPanelSizing,80);
+    applyNavPanelSizing();
+    if(_navMode)setTimeout(applyNavPanelSizing,80);
     grid.innerHTML=[...activeMenu,...activeLangs].sort((a,b)=>a.seq-b.seq).map(item=>{
       if(item.kind==='lang'){
         const lang=item.data;
@@ -1625,6 +1602,46 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
     weatherNavBtn.innerHTML=`<span style="font-size:22px;line-height:1" id="nav-panel-weather-icon">🌡️</span><span class="nav-panel-btn-label" id="nav-panel-weather-temp">—°</span>`;
     grid.appendChild(weatherNavBtn);
   }
+
+  // Re-flows the nav icon grid to match the window's ACTUAL current width (not the saved
+  // Nav Width setting) — used on load and on every window resize, so dragging the popup's
+  // OS border live-rewraps the buttons. The Nav Width field/setting only supplies the
+  // width used when the window first opens; after that, the real window width wins.
+  function applyNavPanelSizing(){
+    const grid=document.getElementById('nav-panel-btn-grid');
+    const navPanel=document.getElementById('nav-panel');
+    if(!grid||!_navMode)return;
+    const actualWidth=window.innerWidth;
+    grid.style.maxWidth=(actualWidth-16)+'px';
+    grid.style.width=(actualWidth-16)+'px';
+    if(navPanel){ navPanel.style.width='100%'; navPanel.style.minWidth='0'; }
+    const mainEl=document.querySelector('main.main');
+    const recencyBar=document.getElementById('recency-bar');
+    const header=document.querySelector('header.header');
+    if(mainEl){ mainEl.style.width=''; mainEl.style.maxWidth=''; mainEl.style.minWidth=''; }
+    if(recencyBar){ recencyBar.style.width=''; recencyBar.style.maxWidth=''; recencyBar.style.minWidth=''; }
+    if(header){ header.style.width=''; header.style.maxWidth=''; header.style.minWidth=''; }
+  }
+
+  let _navResizeTimer=null,_navResizeSaveTimer=null;
+  window.addEventListener('resize',()=>{
+    if(!_navMode)return;
+    // Live re-wrap while dragging (cheap DOM writes, throttled to avoid layout thrash)
+    clearTimeout(_navResizeTimer);
+    _navResizeTimer=setTimeout(applyNavPanelSizing,30);
+    // After the user stops dragging, persist the new width as the field value and save it
+    // as the new default-on-open Nav Width, same as if they'd typed it in Settings.
+    clearTimeout(_navResizeSaveTimer);
+    _navResizeSaveTimer=setTimeout(()=>{
+      const nbrEl=document.getElementById('us-navbuttonsperrow');
+      const newWidth=window.innerWidth;
+      if(nbrEl)nbrEl.value=newWidth;
+      apiPost('SaveUserSettings',{userID:USER_ID,navWidth:newWidth,profileID:currentUserProfileID});
+      if(_isCompanion){
+        try{_companionChannel.postMessage({action:'navWidthChanged',navWidth:newWidth});}catch(e){}
+      }
+    },400);
+  });
 
   function setGreeting(){
     const h=new Date().getHours(),p=h<12?'morning':h<17?'afternoon':'evening';
@@ -4250,11 +4267,16 @@ async function saveUserSettings(){
     const weatherURLVal=(document.getElementById('us-weatherurl')?.value||'').trim()||null;
     window._weatherClickURL=weatherURLVal;
     const launchModeVal=document.querySelector('input[name="us-launchmode"]:checked')?.value||'Full';
-    const navButtonsPerRowVal=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||4;
+    const navWidthVal=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||DEFAULT_NAV_WIDTH_CLIENT;
     const enableLoggingVal=document.getElementById('us-enablelogging')?.checked||false;
-    await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,fetchHour,collapseThreshold:collapseThresholdVal,weatherURL:weatherURLVal,launchMode:launchModeVal,navButtonsPerRow:navButtonsPerRowVal,categorySettings,enableLogging:enableLoggingVal});
+    await apiPost('SaveUserSettings',{userID:USER_ID,recencyDays,maxHeadlines,youTubeMaxResults,otherHeadlinesPerKeyword,fetchHour,collapseThreshold:collapseThresholdVal,weatherURL:weatherURLVal,launchMode:launchModeVal,navWidth:navWidthVal,profileID:currentUserProfileID,categorySettings,enableLogging:enableLoggingVal});
     recencyDays_value=recencyDays;
     document.getElementById('recency-val').textContent=recencyDays===1?'1 day':`${recencyDays} days`;
+    if(_isCompanion){
+      try{_companionChannel.postMessage({action:'navWidthChanged',navWidth:navWidthVal});}catch(e){}
+    }else if(_navMode){
+      renderNavPanel();
+    }
   }
 
   // ── SCREEN NAVIGATION ──
