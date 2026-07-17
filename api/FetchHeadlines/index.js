@@ -690,9 +690,7 @@ const uosYTResult = await pool.request()
             articles = articles.filter(a => a.keywordID);
             context.log(`[DEBUG ${source.Name}] STAGE4 filtered-source keyword matching: ${articles.length} articles remain`);
           } else {
-            context.log(`[DEBUG ${source.Name}] STAGE4 unfiltered-source: isSubscription BEFORE forced reset=${articles[0]?.isSubscription}, ${articles.length} articles`);
-            articles.forEach(a => { a.isSubscription = false; });
-            context.log(`[DEBUG ${source.Name}] STAGE4b unfiltered-source: isSubscription AFTER forced reset=${articles[0]?.isSubscription}`);
+            context.log(`[DEBUG ${source.Name}] STAGE4 unfiltered-source: isSubscription=${articles[0]?.isSubscription}, ${articles.length} articles (no longer forcing to false)`);
           }
 
         const beforeExclusions = articles.length;
@@ -853,13 +851,12 @@ allArticles = allArticles.concat(articles);
       }
     }
     context.log(`[DEBUG Gerdes] placed after Pass2 (teams): ${gerdesUnique.filter(a=>placedLinks.has(a.link)).length} of ${gerdesUnique.length}`);
-    // Pass 3: All remaining keyword-matched
-    if (hasActiveKeywords) {
-      for (const a of unique) {
-        if (placedLinks.has(a.link)) continue;
-        placedLinks.add(a.link);
-        selected.push(a);
-      }
+    // Pass 3: All remaining (catch-all — unconditional, since unfiltered/subscription content
+    // with no keyword match must still surface even when a profile has zero active keywords)
+    for (const a of unique) {
+      if (placedLinks.has(a.link)) continue;
+      placedLinks.add(a.link);
+      selected.push(a);
     }
     context.log(`[DEBUG Gerdes] placed after Pass3 (catch-all): ${gerdesUnique.filter(a=>placedLinks.has(a.link)).length} of ${gerdesUnique.length}, hasActiveKeywords=${hasActiveKeywords}`);
 
