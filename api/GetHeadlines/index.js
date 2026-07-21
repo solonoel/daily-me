@@ -18,6 +18,8 @@ module.exports = async function(context, req) {
     const pool = await sql.connect(config);
     const userID = parseInt(req.query.userID || '1');
     const recencyDays = parseInt(req.query.recencyDays || '7');
+    const profileIDRaw = req.query.profileID;
+    const profileID = (profileIDRaw !== undefined && profileIDRaw !== '') ? parseInt(profileIDRaw) : null;
 
     const query = `
       SELECT h.HeadlineID, h.UserID, h.HeadlineName,
@@ -41,6 +43,7 @@ module.exports = async function(context, req) {
       LEFT JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID AND uhs.UserID = @UserID
       LEFT JOIN [UserOwnedSource] uos ON h.UserOwnedSourceID = uos.UserOwnedSourceID
       WHERE h.UserID = @UserID
+      AND (h.UserProfileID = @ProfileID OR (@ProfileID IS NULL AND h.UserProfileID IS NULL))
       AND COALESCE(h.PublishedDate, h.CreatedDate) >= DATEADD(day, -@RecencyDays, GETDATE())
       ORDER BY
         COALESCE(k.Sequence, 999),
@@ -51,6 +54,7 @@ module.exports = async function(context, req) {
     const result = await pool.request()
       .input('UserID', sql.Int, userID)
       .input('RecencyDays', sql.Int, recencyDays)
+      .input('ProfileID', sql.Int, profileID)
       .query(query);
 
     let headlines = result.recordset;

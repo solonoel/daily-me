@@ -297,12 +297,33 @@ module.exports = async function(context, req) {
       const request4 = pool.request()
         .input('UserID', sql.Int, userID)
         .input('SourceID', sql.Int, sourceID)
+        .input('ProfileID', sql.Int, profileID || null)
         .input('Exclusions', sql.NVarChar(500), req.body.exclusions || null);
-      const where4 = userHeadlineSourceID ? 'UserHeadlineSourceID=@UserHeadlineSourceID' : 'UserID=@UserID AND SourceID=@SourceID';
-      if (userHeadlineSourceID) request4.input('UserHeadlineSourceID', sql.Int, userHeadlineSourceID);
+      let where4;
+      if (userHeadlineSourceID) {
+        request4.input('UserHeadlineSourceID', sql.Int, userHeadlineSourceID);
+        where4 = 'UserHeadlineSourceID=@UserHeadlineSourceID';
+      } else {
+        where4 = 'UserID=@UserID AND SourceID=@SourceID AND (UserProfileID=@ProfileID OR (UserProfileID IS NULL AND @ProfileID IS NULL))';
+      }
       await request4.query(`UPDATE [UserHeadlineSource] SET Exclusions=@Exclusions WHERE ${where4}`);
       context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ success: true }) };
+
+    } else if (action === 'clearAllExclusions') {
+      if (!profileID) {
+        context.res = { status: 400, headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'profileID is required' }) };
+        return;
+      }
+      const clearResult = await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('ProfileID', sql.Int, profileID)
+        .query(`UPDATE [UserHeadlineSource] SET Exclusions=NULL
+                WHERE UserID=@UserID AND UserProfileID=@ProfileID AND Exclusions IS NOT NULL;
+                SELECT @@ROWCOUNT AS ClearedCount;`);
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: true, clearedCount: clearResult.recordset[0].ClearedCount }) };
 
     } else if (action === 'resequence') {
       if (Array.isArray(req.body.sequences)) {

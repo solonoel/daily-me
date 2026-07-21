@@ -602,13 +602,15 @@ const uosYTResult = await pool.request()
 
     const existingResult = await pool.request()
       .input('UserID', sql.Int, userID)
-      .query(`SELECT Link FROM [Headline] WHERE UserID=@UserID`);
+      .input('ProfileID', sql.Int, profileID)
+      .query(`SELECT Link FROM [Headline] WHERE UserID=@UserID AND (@ProfileID IS NULL OR UserProfileID = @ProfileID)`);
     const existingLinks = new Set(existingResult.recordset.map(r => r.Link));
 
-    const exclusionResult = await pool.request()
-      .input('UserID', sql.Int, userID)
-      .query(`SELECT Link FROM [HeadlineExclusion] WHERE UserID=@UserID`);
-    const exclusionLinks = new Set(exclusionResult.recordset.map(r => r.Link));
+const exclusionResult = await pool.request()
+  .input('UserID', sql.Int, userID)
+  .input('ProfileID', sql.Int, profileID)
+  .query(`SELECT Link FROM [HeadlineExclusion] WHERE UserID=@UserID AND UserProfileID=@ProfileID`);
+const exclusionLinks = new Set(exclusionResult.recordset.map(r => r.Link));
 
     const logSources = {};
     const logErrors = [];

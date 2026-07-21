@@ -92,6 +92,10 @@ module.exports = async function(context, req) {
           (@UserID, 'Other',  'Y', 'Y', 'N', 101)
       `);
 
+    await pool.request()
+      .input('UserID', sql.Int, userID)
+      .query(`INSERT INTO [UserProfile] (UserID, Name, Inactive, DateAdded) VALUES (@UserID, 'Home', 0, GETDATE())`);
+
     const emailStatus = await sendVerificationEmail(email, verifyToken, name);
     context.log(`Email send status: ${emailStatus}`);
 

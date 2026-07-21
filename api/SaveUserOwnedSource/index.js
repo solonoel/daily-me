@@ -248,6 +248,19 @@ module.exports = async function(context, req) {
       }
       context.res = { status: 200, body: JSON.stringify({ success: true }) };
 
+    } else if (action === 'clearAllExclusions') {
+      if (!profileID) {
+        context.res = { status: 400, body: JSON.stringify({ error: 'profileID is required' }) };
+        return;
+      }
+      const clearResult = await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('ProfileID', sql.Int, profileID)
+        .query(`UPDATE UserOwnedSource SET Exclusions=NULL
+                WHERE UserID=@UserID AND UserProfileID=@ProfileID AND Exclusions IS NOT NULL;
+                SELECT @@ROWCOUNT AS ClearedCount;`);
+      context.res = { status: 200, body: JSON.stringify({ success: true, clearedCount: clearResult.recordset[0].ClearedCount }) };
+
     } else if (action === 'backfillYoutubeChannelIDs') {
       const pending = await pool.request()
         .input('UserID', sql.Int, userID)

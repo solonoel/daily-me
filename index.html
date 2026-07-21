@@ -246,9 +246,15 @@
     .nav-pin-link { display:block; font-size:5px; font-weight:700; color:rgba(255,255,255,0.85); cursor:pointer; line-height:1; text-decoration:none; padding:0px 1px; background:rgba(255,255,255,0.15); border-radius:2px; }
     body.nav-mode .greeting { display:none !important; }
     body.nav-mode #header-date { font-size:10px; margin-top:0; }
-    .nav-panel { display:none; flex-direction:column; background:white; border-right:2px solid var(--border); overflow-y:auto; flex-shrink:0; padding:8px 6px; }
+    .nav-panel { display:none; flex-direction:column; background:white; border-right:2px solid var(--border); flex-shrink:0; padding:0; }
     body.nav-mode .nav-panel { display:flex; }
+    .nav-panel-scroll { flex:1; min-height:0; overflow-y:auto; padding:8px 6px; }
     .nav-panel-btn-grid { display:flex; flex-wrap:wrap; gap:4px; justify-content:flex-start; min-width:0; }
+    .nav-footer { flex-shrink:0; display:flex; align-items:center; justify-content:space-between; gap:6px; padding:6px 10px; border-top:1.5px solid var(--border); background:white; }
+    .nav-footer-user { font-size:11px; font-weight:600; color:var(--text-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .nav-footer-settings { font-size:11px; font-weight:600; color:var(--sky-deep); text-decoration:none; border-bottom:1px dashed var(--sky-deep); white-space:nowrap; }
+    .nav-footer-settings:hover { color:#1a5fa8; }
+    .nav-footer-signout { font-size:10px; color:var(--text-muted); text-decoration:underline; cursor:pointer; white-space:nowrap; }
     .nav-panel-btn { display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 4px; border-radius:5px; border:1px solid #b0c8dc; background:white; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; }
     .nav-panel-btn:hover { background:#f0f7ff; border-color:var(--sky-deep); }
     .nav-panel-btn.active { border-color:var(--sky-deep); background:#cce0f5; }
@@ -256,7 +262,7 @@
     .nav-panel-btn-label { font-size:9px; font-weight:600; color:#2a4a6a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:56px; }
     .content-panel { }
     body.nav-mode .content-panel { padding:0 !important; overflow-x:hidden; overflow-y:auto; flex:1; }
-    body.nav-mode .nav-panel { border-right:none; border-bottom:1px solid var(--border); flex-shrink:0; overflow-y:visible; padding:4px 4px 0 4px; min-width:0; }
+    body.nav-mode .nav-panel { border-right:none; border-bottom:1px solid var(--border); flex-shrink:0; min-width:0; }
     body.nav-mode .screen { animation:none; }
     @media (max-width:700px) { .settings-deck-grid { grid-template-columns:1fr; } .header { padding:14px 16px; } .main { padding:16px; } .app-title { font-size:20px; } .nav-btn { padding:8px 14px; min-width:60px; } .headline-thumb { width:72px; height:45px; } }
     .onboard-overlay { position:fixed; inset:0; background:rgba(15,30,46,0.6); z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px; }
@@ -314,9 +320,6 @@
     </div>
   <div id="nav-header-controls" style="display:none;align-items:center;gap:6px;position:relative;z-index:1;flex:1;overflow:hidden">
     <div id="nav-sysheader-btns" style="display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden"></div>
-    <button id="nav-weather-btn" class="nav-sysheader-btn" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);border-radius:8px;cursor:pointer;padding:4px 8px;min-width:40px;transition:background 0.2s;flex-shrink:0" title="Weather">
-      <span style="font-size:18px">🌡️</span><span style="font-size:10px;font-weight:700;color:white">—°</span>
-    </button>
     <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;flex-shrink:0">
       <button class="refresh-btn" onclick="refreshHeadlines()" id="nav-refresh-btn" style="font-size:9px;padding:2px 8px;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);color:white;border-radius:5px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600">↻ Refresh</button>
       <div style="display:flex;gap:6px">
@@ -325,13 +328,10 @@
       </div>
     </div>
   </div>
-  <div id="header-user-controls" style="display:none;flex-direction:column;align-items:flex-end;gap:2px;position:relative;z-index:1;flex-shrink:0">
-    <div style="display:flex;align-items:center;gap:6px">
-      <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.85)" id="nav-username-hdr"></span>
-      <button onclick="openSettingsWindow()" title="Settings" style="width:26px;height:26px;border-radius:6px;border:1.5px solid rgba(255,255,255,0.35);background:rgba(255,255,255,0.18);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px">⚙️</button>
-    </div>
-    <a onclick="logout()" style="font-size:10px;color:rgba(255,255,255,0.65);cursor:pointer;text-decoration:underline;white-space:nowrap;line-height:1">Sign out</a>
-  </div>
+  <a id="nav-header-weather" onclick="const u=window._weatherClickURL||'https://forecast.weather.gov/MapClick.php?CityName=Oregon&state=IL&site=LOT&textField1=41.9945&textField2=-89.3334';window.open(u,'_blank','noopener');" style="display:none;align-items:center;gap:4px;cursor:pointer;text-decoration:none;flex-shrink:0;margin-left:auto;padding:0 8px">
+    <span style="font-size:18px;line-height:1" id="nav-header-weather-icon"></span>
+    <span style="font-size:13px;font-weight:700;color:white" id="nav-header-weather-temp"></span>
+  </a>
   <div class="weather-block" id="weather-block" style="cursor:pointer"><div class="weather-loading" id="weather-initial">Loading weather...</div></div>
 </header>
 <nav class="nav" id="main-nav">
@@ -352,7 +352,14 @@
   </div>
 </nav>
 <div class="nav-panel" id="nav-panel">
-  <div class="nav-panel-btn-grid" id="nav-panel-btn-grid"></div>
+  <div class="nav-panel-scroll" id="nav-panel-scroll">
+    <div class="nav-panel-btn-grid" id="nav-panel-btn-grid"></div>
+  </div>
+  <div class="nav-footer" id="nav-footer">
+    <span class="nav-footer-user" id="nav-footer-username"></span>
+    <a href="#" class="nav-footer-settings" onclick="openSettingsWindow();return false;">Settings</a>
+    <a href="#" class="nav-footer-signout" onclick="logout();return false;">Sign out</a>
+  </div>
 </div>
 <div id="recency-bar" style="background:white;border-bottom:2px solid var(--border);padding:3px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;position:sticky;top:0;z-index:95;box-shadow:0 2px 6px rgba(43,127,212,0.06)">
   <span style="font-size:11px;color:var(--text-soft);white-space:nowrap">Recency: <span style="font-weight:700;color:var(--sky-deep)" id="recency-val">7 days</span></span>
@@ -423,10 +430,11 @@
                 <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="us-launchmode" value="Nav" onchange="debounceSaveCatLimits()" style="accent-color:var(--sky-deep)"> Nav</label>
               </div>
             </div>
-            <div>
-              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Nav Width</div>
-              <input type="number" id="us-navbuttonsperrow" class="form-input" style="width:60px;font-size:12px;padding:3px 5px" min="120" max="800" step="4" oninput="if(_navMode)renderNavPanel();debounceSaveCatLimits()">
-              <div style="font-size:10px;color:var(--text-muted);margin-top:2px">px</div>
+            <div id="nav-width-row" style="display:none">
+              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Nav Bar Width</div>
+              <a href="#" onclick="setNavBarWidthFromCurrent();return false;" style="font-size:12px;font-weight:600;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep)">Set Nav Bar Width</a>
+              <span id="nav-width-status" style="font-size:11px;color:var(--sky-deep);font-weight:600;margin-left:8px"></span>
+              <input type="number" id="us-navbuttonsperrow" style="display:none">
             </div>
             <div>
               <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Zip Code</div>
@@ -462,13 +470,19 @@
               <input type="text" id="us-weatherurl" class="form-input" style="width:180px;font-size:12px;padding:3px 5px" placeholder="https://...">
               <div style="font-size:10px;color:var(--text-muted);margin-top:2px">optional URL</div>
             </div>
-            <div>
-              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Enable Logging</div>
-              <label style="display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer">
-                <input type="checkbox" id="us-enablelogging" onchange="debounceSaveCatLimits()" style="accent-color:var(--sky-deep)">
-                <span style="font-size:11px;color:var(--text-soft)">Verbose fetch logs</span>
-              </label>
-              <a href="#" onclick="openLoggingHelpModal();return false;" style="font-size:10px;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep);margin-top:2px;display:inline-block">Where do I see these logs?</a>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex:1;min-width:220px">
+              <div>
+                <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Enable Logging</div>
+                <label style="display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer">
+                  <input type="checkbox" id="us-enablelogging" onchange="debounceSaveCatLimits()" style="accent-color:var(--sky-deep)">
+                  <span style="font-size:11px;color:var(--text-soft)">Verbose fetch logs</span>
+                </label>
+                <a href="#" onclick="openLoggingHelpModal();return false;" style="font-size:10px;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep);margin-top:2px;display:inline-block">Where do I see these logs?</a>
+              </div>
+              <div style="text-align:right;flex-shrink:0">
+                <a href="#" onclick="removeAllExclusions();return false;" style="font-size:11px;font-weight:600;color:#e05050;text-decoration:none;border-bottom:1px dashed #e05050;white-space:nowrap">Remove Exclusions</a>
+                <div id="remove-exclusions-status" style="font-size:10px;color:var(--sky-deep);font-weight:600;margin-top:2px"></div>
+              </div>
             </div>
             <div id="log-folder-row">
               <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Log Download Folder</div>
@@ -1156,6 +1170,10 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
     }
   }
   _companionChannel.onmessage=(e)=>{
+    if(e.data?.action==='getNavWidth'&&_navMode){
+      _companionChannel.postMessage({action:'navWidthReply',width:window.innerWidth});
+      return;
+    }
     if(e.data?.action==='companionReady'&&_pendingCompanionAction){
       const{navRight,winW,screenTop}=_companionSpecs();
       const chrome=(companionWin?.outerWidth-companionWin?.innerWidth)||16;
@@ -1489,21 +1507,21 @@ try{
     const linkLogo=document.getElementById('mode-toggle-logo');
     if(linkLogo)linkLogo.textContent=_navMode?'Full':'Nav';
     const navHeaderControls=document.getElementById('nav-header-controls');
-    const headerUserControls=document.getElementById('header-user-controls');
     const navUserControls=document.getElementById('nav-user-controls');
     const weatherBlock=document.getElementById('weather-block');
     const navDate=document.getElementById('nav-date');
     const n=storedUser?.name?.split(' ')[0]||'';
-    const hdrUser=document.getElementById('nav-username-hdr');
-    if(hdrUser)hdrUser.textContent=n;
+    const footerUser=document.getElementById('nav-footer-username');
+    if(footerUser)footerUser.textContent=n;
     if(_navMode){
       document.body.classList.add('nav-mode');
       if(navHeaderControls)navHeaderControls.style.display='none';
-      if(headerUserControls)headerUserControls.style.display='flex';
       const modeToggleHdr=document.getElementById('mode-toggle-link-hdr');
       if(modeToggleHdr)modeToggleHdr.style.display='none';
       if(navUserControls)navUserControls.style.display='none';
       if(weatherBlock)weatherBlock.style.display='none';
+      const navHdrWeather=document.getElementById('nav-header-weather');
+      if(navHdrWeather)navHdrWeather.style.display='flex';
       if(navDate)navDate.style.display='none';
       // Hide old-style nav menu buttons — nav panel handles them
       document.querySelectorAll('.nav-btn-usermenu,.nav-btn-lang').forEach(b=>b.style.display='none');
@@ -1519,11 +1537,12 @@ try{
     } else {
       document.body.classList.remove('nav-mode');
       if(navHeaderControls)navHeaderControls.style.display='none';
-      if(headerUserControls)headerUserControls.style.display='none';
       const modeToggleHdr=document.getElementById('mode-toggle-link-hdr');
       if(modeToggleHdr)modeToggleHdr.style.display='';
       if(navUserControls)navUserControls.style.display='flex';
       if(weatherBlock)weatherBlock.style.display='';
+      const navHdrWeather=document.getElementById('nav-header-weather');
+      if(navHdrWeather)navHdrWeather.style.display='none';
       if(navDate)navDate.style.display='';
       document.querySelectorAll('.nav-btn-usermenu,.nav-btn-lang').forEach(b=>b.style.display='');
       const greetEl=document.getElementById('greeting');if(greetEl)greetEl.style.display='';
@@ -1550,6 +1569,7 @@ try{
     function renderNavPanel(){
     const grid=document.getElementById('nav-panel-btn-grid');
     if(!grid)return;
+    const navPanelScroll=document.getElementById('nav-panel-scroll');
     const emptyIDs=new Set((window._emptyMenuNames||[]).map(name=>{const m=userMenu.find(u=>u.UserMenuName===name);return m?m.UserMenuID:null;}).filter(Boolean));
     const activeMenu=userMenu.filter(m=>!m.IsInactive&&!emptyIDs.has(m.UserMenuID)).map(m=>({kind:'menu',seq:m.UserMenuSeq||99,data:m}));
     const activeLangs=userLanguages.filter(ul=>ul.IsActive==='Y').map(ul=>{
@@ -1592,15 +1612,7 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
         <span class="nav-panel-btn-label">${m.UserMenuName}</span>
       </button>`;
     }).join('');
-    // System Header sources now render in the header bar (renderNavModeSysHeaderButtons), not here.
-    // Append Weather button
-    const weatherNavBtn=document.createElement('button');
-    weatherNavBtn.className='nav-panel-btn';
-    weatherNavBtn.id='nav-panel-weather-btn';
-    weatherNavBtn.title='Weather';
-    weatherNavBtn.onclick=()=>{const u=window._weatherClickURL||'https://forecast.weather.gov/MapClick.php?CityName=Oregon&state=IL&site=LOT&textField1=41.9945&textField2=-89.3334';window.open(u,'_blank','noopener');};
-    weatherNavBtn.innerHTML=`<span style="font-size:22px;line-height:1" id="nav-panel-weather-icon">🌡️</span><span class="nav-panel-btn-label" id="nav-panel-weather-temp">—°</span>`;
-    grid.appendChild(weatherNavBtn);
+    // System Header sources render in the header bar (renderNavModeSysHeaderButtons); weather renders in nav-header-weather.
   }
 
   // Re-flows the nav icon grid to match the window's ACTUAL current width (not the saved
@@ -1614,7 +1626,7 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
     const actualWidth=window.innerWidth;
     grid.style.maxWidth=(actualWidth-16)+'px';
     grid.style.width=(actualWidth-16)+'px';
-    if(navPanel){ navPanel.style.width='100%'; navPanel.style.minWidth='0'; }
+    if(navPanel){ navPanel.style.width='100%'; navPanel.style.minWidth='0'; navPanel.style.height='100%'; }
     const mainEl=document.querySelector('main.main');
     const recencyBar=document.getElementById('recency-bar');
     const header=document.querySelector('header.header');
@@ -1694,15 +1706,16 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
       }).join('');
       const wUrl=window._weatherClickURL||'https://forecast.weather.gov/MapClick.php?CityName=Oregon&state=IL&site=LOT&textField1=41.9945&textField2=-89.3334';
       if(_navMode){
-      // Update nav panel weather button if rendered
-      const navPanelIcon=document.getElementById('nav-panel-weather-icon');
-      const navPanelTemp=document.getElementById('nav-panel-weather-temp');
-      if(navPanelIcon)navPanelIcon.textContent=icon;
-      if(navPanelTemp)navPanelTemp.textContent=`${Math.round(c.temperature_2m)}°`;
-      const navPanelWeatherBtn=document.getElementById('nav-panel-weather-btn');
-      if(navPanelWeatherBtn){
-        navPanelWeatherBtn.title=`${Math.round(c.temperature_2m)}°F · ${desc} · H:${Math.round(d.temperature_2m_max[0])}° L:${Math.round(d.temperature_2m_min[0])}°`;
-        navPanelWeatherBtn.onclick=()=>{const u=window._weatherClickURL||wUrl;window.open(u,'_blank','noopener');};
+      // Update Nav-mode header weather display
+      const hdrWeather=document.getElementById('nav-header-weather');
+      const hdrIcon=document.getElementById('nav-header-weather-icon');
+      const hdrTemp=document.getElementById('nav-header-weather-temp');
+      if(hdrIcon)hdrIcon.textContent=icon;
+      if(hdrTemp)hdrTemp.textContent=`${Math.round(c.temperature_2m)}°`;
+      if(hdrWeather){
+        hdrWeather.title=`${Math.round(c.temperature_2m)}°F · ${desc} · H:${Math.round(d.temperature_2m_max[0])}° L:${Math.round(d.temperature_2m_min[0])}°`;
+        hdrWeather.onclick=()=>{const u=window._weatherClickURL||wUrl;window.open(u,'_blank','noopener');};
+        hdrWeather.style.display=_navMode?'flex':'none';
       }
       document.getElementById('weather-block').style.display='none';
     } else {
@@ -1740,6 +1753,7 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
   async function loadCompanion(){
     _navMode=false;setGreeting();setDate();applyNavMode();
     const _rb=document.getElementById('recency-bar');if(_rb)_rb.style.display='none';
+    const _nwRow=document.getElementById('nav-width-row');if(_nwRow)_nwRow.style.display='';
     // Companion windows are satellite displays for Settings/Language launched from Nav mode —
     // the profile switcher, full nav bar, and mode-toggle/pin controls don't apply here
     const _pfw=document.getElementById('profile-full-wrap');if(_pfw)_pfw.style.display='none';
@@ -1902,7 +1916,7 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
     const ytLft=document.getElementById('last-yt-fetch-time');if(ytLft&&savedYtTs){const d=new Date(savedYtTs);if(!isNaN(d)){ytLft.textContent=`youtube: ${fmtDT(d)}`;ytLft.style.display='';}}
     // Sync YouTube timestamp from DB if scheduled fetch ran overnight
     try{
-      const ytRes=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=1`);
+      const ytRes=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=1&profileID=${currentUserProfileID||''}`);
       const ytAll=await ytRes.json();
       if(Array.isArray(ytAll)){
         const ytItems=ytAll.filter(h=>h.ChannelName);
@@ -3628,7 +3642,7 @@ async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
   async function loadHeadlines(forceRefresh=false){
     try{
       if(forceRefresh||!allHeadlinesCache.length){
-        const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`);
+        const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}&profileID=${currentUserProfileID||''}`);
         let allData=await res.json();if(!Array.isArray(allData))allData=[];
         allHeadlinesCache=allData;
       }
@@ -3828,7 +3842,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
       }
     }
     
-    try{ await apiPost('SaveRetain',{headlineID,retain:false,deleteIt:true}); }catch(err){}
+    try{ await apiPost('SaveRetain',{headlineID,retain:false,deleteIt:true,profileID:currentUserProfileID}); }catch(err){}
   }
 
   function renderHeadlines(){
@@ -4069,7 +4083,7 @@ let _pdfClosing=false;
 
   async function loadTeamsHeadlines(){
     try{
-      const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}`);
+      const res=await fetch(`${API_BASE}/GetHeadlines?code=${API_KEY}&userID=${USER_ID}&recencyDays=${recencyDays_value}&profileID=${currentUserProfileID||''}`);
       let data=await res.json(); if(!Array.isArray(data))data=[];
       teamsHeadlines=data.filter(h=>(h.KeywordGroupLabel||'').toLowerCase()==='teams'&&!deletedLinks.has(h.Link));
       const rv=document.getElementById('teams-recency-val');
@@ -4178,7 +4192,7 @@ let _pdfClosing=false;
         if(remaining===0)group.remove();
       }
     }
-    try{await apiPost('SaveRetain',{headlineID,retain:false,deleteIt:true});}catch(err){}
+    try{await apiPost('SaveRetain',{headlineID,retain:false,deleteIt:true,profileID:currentUserProfileID});}catch(err){}
   }
 
   async function toggleRetain(headlineID,e){
@@ -4241,6 +4255,31 @@ const weatherURLVal=(document.getElementById('us-weatherurl')?.value||'').trim()
     const max=parseInt(document.getElementById('us-maxheadlines')?.value)||0;
     const catSum=categories.filter(c=>c.IsActive==='Y').reduce((sum,c)=>sum+(parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value)||0),0);
     const oi=document.getElementById('cs-other');if(oi)oi.value=Math.max(0,max-catSum);
+  }
+
+  async function removeAllExclusions(){
+    if(!currentUserProfileID){alert('No active profile.');return;}
+    if(!confirm('Remove all exclusions for every source in this profile? This cannot be undone.'))return;
+    const statusEl=document.getElementById('remove-exclusions-status');
+    if(statusEl){statusEl.textContent='Removing...';statusEl.style.color='var(--sky-deep)';}
+    try{
+      const [sharedResult,ownedResult]=await Promise.all([
+        apiPost('SaveSource',{action:'clearAllExclusions',userID:USER_ID,profileID:currentUserProfileID}),
+        apiPost('SaveUserOwnedSource',{action:'clearAllExclusions',userID:USER_ID,profileID:currentUserProfileID})
+      ]);
+      if(sharedResult?.error||ownedResult?.error){
+        if(statusEl){statusEl.textContent='Error clearing exclusions';statusEl.style.color='#e05050';}
+        return;
+      }
+      sources.forEach(s=>{if(s.Exclusions)s.Exclusions=null;});
+      userOwnedSources.forEach(s=>{if(s.Exclusions)s.Exclusions=null;});
+      if(currentSettingsSection==='sources')renderSettingsSources();
+      if(currentSettingsSection==='mysources')renderMySourcesTable();
+      const total=(sharedResult?.clearedCount||0)+(ownedResult?.clearedCount||0);
+      if(statusEl){statusEl.textContent=`✓ Cleared ${total} exclusion${total!==1?'s':''}`;statusEl.style.color='#22c55e';setTimeout(()=>{if(statusEl.textContent.startsWith('✓'))statusEl.textContent='';},4000);}
+    }catch(e){
+      if(statusEl){statusEl.textContent='Error: '+e.message;statusEl.style.color='#e05050';}
+    }
   }
 
   function clearYouTubeDisable(){
@@ -5414,7 +5453,8 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       const fullHtml=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fetch Results</title><style>body{font-family:Arial,sans-serif;font-size:13px;padding:24px;max-width:900px;margin:0 auto}table{width:100%;border-collapse:collapse;margin-bottom:16px}th,td{text-align:left;padding:4px 8px;border-bottom:1px solid #ddd}th{background:#f0f7ff}h3{margin:16px 0 8px}</style></head><body>${bodyHtml}</body></html>`;
       const now=new Date();
       const pad=n=>String(n).padStart(2,'0');
-      const filename=`DailyMe Log - ${now.getFullYear()}.${pad(now.getMonth()+1)}.${pad(now.getDate())} ${pad(now.getHours())}.${pad(now.getMinutes())}.html`;
+      const profileName=(userProfiles.find(p=>p.UserProfileID===currentUserProfileID)?.Name||'Unknown').replace(/[\\/:*?"<>|]/g,'-').trim();
+      const filename=`DailyMe Log - ${profileName} - ${now.getFullYear()}.${pad(now.getMonth()+1)}.${pad(now.getDate())} ${pad(now.getHours())}.${pad(now.getMinutes())}.html`;
       const tempFilename=`.tmp-${Date.now()}-${filename}`;
       const tempHandle=await handle.getFileHandle(tempFilename,{create:true});
       const writable=await tempHandle.createWritable();
@@ -5442,22 +5482,54 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     const log=data;
       const effectiveness=Array.isArray(effData)?effData:[];
       const fmt=n=>String(n||0).padStart(4,' ');
+      const summaryProfileName=userProfiles.find(p=>p.UserProfileID===currentUserProfileID)?.Name||'Unknown';
       let html=`<div style="font-family:'DM Sans',sans-serif;font-size:12px;line-height:1.6">`;
       // Summary
       html+=`<div style="background:#f0f7ff;border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:14px">
-        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">📊 Fetch Summary</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 20px">
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">📊 Fetch Summary - ${summaryProfileName}</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
           <div>🕐 Time: <strong>${new Date(log.timestamp).toLocaleString()}</strong></div>
           <div>⏱ Duration: <strong>${log.durationSeconds}s</strong></div>
-          <div>✅ Inserted: <strong>${log.totalInserted}</strong></div>
-          <div>🔁 Duplicates: <strong>${log.totalDuplicates}</strong></div>
-          <div>🌐 Lang filtered: <strong>${log.totalLangFiltered}</strong></div>
           <div>📅 Recency: <strong>${log.recencyDays} days</strong></div>
+          <div>✅ Inserted: <strong>${log.totalInserted}</strong></div>
           <div>📺 YT used this run: <strong>${log.youtubeRunUnits}</strong></div>
           <div>📺 YT used today: <strong>${log.youtubeQuotaUsed}</strong></div>
           <div style="color:${log.youtubeQuotaRemaining<500?'#e05050':log.youtubeQuotaRemaining<2000?'#e8a020':'inherit'}">📺 YT remaining: <strong>${log.youtubeQuotaRemaining?.toLocaleString()}</strong></div>
         </div>
       </div>`;
+      // Source Counts (moved up, right after Fetch Summary)
+      if(log.sourceResults?.length){
+        const sortedSourceResults=[...log.sourceResults].sort((a,b)=>{
+          const diff=(b.inserted||0)-(a.inserted||0);
+          if(diff!==0)return diff;
+          return (a.name||'').localeCompare(b.name||'');
+        });
+        html+=`<div style="margin-bottom:14px">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">🌐 Source Counts</div>
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead><tr style="background:#f5f9ff;border-bottom:1.5px solid var(--border)">
+              <th style="text-align:left;padding:4px 8px">Source</th>
+              <th style="text-align:right;padding:4px 8px">Inserted</th>
+              <th style="text-align:right;padding:4px 8px">Fetched</th>
+              <th style="text-align:right;padding:4px 8px">-Recency</th>
+              <th style="text-align:right;padding:4px 8px">-Lang</th>
+              <th style="text-align:right;padding:4px 8px">Matched</th>
+              <th style="text-align:left;padding:4px 8px">Note</th>
+            </tr></thead>
+            <tbody>
+              ${sortedSourceResults.map(s=>`<tr style="border-bottom:1px solid #eef5fc">
+                <td style="padding:3px 8px">${s.name}</td>
+                <td style="text-align:right;padding:3px 8px">${s.inserted||0}</td>
+                <td style="text-align:right;padding:3px 8px">${s.fetched}</td>
+                <td style="text-align:right;padding:3px 8px">${s.recencyFiltered||0}</td>
+                <td style="text-align:right;padding:3px 8px">${s.langFiltered||0}</td>
+                <td style="text-align:right;padding:3px 8px">${s.matched}</td>
+                <td style="padding:3px 8px;color:${s.error?'#e05050':s.skipped?'#e8a020':'var(--text-muted)'}">${s.error||s.skipped||''}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+      }
       // Errors
       if(log.errors?.length){
         html+=`<div style="background:#fef0f0;border:1px solid #e05050;border-radius:8px;padding:10px 14px;margin-bottom:14px">
@@ -5575,32 +5647,6 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
           }).join('')}
         </div>`;
       }
-      // Sources (by fetch count) — moved to end of report
-      html+=`<div style="margin-bottom:14px">
-        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">🌐 Sources (by fetch count)</div>
-        <table style="width:100%;border-collapse:collapse;font-size:11px">
-          <thead><tr style="background:#f5f9ff;border-bottom:1.5px solid var(--border)">
-            <th style="text-align:left;padding:4px 8px">Source</th>
-            <th style="text-align:right;padding:4px 8px">Inserted</th>
-            <th style="text-align:right;padding:4px 8px">Fetched</th>
-            <th style="text-align:right;padding:4px 8px">-Recency</th>
-            <th style="text-align:right;padding:4px 8px">-Lang</th>
-            <th style="text-align:right;padding:4px 8px">Matched</th>
-            <th style="text-align:left;padding:4px 8px">Note</th>
-          </tr></thead>
-          <tbody>
-            ${log.sourceResults.map(s=>`<tr style="border-bottom:1px solid #eef5fc">
-              <td style="padding:3px 8px">${s.name}</td>
-              <td style="text-align:right;padding:3px 8px">${s.inserted||0}</td>
-              <td style="text-align:right;padding:3px 8px">${s.fetched}</td>
-              <td style="text-align:right;padding:3px 8px">${s.recencyFiltered||0}</td>
-              <td style="text-align:right;padding:3px 8px">${s.langFiltered||0}</td>
-              <td style="text-align:right;padding:3px 8px">${s.matched}</td>
-              <td style="padding:3px 8px;color:${s.error?'#e05050':s.skipped?'#e8a020':'var(--text-muted)'}">${s.error||s.skipped||''}</td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>`;
       html+=`</div>`;
       return html;
   }
@@ -6721,6 +6767,7 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     }
     closeArticleAddModal();
     allHeadlinesCache=[];
+    deletedLinks.clear();
     await loadHeadlines(true);
     if(currentSettingsSection==='mysources')renderMySourcesTable();
   }
@@ -6744,6 +6791,31 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
 
   // ── LANG WINDOW ──
   function openSettingsWindow(){ showInCompanion('showSettings'); }
+
+  let _navWidthReplyTimer=null,_navWidthReplyHandler=null;
+  function setNavBarWidthFromCurrent(){
+    const statusEl=document.getElementById('nav-width-status');
+    if(statusEl){statusEl.textContent='Checking...';statusEl.style.color='var(--sky-deep)';}
+    if(_navWidthReplyHandler)_companionChannel.removeEventListener?.('message',_navWidthReplyHandler);
+    clearTimeout(_navWidthReplyTimer);
+    const onReply=async(e)=>{
+      if(e.data?.action!=='navWidthReply')return;
+      clearTimeout(_navWidthReplyTimer);
+      _companionChannel.onmessage=_savedCompanionOnMessage||null;
+      const width=e.data.width;
+      const nbrEl=document.getElementById('us-navbuttonsperrow');
+      if(nbrEl)nbrEl.value=width;
+      await apiPost('SaveUserSettings',{userID:USER_ID,navWidth:width,profileID:currentUserProfileID});
+      if(statusEl){statusEl.textContent=`✓ Set to ${width}px`;statusEl.style.color='#22c55e';setTimeout(()=>{if(statusEl.textContent===`✓ Set to ${width}px`)statusEl.textContent='';},3000);}
+    };
+    const _savedCompanionOnMessage=_companionChannel.onmessage;
+    _companionChannel.onmessage=(e)=>{ onReply(e); if(e.data?.action!=='navWidthReply'&&_savedCompanionOnMessage)_savedCompanionOnMessage(e); };
+    _companionChannel.postMessage({action:'getNavWidth'});
+    _navWidthReplyTimer=setTimeout(()=>{
+      _companionChannel.onmessage=_savedCompanionOnMessage||null;
+      if(statusEl){statusEl.textContent='Open Nav mode first';statusEl.style.color='#e05050';setTimeout(()=>{if(statusEl.textContent==='Open Nav mode first')statusEl.textContent='';},3000);}
+    },1000);
+  }
   function openLangWindow(langID,langName){ showInCompanion('showLanguage',{langID,langName}); }
 
 // ── INIT ──
