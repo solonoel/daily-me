@@ -6555,7 +6555,7 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
   // ── USER MENU ──
 
   function renderUserMenuNav(){
-    if(_navMode)renderNavPanel();
+    if(_navMode){renderNavPanel();return;}
     document.querySelectorAll('.nav-btn-usermenu,.nav-btn-lang').forEach(b=>b.remove());
     const navDate=document.getElementById('nav-date');
     const menuItems=[...userMenu].filter(m=>!m.IsInactive).map(m=>({kind:'menu',seq:m.UserMenuSeq||99,data:m}));
