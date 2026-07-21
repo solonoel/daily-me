@@ -6547,8 +6547,8 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
       }catch(e){menuGroupSeqs[menuID]={};}
     }
     loadHeadlines();
-    document.querySelectorAll('.nav-btn-usermenu').forEach(b=>b.classList.remove('active'));
-    const btn=document.getElementById(`nav-usermenu-${menuID}`);
+    document.querySelectorAll('.nav-btn-usermenu,.nav-panel-btn').forEach(b=>b.classList.remove('active'));
+    const btn=document.getElementById(`nav-usermenu-${menuID}`)||document.getElementById(`nav-panel-btn-${menuID}`);
     if(btn)btn.classList.add('active');
   }
 
