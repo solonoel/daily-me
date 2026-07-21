@@ -515,7 +515,10 @@ module.exports = async function(context, req) {
 
     const today = new Date().toISOString().split('T')[0];
     const quotaDate = settings.QuotaDate ? new Date(settings.QuotaDate).toISOString().split('T')[0] : null;
-    const quotaUsed = { units: quotaDate === today ? (settings.QuotaUsed || 0) : 0, exceeded: false, exceededAt: null };
+    // quotaUsed.units tracks ONLY this run's own YouTube API calls — never seed it from
+    // a prior accumulated total, or the "youtubeRunUnits" figure in the log becomes meaningless
+    // and inflates every subsequent run's reported per-run cost.
+    const quotaUsed = { units: 0, exceeded: false, exceededAt: null };
 
     if (settings.DisableYoutubeToday && quotaDate !== today) {
       await pool.request().input('UserID', sql.Int, userID)
