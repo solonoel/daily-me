@@ -826,9 +826,15 @@ allArticles = allArticles.concat(articles);
     context.log(`[DEBUG Gerdes] allArticles before dedup: ${gerdesAllArticles.length}, links: ${JSON.stringify(gerdesAllArticles.map(a=>a.link))}`);
     const unique = allArticles.filter(a => {
       if (!a.link) { if(a.sourceName?.includes('Gerdes')) context.log(`[DEBUG DEDUP] dropped: no link, title=${a.title}`); return false; }
-      if (seen.has(a.link)) { if(a.sourceName?.includes('Gerdes')) context.log(`[DEBUG DEDUP] dropped: duplicate in this run, link=${a.link}`); return false; }
-      if (existingLinks.has(a.link)) { if(a.sourceName?.includes('Gerdes')) context.log(`[DEBUG DEDUP] dropped: already in Headline table, link=${a.link}`); return false; }
-      if (exclusionLinks.has(a.link)) { if(a.sourceName?.includes('Gerdes')) context.log(`[DEBUG DEDUP] dropped: in HeadlineExclusion, link=${a.link}`); return false; }
+      if (seen.has(a.link) || existingLinks.has(a.link) || exclusionLinks.has(a.link)) {
+        totalDuplicates++;
+        if (logSources[a.sourceName]) logSources[a.sourceName].duplicate = (logSources[a.sourceName].duplicate || 0) + 1;
+        if (a.sourceName?.includes('Gerdes')) {
+          const reason = seen.has(a.link) ? 'duplicate in this run' : existingLinks.has(a.link) ? 'already in Headline table' : 'in HeadlineExclusion';
+          context.log(`[DEBUG DEDUP] dropped: ${reason}, link=${a.link}`);
+        }
+        return false;
+      }
       seen.add(a.link); return true;
     });
     unique.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
@@ -955,7 +961,7 @@ allArticles = allArticles.concat(articles);
       errors: logErrors,
       insertedItems,
       sourceResults: Object.entries(logSources)
-        .map(([name, s]) => ({ name, fetched: s.fetched || 0, langFiltered: s.langFiltered || 0, recencyFiltered: s.recencyFiltered || 0, matched: s.matched || 0, inserted: s.inserted || 0, skipped: s.skipped || null, error: s.error || null }))
+        .map(([name, s]) => ({ name, fetched: s.fetched || 0, langFiltered: s.langFiltered || 0, recencyFiltered: s.recencyFiltered || 0, matched: s.matched || 0, inserted: s.inserted || 0, duplicate: s.duplicate || 0, skipped: s.skipped || null, error: s.error || null }))
         .sort((a, b) => b.fetched - a.fetched),
       zeroHitKeywords: zeroKeywords,
       gerdesVideos: selected.filter(a => a.sourceID === 34).map(a => ({ title: a.title, pubDate: a.pubDate ? new Date(a.pubDate).toLocaleDateString('en-US') : '—' }))
