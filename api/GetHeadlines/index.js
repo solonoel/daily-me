@@ -41,6 +41,7 @@ module.exports = async function(context, req) {
       LEFT JOIN [HeadlineKeyword] k ON h.KeywordID = k.KeywordID
       LEFT JOIN [HeadlineSource] hs ON h.SourceID = hs.SourceID
       LEFT JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID AND uhs.UserID = @UserID
+        AND (uhs.UserProfileID = @ProfileID OR (@ProfileID IS NULL AND uhs.UserProfileID IS NULL))
       LEFT JOIN [UserOwnedSource] uos ON h.UserOwnedSourceID = uos.UserOwnedSourceID
       WHERE h.UserID = @UserID
       AND (h.UserProfileID = @ProfileID OR (@ProfileID IS NULL AND h.UserProfileID IS NULL))
