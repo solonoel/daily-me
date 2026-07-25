@@ -1871,14 +1871,13 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
       initLogFolderUI();
     }catch(e){console.error('[companion] Error loading settings/sources/keywords/languages:',e);}
     try{
-      const[mySitesData,menuData,cats,srcsData]=await Promise.all([
-        apiGet('GetUserOwnedSources'),apiGet('GetUserMenu',`&profileID=${currentUserProfileID||''}`),apiGet('GetCategories'),apiGet('GetHeadlineSources',`&profileID=${currentUserProfileID||''}`)
+      const[mySitesData,menuData,srcsData]=await Promise.all([
+        apiGet('GetUserOwnedSources'),apiGet('GetUserMenu',`&profileID=${currentUserProfileID||''}`),apiGet('GetHeadlineSources',`&profileID=${currentUserProfileID||''}`)
       ]);
       userOwnedSources=Array.isArray(mySitesData)?mySitesData:[];
       userMenu=Array.isArray(menuData)?menuData:[];
-      categories=Array.isArray(cats)?cats:[];
       sources=Array.isArray(srcsData)?srcsData:sources;
-    }catch(e){console.error('[companion] Error loading sources/menu/categories:',e);}
+    }catch(e){console.error('[companion] Error loading sources/menu:',e);}
     try{
       renderLanguageNav();pingLauncher();
     }catch(e){console.error('[companion] Error rendering nav:',e);}
