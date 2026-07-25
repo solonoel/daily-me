@@ -284,6 +284,7 @@
     .onboard-btn:hover { opacity:0.9; }
     #recency-bar { position:sticky; top:0; z-index:95; flex-shrink:0; }
     body.nav-mode #recency-bar { top:0; }
+    body.companion-hidden-preload { opacity:0 !important; }
   </style>
 </head>
 <body>
@@ -1062,9 +1063,11 @@
   if (!storedUser) window.location.href = 'login.html';
   const USER_ID = storedUser?.userID || 1;
   const _isCompanion = new URLSearchParams(window.location.search).get('mode') === 'companion';
+  const _isHiddenPreload = new URLSearchParams(window.location.search).get('hidden') === '1';
   // Apply cached mode immediately to prevent unstyled flash during cold start
   const _cachedMode = localStorage.getItem(`dailyme_mode_${USER_ID}`);
   if(_cachedMode === 'Nav' && !_isCompanion) document.body.classList.add('nav-mode');
+  if(_isHiddenPreload) document.body.classList.add('companion-hidden-preload');
   // Initialize loading overlay with cached data + live weather (skip on mode switches and companion)
 const _initForceMode = new URLSearchParams(window.location.search).get('forceMode');
 const _overlayReady = (!_initForceMode && !_isCompanion) ? initLoadingOverlay() : Promise.resolve();
@@ -1094,6 +1097,13 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
   function getStreakEmoji(days){ if(days>=30)return'🏆'; if(days>=14)return'💎'; if(days>=7)return'🔥'; if(days>=3)return'⭐'; return'🌱'; }
 
   const BINOCULARS_SVG='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="6" cy="16" r="3.5"/><circle cx="18" cy="16" r="3.5"/><path d="M9 15h6"/><path d="M8 12.5V7a2 2 0 0 1 2-2h1"/><path d="M16 12.5V7a2 2 0 0 1-2-2h-1"/><path d="M11 5h2"/></svg>';
+
+  // Client-side debug logging, gated by the "Enable Logging" (Verbose fetch logs) setting.
+  // window._enableClientLogging is set from the loaded user settings in loadAll()/loadCompanion().
+  window._enableClientLogging = false;
+  function clientLog(...args){
+    if(window._enableClientLogging) console.log(`[DailyMe${_isCompanion?':companion':':nav'}]`, ...args);
+  }
 
   async function initLoadingOverlay(){
     // Show cached headline groups immediately
@@ -1816,8 +1826,6 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
   }
 
   async function loadCompanion(){
-    const _isHiddenPreload=new URLSearchParams(window.location.search).get('hidden')==='1';
-    if(_isHiddenPreload)document.body.style.opacity='0';
     _navMode=false;setGreeting();setDate();applyNavMode();
     const _rb=document.getElementById('recency-bar');if(_rb)_rb.style.display='none';
     const _nwRow=document.getElementById('nav-width-row');if(_nwRow)_nwRow.style.display='';
@@ -1875,7 +1883,7 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
       renderLanguageNav();pingLauncher();
     }catch(e){console.error('[companion] Error rendering nav:',e);}
     _companionChannel.onmessage=async(e)=>{
-      document.body.style.opacity='1';
+      document.body.classList.remove('companion-hidden-preload');
       if(e.data?.action==='showSettings'){showScreen('settings');window.focus();}
       else if(e.data?.action==='showLanguage'){visitLanguage(e.data.langID,e.data.langName);window.focus();}
       else if(e.data?.action==='closeCompanion'){window.close();}
@@ -1906,8 +1914,8 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
       else if(lastAction?.action==='showLanguage'&&lastAction.langID)await visitLanguage(lastAction.langID,lastAction.langName);
     }catch(e){}
     // This window defaults to the Settings screen already. If it was opened as a
-    // hidden preload, stay transparent until showInCompanion() reveals it via message.
-    if(!_isHiddenPreload)document.body.style.opacity='1';
+    // hidden preload, the companion-hidden-preload class keeps it invisible until
+    // showInCompanion() reveals it via the message handler above.
     showScreen('settings');
   }
 
@@ -1952,7 +1960,10 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
     }
     document.getElementById('us-maxheadlines').value=userSettings?.headlineSetting?.MaxHeadlines||50;
     const enableLoggingEl=document.getElementById('us-enablelogging');
-    if(enableLoggingEl)enableLoggingEl.checked=userSettings?.headlineSetting?.EnableLogging===true||userSettings?.headlineSetting?.EnableLogging===1;
+    const _enableLoggingVal=userSettings?.headlineSetting?.EnableLogging===true||userSettings?.headlineSetting?.EnableLogging===1;
+    if(enableLoggingEl)enableLoggingEl.checked=_enableLoggingVal;
+    window._enableClientLogging=_enableLoggingVal;
+    try{localStorage.setItem(`dailyme_enablelogging_${USER_ID}`,_enableLoggingVal?'1':'0');}catch(e){}
     const launchMode=userSettings?.headlineSetting?.LaunchMode||'Full';
     const navWidth=userSettings?.headlineSetting?.NavWidth||328;
     document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value===launchMode);
