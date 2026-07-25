@@ -286,7 +286,7 @@
     body.nav-mode #recency-bar { top:0; }
   </style>
 </head>
-<body>
+<body style="opacity:0;transition:opacity 0.15s ease">
 <header class="header">
   <div class="header-left">
     <div id="logo-block">
@@ -1193,12 +1193,19 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
     const url=window.location.href.split('?')[0]+'?mode=companion';
     return{url,specs:`width=${winW},height=${screen.availHeight},left=${navRight},top=${screenTop},resizable=yes,scrollbars=yes`,navRight,winW,screenTop};
   }
-  function showInCompanion(action,params={}){
+function showInCompanion(action,params={}){
     try{localStorage.setItem(`dailyme_companion_last_action_${USER_ID}`,JSON.stringify({action,...params}));}catch(e){}
     const{url,specs,navRight,winW,screenTop}=_companionSpecs();
     if(!companionWin||companionWin.closed){
       companionWin=window.open(url,'dailyme_companion',specs);
       _pendingCompanionAction={action,...params};
+    }else if(_companionPreloaded){
+      // Already open and correctly positioned from preload — just reveal it and
+      // navigate to the requested screen (Settings is already showing by default).
+      _companionPreloaded=false;
+      try{companionWin.document.body.style.opacity='1';}catch(e){}
+      if(action!=='showSettings')_companionChannel.postMessage({action,...params});
+      try{companionWin.focus();}catch(e){}
     }else{
       const chrome=(companionWin.outerWidth-companionWin.innerWidth)||16;
       try{companionWin.resizeTo(winW+chrome,screen.availHeight);companionWin.moveTo(navRight,screenTop);}catch(e){}
@@ -1223,20 +1230,17 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
   window.addEventListener('beforeunload',()=>{
     try{ if(companionWin && !companionWin.closed) companionWin.close(); }catch(e){}
   });
-function preloadCompanion(){
+let _companionPreloaded=false;
+  function preloadCompanion(){
     if(_isCompanion)return;
     if(companionWin && !companionWin.closed)return;
-    const url=window.location.href.split('?')[0]+'?mode=companion';
-    // Open the preload window as a 1x1 box pinned to this (Nav) window's top-left
-    // corner, so it's always fully covered by Nav regardless of Nav's current size.
-    // showInCompanion() resizes/repositions it for real use later.
-    // IMPORTANT: use a target name distinct from 'dailyme_nav' — reusing that name
-    // causes window.open to navigate the actual Nav window instead of opening a
-    // separate companion window.
-    const hideLeft=window.screenX??window.screenLeft??0;
-    const hideTop=window.screenY??window.screenTop??0;
-    const hideSpecs=`width=1,height=1,left=${hideLeft},top=${hideTop},resizable=yes,scrollbars=no`;
-    companionWin=window.open(url,'dailyme_companion_preload',hideSpecs);
+    // Open the companion window at its real Settings size/position (invisible via
+    // opacity:0 in its own document) instead of a hidden/tiny box. When the user
+    // clicks Settings, it just fades in — no resize/reposition needed. If they
+    // click a language instead, showInCompanion() navigates it as before.
+    const{url,specs}=_companionSpecs();
+    companionWin=window.open(url,'dailyme_companion_preload',specs);
+    _companionPreloaded=true;
     try{ window.focus(); }catch(e){}
   }
   // If this window IS the Nav popup, pre-open the companion (Settings/Language) window
@@ -1888,6 +1892,10 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
       if(lastAction?.action==='showSettings')showScreen('settings');
       else if(lastAction?.action==='showLanguage'&&lastAction.langID)await visitLanguage(lastAction.langID,lastAction.langName);
     }catch(e){}
+    // This window defaults to the Settings screen already. If it was opened as an
+    // invisible preload (not a real user-requested open), leave it transparent —
+    // showInCompanion() will reveal it when the user actually clicks Settings/language.
+    if(!window._openedViaShowInCompanion) showScreen('settings');
   }
 
   async function loadAll(){
