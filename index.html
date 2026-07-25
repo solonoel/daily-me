@@ -1230,10 +1230,13 @@ function preloadCompanion(){
     // Open the preload window as a 1x1 box pinned to this (Nav) window's top-left
     // corner, so it's always fully covered by Nav regardless of Nav's current size.
     // showInCompanion() resizes/repositions it for real use later.
+    // IMPORTANT: use a target name distinct from 'dailyme_nav' — reusing that name
+    // causes window.open to navigate the actual Nav window instead of opening a
+    // separate companion window.
     const hideLeft=window.screenX??window.screenLeft??0;
     const hideTop=window.screenY??window.screenTop??0;
     const hideSpecs=`width=1,height=1,left=${hideLeft},top=${hideTop},resizable=yes,scrollbars=no`;
-    companionWin=window.open(url,'dailyme_nav',hideSpecs);
+    companionWin=window.open(url,'dailyme_companion_preload',hideSpecs);
     try{ window.focus(); }catch(e){}
   }
   // If this window IS the Nav popup, pre-open the companion (Settings/Language) window
