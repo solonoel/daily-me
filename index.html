@@ -430,7 +430,9 @@
             </div>
             <div id="nav-width-row" style="display:none">
               <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Nav Bar Width</div>
-              <a href="#" onclick="setNavBarWidthFromCurrent();return false;" style="font-size:12px;font-weight:600;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep)">Set Nav Bar Width</a>
+              <span id="nav-width-display" style="font-size:12px;font-weight:600;color:var(--text)">—px</span>
+              &nbsp;
+              <a href="#" onclick="setNavBarWidthFromCurrent();return false;" style="font-size:12px;font-weight:600;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep)">Set as Current</a>
               <span id="nav-width-status" style="font-size:11px;color:var(--sky-deep);font-weight:600;margin-left:8px"></span>
               <input type="number" id="us-navbuttonsperrow" style="display:none">
             </div>
@@ -1187,7 +1189,10 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
   let companionWin=null,_pendingCompanionAction=null;
   const _companionChannel=new BroadcastChannel('dailyme_companion_msgs');
   function _companionSpecs(){
-    const navRight=(window.screenX||0)+window.outerWidth;
+    const savedNavWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||328;
+    const chrome=window.outerWidth-window.innerWidth||16;
+    const navLeft=window.screenX??window.screenLeft??0;
+    const navRight=navLeft+savedNavWidth+chrome;
     const winW=Math.max((screen.availLeft||0)+screen.availWidth-navRight,320);
     const{top:screenTop}=getScreenOrigin();
     const url=window.location.href.split('?')[0]+'?mode=companion';
@@ -1845,6 +1850,7 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
         sv('us-youtubemaxresults',hs.YouTubeMaxResults||3);sv('us-otherperkey',hs.OtherHeadlinesPerKeyword||3);
         sv('us-collapsethreshold',hs.CollapseThreshold??5);sv('us-weatherurl',hs.WeatherURL||'');
         sv('us-navbuttonsperrow',hs.NavWidth||328);
+        const _nwDisp=document.getElementById('nav-width-display');if(_nwDisp)_nwDisp.textContent=`${hs.NavWidth||328}px`;
         const fh=hs.FetchHour,fe=document.getElementById('us-fetchhour');
         if(fe)fe.value=(fh!==null&&fh!==undefined)?String(fh):'';
         document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value===(hs.LaunchMode||'Full'));
@@ -1951,6 +1957,7 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
     const navWidth=userSettings?.headlineSetting?.NavWidth||328;
     document.querySelectorAll('input[name="us-launchmode"]').forEach(r=>r.checked=r.value===launchMode);
     const nbrEl=document.getElementById('us-navbuttonsperrow');if(nbrEl)nbrEl.value=navWidth;
+    const nwDisplayEl=document.getElementById('nav-width-display');if(nwDisplayEl)nwDisplayEl.textContent=`${navWidth}px`;
     _navMode=launchMode==='Nav';
     localStorage.setItem(`dailyme_mode_${USER_ID}`, launchMode);
     // applyNavMode() deferred until all data is loaded below
@@ -6884,6 +6891,7 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
       const width=e.data.width;
       const nbrEl=document.getElementById('us-navbuttonsperrow');
       if(nbrEl)nbrEl.value=width;
+      const displayEl=document.getElementById('nav-width-display');if(displayEl)displayEl.textContent=`${width}px`;
       await apiPost('SaveUserSettings',{userID:USER_ID,navWidth:width,profileID:currentUserProfileID});
       if(statusEl){statusEl.textContent=`✓ Set to ${width}px`;statusEl.style.color='#22c55e';setTimeout(()=>{if(statusEl.textContent===`✓ Set to ${width}px`)statusEl.textContent='';},3000);}
     };
