@@ -19,7 +19,7 @@ module.exports = async function(context, req) {
         .input('DeckName', sql.NVarChar(200), deckName)
         .query(`
           INSERT INTO [UserLanguageWordsDeck] (UserID, LanguageID, UserLanguageWordsDeckName, DateAdded, Status)
-          VALUES (@UserID, @LanguageID, @DeckName, GETDATE(), 'Active');
+          VALUES (@UserID, @LanguageID, @DeckName, GETDATE(), 'Pending');
           SELECT SCOPE_IDENTITY() AS DeckID;
         `);
       const newDeckID = result.recordset[0].DeckID;

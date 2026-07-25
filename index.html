@@ -329,7 +329,7 @@
       </div>
     </div>
   </div>
-  <a id="nav-header-weather" onclick="const u=window._weatherClickURL||'https://forecast.weather.gov/MapClick.php?CityName=Oregon&state=IL&site=LOT&textField1=41.9945&textField2=-89.3334';window.open(u,'_blank','noopener');" style="display:none;align-items:center;gap:4px;cursor:pointer;text-decoration:none;flex-shrink:0;margin-left:auto;padding:0 8px">
+  <a id="nav-header-weather" onclick="window.open(resolveWeatherClickURL(),'_blank','noopener');" style="display:none;align-items:center;gap:4px;cursor:pointer;text-decoration:none;flex-shrink:0;margin-left:auto;padding:0 8px">
     <span style="font-size:18px;line-height:1" id="nav-header-weather-icon"></span>
     <span style="font-size:13px;font-weight:700;color:white" id="nav-header-weather-temp"></span>
   </a>
@@ -405,6 +405,7 @@
             <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
               <a href="#" id="fetch-results-link" onclick="openFetchLog();return false;" style="font-size:12px;font-weight:600;color:var(--sky-deep)">📋 Results</a>
               <a href="#" id="saved-results-link" onclick="openSavedResults();return false;" style="display:none;font-size:12px;font-weight:600;color:var(--sky-deep)">📂 Saved Results</a>
+              <a href="#" onclick="openYtCreditsHelpModal();return false;" style="font-size:12px;font-weight:600;color:var(--sky-deep)">📺 Youtube Credit Calcs</a>
               <span id="yt-quota-display" style="font-size:11px;font-weight:600;display:none"></span>
             </div>
           </div>
@@ -974,6 +975,40 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="ytcredits-help-modal" style="display:none" onclick="if(event.target===this)closeYtCreditsHelpModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:560px">
+    <div class="modal-title">📺 YouTube Credit Costs</div>
+    <div style="font-size:13px;color:var(--text);line-height:1.8">
+      <div style="margin-bottom:12px">Every YouTube source starts with a <strong>1-credit</strong> call that pulls its 50 most recent uploads. Your Recency setting only trims that list afterward — it doesn't change this cost.</div>
+      <div style="background:#f0f7ff;border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:12px">
+        <div style="font-weight:700;color:var(--sky-deep);margin-bottom:4px">Plain Subscriptions</div>
+        <div>1 credit per source. No keyword search happens.</div>
+      </div>
+      <div style="background:#fff8e6;border:1px solid #e8a020;border-radius:8px;padding:10px 14px;margin-bottom:12px">
+        <div style="font-weight:700;color:#b07000;margin-bottom:4px">Filtered Sources (keyword-linked)</div>
+        <div>1 credit for the playlist, plus <strong>100 credits per clause</strong> — capped at 3 clauses per source per run (max 301 credits/source).</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <strong>What's a "clause"?</strong> One comma/semicolon-separated segment of a keyword entry. Example: a keyword field of <code style="font-size:11px;background:#e6f1ff;padding:1px 5px;border-radius:3px">"White Sox"/"Cubs"-"Red Sox"</code> is <strong>one clause</strong> — one 100-credit call — even though it has an OR and an exclusion in it.
+      </div>
+      <div style="margin-bottom:12px">
+        Adding a comma splits it into more clauses (more calls): <code style="font-size:11px;background:#e6f1ff;padding:1px 5px;border-radius:3px">"White Sox", Bears+Stadium</code> is <strong>two</strong> clauses — 200 credits.
+      </div>
+      <div style="font-size:12px;color:var(--text-soft);line-height:1.7">
+        <strong>Free, regardless of complexity:</strong>
+        <ul style="margin:6px 0 0 18px;padding:0">
+          <li>AND (<code>+</code>), OR (<code>/</code>), and exclusions (<code>-</code>) within a clause</li>
+          <li>Quoted multi-word phrases</li>
+          <li>How many matches a call returns — YouTube bills per call, not per result</li>
+        </ul>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <div class="modal-actions-group"></div>
+      <div class="modal-actions-group"><button class="btn-primary btn-compact" onclick="closeYtCreditsHelpModal()">Got it</button></div>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="logging-help-modal" style="display:none" onclick="if(event.target===this)closeLoggingHelpModal()">
   <div class="modal" onclick="event.stopPropagation()" style="max-width:480px">
     <div class="modal-title">📋 Viewing Fetch Logs</div>
@@ -1371,6 +1406,7 @@ try{
       const tz=encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone||'America/Chicago');
       userTimezone=Intl.DateTimeFormat().resolvedOptions().timeZone||'America/Chicago';
       localStorage.setItem(`dailyme_coords_${USER_ID}`,JSON.stringify({lat,lon,tz:decodeURIComponent(tz)}));
+      _hasZipCoords=true;
       await loadWeather(lat,lon,tz);
     }catch(e){
       await loadWeather();
@@ -1686,6 +1722,15 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
 
   let weatherLat=41.9945,weatherLon=-89.3334,weatherTz='America%2FChicago';
   let userTimezone='America/Chicago';
+  let _hasZipCoords=false;
+
+  // Tiered weather-click URL: 1) Settings "On Weather Click" URL, 2) NWS page derived from
+  // the ZIP's geocoded lat/lon, 3) national NWS default when no ZIP is on file.
+  function resolveWeatherClickURL(){
+    if(window._weatherClickURL)return window._weatherClickURL;
+    if(_hasZipCoords)return `https://forecast.weather.gov/MapClick.php?lat=${weatherLat}&lon=${weatherLon}`;
+    return 'https://www.weather.gov';
+  }
   async function loadWeather(lat,lon,tz){
     if(lat)weatherLat=lat;if(lon)weatherLon=lon;if(tz)weatherTz=tz;
     const wb=document.getElementById('weather-block');
@@ -1705,7 +1750,7 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
           <div style="font-size:10px;color:rgba(255,255,255,0.65)">${Math.round(d.temperature_2m_min[i+1])}&#176;</div>
         </div>`;
       }).join('');
-      const wUrl=window._weatherClickURL||'https://forecast.weather.gov/MapClick.php?CityName=Oregon&state=IL&site=LOT&textField1=41.9945&textField2=-89.3334';
+      const wUrl=resolveWeatherClickURL();
       if(_navMode){
       // Update Nav-mode header weather display
       const hdrWeather=document.getElementById('nav-header-weather');
@@ -1715,7 +1760,7 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
       if(hdrTemp)hdrTemp.textContent=`${Math.round(c.temperature_2m)}°`;
       if(hdrWeather){
         hdrWeather.title=`${Math.round(c.temperature_2m)}°F · ${desc} · H:${Math.round(d.temperature_2m_max[0])}° L:${Math.round(d.temperature_2m_min[0])}°`;
-        hdrWeather.onclick=()=>{const u=window._weatherClickURL||wUrl;window.open(u,'_blank','noopener');};
+        hdrWeather.onclick=()=>{window.open(resolveWeatherClickURL(),'_blank','noopener');};
         hdrWeather.style.display=_navMode?'flex':'none';
       }
       document.getElementById('weather-block').style.display='none';
@@ -1874,6 +1919,7 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
       if(zipEl)zipEl.value=storedZip;
       applyZipCodeWeather(storedZip);
     } else {
+      _hasZipCoords=false;
       const wb=document.getElementById('weather-block');
       if(wb)wb.innerHTML='<div class="weather-loading">Add your zip code in Settings to see weather.</div>';
     }
@@ -2586,6 +2632,8 @@ function renderLanguageNav(){
               <a href="#" id="nw-fetch-btn" onclick="fetchTranslation();return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;display:inline-block">🔍 Fetch Translation</a>
               ${isEdit&&word?.IsVerb==='Y'?`<a href="#" onclick="showConjugationFromEdit(${word.UserLanguageWordsID});return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:inline-block">🔤 Conjugate</a>`:''}
               <a href="#" onclick="window.open('https://translate.google.com/#auto/en/'+encodeURIComponent(document.getElementById('nw-word').value),'_blank');return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:inline-block">Google Translate</a>
+              ${currentLangName==='Spanish'?`<a href="#" onclick="window.open('https://www.spanishdict.com/translate/'+encodeURIComponent(document.getElementById('nw-word').value),'_blank');return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:inline-block">SpanishDict</a>`:''}
+              <a href="#" id="nw-view-images-link" onclick="window.open('https://www.google.com/search?tbm=isch&q='+encodeURIComponent(window._nwImageSearchTerm||document.getElementById('nw-translation')?.value.trim()||''),'_blank');return false;" style="font-size:12px;color:var(--sky-deep);margin-top:5px;margin-left:14px;display:${word?.WordsTranslation?'inline-block':'none'}">🖼️ View Images</a>
               <span id="nw-fetch-status" style="font-size:12px;color:var(--text-muted);margin-left:8px"></span>
             </div>
             <div class="form-row">
@@ -2780,6 +2828,9 @@ function renderLanguageNav(){
         document.getElementById('nw-translation').value=result.translation;
         if(result.isVerb===true||result.isVerb==='true'){const cb=document.getElementById('nw-isverb');if(cb)cb.checked=true;}
         if(result.gender){const sel=document.getElementById('nw-gender');if(sel)sel.value=result.gender;}
+        window._nwImageSearchTerm=result.translation.trim();
+        const viewImagesLink=document.getElementById('nw-view-images-link');
+        if(viewImagesLink)viewImagesLink.style.display='inline-block';
         if(result.presentParticiple||result.pastParticiple){
           window._fetchedPresentParticiple=result.presentParticiple||null;
           window._fetchedPastParticiple=result.pastParticiple||null;
@@ -3185,6 +3236,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     const name=prompt('Deck name:');
     if(!name?.trim())return;
     await apiPost('SaveUserDeck',{action:'add',userID:USER_ID,languageID:currentLangID,deckName:name.trim()});
+    deckStatusFilter='Pending';
     const data=await apiGet('GetUserDecks',`&languageID=${currentLangID}&status=all`);
     userDecks=Array.isArray(data)?data:[];
     const panel=document.getElementById(`lang-feature-${currentLangID}`);
@@ -4734,6 +4786,8 @@ function isYouTubeFilteredSource(sourceID){
   function closeModalOverlay(e){if(e.target===document.getElementById('modal'))closeModal();}
   function openLoggingHelpModal(){document.getElementById('logging-help-modal').style.display='flex';}
   function closeLoggingHelpModal(){document.getElementById('logging-help-modal').style.display='none';}
+  function openYtCreditsHelpModal(){document.getElementById('ytcredits-help-modal').style.display='flex';}
+  function closeYtCreditsHelpModal(){document.getElementById('ytcredits-help-modal').style.display='none';}
 
   async function saveModalAs(){
     if(!modalID)return;

@@ -932,6 +932,7 @@ allArticles = allArticles.concat(articles);
           activityLogEntries.push({ entityType: 'MySource', entityID: a.userOwnedSourceID });
         }
         insertedItems.push({
+          menuSeq: menuID ? (menuSeqMap[menuID] ?? 999) : 999,
           menuName: menuID ? (menuNameMap[menuID] || '') : '',
           groupName: resolveGroupName(a, kw),
           sourceName: a.sourceName || '',
@@ -944,7 +945,7 @@ allArticles = allArticles.concat(articles);
       }
     }
     insertedItems.sort((x, y) =>
-      x.menuName.localeCompare(y.menuName) ||
+      x.menuSeq - y.menuSeq ||
       x.groupName.localeCompare(y.groupName) ||
       x.sourceName.localeCompare(y.sourceName) ||
       x.keyword.localeCompare(y.keyword)
