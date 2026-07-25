@@ -1223,15 +1223,17 @@ if(_initForceMode || _isCompanion) { const _ov=document.getElementById('loading-
   window.addEventListener('beforeunload',()=>{
     try{ if(companionWin && !companionWin.closed) companionWin.close(); }catch(e){}
   });
-  function preloadCompanion(){
+function preloadCompanion(){
     if(_isCompanion)return;
     if(companionWin && !companionWin.closed)return;
     const url=window.location.href.split('?')[0]+'?mode=companion';
-    const{left:screenLeft,top:screenTop}=getScreenOrigin();
-    // Browsers won't let a script open a truly invisible window — shrink it into
-    // a corner instead. showInCompanion() resizes/repositions it for real use later.
-    const tinySpecs=`width=100,height=80,left=${screenLeft+screen.availWidth-110},top=${screenTop+screen.availHeight-90},resizable=yes,scrollbars=no`;
-    companionWin=window.open(url,'dailyme_companion',tinySpecs);
+    // Open the preload window as a 1x1 box pinned to this (Nav) window's top-left
+    // corner, so it's always fully covered by Nav regardless of Nav's current size.
+    // showInCompanion() resizes/repositions it for real use later.
+    const hideLeft=window.screenX??window.screenLeft??0;
+    const hideTop=window.screenY??window.screenTop??0;
+    const hideSpecs=`width=1,height=1,left=${hideLeft},top=${hideTop},resizable=yes,scrollbars=no`;
+    companionWin=window.open(url,'dailyme_nav',hideSpecs);
     try{ window.focus(); }catch(e){}
   }
   // If this window IS the Nav popup, pre-open the companion (Settings/Language) window
