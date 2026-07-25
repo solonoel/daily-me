@@ -1200,9 +1200,11 @@ function showInCompanion(action,params={}){
       companionWin=window.open(url,'dailyme_companion',specs);
       _pendingCompanionAction={action,...params};
     }else if(_companionPreloaded){
-      // Already open and correctly positioned from preload — message it to reveal
-      // itself and navigate. No resize/reposition needed, it's already correct.
+      // Preloaded but at throwaway size/position — resize/reposition to Nav's
+      // current (now-settled) geometry, then message it to reveal and navigate.
       _companionPreloaded=false;
+      const chrome=(companionWin.outerWidth-companionWin.innerWidth)||16;
+      try{companionWin.resizeTo(winW+chrome,screen.availHeight);companionWin.moveTo(navRight,screenTop);}catch(e){}
       _companionChannel.postMessage({action,...params});
       try{companionWin.focus();}catch(e){}
     }else{
@@ -1233,13 +1235,15 @@ let _companionPreloaded=false;
   function preloadCompanion(){
     if(_isCompanion)return;
     if(companionWin && !companionWin.closed)return;
-    // Open the companion window at its real Settings size/position (invisible via
-    // opacity:0 in its own document) instead of a hidden/tiny box. When the user
-    // clicks Settings, it just fades in — no resize/reposition needed. If they
-    // click a language instead, showInCompanion() navigates it as before.
-    const{url,specs}=_companionSpecs();
-    const hiddenUrl=url+'&hidden=1';
-    companionWin=window.open(hiddenUrl,'dailyme_companion_preload',specs);
+    // Open the companion window now (so its data/DOM is warm), but hidden via the
+    // ?hidden=1 flag and at a throwaway size/position — Nav's geometry isn't final
+    // yet at this point. showInCompanion() resizes/repositions/reveals it together
+    // once Nav has settled and the user actually requests Settings/a language.
+    const url=window.location.href.split('?')[0]+'?mode=companion&hidden=1';
+    const hideLeft=window.screenX??window.screenLeft??0;
+    const hideTop=window.screenY??window.screenTop??0;
+    const hideSpecs=`width=100,height=80,left=${hideLeft},top=${hideTop},resizable=yes,scrollbars=no`;
+    companionWin=window.open(url,'dailyme_companion_preload',hideSpecs);
     _companionPreloaded=true;
     try{ window.focus(); }catch(e){}
   }
