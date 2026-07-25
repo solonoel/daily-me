@@ -2556,17 +2556,17 @@ function renderLanguageNav(){
         <div id="word-deck-list" style="border:1.5px solid var(--border);border-radius:8px;padding:4px 8px;min-height:28px;margin-bottom:6px">${deckRows||'<div style="font-size:11px;color:var(--text-muted);padding:2px 0">Not in any deck</div>'}</div>
         ${availableDecks.length?`
         <div style="display:flex;gap:8px;align-items:center">
-          <select id="wdeck-add-select" style="font-size:12px;padding:4px 6px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;color:var(--text);background:white;width:${comboWidth}px">
-            <option value="">— Add to deck —</option>
+          <label for="wdeck-add-select" style="font-size:12px;font-weight:600;color:var(--text-soft);white-space:nowrap">Add to Deck:</label>
+          <select id="wdeck-add-select" onchange="addWordToDeckFromEdit(${wordID},this)" style="font-size:12px;padding:4px 6px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;color:var(--text);background:white;width:${comboWidth}px">
+            <option value="">— Select —</option>
             ${availableDecks.map(d=>`<option value="${d.UserLanguageWordsDeckID}">${d.UserLanguageWordsDeckName}</option>`).join('')}
           </select>
-          <button type="button" class="btn-primary" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="addWordToDeckFromEdit(${wordID})">Add</button>
         </div>`:'<div style="font-size:11px;color:var(--text-muted)">No more active decks available.</div>'}
       </div>`;
   }
 
-  async function addWordToDeckFromEdit(wordID){
-    const sel=document.getElementById('wdeck-add-select');
+  async function addWordToDeckFromEdit(wordID,selEl){
+    const sel=selEl||document.getElementById('wdeck-add-select');
     if(!sel||!sel.value)return;
     const deckID=parseInt(sel.value);
     await apiPost('SaveUserDeck',{action:'addWord',userID:USER_ID,deckID,wordID});
