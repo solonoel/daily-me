@@ -286,7 +286,7 @@
     body.nav-mode #recency-bar { top:0; }
   </style>
 </head>
-<body style="opacity:0;transition:opacity 0.15s ease">
+<body>
 <header class="header">
   <div class="header-left">
     <div id="logo-block">
@@ -1200,11 +1200,10 @@ function showInCompanion(action,params={}){
       companionWin=window.open(url,'dailyme_companion',specs);
       _pendingCompanionAction={action,...params};
     }else if(_companionPreloaded){
-      // Already open and correctly positioned from preload — just reveal it and
-      // navigate to the requested screen (Settings is already showing by default).
+      // Already open and correctly positioned from preload — message it to reveal
+      // itself and navigate. No resize/reposition needed, it's already correct.
       _companionPreloaded=false;
-      try{companionWin.document.body.style.opacity='1';}catch(e){}
-      if(action!=='showSettings')_companionChannel.postMessage({action,...params});
+      _companionChannel.postMessage({action,...params});
       try{companionWin.focus();}catch(e){}
     }else{
       const chrome=(companionWin.outerWidth-companionWin.innerWidth)||16;
@@ -1239,7 +1238,8 @@ let _companionPreloaded=false;
     // clicks Settings, it just fades in — no resize/reposition needed. If they
     // click a language instead, showInCompanion() navigates it as before.
     const{url,specs}=_companionSpecs();
-    companionWin=window.open(url,'dailyme_companion_preload',specs);
+    const hiddenUrl=url+'&hidden=1';
+    companionWin=window.open(hiddenUrl,'dailyme_companion_preload',specs);
     _companionPreloaded=true;
     try{ window.focus(); }catch(e){}
   }
@@ -1807,6 +1807,8 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
   }
 
   async function loadCompanion(){
+    const _isHiddenPreload=new URLSearchParams(window.location.search).get('hidden')==='1';
+    if(_isHiddenPreload)document.body.style.opacity='0';
     _navMode=false;setGreeting();setDate();applyNavMode();
     const _rb=document.getElementById('recency-bar');if(_rb)_rb.style.display='none';
     const _nwRow=document.getElementById('nav-width-row');if(_nwRow)_nwRow.style.display='';
@@ -1863,6 +1865,7 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
       renderLanguageNav();pingLauncher();
     }catch(e){console.error('[companion] Error rendering nav:',e);}
     _companionChannel.onmessage=async(e)=>{
+      document.body.style.opacity='1';
       if(e.data?.action==='showSettings'){showScreen('settings');window.focus();}
       else if(e.data?.action==='showLanguage'){visitLanguage(e.data.langID,e.data.langName);window.focus();}
       else if(e.data?.action==='closeCompanion'){window.close();}
@@ -1892,10 +1895,10 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
       if(lastAction?.action==='showSettings')showScreen('settings');
       else if(lastAction?.action==='showLanguage'&&lastAction.langID)await visitLanguage(lastAction.langID,lastAction.langName);
     }catch(e){}
-    // This window defaults to the Settings screen already. If it was opened as an
-    // invisible preload (not a real user-requested open), leave it transparent —
-    // showInCompanion() will reveal it when the user actually clicks Settings/language.
-    if(!window._openedViaShowInCompanion) showScreen('settings');
+    // This window defaults to the Settings screen already. If it was opened as a
+    // hidden preload, stay transparent until showInCompanion() reveals it via message.
+    if(!_isHiddenPreload)document.body.style.opacity='1';
+    showScreen('settings');
   }
 
   async function loadAll(){
