@@ -483,6 +483,8 @@
               <div style="text-align:right;flex-shrink:0">
                 <a href="#" onclick="removeAllExclusions();return false;" style="font-size:11px;font-weight:600;color:#e05050;text-decoration:none;border-bottom:1px dashed #e05050;white-space:nowrap">Remove Exclusions</a>
                 <div id="remove-exclusions-status" style="font-size:10px;color:var(--sky-deep);font-weight:600;margin-top:2px"></div>
+                <a href="#" onclick="reloadDeletedArticles();return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep);white-space:nowrap;margin-top:4px;display:inline-block">Reload Deleted Articles</a>
+                <div id="reload-deleted-status" style="font-size:10px;color:var(--sky-deep);font-weight:600;margin-top:2px"></div>
               </div>
             </div>
             <div id="log-folder-row">
@@ -780,6 +782,7 @@
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="API" onchange="updateMsTypeFields()"> API</label>
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="RSS" onchange="updateMsTypeFields()"> RSS</label>
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="URL" onchange="updateMsTypeFields()"> URL</label>
+        <label class="form-checkbox-row"><input type="radio" name="ms-type" value="Article" onchange="updateMsTypeFields()"> Article</label>
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="YT Sub" onchange="updateMsTypeFields()"> YT Sub</label>
         <label class="form-checkbox-row"><input type="radio" name="ms-type" value="File" onchange="updateMsTypeFields()"> File</label>
       </div>
@@ -3946,7 +3949,7 @@ const makeSourceRow=s=>{
       const defaultIcon=s.SourceType==='File'?'📄':'🌐';
       const thumb=s.ThumbnailURL?`<img src="${s.ThumbnailURL}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">`:`<div style="width:100px;height:62px;border-radius:6px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">${defaultIcon}</div>`;
       const escapedURL = s.URL.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      const isArticle = s.GroupLabel==='Articles';
+      const isArticle = s.SourceType==='Article';
       const articleBtns = isArticle ? `
         <button class="retain-btn" onclick="event.stopPropagation();openArticleAddModal(${s.UserOwnedSourceID})" title="Edit" style="margin-top:2px;flex-shrink:0;font-size:12px;color:var(--text-muted)" data-delete="1">✏️</button>
         <button class="retain-btn" onclick="event.stopPropagation();deleteArticleInline(${s.UserOwnedSourceID})" title="Delete" style="margin-top:2px;flex-shrink:0;font-size:12px;color:var(--text-muted)" data-delete="1">✕</button>` : '';
@@ -4129,7 +4132,7 @@ let _pdfClosing=false;
     if(menuSel){
       const sysOpts=menuSel.querySelectorAll('option[value="__sysheader__"], option[disabled]');
       sysOpts.forEach(o=>o.remove());
-      if(type==='URL'||type==='File'||type==='YT Sub'){
+      if(type==='URL'||type==='Article'||type==='File'||type==='YT Sub'){
         const sep=document.createElement('option');
         sep.disabled=true;sep.textContent='─────────────';sep.style.cssText='font-size:4px;line-height:1;padding:0';
         menuSel.appendChild(sep);
@@ -4347,6 +4350,24 @@ const weatherURLVal=(document.getElementById('us-weatherurl')?.value||'').trim()
     const max=parseInt(document.getElementById('us-maxheadlines')?.value)||0;
     const catSum=categories.filter(c=>c.IsActive==='Y').reduce((sum,c)=>sum+(parseInt(document.getElementById(`cs-${c.CategoryID}`)?.value)||0),0);
     const oi=document.getElementById('cs-other');if(oi)oi.value=Math.max(0,max-catSum);
+  }
+
+  async function reloadDeletedArticles(){
+    if(!currentUserProfileID){alert('No active profile.');return;}
+    if(!confirm('Allow previously deleted articles to reappear on your next Refresh (if still available from the source)? This does not reload anything right now.'))return;
+    const statusEl=document.getElementById('reload-deleted-status');
+    if(statusEl){statusEl.textContent='Clearing...';statusEl.style.color='var(--sky-deep)';}
+    try{
+      const result=await apiPost('CleanHeadlines',{action:'clearAllExclusions',userID:USER_ID,profileID:currentUserProfileID});
+      if(result?.error){
+        if(statusEl){statusEl.textContent='Error clearing';statusEl.style.color='#e05050';}
+        return;
+      }
+      const count=result?.cleared||0;
+      if(statusEl){statusEl.textContent=`✓ ${count} article${count!==1?'s':''} eligible on next Refresh`;statusEl.style.color='#22c55e';setTimeout(()=>{if(statusEl.textContent.startsWith('✓'))statusEl.textContent='';},5000);}
+    }catch(e){
+      if(statusEl){statusEl.textContent='Error: '+e.message;statusEl.style.color='#e05050';}
+    }
   }
 
   async function removeAllExclusions(){
@@ -4567,7 +4588,7 @@ function renderSettingsKeywords(){
     const kwMenuFilter=document.getElementById('kw-menu-filter')?.value||'';
     const menuOpts=`<option value="">All Menus</option>`+userMenu.map(m=>`<option value="${m.UserMenuID}" ${kwMenuFilter==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('')+`<option value="none" ${kwMenuFilter==='none'?'selected':''}>— None —</option>`;
     const ss=`style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()"`;
-    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th><select id="kw-src-filter" ${ss}>${srcOpts}</select></th><th><select id="kw-group-filter" ${ss}>${groupOpts}</select></th><th><select id="kw-menu-filter" ${ss}>${menuOpts}</select></th><th>Active</th><th>Image</th><th><a href="#" onclick="resetKwFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset Filters</a></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th><select id="kw-src-filter" ${ss}>${srcOpts}</select></th><th><select id="kw-group-filter" ${ss}>${groupOpts}</select></th><th><select id="kw-menu-filter" ${ss}>${menuOpts}</select></th><th>Active</th><th>Image</th><th title="Hits in the last 30 days">30d</th><th><a href="#" onclick="resetKwFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset Filters</a></th>`;
     const kwGroupFilterVal=document.getElementById('kw-group-filter')?.value||'';
     const kwSrcFilterVal=document.getElementById('kw-src-filter')?.value||'';
     const kwMenuFilterVal=document.getElementById('kw-menu-filter')?.value||'';
@@ -4593,6 +4614,7 @@ function renderSettingsKeywords(){
             <input type="file" id="kw-img-${k.KeywordID}" accept="image/*" style="display:none" onchange="handleKwImageUpload(${k.KeywordID},event)">
           </div>
         </td>
+        <td style="text-align:center;font-size:11px;font-weight:700;color:${k.Count30d?'var(--sky-deep)':'var(--text-muted)'}">${k.Count30d||0}</td>
         <td style="display:flex;gap:6px"><button class="btn-icon" onclick="openModal('keyword',${k.KeywordID})">✏️</button><button class="btn-icon danger" onclick="deleteKeyword(${k.KeywordID})">🗑️</button></td>
       </tr>`;
     }).join('');
@@ -5591,7 +5613,32 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
           <div style="color:${log.youtubeQuotaRemaining<500?'#e05050':log.youtubeQuotaRemaining<2000?'#e8a020':'inherit'}">📺 YT remaining: <strong>${log.youtubeQuotaRemaining?.toLocaleString()}</strong></div>
         </div>
       </div>`;
-      // Source Counts (moved up, right after Fetch Summary)
+      // Inserted (every entry retrieved this run) — moved up, right below Summary
+      // Always render, even at 0, so a zero-result run is visible rather than silently omitted
+      html+=`<div style="margin-bottom:14px">
+        <div style="font-size:13px;font-weight:700;color:${log.insertedItems?.length?'var(--text)':'#e05050'};margin-bottom:6px">📥 Inserted (${log.insertedItems?.length||0})</div>
+        ${log.insertedItems?.length?`<table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead><tr style="background:#f5f9ff;border-bottom:1.5px solid var(--border)">
+            <th style="text-align:left;padding:4px 8px">Menu</th>
+            <th style="text-align:left;padding:4px 8px">Group</th>
+            <th style="text-align:left;padding:4px 8px">Source</th>
+            <th style="text-align:left;padding:4px 8px">Keyword</th>
+            <th style="text-align:left;padding:4px 8px">Article</th>
+            <th style="text-align:left;padding:4px 8px">Duration</th>
+          </tr></thead>
+          <tbody>
+            ${log.insertedItems.map(i=>`<tr style="border-bottom:1px solid #eef5fc">
+              <td style="padding:3px 8px">${i.menuName||'—'}</td>
+              <td style="padding:3px 8px">${i.groupName||'—'}</td>
+              <td style="padding:3px 8px">${i.sourceName||'—'}</td>
+              <td style="padding:3px 8px">${i.keyword||''}</td>
+              <td style="padding:3px 8px">${i.articleName||''}</td>
+              <td style="padding:3px 8px">${i.duration||''}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`:`<div style="font-size:12px;color:#e05050;background:#fef0f0;border:1px solid #e05050;border-radius:8px;padding:8px 14px">⚠️ No new headlines were inserted this run.</div>`}
+      </div>`;
+      // Source Counts
       if(log.sourceResults?.length){
         const sortedSourceResults=[...log.sourceResults].sort((a,b)=>{
           const diff=(b.inserted||0)-(a.inserted||0);
@@ -5639,32 +5686,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
           <strong>🔕 Hidden menus (no results):</strong> ${window._emptyMenuNames.join(', ')}
         </div>`;
       }
-      // Inserted (every entry retrieved this run)
-      if(log.insertedItems?.length){
-        html+=`<div style="margin-bottom:14px">
-          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">📥 Inserted (${log.insertedItems.length})</div>
-          <table style="width:100%;border-collapse:collapse;font-size:11px">
-            <thead><tr style="background:#f5f9ff;border-bottom:1.5px solid var(--border)">
-              <th style="text-align:left;padding:4px 8px">Menu</th>
-              <th style="text-align:left;padding:4px 8px">Group</th>
-              <th style="text-align:left;padding:4px 8px">Source</th>
-              <th style="text-align:left;padding:4px 8px">Keyword</th>
-              <th style="text-align:left;padding:4px 8px">Article</th>
-              <th style="text-align:left;padding:4px 8px">Duration</th>
-            </tr></thead>
-            <tbody>
-              ${log.insertedItems.map(i=>`<tr style="border-bottom:1px solid #eef5fc">
-                <td style="padding:3px 8px">${i.menuName||'—'}</td>
-                <td style="padding:3px 8px">${i.groupName||'—'}</td>
-                <td style="padding:3px 8px">${i.sourceName||'—'}</td>
-                <td style="padding:3px 8px">${i.keyword||''}</td>
-                <td style="padding:3px 8px">${i.articleName||''}</td>
-                <td style="padding:3px 8px">${i.duration||''}</td>
-              </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>`;
-      }
+      
       // Zero hit keywords
       if(log.zeroHitKeywords?.length){
         html+=`<div style="background:#fff8e6;border:1px solid #e8a020;border-radius:8px;padding:10px 14px;margin-bottom:14px">
@@ -6140,7 +6162,7 @@ function renderMySourcesTable() {
     const menuOpts = `<option value="">All</option>`+userMenu.map(m=>`<option value="${m.UserMenuID}" ${msMenuFilter==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('')+`<option value="__none__" ${msMenuFilter==='__none__'?'selected':''}>— None —</option>`;
     const activeOpts = `<option value="">All</option><option value="active" ${msActiveFilter==='active'?'selected':''}>Active</option><option value="inactive" ${msActiveFilter==='inactive'?'selected':''}>Inactive</option>`;
 
-    if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th><select id="ms-type-filter" ${ss}>${typeOpts}</select></th><th><select id="ms-group-filter-hdr" ${ss}>${groupOpts}</select></th><th><select id="ms-menu-filter-hdr" ${ss}>${menuOpts}</select></th><th>URL</th><th><select id="ms-active-filter" ${ss}>${activeOpts}</select></th><th>Exclusions</th><th>Image</th><th><a href="#" onclick="resetMsFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset Filters</a></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th><select id="ms-type-filter" ${ss}>${typeOpts}</select></th><th><select id="ms-group-filter-hdr" ${ss}>${groupOpts}</select></th><th><select id="ms-menu-filter-hdr" ${ss}>${menuOpts}</select></th><th>URL</th><th><select id="ms-active-filter" ${ss}>${activeOpts}</select></th><th>Exclusions</th><th>Image</th><th title="Hits in the last 30 days">30d</th><th><a href="#" onclick="resetMsFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset Filters</a></th>`;
 
     const profileVisible = userOwnedSources.filter(s => !s.UserMenuID || userMenu.some(m => m.UserMenuID === s.UserMenuID));
     let sorted = [...profileVisible].sort((a, b) => (a.Sequence || 99) - (b.Sequence || 99));
@@ -6174,6 +6196,7 @@ function renderMySourcesTable() {
             <input type="file" id="ms-tbl-img-${s.UserOwnedSourceID}" accept="image/*" style="display:none" onchange="handleMsTableImageUpload(${s.UserOwnedSourceID},event)">
           </div>
         </td>
+        <td style="text-align:center;font-size:11px;font-weight:700;color:${s.Count30d?'var(--sky-deep)':'var(--text-muted)'}">${s.Count30d||0}</td>
         <td style="display:flex;gap:6px">
           <button class="btn-icon" onclick="openMySiteModal(${s.UserOwnedSourceID})">✏️</button>
           <button class="btn-icon danger" onclick="deleteMySite(${s.UserOwnedSourceID})">🗑️</button>
@@ -6242,7 +6265,7 @@ function renderMySourcesTable() {
     const menuSel = document.getElementById('ms-menuid');
     if (menuSel) {
       const type = src ? ((!src.SourceType || src.SourceType === 'Website') ? 'URL' : src.SourceType) : null;
-      const showSysHeader = !type || type === 'URL' || type === 'File' || type === 'YT Sub';
+      const showSysHeader = !type || type === 'URL' || type === 'Article' || type === 'File' || type === 'YT Sub';
 const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
       menuSel.innerHTML = '<option value="">— None —</option>' +
         userMenu.filter(m => !m.IsInactive).map(m => `<option value="${m.UserMenuID}" ${!isSysHeader&&src?.UserMenuID==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('') +
@@ -6851,15 +6874,18 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     const dateStamp=`${pad2(now.getMonth()+1)}.${pad2(now.getDate())}.${now.getFullYear()}`;
     if(aaEditingID){
       const src=userOwnedSources.find(s=>s.UserOwnedSourceID===aaEditingID);
-      const sourceName=src&&src.SourceName===description?description:`${description} (${dateStamp})`;
-      const result=await apiPost('SaveUserOwnedSource',{action:'update',userID:USER_ID,sourceID:aaEditingID,sourceName,url,sourceType:'URL',description:null,thumbnailURL:src?.ThumbnailURL||null,exclusions:null,isInactive:false,userMenuID,groupLabel:'Articles',profileID:currentUserProfileID});
+      // Preserve the existing stored name (with its original date stamp) on edit —
+      // only re-derive the description prefix if the underlying description text changed.
+      const existingBase=(src?.SourceName||'').replace(/\s*\([\d.]+\)\s*$/,'');
+      const sourceName=(src&&existingBase===description)?src.SourceName:`${description} (${dateStamp})`;
+      const result=await apiPost('SaveUserOwnedSource',{action:'update',userID:USER_ID,sourceID:aaEditingID,sourceName,url,sourceType:'Article',description:null,thumbnailURL:src?.ThumbnailURL||null,exclusions:null,isInactive:false,userMenuID,groupLabel:'Articles',profileID:currentUserProfileID});
       if(result?.error){alert('Could not save: '+result.error);return;}
-      if(src){src.SourceName=sourceName;src.URL=url;src.UserMenuID=userMenuID;src.GroupLabel='Articles';}
+      if(src){src.SourceName=sourceName;src.URL=url;src.SourceType='Article';src.UserMenuID=userMenuID;src.GroupLabel='Articles';}
     }else{
       const sourceName=`${description} (${dateStamp})`;
-      const result=await apiPost('SaveUserOwnedSource',{action:'add',userID:USER_ID,sourceName,url,sourceType:'URL',description:null,thumbnailURL:null,exclusions:null,userMenuID,groupLabel:'Articles',profileID:currentUserProfileID});
+      const result=await apiPost('SaveUserOwnedSource',{action:'add',userID:USER_ID,sourceName,url,sourceType:'Article',description:null,thumbnailURL:null,exclusions:null,userMenuID,groupLabel:'Articles',profileID:currentUserProfileID});
       if(result?.error){alert('Could not save: '+result.error);return;}
-      userOwnedSources.push({UserOwnedSourceID:result.sourceID,SourceName:sourceName,URL:url,SourceType:'URL',Description:null,ThumbnailURL:null,Exclusions:null,IsInactive:0,Sequence:99,UserMenuID:userMenuID,GroupLabel:'Articles',IsSysHeader:0});
+      userOwnedSources.push({UserOwnedSourceID:result.sourceID,SourceName:sourceName,URL:url,SourceType:'Article',Description:null,ThumbnailURL:null,Exclusions:null,IsInactive:0,Sequence:99,UserMenuID:userMenuID,GroupLabel:'Articles',IsSysHeader:0});
     }
     closeArticleAddModal();
     allHeadlinesCache=[];
