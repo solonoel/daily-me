@@ -4562,6 +4562,12 @@ async function showSettingsSection(section,pushState=true){
     if(document.getElementById('btn-add-source'))document.getElementById('btn-add-source').style.display='inline-flex';
   }
 
+  let kwSortColClick=null,kwSortDirClick='asc';
+  function sortKwClick(col){
+    if(kwSortColClick===col)kwSortDirClick=kwSortDirClick==='asc'?'desc':'asc';
+    else{kwSortColClick=col;kwSortDirClick='asc';}
+    renderSettingsKeywords();
+  }
   function resetKwFilters() {
     ['kw-src-filter','kw-group-filter','kw-menu-filter'].forEach(id => {
       const el = document.getElementById(id);
@@ -4569,6 +4575,7 @@ async function showSettingsSection(section,pushState=true){
     });
     const searchEl = document.getElementById('kw-search');
     if (searchEl) searchEl.value = '';
+    kwSortColClick=null;kwSortDirClick='asc';
     renderSettingsKeywords();
   }
 
@@ -4608,7 +4615,7 @@ function renderSettingsKeywords(){
     const kwMenuFilter=document.getElementById('kw-menu-filter')?.value||'';
     const menuOpts=`<option value="">All Menus</option>`+userMenu.map(m=>`<option value="${m.UserMenuID}" ${kwMenuFilter==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('')+`<option value="none" ${kwMenuFilter==='none'?'selected':''}>— None —</option>`;
     const ss=`style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()"`;
-    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th>Keyword</th><th><select id="kw-src-filter" ${ss}>${srcOpts}</select></th><th><select id="kw-group-filter" ${ss}>${groupOpts}</select></th><th><select id="kw-menu-filter" ${ss}>${menuOpts}</select></th><th>Active</th><th>Image</th><th title="Hits in the last 30 days">30d</th><th><a href="#" onclick="resetKwFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset Filters</a></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th style="cursor:pointer" onclick="sortKwClick('Keyword')">Keyword ${kwSortColClick==='Keyword'?(kwSortDirClick==='asc'?'▲':'▼'):''}</th><th><select id="kw-src-filter" ${ss}>${srcOpts}</select></th><th><select id="kw-group-filter" ${ss}>${groupOpts}</select></th><th><select id="kw-menu-filter" ${ss}>${menuOpts}</select></th><th>Active</th><th>Image</th><th style="cursor:pointer" onclick="sortKwClick('30d')" title="Hits in the last 30 days">30d ${kwSortColClick==='30d'?(kwSortDirClick==='asc'?'▲':'▼'):''}</th><th><a href="#" onclick="resetKwFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset</a></th>`;
     const kwGroupFilterVal=document.getElementById('kw-group-filter')?.value||'';
     const kwSrcFilterVal=document.getElementById('kw-src-filter')?.value||'';
     const kwMenuFilterVal=document.getElementById('kw-menu-filter')?.value||'';
@@ -4618,7 +4625,16 @@ function renderSettingsKeywords(){
       .filter(k=>!kwSrcFilterVal||(k.SourceName===kwSrcFilterVal))
       .filter(k=>kwMenuFilterVal==='none'?!k.UserMenuID:(!kwMenuFilterVal||(String(k.UserMenuID)===String(kwMenuFilterVal))))
       .filter(k=>!kwSearchVal||(k.Keyword||'').toLowerCase().includes(kwSearchVal)||(k.SourceName||'').toLowerCase().includes(kwSearchVal));
-    tbody.innerHTML=kwFiltered.map(k=>{
+    let kwFinal=kwFiltered;
+    if(kwSortColClick){
+      kwFinal=[...kwFiltered].sort((a,b)=>{
+        let av,bv;
+        if(kwSortColClick==='Keyword'){av=(a.Keyword||'').toLowerCase();bv=(b.Keyword||'').toLowerCase();}
+        else if(kwSortColClick==='30d'){av=a.Count30d||0;bv=b.Count30d||0;return kwSortDirClick==='asc'?av-bv:bv-av;}
+        return kwSortDirClick==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+      });
+    }
+    tbody.innerHTML=kwFinal.map(k=>{
       const menuName=k.UserMenuID?(userMenu.find(m=>m.UserMenuID===k.UserMenuID)?.UserMenuName||'—'):'—';
       return `<tr draggable="true" data-id="${k.KeywordID}" data-type="keyword">
         <td style="width:30px;color:var(--text-muted)">⠿</td>
@@ -5336,6 +5352,12 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     else{srcSortCol=col;srcSortDir='asc';}
     renderSettingsSources();
   }
+  let subSortCol=null,subSortDir='asc';
+  function sortSubSources(col){
+    if(subSortCol===col)subSortDir=subSortDir==='asc'?'desc':'asc';
+    else{subSortCol=col;subSortDir='asc';}
+    renderSettingsSources();
+  }
   function resetSubFilters(){
     ['sub-group-filter','sub-type-filter'].forEach(id=>{
       const el=document.getElementById(id);
@@ -5343,6 +5365,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     });
     const searchEl=document.getElementById('sub-search');
     if(searchEl)searchEl.value='';
+    subSortCol=null;subSortDir='asc';
     renderSettingsSources();
   }
   let _subSearchTimer=null;
@@ -5356,11 +5379,18 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     },150);
   }
 
+  let filtSortCol=null,filtSortDir='asc';
+  function sortFiltSources(col){
+    if(filtSortCol===col)filtSortDir=filtSortDir==='asc'?'desc':'asc';
+    else{filtSortCol=col;filtSortDir='asc';}
+    renderSettingsSources();
+  }
   function resetFiltSourceFilters(){
     const el=document.getElementById('filt-type-filter');
     if(el)el.value='';
     const searchEl=document.getElementById('filt-search');
     if(searchEl)searchEl.value='';
+    filtSortCol=null;filtSortDir='asc';
     renderSettingsSources();
   }
   let _filtSearchTimer=null;
@@ -5388,19 +5418,39 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     const subTypes=[...new Set(allSubs.map(s=>s.SourceType).filter(Boolean))].sort();
     const subGroupOpts=`<option value="">All Groups</option>`+subGroups.map(g=>`<option value="${g}" ${subGroupFilter===g?'selected':''}>${g}</option>`).join('');
     const subTypeOpts=`<option value="">All Types</option>`+subTypes.map(t=>`<option value="${t}" ${subTypeFilter===t?'selected':''}>${t}</option>`).join('');
-    const subs=allSubs
+    let subs=allSubs
       .filter(s=>!subGroupFilter||s.GroupLabel===subGroupFilter)
       .filter(s=>!subTypeFilter||s.SourceType===subTypeFilter)
       .filter(s=>!subSearchVal||(s.Name||'').toLowerCase().includes(subSearchVal)||(s.URL||'').toLowerCase().includes(subSearchVal));
+    if(subSortCol){
+      subs=[...subs].sort((a,b)=>{
+        let av,bv;
+        if(subSortCol==='Name'){av=(a.Name||'').toLowerCase();bv=(b.Name||'').toLowerCase();}
+        else if(subSortCol==='Menu'){
+          av=(userMenu.find(m=>m.UserMenuID===a.UserMenuID)?.UserMenuName||'').toLowerCase();
+          bv=(userMenu.find(m=>m.UserMenuID===b.UserMenuID)?.UserMenuName||'').toLowerCase();
+        }
+        return subSortDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+      });
+    }
 
     // ── Filtered sources filters ──
     const filtTypeFilter=document.getElementById('filt-type-filter')?.value||'';
     const filtSearchVal=(document.getElementById('filt-search')?.value||'').toLowerCase().trim();
     const filtTypes=[...new Set(allFiltered.map(s=>s.SourceType).filter(Boolean))].sort();
     const filtTypeOpts=`<option value="">All Types</option>`+filtTypes.map(t=>`<option value="${t}" ${filtTypeFilter===t?'selected':''}>${t}</option>`).join('');
-    const filtered=allFiltered
+    let filtered=allFiltered
       .filter(s=>!filtTypeFilter||s.SourceType===filtTypeFilter)
       .filter(s=>!filtSearchVal||(s.Name||'').toLowerCase().includes(filtSearchVal)||(s.URL||'').toLowerCase().includes(filtSearchVal));
+    if(filtSortCol){
+      filtered=[...filtered].sort((a,b)=>{
+        let av,bv;
+        if(filtSortCol==='Name'){av=(a.Name||'').toLowerCase();bv=(b.Name||'').toLowerCase();}
+        else if(filtSortCol==='URL'){av=(a.URL||'').toLowerCase();bv=(b.URL||'').toLowerCase();}
+        else if(filtSortCol==='30d'){av=a.Count30d||0;bv=b.Count30d||0;return filtSortDir==='asc'?av-bv:bv-av;}
+        return filtSortDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+      });
+    }
 
     const ss=`style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsSources()"`;
 
@@ -5427,6 +5477,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
           </div>
         </td>
         <td><input type="text" value="${(s.Exclusions||'').replace(/"/g,'&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:120px;font-family:'DM Sans',sans-serif" onchange="saveUserExclusions(${s.SourceID},this)"></td>
+        <td style="text-align:center;font-size:11px;font-weight:700;color:${s.Count30d?'var(--sky-deep)':'var(--text-muted)'}">${s.Count30d||0}</td>
         <td style="display:flex;gap:4px"><button class="btn-icon" onclick="openModal('source',${s.SourceID})">✏️</button><button class="btn-icon danger" onclick="removeUserSource(${s.SourceID})" title="Remove">🗑️</button></td>
       </tr>`;
     }).join('');
@@ -5440,6 +5491,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
         <td><button class="toggle ${userIsActive?'on':''}" onclick="toggleUserSourceActive(${s.SourceID},this)"></button></td>
         <td><label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" ${s.IsFiltered?'checked':''} onchange="saveUserFiltered(${s.SourceID},this)" style="accent-color:var(--sky-deep)"></label></td>
         <td><input type="text" value="${(s.Exclusions||'').replace(/"/g,'&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:160px;font-family:'DM Sans',sans-serif" onchange="saveUserExclusions(${s.SourceID},this)"></td>
+        <td style="text-align:center;font-size:11px;font-weight:700;color:${s.Count30d?'var(--sky-deep)':'var(--text-muted)'}">${s.Count30d||0}</td>
         <td><button class="btn-icon danger" onclick="removeUserSource(${s.SourceID})" title="Remove">🗑️</button></td>
       </tr>`;
     }).join('');
@@ -5451,12 +5503,12 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       <table class="settings-table" style="margin-bottom:20px">
         <thead><tr>
           <th style="width:30px"></th>
-          <th>Name</th>
+          <th style="cursor:pointer" onclick="sortSubSources('Name')">Name ${subSortCol==='Name'?(subSortDir==='asc'?'▲':'▼'):''}</th>
           <th><select id="sub-group-filter" ${ss}>${subGroupOpts}</select></th>
-          <th>Menu</th>
+          <th style="cursor:pointer" onclick="sortSubSources('Menu')">Menu ${subSortCol==='Menu'?(subSortDir==='asc'?'▲':'▼'):''}</th>
           <th><select id="sub-type-filter" ${ss}>${subTypeOpts}</select></th>
-          <th>Active</th><th>Filtered</th><th>Image</th><th>Exclusions</th>
-          <th><a href="#" onclick="resetSubFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset Filters</a></th>
+          <th>Active</th><th>Filtered</th><th>Image</th><th>Exclusions</th><th title="Hits in the last 30 days">30d</th>
+          <th><a href="#" onclick="resetSubFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset</a></th>
         </tr></thead>
         <tbody id="tbl-sources-sub">${subRows}</tbody>
       </table>`:''}
@@ -5467,11 +5519,11 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       <table class="settings-table">
         <thead><tr>
           <th style="width:30px"></th>
-          <th>Name</th>
-          <th>URL</th>
+          <th style="cursor:pointer" onclick="sortFiltSources('Name')">Name ${filtSortCol==='Name'?(filtSortDir==='asc'?'▲':'▼'):''}</th>
+          <th style="cursor:pointer" onclick="sortFiltSources('URL')">URL ${filtSortCol==='URL'?(filtSortDir==='asc'?'▲':'▼'):''}</th>
           <th><select id="filt-type-filter" ${ss}>${filtTypeOpts}</select></th>
-          <th>Active</th><th>Filtered</th><th>Exclusions <span style="font-size:9px;font-weight:400;color:var(--text-muted)">CSV</span></th>
-          <th><a href="#" onclick="resetFiltSourceFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset Filters</a></th>
+          <th>Active</th><th>Filtered</th><th>Exclusions <span style="font-size:9px;font-weight:400;color:var(--text-muted)">CSV</span></th><th style="cursor:pointer" onclick="sortFiltSources('30d')" title="Hits in the last 30 days">30d ${filtSortCol==='30d'?(filtSortDir==='asc'?'▲':'▼'):''}</th>
+          <th><a href="#" onclick="resetFiltSourceFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset</a></th>
         </tr></thead>
         <tbody id="tbl-sources-filt">${filtRows}</tbody>
       </table>`:''}`;
@@ -6269,7 +6321,7 @@ function renderMySourcesTable() {
     const menuOpts = `<option value="">All Menus</option>`+userMenu.map(m=>`<option value="${m.UserMenuID}" ${msMenuFilter==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('')+`<option value="__none__" ${msMenuFilter==='__none__'?'selected':''}>— None —</option>`;
     const activeOpts = `<option value="">All Active</option><option value="active" ${msActiveFilter==='active'?'selected':''}>Active</option><option value="inactive" ${msActiveFilter==='inactive'?'selected':''}>Inactive</option>`;
 
-    if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th><select id="ms-type-filter" ${ss}>${typeOpts}</select></th><th><select id="ms-group-filter-hdr" ${ss}>${groupOpts}</select></th><th><select id="ms-menu-filter-hdr" ${ss}>${menuOpts}</select></th><th>URL</th><th><select id="ms-active-filter" ${ss}>${activeOpts}</select></th><th>Exclusions</th><th>Image</th><th title="Hits in the last 30 days">30d</th><th><a href="#" onclick="resetMsFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset Filters</a></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px"></th><th style="cursor:pointer" onclick="sortMsSources('Name')">Name ${msSortColClick==='Name'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th><select id="ms-type-filter" ${ss}>${typeOpts}</select></th><th><select id="ms-group-filter-hdr" ${ss}>${groupOpts}</select></th><th><select id="ms-menu-filter-hdr" ${ss}>${menuOpts}</select></th><th style="cursor:pointer" onclick="sortMsSources('URL')">URL ${msSortColClick==='URL'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th><select id="ms-active-filter" ${ss}>${activeOpts}</select></th><th>Exclusions</th><th>Image</th><th style="cursor:pointer" onclick="sortMsSources('30d')" title="Hits in the last 30 days">30d ${msSortColClick==='30d'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th><a href="#" onclick="resetMsFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset</a></th>`;
 
     const profileVisible = userOwnedSources.filter(s => !s.UserMenuID || userMenu.some(m => m.UserMenuID === s.UserMenuID));
     let sorted = [...profileVisible].sort((a, b) => (a.Sequence || 99) - (b.Sequence || 99));
@@ -6282,6 +6334,15 @@ function renderMySourcesTable() {
     else if(msActiveFilter==='inactive') sorted=sorted.filter(s=>!!s.IsInactive);
     const msSearchVal=(document.getElementById('ms-search')?.value||'').toLowerCase().trim();
     if(msSearchVal) sorted=sorted.filter(s=>(s.SourceName||'').toLowerCase().includes(msSearchVal)||(s.URL||'').toLowerCase().includes(msSearchVal));
+    if(msSortColClick){
+      sorted=[...sorted].sort((a,b)=>{
+        let av,bv;
+        if(msSortColClick==='Name'){av=(a.SourceName||'').toLowerCase();bv=(b.SourceName||'').toLowerCase();}
+        else if(msSortColClick==='URL'){av=(a.URL||'').toLowerCase();bv=(b.URL||'').toLowerCase();}
+        else if(msSortColClick==='30d'){av=a.Count30d||0;bv=b.Count30d||0;return msSortDirClick==='asc'?av-bv:bv-av;}
+        return msSortDirClick==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+      });
+    }
     tbody.innerHTML = sorted.map(s => {
       const isSysHeaderRow = s.IsSysHeader === 1 || s.IsSysHeader === true;
       const menuItem = !isSysHeaderRow ? userMenu.find(m => m.UserMenuID === s.UserMenuID) : null;
@@ -6315,6 +6376,12 @@ function renderMySourcesTable() {
     initMySitesDragDrop(tbody);
   }  
 
+  let msSortColClick=null,msSortDirClick='asc';
+  function sortMsSources(col){
+    if(msSortColClick===col)msSortDirClick=msSortDirClick==='asc'?'desc':'asc';
+    else{msSortColClick=col;msSortDirClick='asc';}
+    renderMySourcesTable();
+  }
   function resetMsFilters() {
     ['ms-type-filter','ms-group-filter-hdr','ms-menu-filter-hdr','ms-active-filter'].forEach(id => {
       const el = document.getElementById(id);
@@ -6322,6 +6389,7 @@ function renderMySourcesTable() {
     });
     const searchEl = document.getElementById('ms-search');
     if (searchEl) searchEl.value = '';
+    msSortColClick=null;msSortDirClick='asc';
     renderMySourcesTable();
   }
 
