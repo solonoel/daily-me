@@ -5412,7 +5412,17 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
   function renderSettingsSources(){
     const container=document.getElementById('sources-container');
     if(!container)return;
-    const allSubs = sources.filter(s=>!s.IsFiltered).sort((a,b)=>(b.Count30d||0)-(a.Count30d||0)||(a.Name||'').localeCompare(b.Name||''));
+    const allSubs = sources.filter(s=>!s.IsFiltered).sort((a,b)=>{
+      const c30=(b.Count30d||0)-(a.Count30d||0);
+      if(c30)return c30;
+      const aMenu=(userMenu.find(m=>m.UserMenuID===a.UserMenuID)?.UserMenuName||'').toLowerCase();
+      const bMenu=(userMenu.find(m=>m.UserMenuID===b.UserMenuID)?.UserMenuName||'').toLowerCase();
+      const cMenu=aMenu.localeCompare(bMenu);
+      if(cMenu)return cMenu;
+      const cGroup=(a.GroupLabel||'').toLowerCase().localeCompare((b.GroupLabel||'').toLowerCase());
+      if(cGroup)return cGroup;
+      return (a.Name||'').toLowerCase().localeCompare((b.Name||'').toLowerCase());
+    });
     const allFiltered = sources.filter(s=>s.IsFiltered).sort((a,b)=>(b.Count30d||0)-(a.Count30d||0)||(a.Name||'').localeCompare(b.Name||''));
 
     // ── Subscriptions filters ──
