@@ -617,6 +617,11 @@
           <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openModal('keyword')">+ Add Keyword</button>
         </div>
       </div>
+      <div style="margin-bottom:12px">
+        <div style="position:relative;display:inline-flex;align-items:center">
+          <input type="text" id="kw-search" placeholder="Search keyword or source..." style="padding:6px 30px 6px 12px;border:1.5px solid var(--border);border-radius:100px;font-size:12px;font-family:'DM Sans',sans-serif;width:220px;outline:none" oninput="setKwSearch(this.value)" onfocus="this.style.borderColor='var(--sky-deep)'" onblur="this.style.borderColor='var(--border)'">
+        </div>
+      </div>
       <div style="font-size:12px;color:var(--text);background:#f0f7ff;border:1px solid var(--sky-deep);border-radius:8px;padding:10px 16px;margin-bottom:12px;line-height:1.8">
         <div style="font-weight:700;color:var(--sky-deep);margin-bottom:4px">🔍 Keywords — How They Work</div>
         <div>🔍 <strong>Case-insensitive, whole-word match</strong> — searched on YouTube and filtered news sources. Drag to reorder — higher items are prioritized.</div>
@@ -636,6 +641,9 @@
         <div style="display:flex;align-items:center;gap:12px">
           <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="openMySiteModal(null)">+ Add Source</button>
         </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <input type="text" id="ms-search" placeholder="Search name or URL..." style="padding:6px 12px;border:1.5px solid var(--border);border-radius:100px;font-size:12px;font-family:'DM Sans',sans-serif;width:220px;outline:none" oninput="setMsSearch(this.value)" onfocus="this.style.borderColor='var(--sky-deep)'" onblur="this.style.borderColor='var(--border)'">
       </div>
       <table class="settings-table" id="tbl-mysources">
         <thead><tr>
@@ -4560,7 +4568,20 @@ async function showSettingsSection(section,pushState=true){
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
+    const searchEl = document.getElementById('kw-search');
+    if (searchEl) searchEl.value = '';
     renderSettingsKeywords();
+  }
+
+  let _kwSearchTimer=null;
+  function setKwSearch(val){
+    clearTimeout(_kwSearchTimer);
+    _kwSearchTimer=setTimeout(()=>{
+      const el=document.getElementById('kw-search');
+      const pos=el?el.selectionStart:null;
+      renderSettingsKeywords();
+      if(pos!==null){const el2=document.getElementById('kw-search');if(el2){el2.focus();try{el2.setSelectionRange(pos,pos);}catch(e){}}}
+    },150);
   }
 
   let kwSortCol='Sequence',kwSortDir='asc';
@@ -4592,10 +4613,12 @@ function renderSettingsKeywords(){
     const kwGroupFilterVal=document.getElementById('kw-group-filter')?.value||'';
     const kwSrcFilterVal=document.getElementById('kw-src-filter')?.value||'';
     const kwMenuFilterVal=document.getElementById('kw-menu-filter')?.value||'';
+    const kwSearchVal=(document.getElementById('kw-search')?.value||'').toLowerCase().trim();
     const kwFiltered=sorted
       .filter(k=>!kwGroupFilterVal||(k.GroupLabel===kwGroupFilterVal))
       .filter(k=>!kwSrcFilterVal||(k.SourceName===kwSrcFilterVal))
-      .filter(k=>kwMenuFilterVal==='none'?!k.UserMenuID:(!kwMenuFilterVal||(String(k.UserMenuID)===String(kwMenuFilterVal))));
+      .filter(k=>kwMenuFilterVal==='none'?!k.UserMenuID:(!kwMenuFilterVal||(String(k.UserMenuID)===String(kwMenuFilterVal))))
+      .filter(k=>!kwSearchVal||(k.Keyword||'').toLowerCase().includes(kwSearchVal)||(k.SourceName||'').toLowerCase().includes(kwSearchVal));
     tbody.innerHTML=kwFiltered.map(k=>{
       const menuName=k.UserMenuID?(userMenu.find(m=>m.UserMenuID===k.UserMenuID)?.UserMenuName||'—'):'—';
       return `<tr draggable="true" data-id="${k.KeywordID}" data-type="keyword">
@@ -5314,11 +5337,84 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     else{srcSortCol=col;srcSortDir='asc';}
     renderSettingsSources();
   }
+  function resetSubFilters(){
+    ['sub-name-filter','sub-group-filter','sub-type-filter'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el)el.value='';
+    });
+    const searchEl=document.getElementById('sub-search');
+    if(searchEl)searchEl.value='';
+    renderSettingsSources();
+  }
+  let _subSearchTimer=null;
+  function setSubSearch(val){
+    clearTimeout(_subSearchTimer);
+    _subSearchTimer=setTimeout(()=>{
+      const el=document.getElementById('sub-search');
+      const pos=el?el.selectionStart:null;
+      renderSettingsSources();
+      if(pos!==null){const el2=document.getElementById('sub-search');if(el2){el2.focus();try{el2.setSelectionRange(pos,pos);}catch(e){}}}
+    },150);
+  }
+
+  function resetFiltSourceFilters(){
+    ['filt-name-filter','filt-type-filter'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el)el.value='';
+    });
+    const searchEl=document.getElementById('filt-search');
+    if(searchEl)searchEl.value='';
+    renderSettingsSources();
+  }
+  let _filtSearchTimer=null;
+  function setFiltSourceSearch(val){
+    clearTimeout(_filtSearchTimer);
+    _filtSearchTimer=setTimeout(()=>{
+      const el=document.getElementById('filt-search');
+      const pos=el?el.selectionStart:null;
+      renderSettingsSources();
+      if(pos!==null){const el2=document.getElementById('filt-search');if(el2){el2.focus();try{el2.setSelectionRange(pos,pos);}catch(e){}}}
+    },150);
+  }
+
   function renderSettingsSources(){
     const container=document.getElementById('sources-container');
     if(!container)return;
-    const subs=sources.filter(s=>!s.IsFiltered).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
-    const filtered=sources.filter(s=>s.IsFiltered).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
+    const allSubs=sources.filter(s=>!s.IsFiltered).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
+    const allFiltered=sources.filter(s=>s.IsFiltered).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
+
+    // ── Subscriptions filters ──
+    const subNameFilter=document.getElementById('sub-name-filter')?.value||'';
+    const subGroupFilter=document.getElementById('sub-group-filter')?.value||'';
+    const subTypeFilter=document.getElementById('sub-type-filter')?.value||'';
+    const subSearchVal=(document.getElementById('sub-search')?.value||'').toLowerCase().trim();
+    const subNames=[...new Set(allSubs.map(s=>s.Name).filter(Boolean))].sort();
+    const subGroups=[...new Set(allSubs.map(s=>s.GroupLabel).filter(Boolean))].sort();
+    const subTypes=[...new Set(allSubs.map(s=>s.SourceType).filter(Boolean))].sort();
+    const subNameOpts=`<option value="">All Names</option>`+subNames.map(n=>`<option value="${n}" ${subNameFilter===n?'selected':''}>${n}</option>`).join('');
+    const subGroupOpts=`<option value="">All Groups</option>`+subGroups.map(g=>`<option value="${g}" ${subGroupFilter===g?'selected':''}>${g}</option>`).join('');
+    const subTypeOpts=`<option value="">All Types</option>`+subTypes.map(t=>`<option value="${t}" ${subTypeFilter===t?'selected':''}>${t}</option>`).join('');
+    const subs=allSubs
+      .filter(s=>!subNameFilter||s.Name===subNameFilter)
+      .filter(s=>!subGroupFilter||s.GroupLabel===subGroupFilter)
+      .filter(s=>!subTypeFilter||s.SourceType===subTypeFilter)
+      .filter(s=>!subSearchVal||(s.Name||'').toLowerCase().includes(subSearchVal)||(s.URL||'').toLowerCase().includes(subSearchVal));
+
+    // ── Filtered sources filters ──
+    const filtNameFilter=document.getElementById('filt-name-filter')?.value||'';
+    const filtTypeFilter=document.getElementById('filt-type-filter')?.value||'';
+    const filtSearchVal=(document.getElementById('filt-search')?.value||'').toLowerCase().trim();
+    const filtNames=[...new Set(allFiltered.map(s=>s.Name).filter(Boolean))].sort();
+    const filtTypes=[...new Set(allFiltered.map(s=>s.SourceType).filter(Boolean))].sort();
+    const filtNameOpts=`<option value="">All Names</option>`+filtNames.map(n=>`<option value="${n}" ${filtNameFilter===n?'selected':''}>${n}</option>`).join('');
+    const filtTypeOpts=`<option value="">All Types</option>`+filtTypes.map(t=>`<option value="${t}" ${filtTypeFilter===t?'selected':''}>${t}</option>`).join('');
+    const filtered=allFiltered
+      .filter(s=>!filtNameFilter||s.Name===filtNameFilter)
+      .filter(s=>!filtTypeFilter||s.SourceType===filtTypeFilter)
+      .filter(s=>!filtSearchVal||(s.Name||'').toLowerCase().includes(filtSearchVal)||(s.URL||'').toLowerCase().includes(filtSearchVal));
+
+    const ss=`style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsSources()"`;
+
     const subRows=subs.map(s=>{
       const userIsActive=s.UserIsActive===1||s.UserIsActive===true||s.UserIsActive===null||s.UserIsActive===undefined;
       const menuItem=userMenu.find(m=>m.UserMenuID===s.UserMenuID);
@@ -5359,14 +5455,35 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       </tr>`;
     }).join('');
     container.innerHTML=`
-      ${subs.length?`<div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.6px;margin:0 0 6px 2px">Subscriptions</div>
+      ${allSubs.length?`<div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.6px;margin:0 0 6px 2px">Subscriptions</div>
+      <div style="margin-bottom:8px">
+        <input type="text" id="sub-search" placeholder="Search name or URL..." value="${subSearchVal}" style="padding:6px 12px;border:1.5px solid var(--border);border-radius:100px;font-size:12px;font-family:'DM Sans',sans-serif;width:220px;outline:none" oninput="setSubSearch(this.value)" onfocus="this.style.borderColor='var(--sky-deep)'" onblur="this.style.borderColor='var(--border)'">
+      </div>
       <table class="settings-table" style="margin-bottom:20px">
-        <thead><tr><th style="width:30px"></th><th>Name</th><th>Group</th><th>Menu</th><th>Type</th><th>Active</th><th>Filtered</th><th>Image</th><th>Exclusions</th><th></th></tr></thead>
+        <thead><tr>
+          <th style="width:30px"></th>
+          <th><select id="sub-name-filter" ${ss}>${subNameOpts}</select></th>
+          <th><select id="sub-group-filter" ${ss}>${subGroupOpts}</select></th>
+          <th>Menu</th>
+          <th><select id="sub-type-filter" ${ss}>${subTypeOpts}</select></th>
+          <th>Active</th><th>Filtered</th><th>Image</th><th>Exclusions</th>
+          <th><a href="#" onclick="resetSubFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset Filters</a></th>
+        </tr></thead>
         <tbody id="tbl-sources-sub">${subRows}</tbody>
       </table>`:''}
-      ${filtered.length?`<div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.6px;margin:0 0 6px 2px">Filtered Sources</div>
+      ${allFiltered.length?`<div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.6px;margin:0 0 6px 2px">Filtered Sources</div>
+      <div style="margin-bottom:8px">
+        <input type="text" id="filt-search" placeholder="Search name or URL..." value="${filtSearchVal}" style="padding:6px 12px;border:1.5px solid var(--border);border-radius:100px;font-size:12px;font-family:'DM Sans',sans-serif;width:220px;outline:none" oninput="setFiltSourceSearch(this.value)" onfocus="this.style.borderColor='var(--sky-deep)'" onblur="this.style.borderColor='var(--border)'">
+      </div>
       <table class="settings-table">
-        <thead><tr><th style="width:30px"></th><th>Name</th><th>URL</th><th>Type</th><th>Active</th><th>Filtered</th><th>Exclusions <span style="font-size:9px;font-weight:400;color:var(--text-muted)">CSV</span></th><th></th></tr></thead>
+        <thead><tr>
+          <th style="width:30px"></th>
+          <th><select id="filt-name-filter" ${ss}>${filtNameOpts}</select></th>
+          <th>URL</th>
+          <th><select id="filt-type-filter" ${ss}>${filtTypeOpts}</select></th>
+          <th>Active</th><th>Filtered</th><th>Exclusions <span style="font-size:9px;font-weight:400;color:var(--text-muted)">CSV</span></th>
+          <th><a href="#" onclick="resetFiltSourceFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset Filters</a></th>
+        </tr></thead>
         <tbody id="tbl-sources-filt">${filtRows}</tbody>
       </table>`:''}`;
     const subTbody=document.getElementById('tbl-sources-sub');
@@ -6157,10 +6274,10 @@ function renderMySourcesTable() {
     const types = [...new Set(userOwnedSources.map(s => s.SourceType).filter(Boolean))].sort();
     const groups = [...new Set(userOwnedSources.map(s => s.GroupLabel).filter(Boolean))].sort();
     const ss = `style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderMySourcesTable()"`;
-    const typeOpts = `<option value="">All</option>`+types.map(t=>`<option value="${t}" ${msTypeFilter===t?'selected':''}>${t}</option>`).join('');
-    const groupOpts = `<option value="">All</option>`+groups.map(g=>`<option value="${g}" ${msGroupFilter===g?'selected':''}>${g}</option>`).join('')+`<option value="__none__" ${msGroupFilter==='__none__'?'selected':''}>— None —</option>`;
-    const menuOpts = `<option value="">All</option>`+userMenu.map(m=>`<option value="${m.UserMenuID}" ${msMenuFilter==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('')+`<option value="__none__" ${msMenuFilter==='__none__'?'selected':''}>— None —</option>`;
-    const activeOpts = `<option value="">All</option><option value="active" ${msActiveFilter==='active'?'selected':''}>Active</option><option value="inactive" ${msActiveFilter==='inactive'?'selected':''}>Inactive</option>`;
+    const typeOpts = `<option value="">All Types</option>`+types.map(t=>`<option value="${t}" ${msTypeFilter===t?'selected':''}>${t}</option>`).join('');
+    const groupOpts = `<option value="">All Groups</option>`+groups.map(g=>`<option value="${g}" ${msGroupFilter===g?'selected':''}>${g}</option>`).join('')+`<option value="__none__" ${msGroupFilter==='__none__'?'selected':''}>— None —</option>`;
+    const menuOpts = `<option value="">All Menus</option>`+userMenu.map(m=>`<option value="${m.UserMenuID}" ${msMenuFilter==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('')+`<option value="__none__" ${msMenuFilter==='__none__'?'selected':''}>— None —</option>`;
+    const activeOpts = `<option value="">All Active</option><option value="active" ${msActiveFilter==='active'?'selected':''}>Active</option><option value="inactive" ${msActiveFilter==='inactive'?'selected':''}>Inactive</option>`;
 
     if(thead)thead.innerHTML=`<th style="width:30px"></th><th>Name</th><th><select id="ms-type-filter" ${ss}>${typeOpts}</select></th><th><select id="ms-group-filter-hdr" ${ss}>${groupOpts}</select></th><th><select id="ms-menu-filter-hdr" ${ss}>${menuOpts}</select></th><th>URL</th><th><select id="ms-active-filter" ${ss}>${activeOpts}</select></th><th>Exclusions</th><th>Image</th><th title="Hits in the last 30 days">30d</th><th><a href="#" onclick="resetMsFilters();return false;" style="font-size:10px;font-weight:600;color:var(--sky-deep);border-bottom:1px dashed var(--sky-deep);text-transform:none;letter-spacing:normal">Reset Filters</a></th>`;
 
@@ -6173,6 +6290,8 @@ function renderMySourcesTable() {
     else if(msMenuFilter) sorted=sorted.filter(s=>String(s.UserMenuID)===String(msMenuFilter));
     if(msActiveFilter==='active') sorted=sorted.filter(s=>!s.IsInactive);
     else if(msActiveFilter==='inactive') sorted=sorted.filter(s=>!!s.IsInactive);
+    const msSearchVal=(document.getElementById('ms-search')?.value||'').toLowerCase().trim();
+    if(msSearchVal) sorted=sorted.filter(s=>(s.SourceName||'').toLowerCase().includes(msSearchVal)||(s.URL||'').toLowerCase().includes(msSearchVal));
     tbody.innerHTML = sorted.map(s => {
       const isSysHeaderRow = s.IsSysHeader === 1 || s.IsSysHeader === true;
       const menuItem = !isSysHeaderRow ? userMenu.find(m => m.UserMenuID === s.UserMenuID) : null;
@@ -6211,7 +6330,20 @@ function renderMySourcesTable() {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
+    const searchEl = document.getElementById('ms-search');
+    if (searchEl) searchEl.value = '';
     renderMySourcesTable();
+  }
+
+  let _msSearchTimer=null;
+  function setMsSearch(val){
+    clearTimeout(_msSearchTimer);
+    _msSearchTimer=setTimeout(()=>{
+      const el=document.getElementById('ms-search');
+      const pos=el?el.selectionStart:null;
+      renderMySourcesTable();
+      if(pos!==null){const el2=document.getElementById('ms-search');if(el2){el2.focus();try{el2.setSelectionRange(pos,pos);}catch(e){}}}
+    },150);
   }
 
   function initMySitesDragDrop(tbody) {
