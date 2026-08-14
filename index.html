@@ -5473,20 +5473,6 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
         <td><button class="btn-icon danger" onclick="removeUserSource(${s.SourceID})" title="Remove">🗑️</button></td>
       </tr>`;
     }).join('');
-    const filtRows=filtered.map(s=>{
-      const userIsActive=s.UserIsActive===1||s.UserIsActive===true||s.UserIsActive===null||s.UserIsActive===undefined;
-      return `<tr draggable="true" data-id="${s.SourceID}" data-type="source">
-        <td style="width:30px;color:var(--text-muted)">⠿</td>
-        <td><label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" ${s.IsFiltered?'checked':''} onchange="saveUserFiltered(${s.SourceID},this)" style="accent-color:var(--sky-deep)"></label></td>
-        <td style="text-align:center;font-size:11px;font-weight:700;color:${s.Count30d?'var(--sky-deep)':'var(--text-muted)'}">${['Article','File','URL'].includes(s.SourceType)?'':(s.Count30d||0)}</td>
-        <td style="${!userIsActive?'opacity:0.5':''}">${s.Name||'—'}</td>
-        <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text-soft)">${s.URL}</td>
-        <td><span class="badge">${s.SourceType||'RSS'}</span></td>
-        <td><button class="toggle ${userIsActive?'on':''}" onclick="toggleUserSourceActive(${s.SourceID},this)"></button></td>
-        <td><input type="text" value="${(s.Exclusions||'').replace(/"/g,'&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:160px;font-family:'DM Sans',sans-serif" onchange="saveUserExclusions(${s.SourceID},this)"></td>
-        <td><button class="btn-icon danger" onclick="removeUserSource(${s.SourceID})" title="Remove">🗑️</button></td>
-      </tr>`;
-    }).join('');
     container.innerHTML=`
       ${allSubs.length?`<div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.6px;margin:0 0 6px 2px">Subscriptions</div>
       <div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">
