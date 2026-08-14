@@ -3793,7 +3793,6 @@ async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
       const todayISO=new Date().toISOString().slice(0,10);
       const disableYoutube=ytDisabledDate===todayISO;
       if(ytDisabledDate&&ytDisabledDate!==todayISO){localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);}
-      await apiPost('CleanHeadlines',{userID:USER_ID,recencyDays:recencyDays_value});
       localStorage.removeItem(`dailyme_settings_changed_${USER_ID}`);
       const fetchResult=await apiPost('FetchHeadlines',{userID:USER_ID,disableYoutube,profileID:currentUserProfileID});
       if(fetchResult?.youtubeQuotaExceeded&&!disableYoutube){
@@ -5338,7 +5337,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     renderSettingsSources();
   }
   function resetSubFilters(){
-    ['sub-name-filter','sub-group-filter','sub-type-filter'].forEach(id=>{
+    ['sub-group-filter','sub-type-filter'].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.value='';
     });
@@ -5358,10 +5357,8 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
   }
 
   function resetFiltSourceFilters(){
-    ['filt-name-filter','filt-type-filter'].forEach(id=>{
-      const el=document.getElementById(id);
-      if(el)el.value='';
-    });
+    const el=document.getElementById('filt-type-filter');
+    if(el)el.value='';
     const searchEl=document.getElementById('filt-search');
     if(searchEl)searchEl.value='';
     renderSettingsSources();
@@ -5384,32 +5381,24 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     const allFiltered=sources.filter(s=>s.IsFiltered).sort((a,b)=>(a.Sequence||99)-(b.Sequence||99));
 
     // ── Subscriptions filters ──
-    const subNameFilter=document.getElementById('sub-name-filter')?.value||'';
     const subGroupFilter=document.getElementById('sub-group-filter')?.value||'';
     const subTypeFilter=document.getElementById('sub-type-filter')?.value||'';
     const subSearchVal=(document.getElementById('sub-search')?.value||'').toLowerCase().trim();
-    const subNames=[...new Set(allSubs.map(s=>s.Name).filter(Boolean))].sort();
     const subGroups=[...new Set(allSubs.map(s=>s.GroupLabel).filter(Boolean))].sort();
     const subTypes=[...new Set(allSubs.map(s=>s.SourceType).filter(Boolean))].sort();
-    const subNameOpts=`<option value="">All Names</option>`+subNames.map(n=>`<option value="${n}" ${subNameFilter===n?'selected':''}>${n}</option>`).join('');
     const subGroupOpts=`<option value="">All Groups</option>`+subGroups.map(g=>`<option value="${g}" ${subGroupFilter===g?'selected':''}>${g}</option>`).join('');
     const subTypeOpts=`<option value="">All Types</option>`+subTypes.map(t=>`<option value="${t}" ${subTypeFilter===t?'selected':''}>${t}</option>`).join('');
     const subs=allSubs
-      .filter(s=>!subNameFilter||s.Name===subNameFilter)
       .filter(s=>!subGroupFilter||s.GroupLabel===subGroupFilter)
       .filter(s=>!subTypeFilter||s.SourceType===subTypeFilter)
       .filter(s=>!subSearchVal||(s.Name||'').toLowerCase().includes(subSearchVal)||(s.URL||'').toLowerCase().includes(subSearchVal));
 
     // ── Filtered sources filters ──
-    const filtNameFilter=document.getElementById('filt-name-filter')?.value||'';
     const filtTypeFilter=document.getElementById('filt-type-filter')?.value||'';
     const filtSearchVal=(document.getElementById('filt-search')?.value||'').toLowerCase().trim();
-    const filtNames=[...new Set(allFiltered.map(s=>s.Name).filter(Boolean))].sort();
     const filtTypes=[...new Set(allFiltered.map(s=>s.SourceType).filter(Boolean))].sort();
-    const filtNameOpts=`<option value="">All Names</option>`+filtNames.map(n=>`<option value="${n}" ${filtNameFilter===n?'selected':''}>${n}</option>`).join('');
     const filtTypeOpts=`<option value="">All Types</option>`+filtTypes.map(t=>`<option value="${t}" ${filtTypeFilter===t?'selected':''}>${t}</option>`).join('');
     const filtered=allFiltered
-      .filter(s=>!filtNameFilter||s.Name===filtNameFilter)
       .filter(s=>!filtTypeFilter||s.SourceType===filtTypeFilter)
       .filter(s=>!filtSearchVal||(s.Name||'').toLowerCase().includes(filtSearchVal)||(s.URL||'').toLowerCase().includes(filtSearchVal));
 
@@ -5462,7 +5451,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       <table class="settings-table" style="margin-bottom:20px">
         <thead><tr>
           <th style="width:30px"></th>
-          <th><select id="sub-name-filter" ${ss}>${subNameOpts}</select></th>
+          <th>Name</th>
           <th><select id="sub-group-filter" ${ss}>${subGroupOpts}</select></th>
           <th>Menu</th>
           <th><select id="sub-type-filter" ${ss}>${subTypeOpts}</select></th>
@@ -5478,7 +5467,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       <table class="settings-table">
         <thead><tr>
           <th style="width:30px"></th>
-          <th><select id="filt-name-filter" ${ss}>${filtNameOpts}</select></th>
+          <th>Name</th>
           <th>URL</th>
           <th><select id="filt-type-filter" ${ss}>${filtTypeOpts}</select></th>
           <th>Active</th><th>Filtered</th><th>Exclusions <span style="font-size:9px;font-weight:400;color:var(--text-muted)">CSV</span></th>
@@ -5725,6 +5714,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
           <div>⏱ Duration: <strong>${log.durationSeconds}s</strong></div>
           <div>📅 Recency: <strong>${log.recencyDays} days</strong></div>
           <div>✅ Inserted: <strong>${log.totalInserted}</strong></div>
+          <div>🗑️ Expired (aged out): <strong>${log.totalExpired||0}</strong></div>
           <div>📺 YT used this run: <strong>${log.youtubeRunUnits}</strong></div>
           <div>📺 YT used today: <strong>${log.youtubeQuotaUsed}</strong></div>
           <div style="color:${log.youtubeQuotaRemaining<500?'#e05050':log.youtubeQuotaRemaining<2000?'#e8a020':'inherit'}">📺 YT remaining: <strong>${log.youtubeQuotaRemaining?.toLocaleString()}</strong></div>
