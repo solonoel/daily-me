@@ -481,9 +481,7 @@
                 <a href="#" onclick="openLoggingHelpModal();return false;" style="font-size:10px;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep);margin-top:2px;display:inline-block">Where do I see these logs?</a>
               </div>
               <div style="text-align:right;flex-shrink:0">
-                <a href="#" onclick="removeAllExclusions();return false;" style="font-size:11px;font-weight:600;color:#e05050;text-decoration:none;border-bottom:1px dashed #e05050;white-space:nowrap">Remove Exclusions</a>
-                <div id="remove-exclusions-status" style="font-size:10px;color:var(--sky-deep);font-weight:600;margin-top:2px"></div>
-                <a href="#" onclick="reloadDeletedArticles();return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep);white-space:nowrap;margin-top:4px;display:inline-block">Reload Deleted Articles</a>
+                <a href="#" onclick="reloadDeletedArticles();return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep);white-space:nowrap;display:inline-block">Reload Deleted Articles</a>
                 <div id="reload-deleted-status" style="font-size:10px;color:var(--sky-deep);font-weight:600;margin-top:2px"></div>
               </div>
             </div>
@@ -706,10 +704,10 @@
       <table class="settings-table" id="tbl-global-sources">
         <thead><tr>
           <th style="width:40px"></th>
-          <th>Name</th>
-          <th>Type</th>
-          <th>URL</th>
-          <th>Date Added</th>
+          <th style="cursor:pointer" onclick="sortGlobalSources('Name')">Name <span id="gs-sort-Name"></span></th>
+          <th style="cursor:pointer" onclick="sortGlobalSources('SourceType')">Type <span id="gs-sort-SourceType"></span></th>
+          <th style="cursor:pointer" onclick="sortGlobalSources('URL')">URL <span id="gs-sort-URL"></span></th>
+          <th style="cursor:pointer" onclick="sortGlobalSources('DateAdded')">Date Added <span id="gs-sort-DateAdded"></span></th>
           <th></th>
           <th></th>
         </tr></thead>
@@ -720,9 +718,10 @@
 </div>
 </main>
 <div class="nav-footer" id="nav-footer">
-  <span class="nav-footer-user" id="nav-footer-username" style="flex:1;text-align:left"></span>
-  <a href="#" class="nav-footer-settings" onclick="openSettingsWindow();return false;">Settings</a>
-  <a href="#" class="nav-footer-signout" onclick="logout();return false;" style="flex:1;text-align:right">Sign out</a>
+  <span class="nav-footer-user" id="nav-footer-username" title="" style="flex:1;text-align:left;display:flex;align-items:center;gap:4px;font-size:14px;cursor:default"></span>
+  <a href="#" class="nav-footer-focus" onclick="focusCompanionWindow();return false;" title="Open companion window" style="display:flex;align-items:center;justify-content:center;font-size:15px;text-decoration:none">➡️</a>
+  <a href="#" class="nav-footer-settings" onclick="openSettingsWindow();return false;" title="Settings" style="display:flex;align-items:center;justify-content:center;font-size:15px;text-decoration:none">⚙️</a>
+  <a href="#" class="nav-footer-signout" onclick="logout();return false;" title="Sign out" style="flex:1;text-align:right;display:flex;align-items:center;justify-content:flex-end;font-size:15px;text-decoration:none">🚪</a>
 </div>
 <div id="loading-overlay" style="position:fixed;inset:0;background:linear-gradient(160deg,#d0e8f8 0%,#e4f1fb 60%,#daeef2 100%);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px">
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
@@ -1591,7 +1590,7 @@ try{
     const navDate=document.getElementById('nav-date');
     const n=storedUser?.name?.split(' ')[0]||'';
     const footerUser=document.getElementById('nav-footer-username');
-    if(footerUser)footerUser.textContent=n;
+    if(footerUser){footerUser.innerHTML='👤';footerUser.title=n;}
     if(_navMode){
       document.body.classList.add('nav-mode');
       if(navHeaderControls)navHeaderControls.style.display='none';
@@ -4379,31 +4378,6 @@ const weatherURLVal=(document.getElementById('us-weatherurl')?.value||'').trim()
     }
   }
 
-  async function removeAllExclusions(){
-    if(!currentUserProfileID){alert('No active profile.');return;}
-    if(!confirm('Remove all exclusions for every source in this profile? This cannot be undone.'))return;
-    const statusEl=document.getElementById('remove-exclusions-status');
-    if(statusEl){statusEl.textContent='Removing...';statusEl.style.color='var(--sky-deep)';}
-    try{
-      const [sharedResult,ownedResult]=await Promise.all([
-        apiPost('SaveSource',{action:'clearAllExclusions',userID:USER_ID,profileID:currentUserProfileID}),
-        apiPost('SaveUserOwnedSource',{action:'clearAllExclusions',userID:USER_ID,profileID:currentUserProfileID})
-      ]);
-      if(sharedResult?.error||ownedResult?.error){
-        if(statusEl){statusEl.textContent='Error clearing exclusions';statusEl.style.color='#e05050';}
-        return;
-      }
-      sources.forEach(s=>{if(s.Exclusions)s.Exclusions=null;});
-      userOwnedSources.forEach(s=>{if(s.Exclusions)s.Exclusions=null;});
-      if(currentSettingsSection==='sources')renderSettingsSources();
-      if(currentSettingsSection==='mysources')renderMySourcesTable();
-      const total=(sharedResult?.clearedCount||0)+(ownedResult?.clearedCount||0);
-      if(statusEl){statusEl.textContent=`✓ Cleared ${total} exclusion${total!==1?'s':''}`;statusEl.style.color='#22c55e';setTimeout(()=>{if(statusEl.textContent.startsWith('✓'))statusEl.textContent='';},4000);}
-    }catch(e){
-      if(statusEl){statusEl.textContent='Error: '+e.message;statusEl.style.color='#e05050';}
-    }
-  }
-
   function clearYouTubeDisable(){
     localStorage.removeItem(`dailyme_yt_disabled_${USER_ID}`);
     const ytCb=document.getElementById('us-disable-yt');if(ytCb)ytCb.checked=false;
@@ -4759,10 +4733,11 @@ function isYouTubeFilteredSource(sourceID){
       const src=id?sources.find(s=>s.SourceID===id):null;
       if(!id&&USER_ID!==1){
         title='Add Source';
-        const allSourcesRes=await fetch(`${API_BASE}/GetHeadlineSources?code=${API_KEY}&userID=${USER_ID}&all=true`);
+        const allSourcesRes=await fetch(`${API_BASE}/GetHeadlineSources?code=${API_KEY}&userID=${USER_ID}&all=true&_=${Date.now()}`,{cache:'no-store'});
         const allSources=await allSourcesRes.json();
         const mySourceIDs=new Set(sources.map(s=>s.SourceID));
-        const available=allSources.filter(s=>!mySourceIDs.has(s.SourceID));
+        const available=allSources.filter(s=>!mySourceIDs.has(s.SourceID))
+          .sort((a,b)=>(a.Name||'').localeCompare(b.Name||''));
         if(!available.length){alert('You already have all available sources added.');return;}
         body=`<div class="form-group"><label class="form-label">Select Source</label><select class="form-select" id="m-source-pick">${available.map(s=>`<option value="${s.SourceID}">${s.Name} (${s.SourceType||'RSS'})</option>`).join('')}</select></div>`;
       }else{
@@ -5130,7 +5105,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
   // ── GLOBAL SOURCES ──
 
   let globalSources=[];
-  let gsSortCol='Sequence',gsSortDir='asc';
+  let gsSortCol='Name',gsSortDir='asc';
   let gsEditingID=null;
   let gsResolvedChannelID=null;
 
@@ -5157,8 +5132,9 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     document.getElementById('settings-menu-view').style.display='none';
     ['categories','sources','keywords'].forEach(s=>document.getElementById(`settings-section-${s}`).style.display='none');
     document.getElementById('settings-section-global-sources').style.display='block';
-    const data=await fetch(`${API_BASE}/GetHeadlineSources?code=${API_KEY}&userID=${USER_ID}&all=true`).then(r=>r.json());
+    const data=await fetch(`${API_BASE}/GetHeadlineSources?code=${API_KEY}&userID=${USER_ID}&all=true&_=${Date.now()}`,{cache:'no-store'}).then(r=>r.json());
     globalSources=Array.isArray(data)?data:[];
+    gsSortCol='Name';gsSortDir='asc';
     renderGlobalSourcesTable();
     history.pushState({screen:'settings',section:'global-sources'},'','');
   }
@@ -5172,7 +5148,8 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     if(gsSortCol===col)gsSortDir=gsSortDir==='asc'?'desc':'asc';
     else{gsSortCol=col;gsSortDir='asc';}
     document.querySelectorAll('[id^="gs-sort-"]').forEach(el=>el.textContent='');
-    document.getElementById(`gs-sort-${col}`).textContent=gsSortDir==='asc'?'▲':'▼';
+    const arrowEl=document.getElementById(`gs-sort-${col}`);
+    if(arrowEl)arrowEl.textContent=gsSortDir==='asc'?'▲':'▼';
     renderGlobalSourcesTable();
   }
 
@@ -5180,6 +5157,10 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     const sorted=[...globalSources].sort((a,b)=>{
       let av=a[gsSortCol]??'',bv=b[gsSortCol]??'';
       if(gsSortCol==='Sequence'){av=a.Sequence??999;bv=b.Sequence??999;}
+      else if(typeof av==='string'&&typeof bv==='string'){
+        const cmp=av.localeCompare(bv,undefined,{sensitivity:'base'});
+        return gsSortDir==='asc'?cmp:-cmp;
+      }
       if(gsSortDir==='asc')return av>bv?1:av<bv?-1:0;
       return av<bv?1:av>bv?-1:0;
     });
@@ -7133,6 +7114,17 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
 
   // ── LANG WINDOW ──
   function openSettingsWindow(){ showInCompanion('showSettings'); }
+
+  // Brings the companion window (Settings/Language popup) to the front exactly as it
+  // currently is — no navigation, no content change. If it isn't open yet, opens it
+  // to Settings as a sensible default.
+  function focusCompanionWindow(){
+    if(companionWin && !companionWin.closed){
+      try{companionWin.focus();}catch(e){}
+    }else{
+      openSettingsWindow();
+    }
+  }
 
   let _navWidthReplyTimer=null,_navWidthReplyHandler=null;
   function setNavBarWidthFromCurrent(){
