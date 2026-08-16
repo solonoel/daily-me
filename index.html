@@ -481,7 +481,7 @@
                 <a href="#" onclick="openLoggingHelpModal();return false;" style="font-size:10px;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep);margin-top:2px;display:inline-block">Where do I see these logs?</a>
               </div>
               <div style="text-align:right;flex-shrink:0">
-                <a href="#" onclick="reloadDeletedArticles();return false;" style="font-size:11px;font-weight:600;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep);white-space:nowrap;display:inline-block">Reload Deleted Articles</a>
+                <a href="#" onclick="reloadDeletedArticles();return false;" title="Restore after next Refresh." style="font-size:11px;font-weight:600;color:var(--sky-deep);text-decoration:none;border-bottom:1px dashed var(--sky-deep);white-space:nowrap;display:inline-block">Restore Deleted Articles</a>
                 <div id="reload-deleted-status" style="font-size:10px;color:var(--sky-deep);font-weight:600;margin-top:2px"></div>
               </div>
             </div>
@@ -879,7 +879,7 @@
     </div>
   </div>
 </div>
-<div class="modal-overlay" id="copy-profile-modal" style="display:none" onclick="if(event.target===this)closeCopyToProfileModal()">
+<div class="modal-overlay" id="copy-profile-modal" style="display:none;z-index:1100" onclick="if(event.target===this)closeCopyToProfileModal()">
   <div class="modal" onclick="event.stopPropagation()" style="max-width:340px">
     <div class="modal-title">Copy to Profile</div>
     <div class="form-group">
@@ -4603,7 +4603,7 @@ function renderSettingsKeywords(){
     const kwMenuFilter=document.getElementById('kw-menu-filter')?.value||'';
     const menuOpts=`<option value="">All Menus</option>`+userMenu.map(m=>`<option value="${m.UserMenuID}" ${kwMenuFilter==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('')+`<option value="none" ${kwMenuFilter==='none'?'selected':''}>— None —</option>`;
     const ss=`style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()"`;
-    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th style="cursor:pointer" onclick="sortKwClick('30d')" title="Hits in the last 30 days">30d ${kwSortColClick==='30d'?(kwSortDirClick==='asc'?'▲':'▼'):''}</th><th><select id="kw-menu-filter" ${ss}>${menuOpts}</select></th><th><select id="kw-group-filter" ${ss}>${groupOpts}</select></th><th><select id="kw-src-filter" ${ss}>${srcOpts}</select></th><th style="cursor:pointer" onclick="sortKwClick('Keyword')">Keyword ${kwSortColClick==='Keyword'?(kwSortDirClick==='asc'?'▲':'▼'):''}</th><th>Image</th><th>Active</th><th></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th style="cursor:pointer" onclick="sortKwClick('30d')" title="Hits in the last 30 days">30d ${kwSortColClick==='30d'?(kwSortDirClick==='asc'?'▲':'▼'):''}</th><th><select id="kw-menu-filter" ${ss}>${menuOpts}</select></th><th><select id="kw-group-filter" ${ss}>${groupOpts}</select></th><th><select id="kw-src-filter" ${ss}>${srcOpts}</select></th><th style="cursor:pointer" onclick="sortKwClick('Keyword')">Keyword ${kwSortColClick==='Keyword'?(kwSortDirClick==='asc'?'▲':'▼'):''}</th><th>Image</th><th>Active</th><th style="cursor:pointer" onclick="sortKwClick('DateAdded')">Date Added ${kwSortColClick==='DateAdded'?(kwSortDirClick==='asc'?'▲':'▼'):''}</th><th></th>`;
     const kwGroupFilterVal=document.getElementById('kw-group-filter')?.value||'';
     const kwSrcFilterVal=document.getElementById('kw-src-filter')?.value||'';
     const kwMenuFilterVal=document.getElementById('kw-menu-filter')?.value||'';
@@ -4619,6 +4619,7 @@ function renderSettingsKeywords(){
         let av,bv;
         if(kwSortColClick==='Keyword'){av=(a.Keyword||'').toLowerCase();bv=(b.Keyword||'').toLowerCase();}
         else if(kwSortColClick==='30d'){av=a.Count30d||0;bv=b.Count30d||0;return kwSortDirClick==='asc'?av-bv:bv-av;}
+        else if(kwSortColClick==='DateAdded'){av=a.CreatedDate?new Date(a.CreatedDate).getTime():0;bv=b.CreatedDate?new Date(b.CreatedDate).getTime():0;return kwSortDirClick==='asc'?av-bv:bv-av;}
         return kwSortDirClick==='asc'?av.localeCompare(bv):bv.localeCompare(av);
       });
     }
@@ -4641,6 +4642,7 @@ function renderSettingsKeywords(){
           </div>
         </td>
         <td><button class="toggle ${k.IsActive==='Y'?'on':''}" onclick="toggleKeyword(${k.KeywordID},this)"></button></td>
+        <td style="font-size:11px;color:var(--text-soft);white-space:nowrap">${k.CreatedDate?formatDate(k.CreatedDate):'—'}</td>
         <td style="display:flex;gap:6px"><button class="btn-icon" onclick="openModal('keyword',${k.KeywordID})">✏️</button><button class="btn-icon danger" onclick="deleteKeyword(${k.KeywordID})">🗑️</button></td>
       </tr>`;
     }).join('');
@@ -5435,6 +5437,8 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
           av=(userMenu.find(m=>m.UserMenuID===a.UserMenuID)?.UserMenuName||'').toLowerCase();
           bv=(userMenu.find(m=>m.UserMenuID===b.UserMenuID)?.UserMenuName||'').toLowerCase();
         }
+        else if(subSortCol==='30d'){av=a.Count30d||0;bv=b.Count30d||0;return subSortDir==='asc'?av-bv:bv-av;}
+        else if(subSortCol==='DateAdded'){av=a.DateAdded?new Date(a.DateAdded).getTime():0;bv=b.DateAdded?new Date(b.DateAdded).getTime():0;return subSortDir==='asc'?av-bv:bv-av;}
         return subSortDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
       });
     }
@@ -5453,6 +5457,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
         if(filtSortCol==='Name'){av=(a.Name||'').toLowerCase();bv=(b.Name||'').toLowerCase();}
         else if(filtSortCol==='URL'){av=(a.URL||'').toLowerCase();bv=(b.URL||'').toLowerCase();}
         else if(filtSortCol==='30d'){av=a.Count30d||0;bv=b.Count30d||0;return filtSortDir==='asc'?av-bv:bv-av;}
+        else if(filtSortCol==='DateAdded'){av=a.DateAdded?new Date(a.DateAdded).getTime():0;bv=b.DateAdded?new Date(b.DateAdded).getTime():0;return filtSortDir==='asc'?av-bv:bv-av;}
         return filtSortDir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
       });
     }
@@ -5483,6 +5488,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
         <td><span class="badge">${s.SourceType||'RSS'}</span></td>
         <td><button class="toggle ${userIsActive?'on':''}" onclick="toggleUserSourceActive(${s.SourceID},this)"></button></td>
         <td><input type="text" value="${(s.Exclusions||'').replace(/"/g,'&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:120px;font-family:'DM Sans',sans-serif" onchange="saveUserExclusions(${s.SourceID},this)"></td>
+        <td style="font-size:11px;color:var(--text-soft);white-space:nowrap">${s.DateAdded?formatDate(s.DateAdded):'—'}</td>
         <td style="display:flex;gap:4px"><button class="btn-icon" onclick="openModal('source',${s.SourceID})">✏️</button><button class="btn-icon danger" onclick="removeUserSource(${s.SourceID})" title="Remove">🗑️</button></td>
       </tr>`;
     }).join('');
@@ -5497,6 +5503,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
         <td><span class="badge">${s.SourceType||'RSS'}</span></td>
         <td><button class="toggle ${userIsActive?'on':''}" onclick="toggleUserSourceActive(${s.SourceID},this)"></button></td>
         <td><input type="text" value="${(s.Exclusions||'').replace(/"/g,'&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:160px;font-family:'DM Sans',sans-serif" onchange="saveUserExclusions(${s.SourceID},this)"></td>
+        <td style="font-size:11px;color:var(--text-soft);white-space:nowrap">${s.DateAdded?formatDate(s.DateAdded):'—'}</td>
         <td><button class="btn-icon danger" onclick="removeUserSource(${s.SourceID})" title="Remove">🗑️</button></td>
       </tr>`;
     }).join('');
@@ -5517,6 +5524,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
           <th>Image</th>
           <th><select id="sub-type-filter" ${ss}>${subTypeOpts}</select></th>
           <th>Active</th><th>Exclusions</th>
+          <th style="cursor:pointer" onclick="sortSubSources('DateAdded')">Date Added ${subSortCol==='DateAdded'?(subSortDir==='asc'?'▲':'▼'):''}</th>
           <th></th>
         </tr></thead>
         <tbody id="tbl-sources-sub">${subRows}</tbody>
@@ -5535,6 +5543,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
           <th style="cursor:pointer" onclick="sortFiltSources('URL')">URL ${filtSortCol==='URL'?(filtSortDir==='asc'?'▲':'▼'):''}</th>
           <th><select id="filt-type-filter" ${ss}>${filtTypeOpts}</select></th>
           <th>Active</th><th>Exclusions <span style="font-size:9px;font-weight:400;color:var(--text-muted)">CSV</span></th>
+          <th style="cursor:pointer" onclick="sortFiltSources('DateAdded')">Date Added ${filtSortCol==='DateAdded'?(filtSortDir==='asc'?'▲':'▼'):''}</th>
           <th></th>
         </tr></thead>
         <tbody id="tbl-sources-filt">${filtRows}</tbody>
@@ -6175,17 +6184,27 @@ async function openSavedResultFile(index){
 
   let _copyProfileKind=null,_copyProfileItemID=null;
 
-  function openCopyToProfileModal(kind,id){
+  async function openCopyToProfileModal(kind,id){
     if(!id)return;
     _copyProfileKind=kind;_copyProfileItemID=id;
     const sel=document.getElementById('copy-profile-select');
+    const status=document.getElementById('copy-profile-status');
+    if(sel)sel.innerHTML='<option value="">Loading profiles...</option>';
+    if(status)status.textContent='';
+    document.getElementById('copy-profile-modal').style.display='flex';
+    // Always fetch a fresh profile list — userProfiles can go stale if profiles were
+    // added/renamed/deactivated since the last full page load.
+    try{
+      const freshProfiles=await apiGet('GetUserProfiles');
+      if(Array.isArray(freshProfiles))userProfiles=freshProfiles;
+    }catch(e){}
     const opts=userProfiles.filter(p=>!p.Inactive&&p.UserProfileID!==currentUserProfileID)
       .sort((a,b)=>(a.Name||'').localeCompare(b.Name||''))
       .map(p=>`<option value="${p.UserProfileID}">${p.Name}</option>`).join('');
-    if(sel)sel.innerHTML=opts||'<option value="">No other profiles</option>';
-    const status=document.getElementById('copy-profile-status');
-    if(status)status.textContent='';
-    document.getElementById('copy-profile-modal').style.display='flex';
+    if(sel){
+      sel.innerHTML=opts||'<option value="">No other profiles</option>';
+      sel.focus();
+    }
   }
 
   function closeCopyToProfileModal(){
@@ -6333,7 +6352,7 @@ function renderMySourcesTable() {
     const menuOpts = `<option value="">All Menus</option>`+userMenu.map(m=>`<option value="${m.UserMenuID}" ${msMenuFilter==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('')+`<option value="__none__" ${msMenuFilter==='__none__'?'selected':''}>— None —</option>`;
     const activeOpts = `<option value="">All Active</option><option value="active" ${msActiveFilter==='active'?'selected':''}>Active</option><option value="inactive" ${msActiveFilter==='inactive'?'selected':''}>Inactive</option>`;
 
-    if(thead)thead.innerHTML=`<th style="width:30px"></th><th style="cursor:pointer" onclick="sortMsSources('30d')" title="Hits in the last 30 days">30d ${msSortColClick==='30d'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th><select id="ms-menu-filter-hdr" ${ss}>${menuOpts}</select></th><th><select id="ms-group-filter-hdr" ${ss}>${groupOpts}</select></th><th style="cursor:pointer" onclick="sortMsSources('Name')">Name ${msSortColClick==='Name'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th style="cursor:pointer" onclick="sortMsSources('URL')">URL ${msSortColClick==='URL'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th>Image</th><th><select id="ms-type-filter" ${ss}>${typeOpts}</select></th><th><select id="ms-active-filter" ${ss}>${activeOpts}</select></th><th>Exclusions</th><th></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px"></th><th style="cursor:pointer" onclick="sortMsSources('30d')" title="Hits in the last 30 days">30d ${msSortColClick==='30d'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th><select id="ms-menu-filter-hdr" ${ss}>${menuOpts}</select></th><th><select id="ms-group-filter-hdr" ${ss}>${groupOpts}</select></th><th style="cursor:pointer" onclick="sortMsSources('Name')">Name ${msSortColClick==='Name'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th style="cursor:pointer" onclick="sortMsSources('URL')">URL ${msSortColClick==='URL'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th>Image</th><th><select id="ms-type-filter" ${ss}>${typeOpts}</select></th><th><select id="ms-active-filter" ${ss}>${activeOpts}</select></th><th>Exclusions</th><th style="cursor:pointer" onclick="sortMsSources('DateAdded')">Date Added ${msSortColClick==='DateAdded'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th></th>`;
 
     const profileVisible = userOwnedSources.filter(s => !s.UserMenuID || userMenu.some(m => m.UserMenuID === s.UserMenuID));
     let sorted = [...profileVisible].sort((a, b) => {
@@ -6360,6 +6379,7 @@ function renderMySourcesTable() {
         if(msSortColClick==='Name'){av=(a.SourceName||'').toLowerCase();bv=(b.SourceName||'').toLowerCase();}
         else if(msSortColClick==='URL'){av=(a.URL||'').toLowerCase();bv=(b.URL||'').toLowerCase();}
         else if(msSortColClick==='30d'){av=a.Count30d||0;bv=b.Count30d||0;return msSortDirClick==='asc'?av-bv:bv-av;}
+        else if(msSortColClick==='DateAdded'){av=a.DateAdded?new Date(a.DateAdded).getTime():0;bv=b.DateAdded?new Date(b.DateAdded).getTime():0;return msSortDirClick==='asc'?av-bv:bv-av;}
         return msSortDirClick==='asc'?av.localeCompare(bv):bv.localeCompare(av);
       });
     }
@@ -6387,6 +6407,7 @@ function renderMySourcesTable() {
         <td><span class="badge">${s.SourceType}</span>${s.SourceType==='YT Sub'&&!s.YoutubeChannelID?' <span style="color:#e05050;font-weight:700;font-size:11px">(no ID)</span>':''}</td>
         <td><button class="toggle ${!s.IsInactive ? 'on' : ''}" onclick="toggleMySite(${s.UserOwnedSourceID},this)"></button></td>
         <td><input type="text" value="${(s.Exclusions || '').replace(/"/g, '&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:120px;font-family:'DM Sans',sans-serif" onchange="saveMySiteExclusions(${s.UserOwnedSourceID},this)"></td>
+        <td style="font-size:11px;color:var(--text-soft);white-space:nowrap">${s.DateAdded?formatDate(s.DateAdded):'—'}</td>
         <td style="display:flex;gap:6px">
           <button class="btn-icon" onclick="openMySiteModal(${s.UserOwnedSourceID})">✏️</button>
           <button class="btn-icon danger" onclick="deleteMySite(${s.UserOwnedSourceID})">🗑️</button>
