@@ -13,12 +13,18 @@ module.exports = async function(context, req) {
     const result = await pool.request()
       .input('UserID', sql.Int, userID)
       .query(`
-        SELECT k.KeywordID, k.Keyword, k.IsActive, k.Sequence,
+        SELECT k.KeywordID, k.Keyword, k.IsActive, k.Sequence, k.CreatedDate,
                k.GroupLabel, k.ImageURL, k.SourceID, k.UserMenuID, k.UserOwnedSourceID,
-               COALESCE(h.Name, u.SourceName) AS SourceName
+               COALESCE(h.Name, u.SourceName) AS SourceName,
+               ISNULL(act.Count30d,0) AS Count30d
         FROM [HeadlineKeyword] k
         LEFT JOIN [HeadlineSource] h ON k.SourceID = h.SourceID
         LEFT JOIN [UserOwnedSource] u ON k.UserOwnedSourceID = u.UserOwnedSourceID AND u.UserID = @UserID
+        OUTER APPLY (
+          SELECT SUM(CASE WHEN OccurredDate >= DATEADD(day,-30,GETDATE()) THEN 1 ELSE 0 END) AS Count30d
+          FROM SourceActivityLog
+          WHERE EntityType='Keyword' AND EntityID=k.KeywordID AND UserID=@UserID
+        ) act
         WHERE k.UserID = @UserID
         ORDER BY k.Sequence, k.Keyword
       `);

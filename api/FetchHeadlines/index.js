@@ -891,6 +891,7 @@ allArticles = allArticles.concat(articles);
 
     let totalInserted = 0;
     const insertedItems = [];
+    const insertRunStart = new Date();
     for (const a of selected) {
       try {
         const menuID = a.keywordID ? (kwMenuMap[a.keywordID]?.userMenuID || null) : (a.sourceUserMenuID || null);
@@ -931,18 +932,48 @@ allArticles = allArticles.concat(articles);
         } else if (a.userOwnedSourceID) {
           activityLogEntries.push({ entityType: 'MySource', entityID: a.userOwnedSourceID });
         }
-        insertedItems.push({
-          menuSeq: menuID ? (menuSeqMap[menuID] ?? 999) : 999,
-          menuName: menuID ? (menuNameMap[menuID] || '') : '',
-          groupName: resolveGroupName(a, kw),
-          sourceName: a.sourceName || '',
-          keyword: kw ? kw.text : '',
-          articleName: a.title || '',
-          duration: a.duration || ''
-        });
       } catch(insertErr) {
         context.log(`Insert error: ${insertErr.message} | title: ${a.title?.substring(0,50)}`);
       }
+    }
+    // Re-query what's actually in the DB for this run, rather than trusting in-memory
+    // bookkeeping — this is the authoritative "what did this run insert" answer, and
+    // correctly reports 0 when nothing new came in.
+    try {
+      const insertedResult = await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('UserProfileID', sql.Int, profileID)
+        .input('RunStart', sql.DateTime, insertRunStart)
+        .query(`
+          SELECT h.HeadlineID, h.HeadlineName, h.SourceID, h.UserOwnedSourceID, h.KeywordID,
+                 h.Duration, h.UserMenuID,
+                 k.Keyword AS KeywordText, k.GroupLabel AS KeywordGroupLabel,
+                 s.Name AS SharedSourceName,
+                 u.SourceName AS OwnedSourceName, u.GroupLabel AS OwnedSourceGroupLabel
+          FROM [Headline] h
+          LEFT JOIN [HeadlineKeyword] k ON h.KeywordID = k.KeywordID
+          LEFT JOIN [HeadlineSource] s ON h.SourceID = s.SourceID
+          LEFT JOIN [UserOwnedSource] u ON h.UserOwnedSourceID = u.UserOwnedSourceID
+          WHERE h.UserID = @UserID
+            AND (@UserProfileID IS NULL OR h.UserProfileID = @UserProfileID)
+            AND h.CreatedDate >= @RunStart
+        `);
+      for (const row of insertedResult.recordset) {
+        const menuID = row.UserMenuID || null;
+        const pseudoArticle = { keywordID: row.KeywordID, sourceID: row.SourceID, sourceGroupLabel: row.OwnedSourceGroupLabel || null, channelName: null };
+        const pseudoKw = row.KeywordID ? { text: row.KeywordText, GroupLabel: row.KeywordGroupLabel } : null;
+        insertedItems.push({
+          menuSeq: menuID ? (menuSeqMap[menuID] ?? 999) : 999,
+          menuName: menuID ? (menuNameMap[menuID] || '') : '',
+          groupName: resolveGroupName(pseudoArticle, pseudoKw),
+          sourceName: row.SharedSourceName || row.OwnedSourceName || '',
+          keyword: row.KeywordText || '',
+          articleName: row.HeadlineName || '',
+          duration: row.Duration || ''
+        });
+      }
+    } catch(reqErr) {
+      context.log(`Inserted-items re-query error: ${reqErr.message}`);
     }
     insertedItems.sort((x, y) =>
       x.menuSeq - y.menuSeq ||
@@ -950,6 +981,28 @@ allArticles = allArticles.concat(articles);
       x.sourceName.localeCompare(y.sourceName) ||
       x.keyword.localeCompare(y.keyword)
     );
+
+    // Expire old, non-retained headlines now that this run's dedup/insert is complete —
+    // fetch → dedup → insert → clean, so the UI never sees a stale-then-empty gap from
+    // a separate clean call racing a separate fetch call.
+    let totalExpired = 0;
+    try {
+      const expireResult = await pool.request()
+        .input('UserID', sql.Int, userID)
+        .input('ProfileID', sql.Int, profileID)
+        .input('RecencyDays', sql.Int, recencyDays)
+        .query(`
+          DELETE FROM [Headline]
+          WHERE UserID = @UserID
+            AND (@ProfileID IS NULL OR UserProfileID = @ProfileID)
+            AND ISNULL(Retain, 'N') != 'Y'
+            AND ISNULL(PublishedDate, CreatedDate) < DATEADD(day, -@RecencyDays, GETDATE());
+          SELECT @@ROWCOUNT AS ExpiredCount;
+        `);
+      totalExpired = expireResult.recordset[0]?.ExpiredCount || 0;
+    } catch(expireErr) {
+      context.log(`Expire old headlines error: ${expireErr.message}`);
+    }
 
     const fetchDuration = ((Date.now() - fetchStart) / 1000).toFixed(1);
     const fetchLog = {
@@ -959,6 +1012,7 @@ allArticles = allArticles.concat(articles);
       totalFetched: allArticles.length,
       totalUnique: unique.length,
       totalInserted,
+      totalExpired,
       totalDuplicates,
       totalLangFiltered,
       youtubeRunUnits: quotaUsed.units,
@@ -1040,7 +1094,7 @@ allArticles = allArticles.concat(articles);
       status: 200,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        success: true, inserted: totalInserted, duplicates: totalDuplicates,
+        success: true, inserted: totalInserted, expired: totalExpired, duplicates: totalDuplicates,
         sourcesProcessed: sources.length,
         youtubeSkipped: youtubeAlreadyFetched || disableYoutube,
         quotaUsed: newQuotaUsed,

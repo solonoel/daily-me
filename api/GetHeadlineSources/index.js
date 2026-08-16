@@ -24,9 +24,15 @@ module.exports = async function(context, req) {
       let query = `
           SELECT h.SourceID, h.Name, h.URL, h.SourceType, h.IsActive AS GlobalIsActive,
                  h.Sequence, h.DateAdded, h.YoutubeChannelID, uhs.IsFiltered, uhs.Exclusions,
-                 uhs.IsActive AS UserIsActive, uhs.GroupLabel, uhs.UserMenuID, uhs.ImageURL
+                 uhs.IsActive AS UserIsActive, uhs.GroupLabel, uhs.UserMenuID, uhs.ImageURL,
+                 ISNULL(act.Count30d,0) AS Count30d
           FROM [HeadlineSource] h
           INNER JOIN [UserHeadlineSource] uhs ON h.SourceID = uhs.SourceID
+          OUTER APPLY (
+            SELECT SUM(CASE WHEN OccurredDate >= DATEADD(day,-30,GETDATE()) THEN 1 ELSE 0 END) AS Count30d
+            FROM SourceActivityLog
+            WHERE EntityType='SharedSource' AND EntityID=h.SourceID AND UserID=@UserID
+          ) act
           WHERE uhs.UserID = @UserID`;
       if (profileID) {
         request.input('ProfileID', sql.Int, profileID);
