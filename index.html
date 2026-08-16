@@ -2072,14 +2072,29 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
         const _panelW=parseInt(document.getElementById('us-navbuttonsperrow')?.value)||328;
         const _chrome=window.outerWidth-window.innerWidth||16;
         const _url=window.location.href.split('?')[0]+'?forceMode=Nav';
-        window.open(_url,'dailyme_nav',`width=${_panelW+_chrome},height=${screen.availHeight},left=${getNavPinLeft(_panelW,_chrome)},top=${getScreenOrigin().top},resizable=yes,scrollbars=no`);
-        try{window.close();}catch(e){}
-        // If close was blocked, show message so user knows to close this tab
+        const _navPopup=window.open(_url,'dailyme_nav',`width=${_panelW+_chrome},height=${screen.availHeight},left=${getNavPinLeft(_panelW,_chrome)},top=${getScreenOrigin().top},resizable=yes,scrollbars=no`);
+        // Only close THIS tab if the popup actually opened — a null/undefined return
+        // (or a window whose .closed flips true almost immediately) means the popup
+        // was blocked. Closing this tab in that case would leave the user with nothing.
+        const _popupOpened = !!(_navPopup && !_navPopup.closed);
+        if(_popupOpened){
+          try{window.close();}catch(e){}
+        }
+        // If close was blocked (or the popup never opened), show a clear message
+        // instead of silently going blank.
         setTimeout(()=>{
           const _ov=document.getElementById('loading-overlay');
           if(_ov){
             if(_lm)_lm.textContent='';
-            if(_ls){_ls.style.fontStyle='normal';_ls.textContent='Daily Me has opened in a new window. You can close this tab.';}
+            if(_ls){
+              _ls.style.fontStyle='normal';
+              if(_navPopup && !_navPopup.closed){
+                _ls.textContent='Daily Me has opened in a new window. You can close this tab.';
+              }else{
+                _ls.textContent='Your browser blocked the popup window. Please allow popups for this site, then refresh.';
+                _ls.style.color='#e05050';
+              }
+            }
           }
         },500);
         return; // stop — popup handles all data loading
@@ -5957,10 +5972,15 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       const req=await handle.requestPermission({mode:'read'});
       if(req!=='granted')return null;
     }
+    // Log filenames encode the profile name at save time (see autoSaveFetchLogIfEnabled),
+    // e.g. "DailyMe Log - Home - 2026.08.16 09.30.html" — only consider files matching
+    // the CURRENT profile so "Results" never surfaces another profile's last run.
+    const profileName=(userProfiles.find(p=>p.UserProfileID===currentUserProfileID)?.Name||'Unknown').replace(/[\\/:*?"<>|]/g,'-').trim();
+    const expectedPrefix=`DailyMe Log - ${profileName} - `;
     let newest=null,newestTime=0;
     try{
       for await (const [name,entryHandle] of handle.entries()){
-        if(entryHandle.kind!=='file'||!name.startsWith('DailyMe Log - '))continue;
+        if(entryHandle.kind!=='file'||!name.startsWith(expectedPrefix))continue;
         const file=await entryHandle.getFile();
         if(file.lastModified>newestTime){newestTime=file.lastModified;newest=entryHandle;}
       }
@@ -6027,13 +6047,17 @@ const fileHandle = await getMostRecentLogFileHandle();
         const req=await handle.requestPermission({mode:'read'});
         if(req!=='granted'){alert('Permission to the log folder was not granted.');return;}
       }
+      // Only show saved logs for the CURRENT profile — filenames encode the profile
+      // name at save time (see autoSaveFetchLogIfEnabled).
+      const profileName=(userProfiles.find(p=>p.UserProfileID===currentUserProfileID)?.Name||'Unknown').replace(/[\\/:*?"<>|]/g,'-').trim();
+      const expectedPrefix=`DailyMe Log - ${profileName} - `;
       const files=[];
       for await (const [name,entryHandle] of handle.entries()){
-        if(entryHandle.kind!=='file'||!name.startsWith('DailyMe Log - '))continue;
+        if(entryHandle.kind!=='file'||!name.startsWith(expectedPrefix))continue;
         const file=await entryHandle.getFile();
         files.push({name,entryHandle,lastModified:file.lastModified});
       }
-      if(!files.length){alert('No saved log files found in the folder yet.');return;}
+      if(!files.length){alert(`No saved log files found for the "${profileName}" profile yet.`);return;}
       files.sort((a,b)=>b.lastModified-a.lastModified);
       renderSavedResultsModal(files);
     }catch(e){alert('Error opening saved results: '+e.message);}
@@ -6086,14 +6110,16 @@ async function openSavedResultFile(index){
     if(!profileID||profileID===currentUserProfileID)return;
     await setCurrentProfile(profileID);
     renderProfileSelects();
-    const [menuData,srcsData,ulangsData]=await Promise.all([
+    const [menuData,srcsData,ulangsData,ownedData]=await Promise.all([
       apiGet('GetUserMenu',`&profileID=${currentUserProfileID}`),
       apiGet('GetHeadlineSources',`&profileID=${currentUserProfileID}`),
-      apiGet('GetUserLanguages',`&profileID=${currentUserProfileID}`)
+      apiGet('GetUserLanguages',`&profileID=${currentUserProfileID}`),
+      apiGet('GetUserOwnedSources')
     ]);
     userMenu=Array.isArray(menuData)?menuData:[];
     sources=Array.isArray(srcsData)?srcsData:sources;
     userLanguages=Array.isArray(ulangsData)?ulangsData:userLanguages;
+    userOwnedSources=Array.isArray(ownedData)?ownedData:userOwnedSources;
     renderUserMenuNav();
     const firstMenuItem=userMenu.find(m=>!m.IsInactive);
     currentUserMenuID=firstMenuItem?firstMenuItem.UserMenuID:null;
