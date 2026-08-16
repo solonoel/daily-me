@@ -718,10 +718,10 @@
 </div>
 </main>
 <div class="nav-footer" id="nav-footer">
-  <span class="nav-footer-user" id="nav-footer-username" title="" style="flex:1;text-align:left;display:flex;align-items:center;gap:4px;font-size:14px;cursor:default"></span>
-  <a href="#" class="nav-footer-focus" onclick="focusCompanionWindow();return false;" title="Open companion window" style="display:flex;align-items:center;justify-content:center;font-size:15px;text-decoration:none">➡️</a>
-  <a href="#" class="nav-footer-settings" onclick="openSettingsWindow();return false;" title="Settings" style="display:flex;align-items:center;justify-content:center;font-size:15px;text-decoration:none">⚙️</a>
-  <a href="#" class="nav-footer-signout" onclick="logout();return false;" title="Sign out" style="flex:1;text-align:right;display:flex;align-items:center;justify-content:flex-end;font-size:15px;text-decoration:none">🚪</a>
+  <span class="nav-footer-user" id="nav-footer-username" title="" style="flex:1;text-align:center;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:default"></span>
+  <a href="#" class="nav-footer-focus" onclick="focusCompanionWindow();return false;" title="Open companion window" style="flex:1;display:flex;align-items:center;justify-content:center;font-size:15px;text-decoration:none">➡️</a>
+  <a href="#" class="nav-footer-settings" onclick="openSettingsWindow();return false;" title="Settings" style="flex:1;display:flex;align-items:center;justify-content:center;font-size:15px;text-decoration:none">⚙️</a>
+  <a href="#" class="nav-footer-signout" onclick="logout();return false;" title="Sign out" style="flex:1;display:flex;align-items:center;justify-content:center;font-size:15px;text-decoration:none">🛑</a>
 </div>
 <div id="loading-overlay" style="position:fixed;inset:0;background:linear-gradient(160deg,#d0e8f8 0%,#e4f1fb 60%,#daeef2 100%);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px">
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
@@ -946,7 +946,11 @@
 
 <div class="modal-overlay" id="investigate-modal" style="display:none" onclick="if(event.target===this)closeInvestigateModal()">
   <div style="background:white;border-radius:16px;padding:28px;width:680px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.2)" onclick="event.stopPropagation()">
-    <div class="modal-title">🔍 Investigate Source</div>
+    <div class="modal-title" id="inv-modal-title">Add Global Source</div>
+    <div class="form-group">
+      <label class="form-label">Name</label>
+      <input class="form-input" id="inv-name" placeholder="Source name">
+    </div>
     <div style="display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap">
       <div class="form-group" style="margin-bottom:0">
         <label class="form-label">Type</label>
@@ -960,20 +964,25 @@
     </div>
     <div class="form-group">
       <label class="form-label">URL <span id="inv-url-note" style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(RSS feed URL)</span></label>
-      <input class="form-input" id="inv-url" placeholder="https://...">
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="form-input" id="inv-url" placeholder="https://..." style="flex:1">
+        <button type="button" onclick="runInvestigateSearch()" id="inv-search-btn" title="Verify this URL" style="width:36px;height:36px;flex-shrink:0;border:1.5px solid var(--border);border-radius:8px;background:white;cursor:pointer;color:var(--sky-deep);display:flex;align-items:center;justify-content:center"></button>
+      </div>
+      <span id="inv-status" style="font-size:12px;color:var(--text-muted);margin-top:4px;display:inline-block"></span>
     </div>
     <div class="form-group">
       <label class="form-label">Keyword <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">(optional — leave blank for no filter)</span></label>
       <input class="form-input" id="inv-keyword" placeholder="e.g. White Sox, Chicago">
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
-      <button class="btn-primary" onclick="runInvestigateSearch()" id="inv-search-btn">Search</button>
-      <button class="btn-primary" style="background:#22c55e" onclick="applyInvestigateSource()">Apply</button>
-      <button class="btn-secondary" onclick="closeInvestigateModal()">Close</button>
-      <span id="inv-status" style="font-size:12px;color:var(--text-muted);margin-left:8px"></span>
+    <div id="inv-results" style="flex:1;overflow-y:auto;border:1.5px solid var(--border);border-radius:8px;min-height:160px;max-height:340px;background:#f8fbff;margin-bottom:14px">
+      <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">Enter a URL and click 🔍 to verify it.</div>
     </div>
-    <div id="inv-results" style="flex:1;overflow-y:auto;border:1.5px solid var(--border);border-radius:8px;min-height:200px;max-height:400px;background:#f8fbff">
-      <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">Enter a URL and click Search to preview articles.</div>
+    <div class="modal-actions">
+      <div class="modal-actions-group"></div>
+      <div class="modal-actions-group">
+        <button class="btn-secondary" onclick="closeInvestigateModal()">Cancel</button>
+        <button class="btn-primary" onclick="applyInvestigateSource()">Save</button>
+      </div>
     </div>
   </div>
 </div>
@@ -5175,7 +5184,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
         <td style="font-size:12px">${s.DateAdded?formatDate(s.DateAdded):'—'}</td>
         <td>${otherCol}</td>
         <td style="display:flex;gap:6px">
-          <button class="btn-icon" onclick="openGlobalSourceModal(${s.SourceID})">✏️</button>
+          <button class="btn-icon" onclick="openInvestigateModal(${s.SourceID})">✏️</button>
           <button class="btn-icon danger" onclick="deleteGlobalSource(${s.SourceID})">🗑️</button>
         </td>
       </tr>`;
@@ -6752,13 +6761,21 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
   // ── INVESTIGATE ──
 
   let _investigateResolvedChannelID = null;
+  let _investigateEditingID = null;
 
-  function openInvestigateModal(){
-    document.getElementById('inv-url').value='';
-    document.getElementById('inv-keyword').value='';
+  function openInvestigateModal(sourceID=null){
+    _investigateEditingID = sourceID;
+    _investigateResolvedChannelID = null;
+    const src = sourceID ? globalSources.find(s=>s.SourceID===sourceID) : null;
+    const titleEl=document.getElementById('inv-modal-title');
+    if(titleEl)titleEl.textContent = sourceID ? 'Edit Global Source' : 'Add Global Source';
+    document.getElementById('inv-name').value = src?.Name || '';
+    document.getElementById('inv-url').value = src?.URL || '';
+    document.getElementById('inv-keyword').value = '';
     document.getElementById('inv-status').textContent='';
-    document.getElementById('inv-results').innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">Enter a URL and click Search to preview articles.</div>';
-    document.querySelectorAll('input[name="inv-type"]').forEach(r=>r.checked=false);
+    document.getElementById('inv-results').innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">Enter a URL and click the binoculars to verify it.</div>';
+    document.querySelectorAll('input[name="inv-type"]').forEach(r=>r.checked = !!(src && r.value===src.SourceType));
+    if(!src)document.querySelectorAll('input[name="inv-type"]').forEach(r=>r.checked=false);
     updateInvestigateFields();
     document.getElementById('investigate-modal').style.display='flex';
     history.pushState({screen:'settings',section:'investigate'},'','');
@@ -6766,6 +6783,7 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
 
   function closeInvestigateModal(){
     document.getElementById('investigate-modal').style.display='none';
+    _investigateEditingID = null;
   }
 
   function updateInvestigateFields(){
@@ -6796,13 +6814,13 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     const status=document.getElementById('inv-status');
     const results=document.getElementById('inv-results');
     const btn=document.getElementById('inv-search-btn');
-    btn.disabled=true;btn.textContent='Searching...';
+    btn.disabled=true;
     status.textContent='';
-    results.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">⏳ Fetching...</div>';
-    if(type==='RSS'&&!url){alert('Enter a URL first.');btn.disabled=false;btn.textContent='Search';return;}
+    results.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">⏳ Verifying...</div>';
+    if(type==='RSS'&&!url){alert('Enter a URL first.');btn.disabled=false;return;}
     if(type==='URL'){
-      if(!url){alert('Enter a web page URL first.');btn.disabled=false;btn.textContent='Search';return;}
-      try{new URL(url);}catch(e){alert('Enter a valid web address (e.g. https://www.example.com)');btn.disabled=false;btn.textContent='Search';return;}
+      if(!url){alert('Enter a web page URL first.');btn.disabled=false;return;}
+      try{new URL(url);}catch(e){alert('Enter a valid web address (e.g. https://www.example.com)');btn.disabled=false;return;}
     }
     try{
       const res=await apiPost('FetchHeadlines',{preview:true,sourceType:type,url,keyword,userID:USER_ID});
@@ -6812,11 +6830,12 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
       }
       const articles=res.articles||[];
       if(!articles.length){
-        results.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">No articles found.</div>';
+        results.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">No articles found. The URL may still be valid — double check it before saving.</div>';
         return;
       }
       _investigateResolvedChannelID = res.youtubeChannelID || null;
-      status.textContent=`${articles.length} result${articles.length!==1?'s':''}`;
+      status.textContent=`✓ Verified — ${articles.length} result${articles.length!==1?'s':''} found`;
+      status.style.color='#22c55e';
       results.innerHTML=articles.map(a=>`
         <div style="display:flex;flex-direction:column;gap:3px;padding:10px 14px;border-bottom:1px solid #eef5fc;background:white">
           <a href="${a.link}" target="_blank" rel="noopener" style="font-size:13px;font-weight:600;color:var(--text);text-decoration:none;line-height:1.4">${a.title}</a>
@@ -6826,31 +6845,36 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     }catch(e){
       results.innerHTML=`<div style="padding:20px;text-align:center;color:#e05050;font-size:13px">Error: ${e.message}</div>`;
     }finally{
-      btn.disabled=false;btn.textContent='Search';
+      btn.disabled=false;
     }
   }
 
   async function applyInvestigateSource(){
     const type=document.querySelector('input[name="inv-type"]:checked')?.value||'RSS';
     const url=document.getElementById('inv-url').value.trim();
-    if((type==='RSS'||type==='YT Sub')&&!url){alert('Enter a URL first.');return;}
-    const name=prompt('Source name:');
-    if(!name?.trim())return;
+    const name=document.getElementById('inv-name').value.trim();
+    if(!name)return alert('Name is required');
+    if((type==='RSS'||type==='YT Sub'||type==='URL')&&!url)return alert('URL is required');
     const status=document.getElementById('inv-status');
-    status.textContent='Saving...';
+    status.textContent='Saving...';status.style.color='var(--text-muted)';
     try{
-      const nextSeq=(Math.max(...globalSources.map(s=>s.Sequence||0),0))+1;
-      const result=await apiPost('SaveSource',{action:'add',name:name.trim(),url,sourceType:type,sequence:nextSeq,youtubeChannelID:_investigateResolvedChannelID||null,userID:USER_ID,profileID:currentUserProfileID});
-      if(result.sourceID){
-        globalSources.push({SourceID:result.sourceID,Name:name.trim(),URL:url,SourceType:type,Sequence:nextSeq,DateAdded:new Date().toISOString().split('T')[0]});
-        renderGlobalSourcesTable();
+      if(_investigateEditingID){
+        const result=await apiPost('SaveSource',{action:'update',sourceID:_investigateEditingID,name,url,sourceType:type,isActive:true,userID:USER_ID});
+        if(result?.error){status.textContent='Error: '+result.error;status.style.color='#e05050';return;}
+        const src=globalSources.find(s=>s.SourceID===_investigateEditingID);
+        if(src){src.Name=name;src.URL=url;src.SourceType=type;}
+      }else{
+        const nextSeq=(Math.max(...globalSources.map(s=>s.Sequence||0),0))+1;
+        const result=await apiPost('SaveSource',{action:'add',name,url,sourceType:type,sequence:nextSeq,youtubeChannelID:_investigateResolvedChannelID||null,userID:USER_ID,profileID:currentUserProfileID});
+        if(result?.error){status.textContent='Error: '+result.error;status.style.color='#e05050';return;}
+        if(result.sourceID){
+          globalSources.push({SourceID:result.sourceID,Name:name,URL:url,SourceType:type,Sequence:nextSeq,DateAdded:new Date().toISOString().split('T')[0],YoutubeChannelID:result.youtubeChannelID||null});
+        }
       }
-      document.getElementById('inv-url').value='';
-      document.getElementById('inv-keyword').value='';
-      document.getElementById('inv-results').innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">Source saved! Enter a new URL to investigate another.</div>';
-      status.textContent='✓ Saved as "'+name.trim()+'"';
+      renderGlobalSourcesTable();
+      closeInvestigateModal();
     }catch(e){
-      status.textContent='Error: '+e.message;
+      status.textContent='Error: '+e.message;status.style.color='#e05050';
     }
   }
 
@@ -7158,8 +7182,14 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
   {localStorage.removeItem('dailyme_user');window.location.href='login.html';}
   setGreeting();setDate();
   loadAll();
-  document.addEventListener('DOMContentLoaded',()=>{const ic=document.getElementById('article-add-icon');if(ic)ic.innerHTML=BINOCULARS_SVG;});
-  {const ic=document.getElementById('article-add-icon');if(ic)ic.innerHTML=BINOCULARS_SVG;}
+  document.addEventListener('DOMContentLoaded',()=>{
+    const ic=document.getElementById('article-add-icon');if(ic)ic.innerHTML=BINOCULARS_SVG;
+    const invIc=document.getElementById('inv-search-btn');if(invIc)invIc.innerHTML=BINOCULARS_SVG;
+  });
+  {
+    const ic=document.getElementById('article-add-icon');if(ic)ic.innerHTML=BINOCULARS_SVG;
+    const invIc=document.getElementById('inv-search-btn');if(invIc)invIc.innerHTML=BINOCULARS_SVG;
+  }
 
   
 </script>
