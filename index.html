@@ -1859,12 +1859,14 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
     const _clogo=document.querySelector('.header-logo');if(_clogo){_clogo.style.height='34px';_clogo.style.width='34px';}
     const _cAppTitle=document.querySelector('.app-title');if(_cAppTitle)_cAppTitle.style.fontSize='13px';
     try{
-      const[kwds,langs,profileResult]=await Promise.all([
+      const[kwds,langs,profileResult,profilesData]=await Promise.all([
         apiGet('GetHeadlineKeywords'),
         apiGet('GetLanguages'),
-        apiGet('GetCurrentProfile')
+        apiGet('GetCurrentProfile'),
+        apiGet('GetUserProfiles')
       ]);
       currentUserProfileID=profileResult?.currentUserProfileID||null;
+      userProfiles=Array.isArray(profilesData)?profilesData:[];
       const [ulangs,userSettings]=await Promise.all([
         apiGet('GetUserLanguages',`&profileID=${currentUserProfileID||''}`),
         apiGet('GetUserSettings',`&profileID=${currentUserProfileID||''}`)
@@ -1909,14 +1911,16 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
       else if(e.data?.action==='closeCompanion'){window.close();}
       else if(e.data?.action==='profileChanged'){
         currentUserProfileID=e.data.profileID;
-        const [menuData,srcsData,ulangsData]=await Promise.all([
+        const [menuData,srcsData,ulangsData,ownedData]=await Promise.all([
           apiGet('GetUserMenu',`&profileID=${currentUserProfileID||''}`),
           apiGet('GetHeadlineSources',`&profileID=${currentUserProfileID||''}`),
-          apiGet('GetUserLanguages',`&profileID=${currentUserProfileID||''}`)
+          apiGet('GetUserLanguages',`&profileID=${currentUserProfileID||''}`),
+          apiGet('GetUserOwnedSources')
         ]);
         userMenu=Array.isArray(menuData)?menuData:[];
         sources=Array.isArray(srcsData)?srcsData:sources;
         userLanguages=Array.isArray(ulangsData)?ulangsData:userLanguages;
+        userOwnedSources=Array.isArray(ownedData)?ownedData:userOwnedSources;
         renderLanguageScreens();renderLanguageCheckList();renderLanguageNav();
         const settingsScreenEl=document.getElementById('screen-settings');
         if(settingsScreenEl?.classList.contains('active')){
@@ -2073,30 +2077,44 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
         const _chrome=window.outerWidth-window.innerWidth||16;
         const _url=window.location.href.split('?')[0]+'?forceMode=Nav';
         const _navPopup=window.open(_url,'dailyme_nav',`width=${_panelW+_chrome},height=${screen.availHeight},left=${getNavPinLeft(_panelW,_chrome)},top=${getScreenOrigin().top},resizable=yes,scrollbars=no`);
-        // Only close THIS tab if the popup actually opened — a null/undefined return
-        // (or a window whose .closed flips true almost immediately) means the popup
-        // was blocked. Closing this tab in that case would leave the user with nothing.
-        const _popupOpened = !!(_navPopup && !_navPopup.closed);
-        if(_popupOpened){
-          try{window.close();}catch(e){}
-        }
-        // If close was blocked (or the popup never opened), show a clear message
-        // instead of silently going blank.
+        // A synchronous check right after window.open() is unreliable — some browsers
+        // return a live-looking window reference that gets torn down asynchronously a
+        // moment later (popup blocked, or blocked-and-discarded silently). Wait briefly
+        // and re-check .closed before deciding whether to close this tab.
         setTimeout(()=>{
-          const _ov=document.getElementById('loading-overlay');
-          if(_ov){
-            if(_lm)_lm.textContent='';
-            if(_ls){
-              _ls.style.fontStyle='normal';
-              if(_navPopup && !_navPopup.closed){
-                _ls.textContent='Daily Me has opened in a new window. You can close this tab.';
-              }else{
-                _ls.textContent='Your browser blocked the popup window. Please allow popups for this site, then refresh.';
-                _ls.style.color='#e05050';
+          const _popupAlive = !!(_navPopup && !_navPopup.closed);
+          if(_popupAlive){
+            try{
+              _navPopup.focus();
+              window.close();
+            }catch(e){}
+          }
+          // If close was blocked, or the popup never survived, show a clear message
+          // instead of silently going blank — never leave the user with nothing.
+          setTimeout(()=>{
+            const _ov=document.getElementById('loading-overlay');
+            if(_ov){
+              if(_lm)_lm.textContent='';
+              if(_ls){
+                _ls.style.fontStyle='normal';
+                if(_popupAlive){
+                  _ls.textContent='Daily Me has opened in a new window. You can close this tab.';
+                  _ls.style.color='';
+                }else{
+                  _ls.textContent='The Nav window didn\'t open — this can happen if popups are blocked. Please allow popups for this site, then click Refresh.';
+                  _ls.style.color='#e05050';
+                  // Give the user a way forward without needing to know how popups work.
+                  const _retryBtn=document.createElement('button');
+                  _retryBtn.textContent='↻ Refresh';
+                  _retryBtn.className='btn-primary';
+                  _retryBtn.style.cssText='margin-top:10px;padding:8px 18px;font-size:12px';
+                  _retryBtn.onclick=()=>window.location.reload();
+                  _ls.parentElement?.appendChild(_retryBtn);
+                }
               }
             }
-          }
-        },500);
+          },200);
+        },600);
         return; // stop — popup handles all data loading
       }
       if(_forceMode === 'Full') _navMode = false;
@@ -4609,11 +4627,14 @@ function renderSettingsKeywords(){
       return (a.GroupLabel||'').toLowerCase().localeCompare((b.GroupLabel||'').toLowerCase());
     });
     const thead=tbody.closest('table')?.querySelector('thead tr');
+    // Scope filter option lists to keywords visible in the CURRENT profile only —
+    // "keywords" itself is not profile-scoped (it holds every profile's keywords),
+    // so build dropdown options from the same profile-visible set used for the rows.
     const kwGroupFilter=document.getElementById('kw-group-filter')?.value||'';
-    const groupLabels=[...new Set(keywords.map(k=>k.GroupLabel).filter(Boolean))].sort();
+    const groupLabels=[...new Set(profileVisible.map(k=>k.GroupLabel).filter(Boolean))].sort();
     const groupOpts=`<option value="">All Groups</option>`+groupLabels.map(g=>`<option value="${g}" ${kwGroupFilter===g?'selected':''}>${g}</option>`).join('');
     const kwSrcFilter=document.getElementById('kw-src-filter')?.value||'';
-    const sourceNames=[...new Set(keywords.map(k=>k.SourceName).filter(Boolean))].sort();
+    const sourceNames=[...new Set(profileVisible.map(k=>k.SourceName).filter(Boolean))].sort();
     const srcOpts=`<option value="">All Sources</option>`+sourceNames.map(s=>`<option value="${s}" ${kwSrcFilter===s?'selected':''}>${s}</option>`).join('');
     const kwMenuFilter=document.getElementById('kw-menu-filter')?.value||'';
     const menuOpts=`<option value="">All Menus</option>`+userMenu.map(m=>`<option value="${m.UserMenuID}" ${kwMenuFilter==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('')+`<option value="none" ${kwMenuFilter==='none'?'selected':''}>— None —</option>`;
@@ -6370,8 +6391,13 @@ function renderMySourcesTable() {
     const msMenuFilter = document.getElementById('ms-menu-filter-hdr')?.value || '';
     const msActiveFilter = document.getElementById('ms-active-filter')?.value || '';
 
-    const types = [...new Set(userOwnedSources.map(s => s.SourceType).filter(Boolean))].sort();
-    const groups = [...new Set(userOwnedSources.map(s => s.GroupLabel).filter(Boolean))].sort();
+    // Scope filter option lists to sources visible in the CURRENT profile only —
+    // userOwnedSources itself is not profile-scoped (it holds every profile's My
+    // Sources), so build dropdown options from the same profile-visible set used
+    // for the rows, not the raw array.
+    const profileVisibleForFilters = userOwnedSources.filter(s => !s.UserMenuID || userMenu.some(m => m.UserMenuID === s.UserMenuID));
+    const types = [...new Set(profileVisibleForFilters.map(s => s.SourceType).filter(Boolean))].sort();
+    const groups = [...new Set(profileVisibleForFilters.map(s => s.GroupLabel).filter(Boolean))].sort();
     const ss = `style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderMySourcesTable()"`;
     const typeOpts = `<option value="">All Types</option>`+types.map(t=>`<option value="${t}" ${msTypeFilter===t?'selected':''}>${t}</option>`).join('');
     const groupOpts = `<option value="">All Groups</option>`+groups.map(g=>`<option value="${g}" ${msGroupFilter===g?'selected':''}>${g}</option>`).join('')+`<option value="__none__" ${msGroupFilter==='__none__'?'selected':''}>— None —</option>`;
