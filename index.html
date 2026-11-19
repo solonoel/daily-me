@@ -1134,7 +1134,7 @@
     const accent=dark||_lum(A)<0.6?A:_mix(A,'#000000',0.45);
     const v=dark
       ?{accent,border:'#3b4b61',bg:'#121822',hdr1:'#1d3a5f',hdr2:'#16304f',menu:'#1b2433',hover:'#26324a',active:'#2c4466',group:'#24344d',groupTxt:'#cfe3f7',tint:'#222d3f',surf:'#1e2735'}
-      :{accent,border:_mix(A,'#ffffff',0.5),bg:`linear-gradient(160deg,${_mix(A,'#ffffff',0.8)} 0%,${_mix(A,'#ffffff',0.9)} 100%)`,hdr1:A,hdr2:A,menu:_mix(A,'#ffffff',0.9),hover:_mix(A,'#ffffff',0.88),active:_mix(A,'#ffffff',0.7),group:A,groupTxt:_lum(A)<0.6?'#ffffff':'#1a1a1a',tint:_mix(A,'#ffffff',0.93)};
+      :{accent,border:_mix(A,'#ffffff',0.5),bg:`linear-gradient(160deg,${_mix(A,'#ffffff',0.8)} 0%,${_mix(A,'#ffffff',0.9)} 100%)`,hdr1:A,hdr2:A,menu:_mix(A,'#ffffff',0.9),hover:_mix(A,'#ffffff',0.88),active:_mix(A,'#ffffff',0.7),group:A,groupTxt:_lum(A)<0.6?'#ffffff':'#1a1a1a',tint:_mix(A,'#ffffff',0.93),row:_mix(A,'#ffffff',0.93),rowLine:_mix(A,'#ffffff',0.8)};
     el.textContent=`
 :root{--sky-deep:${v.accent};--border:${v.border};${dark?'--text:#e3ebf4;--text-soft:#a9bccf;--text-muted:#8197ad;':''}}
 body,.category-bar{background:${v.bg} !important}
@@ -1143,6 +1143,8 @@ body,.category-bar{background:${v.bg} !important}
 .nav-btn:hover,.nav-panel-btn:hover,.refresh-btn:hover,.btn-icon:hover,.btn-add:hover,.word-btn:hover,.fc-btn:hover,.fc-nav-btn:hover,.settings-nav-btn:hover,.lang-tab:hover,.searchable-combo-opt:hover,.conj-verb-opt:hover,.headline-row:hover,.word-row:hover,.settings-table tr:hover td,.flashcard-nav a:hover{background:${v.hover} !important}
 .nav-btn.active,.nav-btn-usermenu.active,.nav-panel-btn.active{background:${v.active} !important}
 .cat-group-header{background:${v.group} !important;color:${v.groupTxt} !important}
+${dark?'':`.cat-group,.cat-group-body,.headline-row{background:${v.row} !important}
+.headline-row{border-bottom-color:${v.rowLine} !important}`}
 .settings-nav-btn,.settings-table th,.badge,.word-deck-badge,.onboard-tip,.word-img-placeholder{background:${v.tint} !important}
 .nav-label{color:var(--text-soft)}
 .nav-btn.active .nav-label{color:var(--sky-deep)}
