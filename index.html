@@ -32,6 +32,8 @@
     .nav-label { font-size:11px; font-weight:600; letter-spacing:0.4px; color:#2a4a6a; }
     .nav-btn.active .nav-label { color:var(--sky-deep); }
     .nav-btn-usermenu.active { border:1.5px solid var(--sky-deep) !important; border-radius:6px; background:#cce0f5 !important; }
+    .nav-btn-usermenu.menu-empty, .nav-panel-btn.menu-empty { opacity:0.35; filter:grayscale(1); cursor:not-allowed; }
+    .nav-panel-btn.menu-empty:hover { background:white; border-color:#b0c8dc; }
     .nav-flag { height:14px; width:auto; border-radius:2px; }
     .main { padding:24px 32px; margin:0 auto; }
     .screen { display:none; animation:fadeIn 0.2s ease; }
@@ -418,7 +420,7 @@
             <button class="settings-nav-btn" onclick="openArticleAddModal()"><span id="article-add-icon"></span> Article Add</button>
             <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
               <span id="settings-save-status" style="font-size:11px;color:var(--sky-deep);font-weight:600"></span>
-              <button class="btn-primary" style="padding:7px 18px;font-size:12px" onclick="saveAllSettings()">💾 Save</button>
+              <button class="btn-primary" id="apply-changes-btn" style="padding:7px 18px;font-size:12px" onclick="applyPendingChanges()" disabled>Apply Pending Changes</button>
             </div>
           </div>
           <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px">
@@ -1251,6 +1253,7 @@ function showInCompanion(action,params={}){
     }
   }
   _companionChannel.onmessage=(e)=>{
+    if(e.data?.action==='applyPendingChanges'){reloadAppData();return;}
     if(e.data?.action==='getNavWidth'&&_navMode){
       _companionChannel.postMessage({action:'navWidthReply',width:window.innerWidth});
       return;
@@ -1476,6 +1479,72 @@ try{
     await applyZipCodeWeather(zip);
   }
 
+  function updateApplyBtn(){
+    const b=document.getElementById('apply-changes-btn');if(!b)return;
+    let pending=false;try{pending=localStorage.getItem(`dailyme_apply_pending_${USER_ID}`)==='1';}catch(e){}
+    b.disabled=!pending;b.style.opacity=pending?'':'0.45';b.style.cursor=pending?'':'not-allowed';
+    b.title=pending?'Update menus and lists with your saved changes':'No pending changes';
+  }
+  function setApplyPending(on){
+    try{if(on)localStorage.setItem(`dailyme_apply_pending_${USER_ID}`,'1');else localStorage.removeItem(`dailyme_apply_pending_${USER_ID}`);}catch(e){}
+    updateApplyBtn();
+  }
+  window.addEventListener('storage',e=>{if(e.key===`dailyme_apply_pending_${USER_ID}`)updateApplyBtn();});
+  document.addEventListener('change',e=>{
+    const id=e.target?.id||'';
+    if(id.startsWith('us-')&&id!=='us-zipcode'&&id!=='us-navbuttonsperrow'){debounceSaveCatLimits();setApplyPending(true);}
+  });
+  async function reloadAppData(){
+    const pid=currentUserProfileID||'';
+    const [menuData,srcsData,ownedData,kwData,ulangsData,us]=await Promise.all([
+      apiGet('GetUserMenu',`&profileID=${pid}`),
+      apiGet('GetHeadlineSources',`&profileID=${pid}`),
+      apiGet('GetUserOwnedSources'),
+      apiGet('GetHeadlineKeywords'),
+      apiGet('GetUserLanguages',`&profileID=${pid}`),
+      apiGet('GetUserSettings',`&profileID=${pid}`)
+    ]);
+    if(Array.isArray(menuData))userMenu=menuData;
+    if(Array.isArray(srcsData))sources=srcsData;
+    if(Array.isArray(ownedData))userOwnedSources=ownedData;
+    if(Array.isArray(kwData))keywords=kwData;
+    if(Array.isArray(ulangsData))userLanguages=ulangsData;
+    const hs=us?.headlineSetting;
+    if(hs){
+      if(hs.RecencyDays){recencyDays_value=hs.RecencyDays;const rv=document.getElementById('recency-val');if(rv)rv.textContent=recencyDays_value===1?'1 day':`${recencyDays_value} days`;}
+      collapseThreshold=hs.CollapseThreshold??collapseThreshold;
+    }
+    menuGroupSeqs={};
+    if(currentUserMenuFilter&&!userMenu.some(m=>m.UserMenuID===currentUserMenuFilter&&!m.IsInactive)){currentUserMenuFilter=null;currentUserMenuID=null;}
+    try{updateSiteTypeNavVisibility();}catch(e){}
+    renderLanguageNav();
+    if(currentUserMenuFilter){
+      try{
+        const seqs=await apiGet('GetMenuGroupSeq',`&menuID=${currentUserMenuFilter}`);
+        menuGroupSeqs[currentUserMenuFilter]={};
+        if(Array.isArray(seqs))seqs.forEach(x=>menuGroupSeqs[currentUserMenuFilter][x.GroupLabel]=x.GroupSeq);
+      }catch(e){}
+      const b=document.getElementById(`nav-usermenu-${currentUserMenuFilter}`)||document.getElementById(`nav-panel-btn-${currentUserMenuFilter}`);
+      if(b)b.classList.add('active');
+    }
+    allHeadlinesCache=[];
+    await loadHeadlines(true);
+    const settingsScreenEl=document.getElementById('screen-settings');
+    if(settingsScreenEl?.classList.contains('active')&&currentSettingsSection)await renderSettingsSection(currentSettingsSection);
+  }
+  async function applyPendingChanges(){
+    const btn=document.getElementById('apply-changes-btn');
+    if(btn)btn.disabled=true;
+    await saveAllSettings();
+    setApplyPending(false);
+    try{_companionChannel.postMessage({action:'applyPendingChanges'});}catch(e){}
+    const status=document.getElementById('settings-save-status');
+    if(status)status.textContent='Applying...';
+    await reloadAppData();
+    if(status){status.textContent='✓ Applied';setTimeout(()=>{if(status.textContent==='✓ Applied')status.textContent='';},3000);}
+  }
+  updateApplyBtn();
+
   async function saveAllSettings(){
     const status=document.getElementById('settings-save-status');
     if(status)status.textContent='Saving...';
@@ -1658,7 +1727,7 @@ try{
     if(!grid)return;
     const navPanelScroll=document.getElementById('nav-panel-scroll');
     const emptyIDs=new Set((window._emptyMenuNames||[]).map(name=>{const m=userMenu.find(u=>u.UserMenuName===name);return m?m.UserMenuID:null;}).filter(Boolean));
-    const activeMenu=userMenu.filter(m=>!m.IsInactive&&!emptyIDs.has(m.UserMenuID)).map(m=>({kind:'menu',seq:m.UserMenuSeq||99,data:m}));
+    const activeMenu=userMenu.filter(m=>!m.IsInactive).map(m=>({kind:'menu',seq:m.UserMenuSeq||99,data:m}));
     const activeLangs=userLanguages.filter(ul=>ul.IsActive==='Y').map(ul=>{
       const lang=allLanguages.find(l=>l.LanguageID===ul.LanguageID);
       return lang?{kind:'lang',seq:ul.MenuSeq||99,data:lang}:null;
@@ -1694,7 +1763,8 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
         ?`<img src="${m.UserMenuImage}" style="width:22px;height:22px;border-radius:3px;object-fit:cover">`
         :`<span style="font-size:16px">📋</span>`;
       const isActive=currentUserMenuFilter===m.UserMenuID;
-      return `<button class="nav-panel-btn ${isActive?'active':''}" id="nav-panel-btn-${m.UserMenuID}" onclick="showUserMenuItems(${m.UserMenuID},'${m.UserMenuName.replace(/'/g,"\\'")}')">
+      const isEmpty=emptyIDs.has(m.UserMenuID);
+      return `<button class="nav-panel-btn ${isActive?'active':''} ${isEmpty?'menu-empty':''}" ${isEmpty?'disabled title="No articles"':''} id="nav-panel-btn-${m.UserMenuID}" onclick="showUserMenuItems(${m.UserMenuID},'${m.UserMenuName.replace(/'/g,"\\'")}')">
         ${imgHTML}
         <span class="nav-panel-btn-label">${m.UserMenuName}</span>
       </button>`;
@@ -1832,6 +1902,7 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
   }
 
   async function apiPost(endpoint,body){
+    if(['SaveCategory','SaveKeyword','SaveSource','SaveTopic','SaveUserMenu','SaveUserOwnedSource'].includes(endpoint))setApplyPending(true);
     try{
       const res=await fetch(`${API_BASE}/${endpoint}?code=${API_KEY}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
       const text=await res.text();
@@ -1909,6 +1980,7 @@ const panelWidth=parseInt(document.getElementById('us-navbuttonsperrow')?.value)
       if(e.data?.action==='showSettings'){showScreen('settings');window.focus();}
       else if(e.data?.action==='showLanguage'){visitLanguage(e.data.langID,e.data.langName);window.focus();}
       else if(e.data?.action==='closeCompanion'){window.close();}
+      else if(e.data?.action==='applyPendingChanges'){reloadAppData();}
       else if(e.data?.action==='profileChanged'){
         currentUserProfileID=e.data.profileID;
         const [menuData,srcsData,ulangsData,ownedData]=await Promise.all([
@@ -2485,7 +2557,11 @@ function renderLanguageNav(){
         </div>
         <input type="file" id="mw-import-input" accept=".txt,.csv" style="display:none" onchange="importWords(event)">
         <button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="document.getElementById('mw-import-input').click()">&#x2B06; Import</button>
-        <button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="retranslateAllWords()">&#x21bb; Retranslate Current</button>
+        <a href="#" onclick="showImportHelp();return false;" title="Import file requirements" style="font-size:11px;font-weight:700;color:var(--sky-deep);text-decoration:none;border:1.5px solid var(--sky-deep);border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;margin-left:-4px">?</a>
+        <select id="mw-export-filter-${langID}" title="Words to export" style="padding:4px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);background:white">
+          ${['active','flagged','mastered','all'].map(k=>`<option value="${k}" ${myWordsFilter===k?'selected':''}>${k[0].toUpperCase()+k.slice(1)}</option>`).join('')}
+        </select>
+        <button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="exportWords()">&#x2B07; Export</button>
         <span id="mw-import-status" style="display:none;font-size:11px;color:var(--sky-deep);font-weight:600;white-space:nowrap"></span>
       </div>
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px;margin-bottom:10px">
@@ -2546,39 +2622,38 @@ function renderLanguageNav(){
       setTimeout(()=>{document.addEventListener('click',dismiss);document.addEventListener('keydown',dismiss);},100);
     }
   }
-  async function retranslateAllWords(){
-    const verbFiltered=verbFilter==='verbs'?myWords.filter(w=>w.IsVerb==='Y'):verbFilter==='nouns'?myWords.filter(w=>w.IsVerb!=='Y'):myWords;
-    const deckFiltered=myWordsDeckFilter?verbFiltered.filter(w=>w.DeckIDs&&w.DeckIDs.includes(parseInt(myWordsDeckFilter))):verbFiltered;
-    const statusFiltered=myWordsFilter==='active'?deckFiltered.filter(w=>!w.DateMastered):myWordsFilter==='flagged'?deckFiltered.filter(w=>w.Flag):myWordsFilter==='mastered'?deckFiltered.filter(w=>w.DateMastered):deckFiltered;
-    const wordsToTranslate=wordSearch?statusFiltered.filter(w=>{const n=(w.WordsName||'').toLowerCase(),t=(w.WordsTranslation||'').toLowerCase();return n.includes(wordSearch)||t.includes(wordSearch);}):statusFiltered;
-    if(wordsToTranslate.length>=25&&!confirm('Re-fetch translations for '+wordsToTranslate.length+' displayed words? This may take a while.'))return;
-    const statusEl=getImportStatusEl();
-    if(statusEl){statusEl.textContent='Re-translating...';statusEl.style.display='inline';}
-    let updated=0,failed=0;
-    for(const w of wordsToTranslate){
-      try{
-        const trans=await translateWord(w.WordsName);
-        let wordsName=trans.wordWithRegion||w.WordsName;
-        const isVerb=trans.isVerb===true||trans.isVerb==='true';
-        const gender=trans.gender||w.Gender||null;
-        const wordsTranslation=trans.translation||w.WordsTranslation||'';
-        if(gender&&!isVerb){const art=langArticles[currentLangName]?.[gender];if(art&&!wordsName.toLowerCase().startsWith(art+' '))wordsName=art+' '+wordsName;}
-        await apiPost('SaveUserLanguageWord',{action:'update',userID:USER_ID,wordID:w.UserLanguageWordsID,
-          wordsName,wordsTranslation,isVerb,gender,mastered:!!w.DateMastered,wordsImage:w.WordsImage||null});
-        w.WordsName=wordsName;w.WordsTranslation=wordsTranslation;w.IsVerb=isVerb?'Y':'N';w.Gender=gender;
-        updated++;
-        if(statusEl)statusEl.textContent='Re-translating... '+updated+'/'+wordsToTranslate.length;
-      }catch(e){failed++;}
-    }
-    const doneMsg='Done - '+updated+' words re-translated'+(failed?' ('+failed+' failed)':'')+'.'
-    await loadMyWords();
-    const freshEl=getImportStatusEl();
-    if(freshEl){
-      freshEl.textContent=doneMsg;freshEl.style.display='inline';
-      const dismiss=()=>{freshEl.style.display='none';document.removeEventListener('click',dismiss);};
-      setTimeout(()=>dismiss(),5000);
-      setTimeout(()=>document.addEventListener('click',dismiss),100);
-    }
+  function downloadTextFile(name,text){
+    const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  }
+  function exportWords(){
+    const f=document.getElementById('mw-export-filter-'+currentLangID)?.value||'all';
+    const words=f==='active'?myWords.filter(w=>!w.DateMastered):f==='flagged'?myWords.filter(w=>w.Flag):f==='mastered'?myWords.filter(w=>w.DateMastered):myWords;
+    const clean=s=>String(s||'').replace(/[\r\n|]+/g,' ').trim();
+    const rows=[];
+    words.forEach(w=>{
+      const deckNames=(w.DeckNames||'').split(',').map(s=>s.trim()).filter(Boolean);
+      if(!deckNames.length){rows.push([w.WordsName,w.WordsTranslation,'','']);return;}
+      deckNames.forEach(dn=>{const d=userDecks.find(x=>x.UserLanguageWordsDeckName===dn);rows.push([w.WordsName,w.WordsTranslation,dn,d?.Status||'']);});
+    });
+    if(!rows.length)return alert('No words to export for that filter.');
+    rows.sort((a,b)=>a[2].localeCompare(b[2])||String(a[0]).localeCompare(String(b[0])));
+    const date=new Date().toISOString().slice(0,10);
+    downloadTextFile(`${currentLangName}-words-${f}-${date}.txt`,rows.map(r=>r.map(clean).join(' | ')).join('\r\n'));
+  }
+  function showImportHelp(){
+    const msg='IMPORT FILE REQUIREMENTS\n\n'+
+      '• Plain text file (.txt or .csv)\n'+
+      '• One '+currentLangName+' word or phrase per line\n'+
+      '• Only the word is needed - translation, verb/noun and gender are looked up automatically\n'+
+      '• Articles (el/la) are added to nouns automatically\n'+
+      '• If a line has a comma or tab, only the first value is used\n'+
+      '• Blank lines are ignored; words already in My Words are skipped\n'+
+      '• Imported words are not put in a deck - assign them afterward\n\n'+
+      'Click OK to save a sample import file, or Cancel to close.';
+    if(confirm(msg))downloadTextFile(`${currentLangName}-import-sample.txt`,['casa','perro','correr','comer','la biblioteca','buenos días'].join('\r\n'));
   }
   function setWordsFilter(filter){myWordsFilter=filter;renderMyWords();}
   function mwSort(col){if(mwSortCol===col)mwSortDir=mwSortDir==='asc'?'desc':'asc';else{mwSortCol=col;mwSortDir='asc';}renderMyWords();}
@@ -3772,16 +3847,17 @@ async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
       const srcCount=userOwnedSources.filter(s=>!s.IsInactive&&s.UserMenuID===m.UserMenuID).length;
       const hlCount=allData.filter(h=>h.UserMenuID===m.UserMenuID).length;
       const count=srcCount+hlCount;
-      const btn=document.getElementById(`nav-usermenu-${m.UserMenuID}`);
-      if(!btn)return;
-      const countEl=btn.querySelector('.nav-menu-count');
-      if(countEl)countEl.textContent=count>0?`(${count})`:'';
-      if(count===0){
-        btn.style.display='none';
-        window._emptyMenuNames.push(m.UserMenuName);
-      } else {
+      if(count===0)window._emptyMenuNames.push(m.UserMenuName);
+      [`nav-usermenu-${m.UserMenuID}`,`nav-panel-btn-${m.UserMenuID}`].forEach(id=>{
+        const btn=document.getElementById(id);
+        if(!btn)return;
+        const countEl=btn.querySelector('.nav-menu-count');
+        if(countEl)countEl.textContent=count>0?`(${count})`:'';
         btn.style.display='';
-      }
+        btn.disabled=count===0;
+        btn.classList.toggle('menu-empty',count===0);
+        btn.title=count===0?'No articles':'';
+      });
     });
   }
 
@@ -3892,6 +3968,24 @@ const now=new Date();
     if(h===0)return`${m}m`;
     return m===0?`${h}h`:`${h}h ${m}m`;
   }
+    function formatAgo(pubDate){
+    if(!pubDate)return null;
+    const totalMins=Math.floor(Math.max(0,Date.now()-new Date(pubDate))/60000);
+    if(totalMins<1)return'<1m';
+    const d=Math.floor(totalMins/1440),h=Math.floor((totalMins%1440)/60),m=totalMins%60;
+    if(d>0)return h===0?`${d}d`:`${d}d ${h}h`;
+    if(h===0)return`${m}m`;
+    return m===0?`${h}h`:`${h}h ${m}m`;
+  }
+  function refreshAgoLabels(){
+    document.querySelectorAll('.ago-label[data-pub]').forEach(el=>{
+      const v=formatAgo(el.dataset.pub);
+      if(v&&el.textContent!==v)el.textContent=v;
+    });
+  }
+  setInterval(refreshAgoLabels,60000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshAgoLabels();});
+
   function formatDate(dateStr,includeTime=false){
     if(!dateStr)return'—';
     const d=new Date(dateStr);
@@ -3944,8 +4038,9 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
         const container=document.getElementById(cid);
         if(!container)return;
         const totalCount=container.querySelectorAll('.headline-row').length;
-        const shouldExpand=val;
-        container.querySelectorAll('.cat-group-body,.teams-group-body').forEach(b=>{
+        const bodies=container.querySelectorAll('.cat-group-body,.teams-group-body');
+        const shouldExpand=val||bodies.length===1;
+        bodies.forEach(b=>{
           b.style.display=shouldExpand?'block':'none';
           const arrow=b.previousElementSibling?.querySelector('.group-arrow,.teams-group-arrow');
           if(arrow)arrow.textContent=shouldExpand?'▼':'▶';
@@ -4007,8 +4102,9 @@ const makeSourceRow=s=>{
       return `<div class="headline-row" onclick="openSourceEntry('${escapedURL}','${(s.SourceType||'').replace(/'/g,"\\'")}');return false;">${thumb}<div class="headline-body"><div class="headline-row-title">${s.SourceName}</div>${s.Description?`<div class="headline-row-summary">${s.Description}</div>`:''}<div class="headline-row-meta"><span class="badge">${s.SourceType}</span></div></div>${articleBtns}</div>`;
     };
     const sourceRowsByGroup={};
-    menuSources.forEach(s=>{
-      const key=s.GroupLabel||'Links';
+    const ungroupedSources=menuSources.filter(s=>!(s.GroupLabel||'').trim());
+    menuSources.filter(s=>(s.GroupLabel||'').trim()).forEach(s=>{
+      const key=s.GroupLabel;
       if(!sourceRowsByGroup[key])sourceRowsByGroup[key]=[];
       sourceRowsByGroup[key].push(makeSourceRow(s));
     });
@@ -4044,7 +4140,8 @@ const makeSourceRow=s=>{
     });
 
     const totalVisible=headlines.length+menuSources.length;
-    document.getElementById('headlines-grouped').innerHTML=orderedKeys.map(groupName=>{
+    const linksHTML=ungroupedSources.length?`<div id="ungrouped-links" style="margin-bottom:8px">${ungroupedSources.map(s=>makeSourceRow(s).replace('<div class="headline-row"',`<div class="headline-row ungrouped-link" draggable="true" data-srcid="${s.UserOwnedSourceID}"`)).join('')}</div>`:'';
+    document.getElementById('headlines-grouped').innerHTML=linksHTML+orderedKeys.map(groupName=>{
       const items=groups[groupName]||[];
       const srcRows=(sourceRowsByGroup[groupName]||[]).join('');
       const totalCount=(sourceRowsByGroup[groupName]||[]).length+items.length;
@@ -4054,7 +4151,7 @@ const makeSourceRow=s=>{
       const dataGroupAttr=`data-group="${groupName.replace(/"/g,'&quot;')}"`;
       const draggableAttr=currentUserMenuFilter?`draggable="true" ${dataGroupAttr}`:dataGroupAttr;
       const groupExplicit=groupCollapseState[groupName];
-      const isExpanded=groupExplicit!==undefined?groupExplicit:(groupsExpanded||totalVisible<=collapseThreshold);
+      const isExpanded=orderedKeys.length===1?true:(groupExplicit!==undefined?groupExplicit:(groupsExpanded||totalVisible<=collapseThreshold));
       const rows=items.map(h=>`
         <div class="headline-row ${h.Retain==='Y'?'retained':''}" data-headline-id="${h.HeadlineID}" onclick="openHeadline('${h.Link.replace(/'/g,"\\'")}')">
           <img src="${resolveHeadlineImage(h)||'images/newspaper.svg'}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">
@@ -4062,7 +4159,7 @@ const makeSourceRow=s=>{
             <div class="headline-row-title">${h.HeadlineName}</div>
             ${_navMode?'':(h.Summary?`<div class="headline-row-summary">${h.Summary}</div>`:'')}
             <div class="headline-row-meta">
-              ${(()=>{const rel=h.PublishedDate&&h.CreatedDate?formatReleased(h.PublishedDate,h.CreatedDate):null;const dt=formatDate(h.PublishedDate||h.CreatedDate,true);return`<span class="headline-row-source">${rel?`${rel} ago (${dt})`:`date: ${dt}`}</span>`;})()}
+              ${(()=>{const dt=formatDate(h.PublishedDate||h.CreatedDate,true);return h.PublishedDate?`<span class="headline-row-source"><span class="ago-label" data-pub="${h.PublishedDate}">${formatAgo(h.PublishedDate)}</span> ago (${dt})</span>`:`<span class="headline-row-source">date: ${dt}</span>`;})()}
               ${h.ChannelName?'':`<span class="headline-row-source">source: ${h.SourceName||'—'}</span>`}
               ${(h.Keyword||h.Topic?`<span class="headline-row-source">keyword: ${h.Keyword||h.Topic}</span>`:'')}
               ${(h.ChannelName?`<a href="${h.ChannelURL}" onclick="event.stopPropagation()" target="_blank" class="headline-channel">▶ ${h.ChannelName}</a>`:'')}
@@ -4081,6 +4178,7 @@ const makeSourceRow=s=>{
       </div>`;
     }).join('');
     if(currentUserMenuFilter)initGroupDragDrop(document.getElementById('headlines-grouped'));
+    initLinkDragDrop(document.getElementById('ungrouped-links'));
   }
   function applyGroupCollapseState(){
     const menuSrcs=currentUserMenuFilter
@@ -4280,7 +4378,7 @@ let _pdfClosing=false;
       const items=groups[groupName];
       const countLabel=items.length>1?` <span style="opacity:0.6;font-weight:500">(${items.length})</span>`:'';
       const teamsExplicit=teamsGroupCollapseState[groupName];
-      const isExpanded=teamsExplicit!==undefined?teamsExplicit:(teamsGroupsExpanded||teamsHeadlines.length<=collapseThreshold);
+      const isExpanded=orderedKeys.length===1?true:(teamsExplicit!==undefined?teamsExplicit:(teamsGroupsExpanded||teamsHeadlines.length<=collapseThreshold));
       const rows=items.map(h=>`
         <div class="headline-row ${h.Retain==='Y'?'retained':''}" data-headline-id="${h.HeadlineID}" onclick="openHeadline('${h.Link.replace(/'/g,"\\'")}')">
           <img src="${resolveHeadlineImage(h)||'images/newspaper.svg'}" alt="" class="headline-thumb" onerror="this.src='images/newspaper.svg'">
@@ -5112,6 +5210,38 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
     });
   }
 
+  function initLinkDragDrop(box){
+    if(!box)return;
+    let dragSrc=null,moved=false;
+    box.querySelectorAll('.ungrouped-link').forEach(row=>{
+      row.addEventListener('dragstart',e=>{dragSrc=row;moved=false;row.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.stopPropagation();});
+      row.addEventListener('dragover',e=>{
+        e.preventDefault();
+        box.querySelectorAll('.ungrouped-link').forEach(r=>r.classList.remove('drag-over','drag-over-below'));
+        if(!dragSrc||row===dragSrc)return;
+        const r=row.getBoundingClientRect();
+        row.classList.add(e.clientY<r.top+r.height/2?'drag-over':'drag-over-below');
+      });
+      row.addEventListener('drop',e=>{
+        e.preventDefault();e.stopPropagation();
+        if(!dragSrc||dragSrc===row)return;
+        const r=row.getBoundingClientRect();
+        if(e.clientY<r.top+r.height/2)row.before(dragSrc);else row.after(dragSrc);
+        moved=true;
+      });
+      row.addEventListener('dragend',()=>{
+        box.querySelectorAll('.ungrouped-link').forEach(r=>r.classList.remove('dragging','drag-over','drag-over-below'));
+        if(!moved)return;
+        const items=[...box.querySelectorAll('.ungrouped-link')].map(r=>userOwnedSources.find(u=>u.UserOwnedSourceID===parseInt(r.dataset.srcid))).filter(Boolean);
+        const slots=items.map(x=>x.Sequence).sort((a,b)=>a-b);
+        const reuse=slots.every(v=>v!=null)&&new Set(slots).size===slots.length;
+        const sequences=items.map((x,i)=>({sourceID:x.UserOwnedSourceID,sequence:reuse?slots[i]:i+1}));
+        sequences.forEach(q=>{const x=userOwnedSources.find(u=>u.UserOwnedSourceID===q.sourceID);if(x)x.Sequence=q.sequence;});
+        apiPost('SaveUserOwnedSource',{action:'reorder',userID:USER_ID,sequences});
+      });
+    });
+  }
+
   function initGroupDragDrop(container){
     let dragSrc=null;
     container.querySelectorAll('.cat-group[draggable]').forEach(group=>{
@@ -5899,7 +6029,7 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       // Hidden menus
       if(window._emptyMenuNames?.length){
         html+=`<div style="background:#f0f7ff;border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-soft)">
-          <strong>🔕 Hidden menus (no results):</strong> ${window._emptyMenuNames.join(', ')}
+          <strong>🔕 Disabled menus (no results):</strong> ${window._emptyMenuNames.join(', ')}
         </div>`;
       }
       
