@@ -431,6 +431,15 @@
                 <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="us-launchmode" value="Nav" onchange="debounceSaveCatLimits()" style="accent-color:var(--sky-deep)"> Nav</label>
               </div>
             </div>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Theme</div>
+              <div style="display:flex;gap:12px;margin-top:4px;align-items:center">
+                <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="dm-theme" value="default" onchange="setTheme('default')" style="accent-color:var(--sky-deep)"> Default</label>
+                <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="dm-theme" value="dark" onchange="setTheme('dark')" style="accent-color:var(--sky-deep)"> Dark</label>
+                <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="dm-theme" value="color" onchange="setTheme('color')" style="accent-color:var(--sky-deep)"> Color</label>
+                <input type="color" id="dm-theme-color" value="#2b7fd4" oninput="setTheme('color',this.value)" title="Pick a theme color" style="width:28px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:none">
+              </div>
+            </div>
             <div id="nav-width-row" style="display:none">
               <div style="font-size:11px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Nav Bar Width</div>
               <span id="nav-width-display" style="font-size:12px;font-weight:600;color:var(--text)">—px</span>
@@ -1085,6 +1094,47 @@
   const storedUser = JSON.parse(localStorage.getItem('dailyme_user') || 'null');
   if (!storedUser) window.location.href = 'login.html';
   const USER_ID = storedUser?.userID || 1;
+  // ── THEME ──
+  function _hexToRgb(h){h=(h||'').replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16);return isNaN(n)?[43,127,212]:[(n>>16)&255,(n>>8)&255,n&255];}
+  function _mix(hex,withHex,amt){const a=_hexToRgb(hex),b=_hexToRgb(withHex);return '#'+a.map((v,i)=>Math.round(v+(b[i]-v)*amt).toString(16).padStart(2,'0')).join('');}
+  function _lum(hex){const [r,g,b]=_hexToRgb(hex);return (0.299*r+0.587*g+0.114*b)/255;}
+  function getTheme(){try{return JSON.parse(localStorage.getItem(`dailyme_theme_${USER_ID}`)||'null')||{mode:'default'};}catch(e){return{mode:'default'};}}
+  function setTheme(mode,color){
+    const t={mode:color?'color':mode,color:color||getTheme().color||'#2b7fd4'};
+    try{localStorage.setItem(`dailyme_theme_${USER_ID}`,JSON.stringify(t));}catch(e){}
+    applyTheme();
+  }
+  function applyTheme(){
+    const t=getTheme();
+    let el=document.getElementById('dm-theme-style');
+    if(!el){el=document.createElement('style');el.id='dm-theme-style';document.head.appendChild(el);}
+    document.querySelectorAll('input[name="dm-theme"]').forEach(r=>r.checked=r.value===t.mode);
+    const cp=document.getElementById('dm-theme-color');if(cp&&t.color)cp.value=t.color;
+    if(t.mode!=='dark'&&t.mode!=='color'){el.textContent='';return;}
+    const dark=t.mode==='dark';
+    const A=dark?'#5aa9f0':(t.color||'#2b7fd4');
+    const accent=dark||_lum(A)<0.6?A:_mix(A,'#000000',0.45);
+    const v=dark
+      ?{accent,border:'#3b4b61',bg:'#121822',hdr1:'#1d3a5f',hdr2:'#16304f',menu:'#1b2433',hover:'#26324a',active:'#2c4466',group:'#24344d',groupTxt:'#cfe3f7',tint:'#222d3f',surf:'#1e2735'}
+      :{accent,border:_mix(A,'#ffffff',0.5),bg:`linear-gradient(160deg,${_mix(A,'#ffffff',0.8)} 0%,${_mix(A,'#ffffff',0.9)} 100%)`,hdr1:accent,hdr2:_mix(accent,'#ffffff',0.25),menu:_mix(A,'#ffffff',0.9),hover:_mix(A,'#ffffff',0.88),active:_mix(A,'#ffffff',0.7),group:_mix(A,'#ffffff',0.72),groupTxt:_mix(A,'#000000',0.55),tint:_mix(A,'#ffffff',0.93)};
+    el.textContent=`
+:root{--sky-deep:${v.accent};--border:${v.border};${dark?'--text:#e3ebf4;--text-soft:#a9bccf;--text-muted:#8197ad;':''}}
+body,.category-bar{background:${v.bg} !important}
+.header{background:linear-gradient(135deg,${v.hdr1} 0%,${v.hdr2} 100%) !important}
+.nav{background:${v.menu} !important}
+.nav-btn:hover,.nav-panel-btn:hover,.refresh-btn:hover,.btn-icon:hover,.btn-add:hover,.word-btn:hover,.fc-btn:hover,.fc-nav-btn:hover,.settings-nav-btn:hover,.lang-tab:hover,.searchable-combo-opt:hover,.conj-verb-opt:hover,.headline-row:hover,.word-row:hover,.settings-table tr:hover td,.flashcard-nav a:hover{background:${v.hover} !important}
+.nav-btn.active,.nav-btn-usermenu.active,.nav-panel-btn.active{background:${v.active} !important}
+.cat-group-header{background:${v.group} !important;color:${v.groupTxt} !important}
+.settings-nav-btn,.settings-table th,.badge,.word-deck-badge,.onboard-tip,.word-img-placeholder{background:${v.tint} !important}
+.nav-label{color:var(--text-soft)}
+.nav-btn.active .nav-label{color:var(--sky-deep)}
+${dark?`.headline-row,.settings-deck,.settings-table,.modal,.form-select,.form-input,.btn-secondary,.btn-icon,.recency-pill,.refresh-btn,.lang-compact-header,.lang-feature-panel,.lang-tab-active,.filter-btn:not(.active),.word-grid,.word-btn,.newword-form,.flashcard,.fc-btn,.fc-nav-btn,.conj-mood,.conj-verb-picker,.conj-verb-dropdown,.deck-words-screen,.searchable-combo-dropdown,.nav-panel-btn,.onboard-card,.nav-panel-btn.menu-empty:hover{background:${v.surf} !important;color:var(--text)}
+input,select,textarea{background:${v.surf};color:var(--text)}
+[style*="background:white"],[style*="background: white"],[style*="background:#fff"],[style*="background:#f5f9ff"],[style*="background:#f0f7ff"],[style*="background:#f8fbff"]{background:${v.surf} !important}
+.settings-table td,.settings-table th{color:var(--text)}`:''}`;
+  }
+  window.addEventListener('storage',e=>{if(e.key===`dailyme_theme_${USER_ID}`)applyTheme();});
+  applyTheme();
   const _isCompanion = new URLSearchParams(window.location.search).get('mode') === 'companion';
   const _isHiddenPreload = new URLSearchParams(window.location.search).get('hidden') === '1';
   // Apply cached mode immediately to prevent unstyled flash during cold start
@@ -3862,7 +3912,7 @@ async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
   function updateMenuNavCounts(allData){
     window._emptyMenuNames = [];
     userMenu.filter(m=>!m.IsInactive).forEach(m=>{
-      const srcCount=userOwnedSources.filter(s=>!s.IsInactive&&s.UserMenuID===m.UserMenuID).length;
+      const srcCount=userOwnedSources.filter(s=>!s.IsInactive&&s.UserMenuID===m.UserMenuID&&s.SourceType!=='YT Sub'&&!(s.IsSysHeader===1||s.IsSysHeader===true)).length;
       const hlCount=allData.filter(h=>h.UserMenuID===m.UserMenuID).length;
       const count=srcCount+hlCount;
       if(count===0)window._emptyMenuNames.push(m.UserMenuName);
@@ -7149,6 +7199,7 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
       }
       navDate.parentNode.insertBefore(btn,navDate);
     });
+    if(window._emptyMenuNames)updateMenuNavCounts(allHeadlinesCache.filter(h=>!deletedLinks.has(h.Link)));
   }
 
   function renderUserMenuTable(){
