@@ -34,6 +34,7 @@
     .nav-btn-usermenu.active { border:1.5px solid var(--sky-deep) !important; border-radius:6px; background:#cce0f5 !important; }
     .nav-btn-usermenu.menu-empty, .nav-panel-btn.menu-empty { opacity:0.35; filter:grayscale(1); cursor:not-allowed; }
     .nav-panel-btn.menu-empty:hover { background:white; border-color:#b0c8dc; }
+    .menu-link-item { margin-bottom:6px; border:1.5px solid var(--border); border-radius:10px; overflow:hidden; }
     .nav-flag { height:14px; width:auto; border-radius:2px; }
     .main { padding:24px 32px; margin:0 auto; }
     .screen { display:none; animation:fadeIn 0.2s ease; }
@@ -4229,8 +4230,15 @@ const makeSourceRow=s=>{
     });
 
     const totalVisible=headlines.length+menuSources.length;
-    const linksHTML=ungroupedSources.length?`<div id="ungrouped-links" style="margin-bottom:8px">${ungroupedSources.map(s=>makeSourceRow(s).replace('<div class="headline-row"',`<div class="headline-row ungrouped-link" draggable="true" data-srcid="${s.UserOwnedSourceID}"`)).join('')}</div>`:'';
-    document.getElementById('headlines-grouped').innerHTML=linksHTML+orderedKeys.map(groupName=>{
+    let layout=[...ungroupedSources.map(s=>({kind:'link',key:`__src:${s.UserOwnedSourceID}`,s})),...orderedKeys.map(g=>({kind:'group',key:g}))];
+    if(currentUserMenuFilter){
+      const ms=menuGroupSeqs[currentUserMenuFilter]||{};
+      const rank=it=>ms[it.key]!==undefined?ms[it.key]:(it.kind==='link'?-1:Infinity);
+      layout=layout.map((it,i)=>({...it,i})).sort((a,b)=>{const ra=rank(a),rb=rank(b);return ra!==rb?ra-rb:a.i-b.i;});
+    }
+    document.getElementById('headlines-grouped').innerHTML=layout.map(it=>{
+      if(it.kind==='link')return `<div class="menu-link-item" ${currentUserMenuFilter?'draggable="true"':''} data-group="${it.key}">${makeSourceRow(it.s)}</div>`;
+      const groupName=it.key;
       const items=groups[groupName]||[];
       const srcRows=(sourceRowsByGroup[groupName]||[]).join('');
       const totalCount=(sourceRowsByGroup[groupName]||[]).length+items.length;
@@ -4267,7 +4275,6 @@ const makeSourceRow=s=>{
       </div>`;
     }).join('');
     if(currentUserMenuFilter)initGroupDragDrop(document.getElementById('headlines-grouped'));
-    initLinkDragDrop(document.getElementById('ungrouped-links'));
   }
   function applyGroupCollapseState(){
     const menuSrcs=currentUserMenuFilter
@@ -5298,65 +5305,34 @@ const stripped=clause.replace(/-?"[^"]+"|(-\S+)/g,'').trim();
       row.addEventListener('drop',e=>{e.preventDefault();if(dragSrc&&dragSrc!==row){dragMoved=true;const rows=[...tbody.querySelectorAll('tr')];const si=rows.indexOf(dragSrc),ti=rows.indexOf(row);if(si<ti)row.after(dragSrc);else row.before(dragSrc);}});
     });
   }
-
-  function initLinkDragDrop(box){
-    if(!box)return;
-    let dragSrc=null,moved=false;
-    box.querySelectorAll('.ungrouped-link').forEach(row=>{
-      row.addEventListener('dragstart',e=>{dragSrc=row;moved=false;row.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.stopPropagation();});
-      row.addEventListener('dragover',e=>{
-        e.preventDefault();
-        box.querySelectorAll('.ungrouped-link').forEach(r=>r.classList.remove('drag-over','drag-over-below'));
-        if(!dragSrc||row===dragSrc)return;
-        const r=row.getBoundingClientRect();
-        row.classList.add(e.clientY<r.top+r.height/2?'drag-over':'drag-over-below');
-      });
-      row.addEventListener('drop',e=>{
-        e.preventDefault();e.stopPropagation();
-        if(!dragSrc||dragSrc===row)return;
-        const r=row.getBoundingClientRect();
-        if(e.clientY<r.top+r.height/2)row.before(dragSrc);else row.after(dragSrc);
-        moved=true;
-      });
-      row.addEventListener('dragend',()=>{
-        box.querySelectorAll('.ungrouped-link').forEach(r=>r.classList.remove('dragging','drag-over','drag-over-below'));
-        if(!moved)return;
-        const items=[...box.querySelectorAll('.ungrouped-link')].map(r=>userOwnedSources.find(u=>u.UserOwnedSourceID===parseInt(r.dataset.srcid))).filter(Boolean);
-        const slots=items.map(x=>x.Sequence).sort((a,b)=>a-b);
-        const reuse=slots.every(v=>v!=null)&&new Set(slots).size===slots.length;
-        const sequences=items.map((x,i)=>({sourceID:x.UserOwnedSourceID,sequence:reuse?slots[i]:i+1}));
-        sequences.forEach(q=>{const x=userOwnedSources.find(u=>u.UserOwnedSourceID===q.sourceID);if(x)x.Sequence=q.sequence;});
-        apiPost('SaveUserOwnedSource',{action:'reorder',userID:USER_ID,sequences});
-      });
-    });
-  }
-
   function initGroupDragDrop(container){
+    const SEL='.cat-group[draggable],.menu-link-item[draggable]';
+    const ALL='.cat-group,.menu-link-item';
     let dragSrc=null;
-    container.querySelectorAll('.cat-group[draggable]').forEach(group=>{
+    container.querySelectorAll(SEL).forEach(group=>{
       group.addEventListener('dragstart',e=>{
         dragSrc=group;group.classList.add('dragging');
         e.dataTransfer.effectAllowed='move';e.stopPropagation();
       });
       group.addEventListener('dragend',()=>{
-        container.querySelectorAll('.cat-group').forEach(g=>g.classList.remove('dragging','drag-over','drag-over-below'));
+        container.querySelectorAll(ALL).forEach(g=>g.classList.remove('dragging','drag-over','drag-over-below'));
       });
       group.addEventListener('dragover',e=>{
         e.preventDefault();
-        container.querySelectorAll('.cat-group').forEach(g=>g.classList.remove('drag-over','drag-over-below'));
-        if(group===dragSrc)return;
+        container.querySelectorAll(ALL).forEach(g=>g.classList.remove('drag-over','drag-over-below'));
+        if(!dragSrc||group===dragSrc)return;
         const mid=group.getBoundingClientRect().top+group.getBoundingClientRect().height/2;
         group.classList.add(e.clientY<mid?'drag-over':'drag-over-below');
       });
       group.addEventListener('drop',e=>{
-        e.preventDefault();
+        e.preventDefault();e.stopPropagation();
         if(!dragSrc||dragSrc===group)return;
         const mid=group.getBoundingClientRect().top+group.getBoundingClientRect().height/2;
         if(e.clientY<mid)group.before(dragSrc);
         else group.after(dragSrc);
         // Save immediately after DOM settles
         setTimeout(async()=>{
-          const ordered=[...container.querySelectorAll('.cat-group[draggable]')];
+          const ordered=[...container.querySelectorAll(SEL)];
           const sequences=ordered.map((g,i)=>({groupLabel:g.dataset.group,groupSeq:i+1}));
           menuGroupSeqs[currentUserMenuFilter]={};
           sequences.forEach(s=>menuGroupSeqs[currentUserMenuFilter][s.groupLabel]=s.groupSeq);
@@ -7396,14 +7372,14 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
       // only re-derive the description prefix if the underlying description text changed.
       const existingBase=(src?.SourceName||'').replace(/\s*\([\d.]+\)\s*$/,'');
       const sourceName=(src&&existingBase===description)?src.SourceName:`${description} (${dateStamp})`;
-      const result=await apiPost('SaveUserOwnedSource',{action:'update',userID:USER_ID,sourceID:aaEditingID,sourceName,url,sourceType:'Article',description:null,thumbnailURL:src?.ThumbnailURL||null,exclusions:null,isInactive:false,userMenuID,groupLabel:'Articles',profileID:currentUserProfileID});
+      const result=await apiPost('SaveUserOwnedSource',{action:'update',userID:USER_ID,sourceID:aaEditingID,sourceName,url,sourceType:'Article',description:null,thumbnailURL:src?.ThumbnailURL||null,exclusions:null,isInactive:false,userMenuID,groupLabel:(src?.GroupLabel&&src.GroupLabel!=='Articles')?src.GroupLabel:null,profileID:currentUserProfileID});
       if(result?.error){alert('Could not save: '+result.error);return;}
-      if(src){src.SourceName=sourceName;src.URL=url;src.SourceType='Article';src.UserMenuID=userMenuID;src.GroupLabel='Articles';}
+      if(src){src.SourceName=sourceName;src.URL=url;src.SourceType='Article';src.UserMenuID=userMenuID;src.GroupLabel=(src.GroupLabel&&src.GroupLabel!=='Articles')?src.GroupLabel:null;}
     }else{
       const sourceName=`${description} (${dateStamp})`;
-      const result=await apiPost('SaveUserOwnedSource',{action:'add',userID:USER_ID,sourceName,url,sourceType:'Article',description:null,thumbnailURL:null,exclusions:null,userMenuID,groupLabel:'Articles',profileID:currentUserProfileID});
+      const result=await apiPost('SaveUserOwnedSource',{action:'add',userID:USER_ID,sourceName,url,sourceType:'Article',description:null,thumbnailURL:null,exclusions:null,userMenuID,groupLabel:null,profileID:currentUserProfileID});
       if(result?.error){alert('Could not save: '+result.error);return;}
-      userOwnedSources.push({UserOwnedSourceID:result.sourceID,SourceName:sourceName,URL:url,SourceType:'Article',Description:null,ThumbnailURL:null,Exclusions:null,IsInactive:0,Sequence:99,UserMenuID:userMenuID,GroupLabel:'Articles',IsSysHeader:0});
+      userOwnedSources.push({UserOwnedSourceID:result.sourceID,SourceName:sourceName,URL:url,SourceType:'Article',Description:null,ThumbnailURL:null,Exclusions:null,IsInactive:0,Sequence:99,UserMenuID:userMenuID,GroupLabel:null,IsSysHeader:0});
     }
     closeArticleAddModal();
     allHeadlinesCache=[];
