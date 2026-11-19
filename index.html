@@ -2558,9 +2558,7 @@ function renderLanguageNav(){
         <input type="file" id="mw-import-input" accept=".txt,.csv" style="display:none" onchange="importWords(event)">
         <button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="document.getElementById('mw-import-input').click()">&#x2B06; Import</button>
         <a href="#" onclick="showImportHelp();return false;" title="Import file requirements" style="font-size:11px;font-weight:700;color:var(--sky-deep);text-decoration:none;border:1.5px solid var(--sky-deep);border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;margin-left:-4px">?</a>
-        <select id="mw-export-filter-${langID}" title="Words to export" style="padding:4px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);background:white">
-          ${['active','flagged','mastered','all'].map(k=>`<option value="${k}" ${myWordsFilter===k?'selected':''}>${k[0].toUpperCase()+k.slice(1)}</option>`).join('')}
-        </select>
+
         <button class="btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="exportWords()">&#x2B07; Export</button>
         <span id="mw-import-status" style="display:none;font-size:11px;color:var(--sky-deep);font-weight:600;white-space:nowrap"></span>
       </div>
@@ -2629,8 +2627,28 @@ function renderLanguageNav(){
     setTimeout(()=>URL.revokeObjectURL(a.href),1000);
   }
   function exportWords(){
-    const f=document.getElementById('mw-export-filter-'+currentLangID)?.value||'all';
-    const words=f==='active'?myWords.filter(w=>!w.DateMastered):f==='flagged'?myWords.filter(w=>w.Flag):f==='mastered'?myWords.filter(w=>w.DateMastered):myWords;
+    document.getElementById('mw-export-modal')?.remove();
+    const m=document.createElement('div');
+    m.id='mw-export-modal';
+    m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;z-index:10000';
+    m.innerHTML=`<div style="background:white;border-radius:10px;padding:18px 22px;min-width:240px;font-family:'DM Sans',sans-serif;box-shadow:0 8px 30px rgba(0,0,0,0.2)">
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px">Export words</div>
+      ${['Active','Flagged','Mastered'].map(t=>`<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin:6px 0;cursor:pointer"><input type="checkbox" value="${t.toLowerCase()}" checked style="accent-color:var(--sky-deep)"> ${t}</label>`).join('')}
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+        <button class="btn-secondary btn-compact" onclick="document.getElementById('mw-export-modal').remove()">Cancel</button>
+        <button class="btn-primary btn-compact" onclick="runExportWords()">OK</button>
+      </div>
+    </div>`;
+    m.addEventListener('click',e=>{if(e.target===m)m.remove();});
+    document.body.appendChild(m);
+  }
+  function runExportWords(){
+    const m=document.getElementById('mw-export-modal');
+    const types=m?[...m.querySelectorAll('input[type=checkbox]:checked')].map(c=>c.value):[];
+    if(!types.length)return alert('Select at least one type.');
+    m.remove();
+    const f=types.length===3?'all':types.join('-');
+    const words=myWords.filter(w=>(types.includes('active')&&!w.DateMastered)||(types.includes('flagged')&&w.Flag)||(types.includes('mastered')&&w.DateMastered));
     const clean=s=>String(s||'').replace(/[\r\n|]+/g,' ').trim();
     const rows=[];
     words.forEach(w=>{
@@ -4066,6 +4084,7 @@ let html = `<div class="cat-tile ${currentFilter==='Subscriptions'?'active':''}"
     const deleted=headlines.find(h=>h.HeadlineID===headlineID);
     if(deleted?.Link){deletedLinks.add(deleted.Link);allHeadlinesCache=allHeadlinesCache.filter(h=>h.Link!==deleted.Link);}
     headlines=headlines.filter(h=>h.HeadlineID!==headlineID);
+    updateMenuNavCounts(allHeadlinesCache.filter(h=>!deletedLinks.has(h.Link)));
     // Remove row directly without full re-render
     const row=document.querySelector(`.headline-row[data-headline-id="${headlineID}"]`);
     if(row){
@@ -7336,6 +7355,7 @@ const isSysHeader = src?.IsSysHeader === 1 || src?.IsSysHeader === true;
     await apiPost('SaveUserOwnedSource',{action:'delete',userID:USER_ID,sourceID});
     userOwnedSources=userOwnedSources.filter(s=>s.UserOwnedSourceID!==sourceID);
     renderHeadlines();
+    updateMenuNavCounts(allHeadlinesCache.filter(h=>!deletedLinks.has(h.Link)));
     if(currentSettingsSection==='mysources')renderMySourcesTable();
   }
 
