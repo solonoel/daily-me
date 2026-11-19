@@ -438,6 +438,23 @@
                 <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="dm-theme" value="dark" onchange="setTheme('dark')" style="accent-color:var(--sky-deep)"> Dark</label>
                 <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer"><input type="radio" name="dm-theme" value="color" onchange="setTheme('color')" style="accent-color:var(--sky-deep)"> Color</label>
                 <input type="color" id="dm-theme-color" value="#2b7fd4" oninput="setTheme('color',this.value)" title="Pick a theme color" style="width:28px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:none">
+                <select id="dm-theme-preset" onchange="if(this.value)setTheme('color',this.value)" title="Standard colors" style="font-size:12px;padding:2px 6px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;cursor:pointer">
+                  <option value="">Standard colors…</option>
+                  <option value="#2b7fd4" style="background:#2b7fd4;color:white">Ocean Blue</option>
+                  <option value="#1f3a68" style="background:#1f3a68;color:white">Navy</option>
+                  <option value="#0f8b8d" style="background:#0f8b8d;color:white">Teal</option>
+                  <option value="#2e7d32" style="background:#2e7d32;color:white">Forest Green</option>
+                  <option value="#6b8e6b" style="background:#6b8e6b;color:white">Sage</option>
+                  <option value="#6a4c93" style="background:#6a4c93;color:white">Purple</option>
+                  <option value="#8e4585" style="background:#8e4585;color:white">Plum</option>
+                  <option value="#d81b60" style="background:#d81b60;color:white">Pink</option>
+                  <option value="#b23a48" style="background:#b23a48;color:white">Crimson</option>
+                  <option value="#d2691e" style="background:#d2691e;color:white">Burnt Orange</option>
+                  <option value="#c9a227" style="background:#c9a227;color:white">Gold</option>
+                  <option value="#795548" style="background:#795548;color:white">Brown</option>
+                  <option value="#546e7a" style="background:#546e7a;color:white">Slate</option>
+                  <option value="#37474f" style="background:#37474f;color:white">Charcoal</option>
+                </select>
               </div>
             </div>
             <div id="nav-width-row" style="display:none">
@@ -1110,6 +1127,7 @@
     if(!el){el=document.createElement('style');el.id='dm-theme-style';document.head.appendChild(el);}
     document.querySelectorAll('input[name="dm-theme"]').forEach(r=>r.checked=r.value===t.mode);
     const cp=document.getElementById('dm-theme-color');if(cp&&t.color)cp.value=t.color;
+    const ps=document.getElementById('dm-theme-preset');if(ps){const c=(t.color||'').toLowerCase();ps.value=t.mode==='color'&&[...ps.options].some(o=>o.value===c)?c:'';}
     if(t.mode!=='dark'&&t.mode!=='color'){el.textContent='';return;}
     const dark=t.mode==='dark';
     const A=dark?'#5aa9f0':(t.color||'#2b7fd4');
