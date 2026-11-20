@@ -318,6 +318,7 @@
     .conv-ai { align-self:flex-start; background:#eef5fc; border:1px solid var(--border); }
     .conv-name { font-weight:700; color:var(--sky-deep); }
     .conv-aside { background:#fff8e6; border-color:#e8c870; }
+    .conv-corr { background:#fdf0ef; border-color:#e8b4ae; font-style:italic; }
     .conv-user { align-self:flex-end; background:var(--sky-deep); color:white; }
     .conv-typing { color:var(--text-muted); }
     .conv-fb { align-self:flex-end; max-width:85%; display:flex; flex-direction:column; gap:4px; }
@@ -3723,7 +3724,9 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     if(conv.mode==='view')return renderConvNotesViewHTML();
     const msgs=conv.messages.map(m=>m.role==='U'
       ? `<div class="conv-msg conv-user">${convEsc(m.text)}</div>${renderConvFindings(m.findings)}`
-      : `<div class="conv-msg conv-ai${m.type==='aside'?' conv-aside':''}"><span class="conv-name">${convEsc(conv.aiName)}:</span> ${convEsc(m.text)}</div>`).join('');
+      : (m.type==='correction'||m.type==='aside')
+        ? `<div class="conv-msg conv-ai ${m.type==='aside'?'conv-aside':'conv-corr'}">${convEsc(m.text)}</div>`
+        : `<div class="conv-msg conv-ai"><span class="conv-name">${convEsc(conv.aiName)}:</span> ${convEsc(m.text)}</div>`).join('');
     const heading=convEsc(conv.title||conv.aiRole||'Conversation');
     let bottom='';
     if(conv.mode==='chat'){
@@ -3793,8 +3796,10 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     const tick=()=>{
       const el=document.getElementById('conv-timer');
       if(!el||conv.mode!=='chat'){clearInterval(conv.timer);return;}
-      const left=Math.max(0,conv.minutes*60-Math.floor((Date.now()-conv.startedAt)/1000));
-      el.textContent=left>0?`⏱ ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')} left`:"⏱ Time's up";
+      const elapsed=Math.floor((Date.now()-conv.startedAt)/1000);
+      const left=Math.max(0,conv.minutes*60-elapsed);
+      const mmss=n=>`${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`;
+      el.textContent=left>0?`⏱ ${mmss(left)} left`:`⏱ Time's up · ${mmss(elapsed)} in session`;
       el.classList.toggle('conv-timer-up',left===0);
       if(left===0&&!conv.beeped){conv.beeped=true;convBeep();}
     };

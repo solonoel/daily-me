@@ -183,10 +183,11 @@ NO PRAISE: Never tell Noel he was right. Do not write "¡Perfecto!", "¡Muy bien
 CORRECTION RULES (apply to every message Noel writes in Spanish, covering ALL aspects: conjugation, tense/mood choice, agreement, ser/estar, por/para, prepositions, pronouns, articles, word choice, word order, spelling and accents, and naturalness):
 - If his message is perfect: no findings at all; just continue the conversation.
 - If correct but a more natural phrasing exists: add an "improvement" finding and continue.
-- If wrong: add "error" findings (one per distinct problem), set ask_retry=true, and in reply ask him briefly to try again (e.g. "Casi. Inténtalo otra vez."). Do not continue the scene until the retry.
+- If wrong: add "error" findings (one per distinct problem), set ask_retry=true, and make the reply ONLY a short request to try again (e.g. "Casi. Inténtalo otra vez."). Do not continue the scene until the retry.
+- RULE: any "error" or "gap" finding on a Spanish message means ask_retry=true and a short try-again reply. Never continue the conversation in that case.
 - On a retry turn (turn_type "retry"), judge the new attempt the same way; if it is right, continue the scene without comment.
 - Be critical and thorough, but every explanation must be brief (one short English sentence).
-- When Noel lacks a word or phrase and falls back to English, record a "gap" finding with the Spanish he needed.
+- When Noel lacks a word or phrase and falls back to English inside a Spanish message, record a "gap" finding with the Spanish he needed, set ask_retry=true, and ask him to say it again fully in Spanish.
 - Put feedback ONLY in findings. The reply is the conversational message, not a list of corrections.
 
 ASIDES: Noel may write questions or comments in English at any time ("How do I say...?", "Is there a better way to say that?", "Why imperfect here?", "Slow down", "I think I was right"). Treat these as turn_type "aside": answer briefly in English with Spanish examples, then add one short Spanish line that resumes the conversation where it left off. Do not create error findings for asides. Instructions like "slow down" or "use simpler words" apply for the rest of the session.
@@ -421,7 +422,20 @@ async function takeTurn(pool, b) {
   const segStart = new Date(s.SegmentStart || s.StartedDate).getTime();
   const minutesLeft = s.DurationMinutes - (Date.now() - segStart) / 60000;
 
-  const out = await callTool(buildSystemPrompt(s, minutesLeft), buildMessages(turns, findings, message), RESPOND_TOOL, 2000);
+  const sys = buildSystemPrompt(s, minutesLeft);
+  const msgs = buildMessages(turns, findings, message);
+  const needsRetry = o => o.turn_type !== 'aside' && (o.findings || []).some(f => f.type === 'error' || f.type === 'gap');
+  let out = await callTool(sys, msgs, RESPOND_TOOL, 2000);
+  if (needsRetry(out) && !out.ask_retry) {
+    // The reply carried on with the conversation despite errors - ask again, then force a retry if needed
+    try {
+      const out2 = await callTool(sys + '\n\nYOUR PREVIOUS DRAFT continued the conversation even though his message had errors or missing words. This time set ask_retry=true and make the reply only a short request to try again.', msgs, RESPOND_TOOL, 2000);
+      if (needsRetry(out2) && out2.ask_retry) out = out2;
+    } catch (e) { /* fall through */ }
+    if (!out.ask_retry) { out.ask_retry = true; out.reply = 'Casi. Inténtalo otra vez.'; }
+  }
+  if (needsRetry(out)) out.ask_retry = true;
+  const aiType = out.ask_retry ? 'correction' : out.turn_type;
 
   const validWordIDs = new Set(parseJson(s.WordsJson, []).map(w => w.id));
   const usedWords = (out.words_used || []).filter(w => validWordIDs.has(w.word_id));
@@ -485,7 +499,7 @@ async function takeTurn(pool, b) {
 
     await new sql.Request(tx)
       .input('S', sql.Int, s.LangSessionID).input('N', sql.Int, nextNum + 1)
-      .input('Type', sql.NVarChar(20), out.turn_type).input('C', sql.NVarChar(sql.MAX), out.reply)
+      .input('Type', sql.NVarChar(20), aiType).input('C', sql.NVarChar(sql.MAX), out.reply)
       .query(`INSERT INTO LangTurn (LangSessionID, TurnNumber, Role, TurnType, Content) VALUES (@S, @N, 'A', @Type, @C)`);
 
     await tx.commit();
@@ -495,7 +509,7 @@ async function takeTurn(pool, b) {
   }
 
   return {
-    reply: out.reply, turnType: out.turn_type, askRetry: !!out.ask_retry,
+    reply: out.reply, turnType: aiType, askRetry: !!out.ask_retry,
     findings: saved.map(fmtFinding),
     disputed: out.disputed_findings || [],
     minutesLeft: Math.max(0, minutesLeft)
