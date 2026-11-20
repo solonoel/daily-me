@@ -159,7 +159,7 @@ function buildSystemPrompt(s, minutesLeft) {
   const warmSection = !warmLines
     ? 'No warm-up; carry on with the conversation.'
     : isReview
-      ? `REVIEW SESSION: this session reviews an earlier conversation. Work through these review items one at a time (turn_type "warmup"): give the prompt, check his answer, correct if needed, move on. After the items, hold a short conversation on the same theme that makes him reuse the corrected forms and vocabulary.\n${warmLines}`
+      ? `REVIEW SESSION: this session reviews an earlier conversation. Work through these review items one at a time (turn_type "warmup"): give the prompt and check his answer. If his answer is correct, the reply is exactly "Correct." followed by the next item (or, after the last item, the start of the conversation). If it is wrong, correct it as usual and ask him to try again. After the items, hold a short conversation on the same theme that makes him reuse the corrected forms and vocabulary.\n${warmLines}`
       : `WARM-UP (from his past mistakes): Start by working through these one at a time (turn_type "warmup"): give the prompt, check his answer, correct if needed, move on. If he says to skip, skip. Then start the scene.\n${warmLines}`;
 
   return `You are ${name}, a Spanish conversation partner and tutor for Noel, an adult English speaker learning conversational Spanish. His goal is real conversation, not vocabulary drills. Your name is ${name}; the app shows it before your messages, so never write your own name at the start of a reply.
@@ -178,7 +178,7 @@ ${wordLines || '  (none)'}
 
 ${warmSection}
 
-NO PRAISE: Never tell Noel he was right. Do not write "¡Perfecto!", "¡Muy bien!", "¡Correcto!", "¡Exacto!", "Good" or anything similar, in the reply or in findings. When his message is correct, simply continue (or go straight to the next warm-up item). Only corrections, better phrasings, gaps and answers to his questions are worth saying.
+NO PRAISE: Never tell Noel he was right. Do not write "¡Perfecto!", "¡Muy bien!", "¡Correcto!", "¡Exacto!", "Good" or anything similar, in the reply or in findings. When his message is correct, simply continue (or go straight to the next warm-up item). The only exception is review items in a REVIEW SESSION, which get "Correct." as described above. Only corrections, better phrasings, gaps and answers to his questions are worth saying.
 
 CORRECTION RULES (apply to every message Noel writes in Spanish, covering ALL aspects: conjugation, tense/mood choice, agreement, ser/estar, por/para, prepositions, pronouns, articles, word choice, word order, spelling and accents, and naturalness):
 - If his message is perfect: no findings at all; just continue the conversation.
@@ -507,7 +507,7 @@ async function buildSummary(pool, s) {
   const allFindings = await loadFindings(pool, s.LangSessionID);
   const findings = allFindings.filter(f => !f.Voided && f.FindingType !== 'strength');
   const userTurns = turns.filter(t => t.Role === 'U');
-  const spoken = userTurns.filter(t => t.TurnType === 'practice' || t.TurnType === 'retry');
+  const spoken = userTurns.filter(t => ['practice', 'retry', 'warmup'].includes(t.TurnType));  // Spanish messages he wrote (not questions/asides)
   const metas = spoken.map(t => parseJson(t.MetaJson, {}));
   const tenses = [...new Set(metas.flatMap(m => m.tenses || []))];
   const byCat = {};
@@ -543,6 +543,7 @@ async function buildSummary(pool, s) {
     score,
     minutes: Math.round(ms / 60000),
     messages: spoken.length,
+    correct: spoken.filter(t => !findings.some(f => f.LangTurnID === t.LangTurnID && (f.FindingType === 'error' || f.FindingType === 'gap'))).length,
     avgWordsPerMessage: spoken.length ? Math.round(10 * metas.reduce((a, m) => a + (m.words || 0), 0) / spoken.length) / 10 : 0,
     englishMixRate: spoken.length ? Math.round(100 * metas.filter(m => m.englishUsed).length / spoken.length) : 0,
     tensesUsed: tenses,
@@ -645,6 +646,7 @@ async function discardSession(pool, b) {
 async function listSessions(pool, b) {
   const r = await pool.request().input('U', sql.Int, parseInt(b.userID)).input('L', sql.Int, parseInt(b.languageID) || 1)
     .query(`SELECT LangSessionID AS id, Title AS title, ISNULL(SavedDate, StartedDate) AS date, Score AS score,
+                   TRY_CAST(JSON_VALUE(SummaryJson, '$.minutes') AS int) AS actualMinutes,
                    Level AS level, DurationMinutes AS minutes, DeckID AS deckID, IncludeSpainNotes AS spain, SessionType AS type
             FROM LangSession WHERE UserID = @U AND LanguageID = @L AND IsSaved = 1
             ORDER BY ISNULL(SavedDate, StartedDate) DESC`);
@@ -680,9 +682,19 @@ async function studyNotes(pool, b) {
   const summary = parseJson(s.SummaryJson, null) || await buildSummary(pool, s);
   const name = s.AIName || 'TUTOR';
 
-  const transcript = turns.map(t => `${t.Role === 'U' ? 'NOEL' : name.toUpperCase()} (${t.TurnType}): ${t.Content}`).join('\n');
+  // A continued conversation: mark what happened in the latest sitting so the notes can lead with it
+  const resumeAt = s.ResumeTurnNumber || 0;
+  const continued = resumeAt > 0 && turns.some(t => t.TurnNumber > resumeAt);
+  const turnNum = {};
+  turns.forEach(t => { turnNum[t.LangTurnID] = t.TurnNumber; });
+  let marked = false;
+  const transcript = turns.map(t => {
+    let line = `${t.Role === 'U' ? 'NOEL' : name.toUpperCase()} (${t.TurnType}): ${t.Content}`;
+    if (continued && !marked && t.TurnNumber > resumeAt) { marked = true; line = '----- LATEST SITTING STARTS HERE -----\n' + line; }
+    return line;
+  }).join('\n');
   const fbLines = findings.filter(f => !f.Voided && f.FindingType !== 'strength').map(f =>
-    `- ${f.FindingType}/${f.Category}${f.IsFocus ? ' [focus]' : ''}: "${f.Original}" -> "${f.Corrected}" - ${f.Explanation || ''}${f.SpainNote ? ' | Spain: ' + f.SpainNote : ''}`).join('\n');
+    `- ${f.FindingType}/${f.Category}${f.IsFocus ? ' [focus]' : ''}${continued && turnNum[f.LangTurnID] > resumeAt ? ' [latest sitting]' : ''}: "${f.Original}" -> "${f.Corrected}" - ${f.Explanation || ''}${f.SpainNote ? ' | Spain: ' + f.SpainNote : ''}`).join('\n');
 
   const out = await callTool(
     'You write concise, practical study notes for an adult learner of conversational Spanish after a practice session. Write in English with Spanish examples. Use markdown: ## headings and - bullets, **bold** for key Spanish. No filler and no praise.',
@@ -697,11 +709,16 @@ ${fbLines || '(none)'}
 Transcript:
 ${transcript}
 
+BE CONCISE. Short lines, no repetition, no "Noel:" labels, no restating the same rule in different words.
+
 Write study notes with these sections, in this order:
-## Main errors and fixes - grouped by pattern, most important first.
-## Phrases worth keeping - each phrase as a bullet "- **Spanish phrase**", followed on the next line by the English translation indented with two spaces. Leave a blank line between phrases.
-## Vocabulary - the key words used in the session by either Noel or the tutor, one bullet each: "- **word** - English meaning". Put ⚠ at the start of any word Noel did not understand (he asked about it, misused it, or it had to be explained). End the section with the line "⚠ = not understood" if any are marked.
-${s.IncludeSpainNotes ? '## Spain vs Latin America - only if relevant.\n' : ''}## Practice - 4-5 sentences to translate into Spanish, with answers at the end.
+${continued ? '## This sitting - 2-4 bullets on the LATEST SITTING only: new problems, and earlier problems he now gets right or still gets wrong.\n' : ''}## Main errors and fixes - one bullet per error pattern, most important first${continued ? ' (include the whole conversation, latest sitting first)' : ''}. Format each one exactly like this:
+- "what he wrote" → **corrected Spanish**
+  - the rule in one short line, with an example only if it adds something
+Use at most two indented sub-bullets per error. Add "(focus)" after the corrected Spanish if it is focus grammar.
+## Phrases worth keeping - at most 6. Each as a bullet "- **Spanish phrase**", followed on the next line by the English translation indented with two spaces. Leave a blank line between phrases.
+## Vocabulary - at most 12 key words used by either Noel or the tutor, one bullet each: "- **word** - English meaning". Put ⚠ at the start of any word Noel did not understand (he asked about it, misused it, or it had to be explained). End the section with the line "⚠ = not understood" if any are marked.
+${s.IncludeSpainNotes ? '## Spain vs Latin America - only if relevant, at most 3 bullets.\n' : ''}## Practice - 3-4 sentences to translate into Spanish, with answers at the end.
 ## Fluency - one line interpreting the stats.
 Do not include a strengths or praise section. Also suggest the level for the next session.` }],
     {

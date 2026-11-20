@@ -3607,10 +3607,11 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     el.className='conv-saved-list';
     el.innerHTML=convSaved.map(s=>`<div class="conv-saved-row${s.id===convSelID?' conv-sel':''}" onclick="selectSavedConversation(${langID},${s.id})">
         <div class="conv-saved-info"><div class="conv-saved-name">${convEsc(s.title||'Untitled')}</div>
-          <div class="conv-saved-meta">${convDate(s.date)} · Level ${s.level}${s.actualMinutes!=null?` · ${s.actualMinutes} min`:''}${s.score!=null?` · Score ${s.score}`:''} · <a href="#" class="conv-link" onclick="event.stopPropagation();viewSavedConversation(${langID},${s.id});return false;">Session Notes</a></div></div>
+          <div class="conv-saved-meta">${convDate(s.date)} · Level ${s.level}${s.actualMinutes!=null?` · ${s.actualMinutes} min`:''}${s.score!=null?` · Score ${s.score}`:''}</div></div>
         <div class="conv-saved-btns">
           <button class="btn-primary conv-sm" onclick="event.stopPropagation();continueSavedConversation(${langID},${s.id})">Continue</button>
           <button class="btn-secondary conv-sm" onclick="event.stopPropagation();reviewSavedConversation(${langID},${s.id})">Review</button>
+          <button class="btn-secondary conv-sm" onclick="event.stopPropagation();viewSavedConversation(${langID},${s.id})">Session Notes</button>
           <button class="btn-icon conv-sm" title="Delete" onclick="event.stopPropagation();deleteSavedConversation(${langID},${s.id})">🗑</button>
         </div>
       </div>`).join('');
@@ -3753,8 +3754,8 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     return `<div class="conv-end">
       <h3>${conv.mode==='view'?'Summary':'Session complete'}</h3>
       <div class="conv-stats">
-        ${stat(s.score??'–','score (0–100)','conv-score')}${stat(s.minutes??'–','minutes')}${stat(s.messages??0,'messages')}
-        ${stat(s.avgWordsPerMessage??0,'words / message')}${stat(s.errors??0,'errors')}${stat(s.improvements??0,'better phrasings')}
+        ${stat(s.score??'–','score (0–100)','conv-score')}${stat(s.minutes??'–','minutes')}${stat(s.messages??0,'Spanish messages you wrote')}
+        ${stat(s.correct??'–','correct responses')}${stat(s.errors??0,'errors')}${stat(s.improvements??0,'better phrasings')}
       </div>
       ${(s.tensesUsed||[]).length?`<div class="conv-end-line"><strong>Tenses used:</strong> ${convEsc(s.tensesUsed.join(', '))}</div>`:''}
       ${cats?`<div class="conv-end-line"><strong>Errors by type:</strong> ${cats}</div>`:''}
