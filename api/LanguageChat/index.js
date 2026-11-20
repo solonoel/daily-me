@@ -117,8 +117,16 @@ function visibleMessages(turns, findings) {
     : { role: 'A', text: t.Content, type: t.TurnType });
 }
 
+// Words from: '__none__' = don't use My Words, '' = all words, otherwise a deck ID
+function wordsChoice(v) {
+  if (v === '__none__') return { useWords: false, deckID: null };
+  const d = parseInt(v);
+  return { useWords: true, deckID: isNaN(d) ? null : d };
+}
+
 // Up to 9 prioritised active words + 1 random mastered word
-async function pickWords(pool, userID, languageID, deckID) {
+async function pickWords(pool, userID, languageID, deckID, useWords) {
+  if (useWords === false) return [];
   const wr = await pool.request()
     .input('U', sql.Int, userID).input('L', sql.Int, languageID).input('D', sql.Int, deckID)
     .query(`
@@ -292,14 +300,14 @@ const PREPARE_TOOL = (maxItems) => ({
 async function startSession(pool, b) {
   const userID = parseInt(b.userID);
   const languageID = parseInt(b.languageID) || 1;
-  const deckID = b.deckID ? parseInt(b.deckID) : null;
+  const { useWords, deckID } = wordsChoice(b.deckID);
   const level = clampInt(b.level, 1, 10, 5);
   const minutes = clampInt(b.minutes, 1, 120, 15);
   const includeSpain = !!b.includeSpain;
   const reviewOf = b.reviewOf ? await loadSession(pool, parseInt(b.reviewOf), userID) : null;
   const userSetting = String(b.setting || '').trim();
 
-  const words = await pickWords(pool, userID, languageID, deckID);
+  const words = await pickWords(pool, userID, languageID, deckID, useWords);
   let setting, prepareMsg, maxItems;
 
   if (reviewOf) {
@@ -349,10 +357,11 @@ Weakest categories recently: ${cr.recordset.map(r => r.Category).join(', ') || '
     .input('Type', sql.NVarChar(20), reviewOf ? 'review' : 'conversation')
     .input('Words', sql.NVarChar(sql.MAX), JSON.stringify(words))
     .input('Warm', sql.NVarChar(sql.MAX), JSON.stringify(setup.warmup || []))
+    .input('UseW', sql.Bit, useWords)
     .query(`INSERT INTO LangSession (UserID, LanguageID, DeckID, ParentSessionID, Level, DurationMinutes, Setting, FocusGrammar,
-                                     IncludeSpainNotes, AIRole, AIName, SessionType, WordsJson, WarmupJson, SegmentStart, ResumeTurnNumber)
+                                     IncludeSpainNotes, AIRole, AIName, SessionType, WordsJson, WarmupJson, SegmentStart, ResumeTurnNumber, UseMyWords)
             OUTPUT INSERTED.*
-            VALUES (@U, @L, @D, @P, @Level, @Min, @Setting, @Focus, @Spain, @Role, @Name, @Type, @Words, @Warm, GETDATE(), 0)`);
+            VALUES (@U, @L, @D, @P, @Level, @Min, @Setting, @Focus, @Spain, @Role, @Name, @Type, @Words, @Warm, GETDATE(), 0, @UseW)`);
   const session = ins.recordset[0];
 
   const open = await callTool(buildSystemPrompt(session, minutes),
@@ -375,18 +384,18 @@ Weakest categories recently: ${cr.recordset.map(r => r.Category).join(', ') || '
 async function continueSession(pool, b) {
   const userID = parseInt(b.userID);
   const s = await loadSession(pool, parseInt(b.sessionID), userID);
-  const deckID = b.deckID ? parseInt(b.deckID) : null;
+  const { useWords, deckID } = wordsChoice(b.deckID);
   const level = clampInt(b.level, 1, 10, s.Level);
   const minutes = clampInt(b.minutes, 1, 120, s.DurationMinutes);
-  const words = await pickWords(pool, userID, s.LanguageID, deckID);
+  const words = await pickWords(pool, userID, s.LanguageID, deckID, useWords);
   const turns = await loadTurns(pool, s.LangSessionID);
   const lastNum = turns.length ? turns[turns.length - 1].TurnNumber : 0;
 
   await pool.request()
     .input('S', sql.Int, s.LangSessionID).input('D', sql.Int, deckID).input('Level', sql.TinyInt, level)
     .input('Min', sql.SmallInt, minutes).input('Spain', sql.Bit, !!b.includeSpain)
-    .input('Words', sql.NVarChar(sql.MAX), JSON.stringify(words)).input('R', sql.Int, lastNum)
-    .query(`UPDATE LangSession SET Status = 'Active', DeckID = @D, Level = @Level, DurationMinutes = @Min, IncludeSpainNotes = @Spain,
+    .input('Words', sql.NVarChar(sql.MAX), JSON.stringify(words)).input('R', sql.Int, lastNum).input('UseW', sql.Bit, useWords)
+    .query(`UPDATE LangSession SET Status = 'Active', DeckID = @D, UseMyWords = @UseW, Level = @Level, DurationMinutes = @Min, IncludeSpainNotes = @Spain,
               WordsJson = @Words, WarmupJson = '[]', SegmentStart = GETDATE(), ResumeTurnNumber = @R, EndedDate = NULL
             WHERE LangSessionID = @S`);
   const s2 = await loadSession(pool, s.LangSessionID, userID);
@@ -661,7 +670,7 @@ async function listSessions(pool, b) {
   const r = await pool.request().input('U', sql.Int, parseInt(b.userID)).input('L', sql.Int, parseInt(b.languageID) || 1)
     .query(`SELECT LangSessionID AS id, Title AS title, ISNULL(SavedDate, StartedDate) AS date, Score AS score,
                    TRY_CAST(JSON_VALUE(SummaryJson, '$.minutes') AS int) AS actualMinutes,
-                   Level AS level, DurationMinutes AS minutes, DeckID AS deckID, IncludeSpainNotes AS spain, SessionType AS type
+                   Level AS level, DurationMinutes AS minutes, DeckID AS deckID, UseMyWords AS useWords, IncludeSpainNotes AS spain, SessionType AS type
             FROM LangSession WHERE UserID = @U AND LanguageID = @L AND IsSaved = 1
             ORDER BY ISNULL(SavedDate, StartedDate) DESC`);
   return { sessions: r.recordset };
@@ -683,14 +692,36 @@ async function loadConversation(pool, b) {
   if (!summary || summary.score === undefined) summary = await buildSummary(pool, s);
   return {
     sessionID: s.LangSessionID, title: s.Title, aiName: s.AIName, aiRole: s.AIRole, focusGrammar: s.FocusGrammar,
-    sessionType: s.SessionType, date: s.SavedDate || s.StartedDate, summary, notes: s.StudyNotes,
+    sessionType: s.SessionType, date: s.SavedDate || s.StartedDate, summary,
+    notes: s.StudyNotes ? s.StudyNotes + await myWordsSection(pool, s) : null,
     messages: visibleMessages(turns, findings)
   };
 }
 
+// "My Words used" section: which of Noel's words he used in this conversation (✗ = used incorrectly at least once)
+async function myWordsSection(pool, s) {
+  const turns = await loadTurns(pool, s.LangSessionID);
+  const uses = {};
+  turns.filter(t => t.Role === 'U').forEach(t => (parseJson(t.MetaJson, {}).wordsUsed || []).forEach(w => {
+    uses[w.id] = uses[w.id] || { ok: 0, bad: 0 };
+    if (w.ok) uses[w.id].ok++; else uses[w.id].bad++;
+  }));
+  const ids = Object.keys(uses).map(Number).filter(n => !isNaN(n));
+  if (!ids.length) return '\n\n## My Words used\n- None of your words were used in this session.';
+  const r = await pool.request().input('U', sql.Int, s.UserID)
+    .query(`SELECT UserLanguageWordsID, WordsName, WordsTranslation FROM UserLanguageWords
+            WHERE UserID = @U AND UserLanguageWordsID IN (${ids.join(',')}) ORDER BY WordsName`);
+  const lines = r.recordset.map(w => {
+    const u = uses[w.UserLanguageWordsID];
+    return `- ${u.bad ? '✗ ' : ''}**${w.WordsName}**${w.WordsTranslation ? ' - ' + w.WordsTranslation : ''}`;
+  });
+  const anyBad = r.recordset.some(w => uses[w.UserLanguageWordsID].bad);
+  return '\n\n## My Words used\n' + lines.join('\n') + (anyBad ? '\n✗ = used incorrectly at least once' : '');
+}
+
 async function studyNotes(pool, b) {
   const s = await loadSession(pool, parseInt(b.sessionID), parseInt(b.userID));
-  if (s.StudyNotes && !b.regenerate) return { notes: s.StudyNotes, suggestedLevel: s.SuggestedLevel };
+  if (s.StudyNotes && !b.regenerate) return { notes: s.StudyNotes + await myWordsSection(pool, s), suggestedLevel: s.SuggestedLevel };
   const turns = (await loadTurns(pool, s.LangSessionID)).filter(t => t.TurnType !== 'resume');
   const findings = await loadFindings(pool, s.LangSessionID);
   const summary = parseJson(s.SummaryJson, null) || await buildSummary(pool, s);
@@ -753,7 +784,85 @@ Do not include a strengths or praise section. Also suggest the level for the nex
   await pool.request().input('S', sql.Int, s.LangSessionID)
     .input('N', sql.NVarChar(sql.MAX), notes).input('L', sql.TinyInt, out.suggested_level)
     .query(`UPDATE LangSession SET StudyNotes = @N, SuggestedLevel = @L WHERE LangSessionID = @S`);
-  return { notes, suggestedLevel: out.suggested_level };
+  return { notes: notes + await myWordsSection(pool, s), suggestedLevel: out.suggested_level };
+}
+
+// Estimated CEFR level from all conversation practice so far
+async function assessLevel(pool, b) {
+  const userID = parseInt(b.userID);
+  const languageID = parseInt(b.languageID) || 1;
+  const req = () => pool.request().input('U', sql.Int, userID).input('L', sql.Int, languageID);
+
+  const sess = (await req().query(`SELECT TOP 30 LangSessionID, Level, Score, SessionType, SummaryJson, StartedDate, Setting
+      FROM LangSession WHERE UserID = @U AND LanguageID = @L AND Status = 'Completed' ORDER BY StartedDate DESC`)).recordset;
+  if (!sess.length) return { empty: true };
+
+  const cats = (await req().query(`SELECT f.Category,
+        SUM(CASE WHEN f.CreatedDate >= DATEADD(day, -14, GETDATE()) THEN 1 ELSE 0 END) AS Last14,
+        SUM(CASE WHEN f.CreatedDate < DATEADD(day, -14, GETDATE()) THEN 1 ELSE 0 END) AS Earlier
+      FROM LangFinding f JOIN LangSession s ON s.LangSessionID = f.LangSessionID
+      WHERE f.UserID = @U AND s.LanguageID = @L AND f.Voided = 0 AND f.FindingType = 'error'
+      GROUP BY f.Category ORDER BY COUNT(*) DESC`)).recordset;
+  const examples = (await req().query(`SELECT TOP 25 f.FindingType, f.Category, f.Original, f.Corrected
+      FROM LangFinding f JOIN LangSession s ON s.LangSessionID = f.LangSessionID
+      WHERE f.UserID = @U AND s.LanguageID = @L AND f.Voided = 0 AND f.FindingType IN ('error', 'gap')
+      ORDER BY f.CreatedDate DESC`)).recordset;
+  const samples = (await req().query(`SELECT TOP 40 t.Content
+      FROM LangTurn t JOIN LangSession s ON s.LangSessionID = t.LangSessionID
+      WHERE s.UserID = @U AND s.LanguageID = @L AND t.Role = 'U' AND t.TurnType IN ('practice', 'retry')
+      ORDER BY t.CreatedDate DESC`)).recordset;
+  const wp = (await req().query(`SELECT COUNT(*) AS Words, SUM(g.TimesCorrect) AS Correct, SUM(g.TimesWrong) AS Wrong
+      FROM LangWordProgress g JOIN UserLanguageWords w ON w.UserLanguageWordsID = g.UserLanguageWordsID
+      WHERE g.UserID = @U AND w.LanguageID = @L`)).recordset[0] || {};
+
+  const sessLines = sess.map(x => {
+    const m = parseJson(x.SummaryJson, {});
+    return `- ${new Date(x.StartedDate).toISOString().slice(0, 10)} ${x.SessionType} L${x.Level} score ${x.Score ?? '-'} msgs ${m.messages ?? '-'} correct ${m.correct ?? '-'} words/msg ${m.avgWordsPerMessage ?? '-'} english% ${m.englishMixRate ?? '-'} tenses: ${(m.tensesUsed || []).join(', ')}`;
+  }).join('\n');
+
+  const out = await callTool(
+    'You are an experienced Spanish teacher and CEFR examiner. Estimate a learner\'s CEFR level from his written conversation practice data. Be honest and specific. Keep everything brief: the whole report must fit on one printed page.',
+    [{ role: 'user', content:
+`Learner: Noel, adult English speaker practising conversational Spanish (written chat, Latin American Spanish).
+
+Sessions (newest first; app level 1-10 is the difficulty he chose):
+${sessLines}
+
+Error counts by category (last 14 days / earlier):
+${cats.map(c => `- ${c.Category}: ${c.Last14} / ${c.Earlier}`).join('\n') || '(none)'}
+
+Recent errors and gaps:
+${examples.map(e => `- [${e.FindingType}/${e.Category}] "${e.Original}" -> "${e.Corrected}"`).join('\n') || '(none)'}
+
+Samples of his recent Spanish messages:
+${samples.map(x => `- ${x.Content}`).join('\n') || '(none)'}
+
+My Words tracking: ${wp.Words || 0} words used in conversation, ${wp.Correct || 0} correct uses, ${wp.Wrong || 0} incorrect uses.
+
+Give a best-estimate CEFR level, sub-skill estimates for what written chat can show, and brief strengths, weaknesses and focus areas. If there is little data, say so via confidence "low".` }],
+    {
+      name: 'cefr_report',
+      description: 'Return the level report.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          level: { type: 'string', description: 'Best estimate, e.g. "A2", "B1" or "B1+"' },
+          level_name: { type: 'string', description: 'e.g. "Intermediate"' },
+          confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
+          summary: { type: 'string', description: 'Two or three sentences.' },
+          skills: {
+            type: 'array', maxItems: 5,
+            items: { type: 'object', properties: { skill: { type: 'string' }, level: { type: 'string' }, note: { type: 'string', description: 'Under 12 words.' } }, required: ['skill', 'level', 'note'] }
+          },
+          strengths: { type: 'array', maxItems: 4, items: { type: 'string', description: 'One short line.' } },
+          weaknesses: { type: 'array', maxItems: 4, items: { type: 'string', description: 'One short line.' } },
+          focus: { type: 'array', maxItems: 4, items: { type: 'string', description: 'One concrete action, one short line.' } }
+        },
+        required: ['level', 'level_name', 'confidence', 'summary', 'skills', 'strengths', 'weaknesses', 'focus']
+      }
+    }, 2500);
+
+  return Object.assign(out, { sessions: sess.length, date: new Date() });
 }
 
 // ---------- entry ----------
@@ -774,6 +883,7 @@ module.exports = async function (context, req) {
       case 'list': result = await listSessions(pool, b); break;
       case 'delete': result = await deleteSession(pool, b); break;
       case 'load': result = await loadConversation(pool, b); break;
+      case 'assess': result = await assessLevel(pool, b); break;
       default: return respond(context, 400, { error: 'Unknown action' });
     }
     respond(context, 200, result);

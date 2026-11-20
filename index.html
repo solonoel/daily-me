@@ -355,6 +355,23 @@
     .conv-notes ul.conv-sub li { margin-bottom:2px; color:var(--text-soft); font-size:13px; }
     .conv-link { color:var(--sky-deep); font-weight:600; text-decoration:none; }
     .conv-link:hover { text-decoration:underline; }
+    .conv-top { display:flex; justify-content:flex-end; margin-bottom:-6px; }
+    .lvl-report { background:white; border:1.5px solid var(--border); border-radius:12px; padding:18px 22px; font-size:14px; line-height:1.45; }
+    .lvl-head { display:flex; align-items:center; gap:16px; border-bottom:2px solid var(--sky-deep); padding-bottom:10px; }
+    .lvl-badge { width:64px; height:64px; border-radius:50%; background:var(--sky-deep); color:white; font-size:24px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .lvl-title { font-family:'Playfair Display',serif; font-size:20px; font-weight:700; }
+    .lvl-meta { font-size:12px; color:var(--text-muted); }
+    .lvl-summary { margin:12px 0; }
+    .lvl-skills { width:100%; border-collapse:collapse; margin:6px 0 12px; font-size:13px; }
+    .lvl-skills td { border-bottom:1px solid #e3eef8; padding:5px 6px; }
+    .lvl-skill-lvl { font-weight:700; color:var(--sky-deep); width:60px; }
+    .lvl-cols { display:flex; gap:24px; }
+    .lvl-cols > div { flex:1; }
+    .lvl-report h4 { margin:10px 0 4px; font-size:14px; }
+    .lvl-report ul, .lvl-report ol { margin:0; padding-left:20px; }
+    .lvl-report li { margin-bottom:3px; }
+    .lvl-foot { font-size:11px; color:var(--text-muted); margin-top:14px; border-top:1px solid #e3eef8; padding-top:6px; }
+    @media (max-width:700px) { .lvl-cols { flex-direction:column; gap:0; } }
     @media (max-width:700px) { .conv-grid { grid-template-columns:1fr 1fr; } .conv-msg { max-width:92%; } .conv-saved-row { flex-wrap:wrap; } .conv-end-right { margin-left:0; } }
   </style>
 </head>
@@ -3555,7 +3572,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     const flagged=userDecks.filter(isFlag);
     const rest=userDecks.filter(d=>!isFlag(d)).sort((a,b)=>((order[a.Status]||9)-(order[b.Status]||9))||String(a.UserLanguageWordsDeckName).localeCompare(String(b.UserLanguageWordsDeckName)));
     const opt=d=>`<option value="${d.UserLanguageWordsDeckID}" ${String(d.UserLanguageWordsDeckID)===String(sel)?'selected':''}>${convEsc(d.UserLanguageWordsDeckName)}${!isFlag(d)&&d.Status!=='Active'?' ('+convEsc(d.Status)+')':''}</option>`;
-    return `<option value="">All my words</option>${flagged.map(opt).join('')}${rest.map(opt).join('')}`;
+    return `<option value="__none__" ${sel==='__none__'?'selected':''} title="Don't use My Words in this conversation"></option><option value="" ${!sel?'selected':''}>All my words</option>${flagged.map(opt).join('')}${rest.map(opt).join('')}`;
   }
 
   function renderConvSetupHTML(langID){
@@ -3564,9 +3581,10 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     const levelOpts=[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}" ${n===lvl?'selected':''}>${n}</option>`).join('');
     const minOpts=[5,10,15,20,30,45,60].map(n=>`<option value="${n}" ${n===mins?'selected':''}>${n}</option>`).join('');
     return `<div class="conv-setup">
+      <div class="conv-top"><button class="btn-secondary" onclick="showSpanishLevel(${langID})">📊 Spanish Level</button></div>
       <fieldset class="conv-box"><legend>Conversation</legend>
         <label for="conv-setting">Description</label>
-        <textarea id="conv-setting" class="form-input" rows="4" placeholder="e.g. I want to tell you a story about fishing with my dad as a kid. I'll be using imperfect. (You can also name your partner, e.g. 'Your name is Lucía.')"></textarea>
+        <textarea id="conv-setting" class="form-input" rows="2" placeholder="e.g. I want to tell you a story about fishing with my dad as a kid. I'll be using imperfect. (You can also name your partner, e.g. 'Your name is Lucía.')"></textarea>
         <div class="conv-saved-head">Saved conversations</div>
         <div id="conv-saved-list" class="conv-hint">Loading…</div>
       </fieldset>
@@ -3624,7 +3642,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     const setVal=(elId,v)=>{const el=document.getElementById(elId);if(el&&v!=null)el.value=String(v);};
     setVal('conv-level',s.level);setVal('conv-minutes',s.minutes);
     const deck=document.getElementById('conv-deck');
-    if(deck)deck.value=s.deckID&&deck.querySelector(`option[value="${s.deckID}"]`)?String(s.deckID):'';
+    if(deck)deck.value=(s.useWords===false||s.useWords===0)?'__none__':(s.deckID&&deck.querySelector(`option[value="${s.deckID}"]`)?String(s.deckID):'');
     const sp=document.getElementById('conv-spain');if(sp)sp.checked=!!s.spain;
     renderConvSavedList(langID);
   }
@@ -3846,6 +3864,60 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     conv.busy=false;
     if(!r||r.error){convErr('Could not cancel',r);renderConversation(conv.langID);return;}
     closeConversation();
+  }
+
+  // ── Spanish level (CEFR estimate) ──
+  let convLevelReport=null;
+  async function showSpanishLevel(langID){
+    const panel=document.getElementById(`lang-feature-${langID}`);if(!panel)return;
+    panel.innerHTML=`<div class="conv-chat"><div class="conv-head"><strong>Spanish Level</strong><button class="btn-secondary" onclick="renderConversation(${langID})">Close</button></div><p class="conv-hint">⏳ Assessing your Spanish from your conversations, reviews and notes…</p></div>`;
+    const r=await apiPost('LanguageChat',{action:'assess',userID:USER_ID,languageID:langID});
+    if(!document.getElementById(`lang-feature-${langID}`))return;
+    if(!r||r.error){panel.innerHTML=`<div class="conv-chat"><div class="conv-head"><strong>Spanish Level</strong><button class="btn-secondary" onclick="renderConversation(${langID})">Close</button></div><p>Could not assess your level: ${convEsc((r&&r.error)||'unknown error')}</p></div>`;return;}
+    if(r.empty){panel.innerHTML=`<div class="conv-chat"><div class="conv-head"><strong>Spanish Level</strong><button class="btn-secondary" onclick="renderConversation(${langID})">Close</button></div><p>Finish at least one conversation (End Session) first, so there's something to assess.</p></div>`;return;}
+    convLevelReport=r;
+    panel.innerHTML=`<div class="conv-chat">
+      <div class="conv-head"><strong>Spanish Level</strong><div class="conv-end-right"><button class="btn-secondary" onclick="printSpanishLevel()">🖨 Print</button><button class="btn-secondary" onclick="renderConversation(${langID})">Close</button></div></div>
+      ${renderLevelReportHTML(r)}
+    </div>`;
+  }
+
+  function renderLevelReportHTML(r){
+    const li=a=>(a||[]).map(x=>`<li>${convEsc(x)}</li>`).join('');
+    const skills=(r.skills||[]).map(s=>`<tr><td>${convEsc(s.skill)}</td><td class="lvl-skill-lvl">${convEsc(s.level)}</td><td>${convEsc(s.note)}</td></tr>`).join('');
+    return `<div class="lvl-report">
+      <div class="lvl-head">
+        <div class="lvl-badge">${convEsc(r.level)}</div>
+        <div><div class="lvl-title">Estimated level: ${convEsc(r.level)} · ${convEsc(r.level_name)}</div>
+          <div class="lvl-meta">CEFR estimate · ${convDate(r.date)} · based on ${r.sessions} session${r.sessions===1?'':'s'} · confidence: ${convEsc(r.confidence)}</div></div>
+      </div>
+      <p class="lvl-summary">${convEsc(r.summary)}</p>
+      ${skills?`<table class="lvl-skills"><tbody>${skills}</tbody></table>`:''}
+      <div class="lvl-cols">
+        <div><h4>Strengths</h4><ul>${li(r.strengths)}</ul></div>
+        <div><h4>Weaknesses</h4><ul>${li(r.weaknesses)}</ul></div>
+      </div>
+      <h4>Focus next</h4><ol>${li(r.focus)}</ol>
+      <p class="lvl-foot">An estimate from written conversation practice in Daily Me, not an official CEFR test. Speaking and listening aren't measured yet.</p>
+    </div>`;
+  }
+
+  function printSpanishLevel(){
+    if(!convLevelReport)return;
+    const w=window.open('','_blank');
+    if(!w){alert('Please allow pop-ups for Daily Me to print.');return;}
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Spanish Level - ${convEsc(convLevelReport.level)}</title><style>
+      body{font-family:Arial,Helvetica,sans-serif;color:#0f1e2e;max-width:720px;margin:28px auto;font-size:13px;line-height:1.45}
+      .lvl-head{display:flex;align-items:center;gap:16px;border-bottom:2px solid #2b7fd4;padding-bottom:10px}
+      .lvl-badge{width:64px;height:64px;border-radius:50%;background:#2b7fd4;color:#fff;font-size:24px;font-weight:700;display:flex;align-items:center;justify-content:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .lvl-title{font-size:20px;font-weight:700}.lvl-meta{color:#5a7a9a;font-size:12px}
+      .lvl-summary{margin:12px 0}.lvl-skills{width:100%;border-collapse:collapse;margin:8px 0 12px}
+      .lvl-skills td{border-bottom:1px solid #d8e6f2;padding:4px 6px}.lvl-skill-lvl{font-weight:700;color:#2b7fd4;width:60px}
+      .lvl-cols{display:flex;gap:24px}.lvl-cols>div{flex:1}h4{margin:10px 0 4px;font-size:14px}ul,ol{margin:0;padding-left:20px}li{margin-bottom:3px}
+      .lvl-foot{color:#5a7a9a;font-size:11px;margin-top:14px;border-top:1px solid #d8e6f2;padding-top:6px}
+    </style></head><body>${renderLevelReportHTML(convLevelReport)}</body></html>`);
+    w.document.close();w.focus();
+    setTimeout(()=>w.print(),300);
   }
 
   function closeConversation(){
