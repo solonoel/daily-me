@@ -288,6 +288,52 @@
     #recency-bar { position:sticky; top:0; z-index:95; flex-shrink:0; }
     body.nav-mode #recency-bar { top:0; }
     body.companion-hidden-preload { opacity:0 !important; }
+    /* ── Conversation practice ── */
+    .conv-setup { padding:4px 0; display:flex; flex-direction:column; gap:14px; }
+    .conv-setup label { display:block; font-size:12px; font-weight:600; color:var(--text-soft); margin-bottom:4px; }
+    .conv-setup textarea { width:100%; resize:vertical; }
+    .conv-grid { display:grid; grid-template-columns:1fr 1fr 2fr; gap:12px; }
+    .conv-grid select { width:100%; }
+    .conv-setup .conv-check { display:flex; align-items:center; gap:8px; font-weight:500; color:var(--text); }
+    .conv-hint { font-size:12px; color:var(--text-muted); }
+    .conv-chat { display:flex; flex-direction:column; gap:10px; }
+    .conv-head { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; font-size:13px; }
+    .conv-head-right { display:flex; align-items:center; gap:10px; }
+    .conv-focus { font-size:11px; background:#e6f1ff; color:var(--sky-deep); border-radius:4px; padding:2px 6px; margin-left:6px; font-weight:600; }
+    .conv-timer { font-size:12px; font-weight:600; color:var(--text-soft); }
+    .conv-timer-up { color:#c0392b; }
+    .conv-log { max-height:60vh; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding:6px 2px; }
+    .conv-msg { max-width:80%; padding:9px 13px; border-radius:14px; font-size:14px; line-height:1.45; white-space:pre-wrap; }
+    .conv-ai { align-self:flex-start; background:#eef5fc; border:1px solid var(--border); }
+    .conv-aside { background:#fff8e6; border-color:#e8c870; }
+    .conv-user { align-self:flex-end; background:var(--sky-deep); color:white; }
+    .conv-typing { color:var(--text-muted); }
+    .conv-fb { align-self:flex-end; max-width:85%; display:flex; flex-direction:column; gap:4px; }
+    .conv-fb-item { display:flex; gap:8px; font-size:12px; padding:6px 10px; border-radius:8px; border-left:3px solid; background:white; }
+    .conv-fb-error { border-color:#c0392b; }
+    .conv-fb-improvement { border-color:#e8a020; }
+    .conv-fb-strength { border-color:#27ae60; }
+    .conv-fb-gap { border-color:var(--sky-deep); }
+    .conv-fb-void { opacity:0.5; text-decoration:line-through; }
+    .conv-fb-icon { font-weight:700; }
+    .conv-fb-orig { color:var(--text-muted); }
+    .conv-fb-error .conv-fb-orig { text-decoration:line-through; }
+    .conv-fb-cat { font-size:10px; color:var(--text-muted); margin-left:6px; text-transform:uppercase; letter-spacing:0.03em; }
+    .conv-fb-expl { color:var(--text-soft); margin-top:2px; }
+    .conv-fb-spain { color:var(--text-soft); margin-top:2px; font-style:italic; }
+    .conv-input { display:flex; gap:8px; align-items:flex-end; }
+    .conv-input textarea { flex:1; resize:vertical; }
+    .conv-end { border-top:1.5px solid var(--border); padding-top:12px; }
+    .conv-end h3, .conv-notes h3 { font-family:'Playfair Display',serif; font-size:16px; margin:8px 0; }
+    .conv-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:8px 0 12px; }
+    .conv-stats div { background:#f5f9ff; border:1px solid var(--border); border-radius:10px; padding:8px; font-size:11px; color:var(--text-muted); text-align:center; }
+    .conv-stats span { display:block; font-size:18px; font-weight:700; color:var(--text); }
+    .conv-end-line { font-size:13px; margin:4px 0; }
+    .conv-end-btns { display:flex; gap:10px; margin:12px 0; }
+    .conv-notes { background:white; border:1.5px solid var(--border); border-radius:12px; padding:14px 18px; font-size:14px; line-height:1.5; }
+    .conv-notes ul { margin:4px 0 10px 20px; }
+    .conv-notes h4 { margin:8px 0 4px; font-size:14px; }
+    @media (max-width:700px) { .conv-grid { grid-template-columns:1fr 1fr; } .conv-stats { grid-template-columns:repeat(2,1fr); } .conv-msg { max-width:92%; } }
   </style>
 </head>
 <body>
@@ -2430,7 +2476,7 @@ function renderLanguageNav(){
           <div class="lang-tab-bar">
             <div class="lang-tab" id="langtab-decks-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'decks','${lang.LanguageNameEng}')">📚 My Decks</div>
             <div class="lang-tab" id="langtab-mw-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'mywords','${lang.LanguageNameEng}')">📝 My Words</div>
-            <div class="lang-tab lang-tab-disabled">💬 Conversation</div>
+            <div class="lang-tab" id="langtab-conv-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'conversation','${lang.LanguageNameEng}')">💬 Conversation</div>
             <div class="lang-tab" id="langtab-conj-${lang.LanguageID}" onclick="showLangFeature(${lang.LanguageID},'conjugation','${lang.LanguageNameEng}')">🔤 Conjugation</div>
           </div>
           <div id="lang-feature-${lang.LanguageID}" class="lang-feature-panel"></div>
@@ -2443,7 +2489,7 @@ function renderLanguageNav(){
   async function showLangFeature(langID,feature,langName,autoLoadWordID=null,skipLoad=false){
     currentLangID=langID;currentLangName=langName;
     document.querySelectorAll('[id^="langtab-"]').forEach(t=>t.classList.remove('lang-tab-active'));
-    const tabMap={flashcards:`langtab-fc-${langID}`,conjugation:`langtab-conj-${langID}`,decks:`langtab-decks-${langID}`,mywords:`langtab-mw-${langID}`};
+    const tabMap={flashcards:`langtab-fc-${langID}`,conjugation:`langtab-conj-${langID}`,decks:`langtab-decks-${langID}`,mywords:`langtab-mw-${langID}`,conversation:`langtab-conv-${langID}`};
     const tabEl=document.getElementById(tabMap[feature]||`langtab-mw-${langID}`);
     if(tabEl)tabEl.classList.add('lang-tab-active');
     const panel=document.getElementById(`lang-feature-${langID}`);if(!panel)return;
@@ -2457,6 +2503,12 @@ function renderLanguageNav(){
       const data=await apiGet('GetUserLanguageWords',`&languageID=${langID}&filter=active`);
       const verbs=Array.isArray(data)?data.filter(w=>w.IsVerb==='Y'):[];
       panel.innerHTML=renderConjugationHTML(langID,langName,verbs,autoLoadWordID||null);
+    }else if(feature==='conversation'){
+      if(!(conv.sessionID&&conv.langID===langID)){
+        const data=await apiGet('GetUserDecks',`&languageID=${langID}&status=all`);
+        userDecks=Array.isArray(data)?data:[];
+      }
+      renderConversation(langID);
     }else if(feature==='decks'){
       const data=await apiGet('GetUserDecks',`&languageID=${langID}&status=all`);
       userDecks=Array.isArray(data)?data:[];
@@ -3416,6 +3468,175 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
   }
 
   // ── MY DECKS ──
+
+  // ── CONVERSATION PRACTICE ──
+  let conv={langID:null,sessionID:null,messages:[]};
+
+  function convEsc(s){return escapeBriefingHtml(s==null?'':s).replace(/"/g,'&quot;');}
+
+  function convMd(md){
+    const lines=convEsc(md).split(/\r?\n/);let html='',inList=false;
+    for(const l of lines){
+      const b=l.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+      if(/^\s*[-*]\s+/.test(l)){if(!inList){html+='<ul>';inList=true;}html+=`<li>${b.replace(/^\s*[-*]\s+/,'')}</li>`;continue;}
+      if(inList){html+='</ul>';inList=false;}
+      if(/^###\s+/.test(l))html+=`<h4>${b.replace(/^###\s+/,'')}</h4>`;
+      else if(/^##?\s+/.test(l))html+=`<h3>${b.replace(/^##?\s+/,'')}</h3>`;
+      else if(l.trim())html+=`<p>${b}</p>`;
+    }
+    if(inList)html+='</ul>';
+    return html;
+  }
+
+  function renderConversation(langID){
+    const panel=document.getElementById(`lang-feature-${langID}`);if(!panel)return;
+    if(conv.sessionID&&conv.langID===langID){
+      panel.innerHTML=renderConvChatHTML();
+      const log=document.getElementById('conv-log');if(log)log.scrollTop=log.scrollHeight;
+      const ta=document.getElementById('conv-text');if(ta&&!conv.busy)ta.focus();
+      convStartTimer();
+    }else{
+      panel.innerHTML=renderConvSetupHTML(langID);
+    }
+  }
+
+  function renderConvSetupHTML(langID){
+    let last={};try{last=JSON.parse(localStorage.getItem('dailyme_conv_last')||'{}');}catch(e){}
+    const lvl=last.level||5,mins=last.minutes||15;
+    const levelOpts=[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}" ${n===lvl?'selected':''}>${n}</option>`).join('');
+    const minOpts=[5,10,15,20,30,45,60].map(n=>`<option value="${n}" ${n===mins?'selected':''}>${n}</option>`).join('');
+    const deckOpts=userDecks.map(d=>`<option value="${d.UserLanguageWordsDeckID}" ${String(d.UserLanguageWordsDeckID)===String(last.deckID)?'selected':''}>${convEsc(d.UserLanguageWordsDeckName)}${d.Status!=='Active'?' ('+convEsc(d.Status)+')':''}</option>`).join('');
+    return `<div class="conv-setup">
+      <div><label for="conv-setting">Setting</label>
+        <textarea id="conv-setting" class="form-input" rows="4" placeholder="e.g. I want to tell you a story about fishing with my dad as a kid. I'll be using imperfect."></textarea></div>
+      <div class="conv-grid">
+        <div><label for="conv-level">Level (1–10)</label><select id="conv-level" class="form-select">${levelOpts}</select></div>
+        <div><label for="conv-minutes">Minutes</label><select id="conv-minutes" class="form-select">${minOpts}</select></div>
+        <div><label for="conv-deck">Words from</label><select id="conv-deck" class="form-select"><option value="">All my words</option>${deckOpts}</select></div>
+      </div>
+      <label class="conv-check"><input type="checkbox" id="conv-spain" ${last.spain?'checked':''}> Add notes on Spain Spanish</label>
+      <div><button class="btn-primary" id="conv-start-btn" onclick="startConversation(${langID})">Start conversation</button></div>
+      <div class="conv-hint">During the session you can type questions or comments in English at any time ("How do I say…?", "Is there a better way to say that?", "I think I was right"). Start a message with ? to make sure it's treated as a question.</div>
+    </div>`;
+  }
+
+  async function startConversation(langID){
+    const setting=document.getElementById('conv-setting').value.trim();
+    const level=parseInt(document.getElementById('conv-level').value);
+    const minutes=parseInt(document.getElementById('conv-minutes').value);
+    const deckID=document.getElementById('conv-deck').value||null;
+    const spain=document.getElementById('conv-spain').checked;
+    try{localStorage.setItem('dailyme_conv_last',JSON.stringify({level,minutes,deckID,spain}));}catch(e){}
+    const btn=document.getElementById('conv-start-btn');btn.disabled=true;btn.textContent='⏳ Preparing session…';
+    const r=await apiPost('LanguageChat',{action:'start',userID:USER_ID,languageID:langID,level,minutes,deckID,setting,includeSpain:spain});
+    if(!r||r.error){alert('Could not start the session: '+((r&&r.error)||'unknown error'));btn.disabled=false;btn.textContent='Start conversation';return;}
+    conv={langID,sessionID:r.sessionID,messages:[{role:'A',text:r.reply,type:r.turnType}],busy:false,ended:false,
+          minutes,startedAt:Date.now(),aiRole:r.aiRole||'',focus:r.focusGrammar||'',summary:null,notes:null,showNotes:false,timer:null};
+    renderConversation(langID);
+  }
+
+  function renderConvFindings(fs){
+    const icon={error:'✗',improvement:'↗',strength:'✓',gap:'+'};
+    return `<div class="conv-fb">${fs.map(f=>`<div class="conv-fb-item conv-fb-${f.type}${f.voided?' conv-fb-void':''}">
+      <span class="conv-fb-icon">${icon[f.type]||'•'}</span>
+      <div><div>${f.original&&f.type!=='strength'?`<span class="conv-fb-orig">${convEsc(f.original)}</span> → `:''}<strong>${convEsc(f.corrected||f.original)}</strong><span class="conv-fb-cat">${convEsc(f.category)}${f.isFocus?' · focus':''}${f.voided?' · withdrawn':''}</span></div>
+        ${f.explanation?`<div class="conv-fb-expl">${convEsc(f.explanation)}</div>`:''}
+        ${f.spainNote?`<div class="conv-fb-spain">Spain: ${convEsc(f.spainNote)}</div>`:''}</div></div>`).join('')}</div>`;
+  }
+
+  function renderConvChatHTML(){
+    const msgs=conv.messages.map(m=>m.role==='U'
+      ? `<div class="conv-msg conv-user">${convEsc(m.text)}</div>${m.findings&&m.findings.length?renderConvFindings(m.findings):''}`
+      : `<div class="conv-msg conv-ai${m.type==='aside'?' conv-aside':''}">${convEsc(m.text)}</div>`).join('');
+    return `<div class="conv-chat">
+      <div class="conv-head">
+        <div><strong>${convEsc(conv.aiRole||'Conversation')}</strong>${conv.focus?`<span class="conv-focus">Focus: ${convEsc(conv.focus)}</span>`:''}</div>
+        <div class="conv-head-right"><span id="conv-timer" class="conv-timer"></span>${conv.ended?'':`<button class="btn-secondary" onclick="endConversation()" ${conv.busy?'disabled':''}>End session</button>`}</div>
+      </div>
+      <div id="conv-log" class="conv-log">${msgs}${conv.busy&&!conv.ended?'<div class="conv-msg conv-ai conv-typing">…</div>':''}</div>
+      ${conv.ended?renderConvEndHTML():`<div class="conv-input">
+        <textarea id="conv-text" class="form-input" rows="2" placeholder="Escribe en español… (Enter to send, Shift+Enter for a new line)" onkeydown="convKey(event)" ${conv.busy?'disabled':''}></textarea>
+        <button class="btn-primary" onclick="sendConvMessage()" ${conv.busy?'disabled':''}>Send</button></div>`}
+    </div>`;
+  }
+
+  function convKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendConvMessage();}}
+
+  async function sendConvMessage(){
+    if(conv.busy||conv.ended)return;
+    const ta=document.getElementById('conv-text');const text=((ta&&ta.value)||'').trim();if(!text)return;
+    const userMsg={role:'U',text,findings:[]};
+    conv.messages.push(userMsg);conv.busy=true;renderConversation(conv.langID);
+    const r=await apiPost('LanguageChat',{action:'turn',userID:USER_ID,sessionID:conv.sessionID,message:text});
+    conv.busy=false;
+    if(!r||r.error){
+      conv.messages.pop();renderConversation(conv.langID);
+      const t=document.getElementById('conv-text');if(t)t.value=text;
+      alert('Message failed: '+((r&&r.error)||'unknown error'));return;
+    }
+    userMsg.findings=r.findings||[];
+    (r.disputed||[]).filter(d=>d.upheld).forEach(d=>conv.messages.forEach(m=>(m.findings||[]).forEach(f=>{if(f.id===d.id)f.voided=true;})));
+    conv.messages.push({role:'A',text:r.reply,type:r.turnType});
+    renderConversation(conv.langID);
+  }
+
+  function convStartTimer(){
+    clearInterval(conv.timer);
+    const tick=()=>{
+      const el=document.getElementById('conv-timer');
+      if(!el||conv.ended){clearInterval(conv.timer);if(el)el.textContent='';return;}
+      const left=Math.max(0,conv.minutes*60-Math.floor((Date.now()-conv.startedAt)/1000));
+      el.textContent=left>0?`⏱ ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`:"⏱ Time's up";
+      el.classList.toggle('conv-timer-up',left===0);
+    };
+    tick();conv.timer=setInterval(tick,1000);
+  }
+
+  async function endConversation(){
+    if(conv.busy||conv.ended)return;
+    if(!confirm('End this session?'))return;
+    conv.busy=true;renderConversation(conv.langID);
+    const r=await apiPost('LanguageChat',{action:'end',userID:USER_ID,sessionID:conv.sessionID});
+    conv.busy=false;
+    if(!r||r.error){renderConversation(conv.langID);alert('Could not end the session: '+((r&&r.error)||'unknown error'));return;}
+    conv.ended=true;conv.summary=r.summary;clearInterval(conv.timer);
+    renderConversation(conv.langID);
+  }
+
+  function renderConvEndHTML(){
+    const s=conv.summary||{};
+    const cats=Object.entries(s.errorsByCategory||{}).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`${convEsc(c)} (${n})`).join(', ');
+    const stat=(v,label)=>`<div><span>${v}</span>${label}</div>`;
+    return `<div class="conv-end">
+      <h3>Session complete</h3>
+      <div class="conv-stats">
+        ${stat(s.minutes??'–','minutes')}${stat(s.messages??0,'messages')}${stat(s.avgWordsPerMessage??0,'words / message')}${stat(s.errors??0,'errors')}
+        ${stat(s.improvements??0,'better phrasings')}${stat(s.strengths??0,'strengths')}${stat(s.asides??0,'questions asked')}${stat((s.englishMixRate??0)+'%','messages with English')}
+      </div>
+      ${(s.tensesUsed||[]).length?`<div class="conv-end-line"><strong>Tenses used:</strong> ${convEsc(s.tensesUsed.join(', '))}</div>`:''}
+      ${cats?`<div class="conv-end-line"><strong>Errors by type:</strong> ${cats}</div>`:''}
+      ${s.withdrawnAfterDispute?`<div class="conv-end-line">${s.withdrawnAfterDispute} correction(s) withdrawn after you challenged them.</div>`:''}
+      <div class="conv-end-btns">
+        <button class="btn-primary" id="conv-notes-btn" onclick="showConvNotes()">${conv.notes&&conv.showNotes?'Hide study notes':'📖 Study notes'}</button>
+        <button class="btn-secondary" onclick="newConversation()">New session</button>
+      </div>
+      ${conv.notes&&conv.showNotes?`<div class="conv-notes">${convMd(conv.notes)}</div>`:''}
+    </div>`;
+  }
+
+  async function showConvNotes(){
+    if(conv.notes){conv.showNotes=!conv.showNotes;renderConversation(conv.langID);return;}
+    const btn=document.getElementById('conv-notes-btn');if(btn){btn.disabled=true;btn.textContent='⏳ Writing study notes…';}
+    const r=await apiPost('LanguageChat',{action:'notes',userID:USER_ID,sessionID:conv.sessionID});
+    if(!r||r.error){alert('Could not create study notes: '+((r&&r.error)||'unknown error'));renderConversation(conv.langID);return;}
+    conv.notes=r.notes;conv.showNotes=true;renderConversation(conv.langID);
+  }
+
+  function newConversation(){
+    const id=conv.langID;clearInterval(conv.timer);
+    conv={langID:null,sessionID:null,messages:[]};
+    renderConversation(id);
+  }
 
   function renderDecksHTML(langID,langName){
     const pendingCount=userDecks.filter(d=>d.Status==='Pending').length;
