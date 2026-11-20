@@ -64,13 +64,23 @@ function callClaude(payload) {
 }
 
 async function callTool(system, messages, tool, maxTokens) {
-  const resp = await callClaude({
-    model: MODEL, max_tokens: maxTokens || 2000, system, messages,
-    tools: [tool], tool_choice: { type: 'tool', name: tool.name }
-  });
-  const block = (resp.content || []).find(c => c.type === 'tool_use' && c.name === tool.name);
-  if (!block) throw new Error('Claude did not return structured output');
-  return block.input;
+  const sys = system + `\n\nIMPORTANT: Always respond by calling the "${tool.name}" tool. Do not reply with plain text.`;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const resp = await callClaude({
+      model: MODEL, max_tokens: maxTokens || 2000, system: sys, messages,
+      tools: [tool], tool_choice: { type: 'auto' }
+    });
+    const block = (resp.content || []).find(c => c.type === 'tool_use' && c.name === tool.name);
+    if (block) return block.input;
+  }
+  throw new Error('Claude did not return structured output');
+}
+
+function fmtFinding(f) {
+  return {
+    id: f.LangFindingID, type: f.FindingType, category: f.Category, isFocus: f.IsFocus, severity: f.Severity,
+    original: f.Original, corrected: f.Corrected, explanation: f.Explanation, spainNote: f.SpainNote, voided: !!f.Voided
+  };
 }
 
 function parseJson(s, fallback) { try { return s ? JSON.parse(s) : fallback; } catch (e) { return fallback; } }
@@ -120,12 +130,12 @@ ${wordLines || '  (none)'}
 ${warmLines ? `WARM-UP (from his past mistakes): Start the session by working through these one at a time (turn_type "warmup"): give the prompt, check his answer, correct briefly, move on. If he says to skip, skip. Then start the scene.\n${warmLines}` : 'No warm-up this session; start the scene directly.'}
 
 CORRECTION RULES (apply to every message Noel writes in Spanish, covering ALL aspects: conjugation, tense/mood choice, agreement, ser/estar, por/para, prepositions, pronouns, articles, word choice, word order, spelling and accents, and naturalness):
-- If his message is perfect: no findings except optional strengths; continue the conversation.
+- If his message is perfect: no findings at all; just continue the conversation.
 - If correct but a more natural phrasing exists: add an "improvement" finding and continue.
 - If wrong: add "error" findings (one per distinct problem), set ask_retry=true, and in reply ask him briefly to try again (e.g. "Casi. Inténtalo otra vez."). Do not continue the scene until the retry.
 - On a retry turn (turn_type "retry"), judge the new attempt the same way; if it is right, acknowledge briefly and continue the scene.
 - Be critical and thorough, but every explanation must be brief (one short English sentence).
-- Record genuine strengths (correct use of a difficult structure) as "strength" findings, sparingly.
+- Never praise him or comment on things he did well. Findings are only for corrections, better phrasings and gaps.
 - When Noel lacks a word or phrase and falls back to English, record a "gap" finding with the Spanish he needed.
 - Put feedback ONLY in findings. The reply is the conversational message, not a list of corrections.
 
@@ -153,7 +163,7 @@ const RESPOND_TOOL = {
         items: {
           type: 'object',
           properties: {
-            type: { type: 'string', enum: ['error', 'improvement', 'strength', 'gap'] },
+            type: { type: 'string', enum: ['error', 'improvement', 'gap'] },
             category: { type: 'string', enum: CATEGORIES },
             is_focus: { type: 'boolean' },
             severity: { type: 'integer', minimum: 1, maximum: 3, description: '1 minor, 2 moderate, 3 major (errors only)' },
@@ -401,10 +411,7 @@ async function takeTurn(pool, b) {
 
   return {
     reply: out.reply, turnType: out.turn_type, askRetry: !!out.ask_retry,
-    findings: saved.map(f => ({
-      id: f.LangFindingID, type: f.FindingType, category: f.Category, isFocus: f.IsFocus, severity: f.Severity,
-      original: f.Original, corrected: f.Corrected, explanation: f.Explanation, spainNote: f.SpainNote
-    })),
+    findings: saved.map(fmtFinding),
     disputed: out.disputed_findings || [],
     minutesLeft: Math.max(0, minutesLeft)
   };
@@ -420,7 +427,28 @@ async function buildSummary(pool, s) {
   const byCat = {};
   findings.filter(f => f.FindingType === 'error').forEach(f => { byCat[f.Category] = (byCat[f.Category] || 0) + 1; });
   const ended = s.EndedDate ? new Date(s.EndedDate) : new Date();
+
+  // Score 0-100: accuracy per message (errors weighted by severity, better phrasings and gaps count
+  // less), small penalties for English mixed in and for asking questions, scaled by level (level 10 = full value).
+  const spokenIDs = new Set(spoken.map(t => t.LangTurnID));
+  const pen = {};
+  findings.forEach(f => {
+    if (!spokenIDs.has(f.LangTurnID)) return;
+    const p = f.FindingType === 'error' ? (f.Severity || 1) : f.FindingType === 'gap' ? 1 : f.FindingType === 'improvement' ? 0.5 : 0;
+    pen[f.LangTurnID] = (pen[f.LangTurnID] || 0) + p;
+  });
+  const asideCount = userTurns.filter(t => t.TurnType === 'aside').length;
+  let score = null;
+  if (spoken.length) {
+    const errPenalty = spoken.reduce((a, t) => a + Math.min(1, (pen[t.LangTurnID] || 0) / 3), 0) / spoken.length;
+    const engFrac = metas.filter(m => m.englishUsed).length / spoken.length;
+    const askFrac = Math.min(1, asideCount / spoken.length);
+    const raw = Math.max(0, 1 - 0.75 * errPenalty - 0.15 * engFrac - 0.10 * askFrac);
+    score = Math.round(100 * raw * (0.8 + 0.02 * s.Level));
+  }
+
   return {
+    score,
     minutes: Math.round((ended - new Date(s.StartedDate)) / 60000),
     messages: spoken.length,
     avgWordsPerMessage: spoken.length ? Math.round(10 * metas.reduce((a, m) => a + (m.words || 0), 0) / spoken.length) / 10 : 0,
@@ -447,8 +475,61 @@ async function endSession(pool, b) {
   }
   const summary = await buildSummary(pool, s);
   await pool.request().input('S', sql.Int, s.LangSessionID).input('J', sql.NVarChar(sql.MAX), JSON.stringify(summary))
-    .query(`UPDATE LangSession SET SummaryJson = @J WHERE LangSessionID = @S`);
+    .input('Score', sql.TinyInt, summary.score)
+    .query(`UPDATE LangSession SET SummaryJson = @J, Score = @Score WHERE LangSessionID = @S`);
   return { summary };
+}
+
+async function saveSession(pool, b) {
+  const s = await loadSession(pool, parseInt(b.sessionID), parseInt(b.userID));
+  let title = s.Title;
+  if (!title) {
+    const turns = await loadTurns(pool, s.LangSessionID);
+    const opening = turns.slice(0, 8).map(t => `${t.Role === 'U' ? 'NOEL' : 'TUTOR'}: ${t.Content}`).join('\n');
+    try {
+      const out = await callTool('You name saved Spanish conversation practice sessions.',
+        [{ role: 'user', content: `Setting: ${s.Setting}\nRole: ${s.AIRole || ''}\nOpening of the conversation:\n${opening}\n\nGive a short, specific English title of 3-6 words.` }],
+        { name: 'name_session', description: 'Return the title.', input_schema: { type: 'object', properties: { title: { type: 'string' } }, required: ['title'] } }, 300);
+      title = String(out.title || '').trim();
+    } catch (e) { /* fall back below */ }
+    if (!title) title = (s.AIRole || s.Setting || 'Conversation').slice(0, 60);
+  }
+  await pool.request().input('S', sql.Int, s.LangSessionID).input('T', sql.NVarChar(200), title.slice(0, 200))
+    .query(`UPDATE LangSession SET Title = @T, IsSaved = 1, SavedDate = GETDATE() WHERE LangSessionID = @S`);
+  return { title };
+}
+
+async function listSessions(pool, b) {
+  const r = await pool.request().input('U', sql.Int, parseInt(b.userID)).input('L', sql.Int, parseInt(b.languageID) || 1)
+    .query(`SELECT LangSessionID AS id, Title AS title, StartedDate AS date, Score AS score, Level AS level
+            FROM LangSession WHERE UserID = @U AND LanguageID = @L AND IsSaved = 1
+            ORDER BY StartedDate DESC`);
+  return { sessions: r.recordset };
+}
+
+// Removes a conversation from the saved list. Its corrections stay in the progress history.
+async function deleteSession(pool, b) {
+  const s = await loadSession(pool, parseInt(b.sessionID), parseInt(b.userID));
+  await pool.request().input('S', sql.Int, s.LangSessionID)
+    .query(`UPDATE LangSession SET IsSaved = 0 WHERE LangSessionID = @S`);
+  return { success: true };
+}
+
+async function loadConversation(pool, b) {
+  const s = await loadSession(pool, parseInt(b.sessionID), parseInt(b.userID));
+  const turns = await loadTurns(pool, s.LangSessionID);
+  const findings = await loadFindings(pool, s.LangSessionID);
+  const byTurn = {};
+  findings.filter(f => f.FindingType !== 'strength').forEach(f => { (byTurn[f.LangTurnID] = byTurn[f.LangTurnID] || []).push(fmtFinding(f)); });
+  let summary = parseJson(s.SummaryJson, null);
+  if (!summary || summary.score === undefined) summary = await buildSummary(pool, s);
+  return {
+    title: s.Title, aiRole: s.AIRole, focusGrammar: s.FocusGrammar, languageID: s.LanguageID,
+    startedDate: s.StartedDate, summary, notes: s.StudyNotes,
+    messages: turns.map(t => t.Role === 'U'
+      ? { role: 'U', text: t.Content, findings: byTurn[t.LangTurnID] || [] }
+      : { role: 'A', text: t.Content, type: t.TurnType })
+  };
 }
 
 async function studyNotes(pool, b) {
@@ -475,7 +556,13 @@ ${fbLines || '(none)'}
 Transcript:
 ${transcript}
 
-Write study notes with these sections: Main errors and fixes (grouped by pattern, most important first), Phrases worth keeping, Strengths, ${s.IncludeSpainNotes ? 'Spain vs Latin America, ' : ''}Practice (4-5 sentences to translate into Spanish, with answers at the end), and a one-line Fluency note interpreting the stats. Also suggest the level for the next session.` }],
+Write study notes with these sections, in this order:
+## Main errors and fixes - grouped by pattern, most important first.
+## Phrases worth keeping - each phrase as a bullet "- **Spanish phrase**", followed on the next line by the English translation indented with two spaces. Leave a blank line between phrases.
+## Vocabulary - the key words used in the session by either Noel or the tutor, one bullet each: "- **word** - English meaning". Put ⚠ at the start of any word Noel did not understand (he asked about it, misused it, or it had to be explained). End the section with the line "⚠ = not understood" if any are marked.
+${s.IncludeSpainNotes ? '## Spain vs Latin America - only if relevant.\n' : ''}## Practice - 4-5 sentences to translate into Spanish, with answers at the end.
+## Fluency - one line interpreting the stats.
+Do not include a strengths or praise section. Also suggest the level for the next session.` }],
     {
       name: 'study_notes',
       description: 'Return the study notes.',
@@ -509,6 +596,10 @@ module.exports = async function (context, req) {
       case 'turn': result = await takeTurn(pool, b); break;
       case 'end': result = await endSession(pool, b); break;
       case 'notes': result = await studyNotes(pool, b); break;
+      case 'save': result = await saveSession(pool, b); break;
+      case 'list': result = await listSessions(pool, b); break;
+      case 'delete': result = await deleteSession(pool, b); break;
+      case 'load': result = await loadConversation(pool, b); break;
       default: return respond(context, 400, { error: 'Unknown action' });
     }
     respond(context, 200, result);
