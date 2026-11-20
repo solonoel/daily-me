@@ -1,5 +1,6 @@
 // LanguageChat - Spanish conversation practice
-// POST body: { action: 'start' | 'turn' | 'end' | 'notes', userID, ... }
+// POST body: { action, userID, ... }
+// actions: start | continue | turn | end | save | discard | notes | list | delete | load
 const sql = require('mssql');
 const https = require('https');
 
@@ -85,6 +86,7 @@ function fmtFinding(f) {
 
 function parseJson(s, fallback) { try { return s ? JSON.parse(s) : fallback; } catch (e) { return fallback; } }
 function wordCount(s) { return String(s || '').trim().split(/\s+/).filter(Boolean).length; }
+function clampInt(v, lo, hi, dflt) { const n = parseInt(v); return isNaN(n) ? dflt : Math.min(hi, Math.max(lo, n)); }
 
 async function loadSession(pool, sessionID, userID) {
   const r = await pool.request()
@@ -96,7 +98,7 @@ async function loadSession(pool, sessionID, userID) {
 
 async function loadTurns(pool, sessionID) {
   const r = await pool.request().input('S', sql.Int, sessionID)
-    .query(`SELECT LangTurnID, TurnNumber, Role, TurnType, Content, MetaJson FROM LangTurn WHERE LangSessionID = @S ORDER BY TurnNumber`);
+    .query(`SELECT LangTurnID, TurnNumber, Role, TurnType, Content, MetaJson, CreatedDate FROM LangTurn WHERE LangSessionID = @S ORDER BY TurnNumber`);
   return r.recordset;
 }
 
@@ -106,14 +108,61 @@ async function loadFindings(pool, sessionID) {
   return r.recordset;
 }
 
+// Messages for the chat screen ('resume' turns are internal markers and are not shown).
+function visibleMessages(turns, findings) {
+  const byTurn = {};
+  findings.filter(f => f.FindingType !== 'strength').forEach(f => { (byTurn[f.LangTurnID] = byTurn[f.LangTurnID] || []).push(fmtFinding(f)); });
+  return turns.filter(t => t.TurnType !== 'resume').map(t => t.Role === 'U'
+    ? { role: 'U', text: t.Content, findings: byTurn[t.LangTurnID] || [] }
+    : { role: 'A', text: t.Content, type: t.TurnType });
+}
+
+// Up to 9 prioritised active words + 1 random mastered word
+async function pickWords(pool, userID, languageID, deckID) {
+  const wr = await pool.request()
+    .input('U', sql.Int, userID).input('L', sql.Int, languageID).input('D', sql.Int, deckID)
+    .query(`
+      WITH Pool AS (
+        SELECT w.UserLanguageWordsID, w.WordsName, w.WordsTranslation, w.Flag, w.DateMastered
+        FROM UserLanguageWords w
+        WHERE w.UserID = @U AND w.LanguageID = @L
+          AND (@D IS NULL OR EXISTS (SELECT 1 FROM UserLanguageWordsDeckWords dw
+                                     WHERE dw.UserLanguageWordsDeckID = @D AND dw.UserLanguageWordsID = w.UserLanguageWordsID))
+      )
+      SELECT * FROM (
+        SELECT TOP 9 p.UserLanguageWordsID, p.WordsName, p.WordsTranslation, p.Flag
+        FROM Pool p
+        LEFT JOIN LangWordProgress g ON g.UserID = @U AND g.UserLanguageWordsID = p.UserLanguageWordsID
+        WHERE p.DateMastered IS NULL
+        ORDER BY (CASE WHEN p.Flag = 1 THEN 4 ELSE 0 END)
+               + (CASE WHEN g.NextDueDate <= GETDATE() THEN 3 ELSE 0 END)
+               + (CASE WHEN g.TimesWrong > g.TimesCorrect THEN 2 ELSE 0 END)
+               + (CASE WHEN g.UserID IS NULL THEN 1 ELSE 0 END) DESC, NEWID()
+      ) a
+      UNION ALL
+      SELECT * FROM (
+        SELECT TOP 1 p.UserLanguageWordsID, p.WordsName, p.WordsTranslation, p.Flag
+        FROM Pool p WHERE p.DateMastered IS NOT NULL ORDER BY NEWID()
+      ) m`);
+  return wr.recordset.map(w => ({ id: w.UserLanguageWordsID, word: w.WordsName, translation: w.WordsTranslation, flagged: !!w.Flag }));
+}
+
 // ---------- system prompt ----------
 function buildSystemPrompt(s, minutesLeft) {
   const words = parseJson(s.WordsJson, []);
   const warmup = parseJson(s.WarmupJson, []);
+  const isReview = s.SessionType === 'review';
+  const name = s.AIName || 'Raúl';
   const wordLines = words.map(w => `  [${w.id}] ${w.word}${w.translation ? ' = ' + w.translation : ''}${w.flagged ? ' (TROUBLE WORD)' : ''}`).join('\n');
   const warmLines = warmup.map((w, i) => `  ${i + 1}. ${w.prompt}  (target: ${w.target})`).join('\n');
 
-  return `You are a Spanish conversation partner and tutor for Noel, an adult English speaker learning conversational Spanish. His goal is real conversation, not vocabulary drills.
+  const warmSection = !warmLines
+    ? 'No warm-up; carry on with the conversation.'
+    : isReview
+      ? `REVIEW SESSION: this session reviews an earlier conversation. Work through these review items one at a time (turn_type "warmup"): give the prompt, check his answer, correct if needed, move on. After the items, hold a short conversation on the same theme that makes him reuse the corrected forms and vocabulary.\n${warmLines}`
+      : `WARM-UP (from his past mistakes): Start by working through these one at a time (turn_type "warmup"): give the prompt, check his answer, correct if needed, move on. If he says to skip, skip. Then start the scene.\n${warmLines}`;
+
+  return `You are ${name}, a Spanish conversation partner and tutor for Noel, an adult English speaker learning conversational Spanish. His goal is real conversation, not vocabulary drills. Your name is ${name}; the app shows it before your messages, so never write your own name at the start of a reply.
 
 DIALECT: Latin American Spanish (neutral, Peru-friendly). ${s.IncludeSpainNotes ? 'Noel also talks weekly with friends in Spain: whenever a correction or phrase differs in Spain (vosotros, vocabulary, use of the present perfect, expressions), add a short spain_note.' : 'Do not add Spain notes.'}
 
@@ -127,15 +176,16 @@ ${s.FocusGrammar ? `GRAMMAR FOCUS: ${s.FocusGrammar}. This is an emphasis, not a
 NOEL'S WORDS (weave these in naturally, favour TROUBLE WORDs; report each one Noel uses in words_used with its id):
 ${wordLines || '  (none)'}
 
-${warmLines ? `WARM-UP (from his past mistakes): Start the session by working through these one at a time (turn_type "warmup"): give the prompt, check his answer, correct briefly, move on. If he says to skip, skip. Then start the scene.\n${warmLines}` : 'No warm-up this session; start the scene directly.'}
+${warmSection}
+
+NO PRAISE: Never tell Noel he was right. Do not write "¡Perfecto!", "¡Muy bien!", "¡Correcto!", "¡Exacto!", "Good" or anything similar, in the reply or in findings. When his message is correct, simply continue (or go straight to the next warm-up item). Only corrections, better phrasings, gaps and answers to his questions are worth saying.
 
 CORRECTION RULES (apply to every message Noel writes in Spanish, covering ALL aspects: conjugation, tense/mood choice, agreement, ser/estar, por/para, prepositions, pronouns, articles, word choice, word order, spelling and accents, and naturalness):
 - If his message is perfect: no findings at all; just continue the conversation.
 - If correct but a more natural phrasing exists: add an "improvement" finding and continue.
 - If wrong: add "error" findings (one per distinct problem), set ask_retry=true, and in reply ask him briefly to try again (e.g. "Casi. Inténtalo otra vez."). Do not continue the scene until the retry.
-- On a retry turn (turn_type "retry"), judge the new attempt the same way; if it is right, acknowledge briefly and continue the scene.
+- On a retry turn (turn_type "retry"), judge the new attempt the same way; if it is right, continue the scene without comment.
 - Be critical and thorough, but every explanation must be brief (one short English sentence).
-- Never praise him or comment on things he did well. Findings are only for corrections, better phrasings and gaps.
 - When Noel lacks a word or phrase and falls back to English, record a "gap" finding with the Spanish he needed.
 - Put feedback ONLY in findings. The reply is the conversational message, not a list of corrections.
 
@@ -143,6 +193,7 @@ ASIDES: Noel may write questions or comments in English at any time ("How do I s
 - If an aside asks how to say something, also add a "gap" finding (original = his English, corrected = the Spanish).
 - If he disputes an earlier correction (each earlier correction is labelled with #id in the history), reconsider it honestly. Report it in disputed_findings with upheld=true if he was actually right (the correction was wrong or overly strict, or the usage is valid regionally), otherwise upheld=false and explain briefly why.
 - A message beginning with "?" is always an aside.
+- A user message in parentheses such as "(Noel is back...)" is a note from the app, not something Noel wrote: never correct it.
 
 TIME: ${minutesLeft > 0 ? `About ${Math.ceil(minutesLeft)} minute(s) left.` : 'Time is up. Still give feedback on his last message, then wrap up warmly in Spanish in one or two sentences (turn_type "wrapup"). Do not ask a new question.'}
 
@@ -156,7 +207,7 @@ const RESPOND_TOOL = {
     type: 'object',
     properties: {
       turn_type: { type: 'string', enum: ['warmup', 'practice', 'retry', 'aside', 'wrapup'] },
-      reply: { type: 'string', description: 'The message shown to Noel in the chat.' },
+      reply: { type: 'string', description: 'The message shown to Noel in the chat (without your name in front).' },
       ask_retry: { type: 'boolean' },
       findings: {
         type: 'array',
@@ -212,108 +263,99 @@ function buildMessages(turns, findings, newMessage) {
       lastUserTurnID = null;
     }
   }
-  msgs.push({ role: 'user', content: newMessage });
+  if (newMessage != null) msgs.push({ role: 'user', content: newMessage });
   return msgs;
 }
+
+const PREPARE_TOOL = (maxItems) => ({
+  name: 'prepare_session',
+  description: 'Prepare the session.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      ai_name: { type: 'string', description: 'The tutor\'s first name. If the setting gives the tutor a name, use it; otherwise use the suggested name, or choose a common Latin American first name.' },
+      ai_role: { type: 'string', description: 'Short English description of the role the tutor plays, e.g. "Listener to your story" or "Porter on the Inca Trail, day 2".' },
+      focus_grammar: { type: 'string', description: 'Grammar Noel wants to focus on, e.g. "imperfect". Empty string if none was mentioned; you may add one weak category if it fits naturally.' },
+      warmup: {
+        type: 'array', maxItems,
+        items: { type: 'object', properties: {
+          prompt: { type: 'string', description: 'Short instruction to Noel, e.g. "Last time you wrote \'si yo tendría\'. Say: If I had time, I would go." ' },
+          target: { type: 'string', description: 'The correct Spanish answer.' } }, required: ['prompt', 'target'] }
+      }
+    },
+    required: ['ai_name', 'ai_role', 'focus_grammar', 'warmup']
+  }
+});
 
 // ---------- actions ----------
 async function startSession(pool, b) {
   const userID = parseInt(b.userID);
   const languageID = parseInt(b.languageID) || 1;
   const deckID = b.deckID ? parseInt(b.deckID) : null;
-  const level = Math.min(10, Math.max(1, parseInt(b.level) || 5));
-  const minutes = Math.min(120, Math.max(1, parseInt(b.minutes) || 15));
-  const setting = String(b.setting || '').trim() || 'Free conversation about everyday life.';
+  const level = clampInt(b.level, 1, 10, 5);
+  const minutes = clampInt(b.minutes, 1, 120, 15);
   const includeSpain = !!b.includeSpain;
+  const reviewOf = b.reviewOf ? await loadSession(pool, parseInt(b.reviewOf), userID) : null;
+  const userSetting = String(b.setting || '').trim();
 
-  // Words: up to 9 prioritised active words + 1 random mastered word
-  const wr = await pool.request()
-    .input('U', sql.Int, userID).input('L', sql.Int, languageID).input('D', sql.Int, deckID)
-    .query(`
-      WITH Pool AS (
-        SELECT w.UserLanguageWordsID, w.WordsName, w.WordsTranslation, w.Flag, w.DateMastered
-        FROM UserLanguageWords w
-        WHERE w.UserID = @U AND w.LanguageID = @L
-          AND (@D IS NULL OR EXISTS (SELECT 1 FROM UserLanguageWordsDeckWords dw
-                                     WHERE dw.UserLanguageWordsDeckID = @D AND dw.UserLanguageWordsID = w.UserLanguageWordsID))
-      )
-      SELECT * FROM (
-        SELECT TOP 9 p.UserLanguageWordsID, p.WordsName, p.WordsTranslation, p.Flag
-        FROM Pool p
-        LEFT JOIN LangWordProgress g ON g.UserID = @U AND g.UserLanguageWordsID = p.UserLanguageWordsID
-        WHERE p.DateMastered IS NULL
-        ORDER BY (CASE WHEN p.Flag = 1 THEN 4 ELSE 0 END)
-               + (CASE WHEN g.NextDueDate <= GETDATE() THEN 3 ELSE 0 END)
-               + (CASE WHEN g.TimesWrong > g.TimesCorrect THEN 2 ELSE 0 END)
-               + (CASE WHEN g.UserID IS NULL THEN 1 ELSE 0 END) DESC, NEWID()
-      ) a
-      UNION ALL
-      SELECT * FROM (
-        SELECT TOP 1 p.UserLanguageWordsID, p.WordsName, p.WordsTranslation, p.Flag
-        FROM Pool p WHERE p.DateMastered IS NOT NULL ORDER BY NEWID()
-      ) m`);
-  const words = wr.recordset.map(w => ({ id: w.UserLanguageWordsID, word: w.WordsName, translation: w.WordsTranslation, flagged: !!w.Flag }));
+  const words = await pickWords(pool, userID, languageID, deckID);
+  let setting, prepareMsg, maxItems;
 
-  // Past errors for the warm-up
-  const er = await pool.request().input('U', sql.Int, userID)
-    .query(`SELECT TOP 12 Category, Original, Corrected, Explanation FROM LangFinding
-            WHERE UserID = @U AND FindingType = 'error' AND Voided = 0 AND CreatedDate >= DATEADD(day, -30, GETDATE())
-            ORDER BY ISNULL(Severity, 1) DESC, CreatedDate DESC`);
-  const pastErrors = er.recordset;
-
-  // Weakest categories over the last 30 days
-  const cr = await pool.request().input('U', sql.Int, userID)
-    .query(`SELECT TOP 3 Category, COUNT(*) AS N FROM LangFinding
-            WHERE UserID = @U AND FindingType = 'error' AND Voided = 0 AND CreatedDate >= DATEADD(day, -30, GETDATE())
-            GROUP BY Category ORDER BY COUNT(*) DESC`);
-  const weak = cr.recordset.map(r => r.Category);
-
-  // Ask Claude to interpret the setting and pick warm-up items
-  const setup = await callTool(
-    'You prepare Spanish conversation practice sessions. Interpret the learner\'s setting description and prepare the session.',
-    [{ role: 'user', content:
+  if (reviewOf) {
+    const pf = (await loadFindings(pool, reviewOf.LangSessionID))
+      .filter(f => !f.Voided && ['error', 'improvement', 'gap'].includes(f.FindingType));
+    setting = `Review of an earlier conversation ("${reviewOf.Title || reviewOf.AIRole || 'conversation'}"). Original setting: ${reviewOf.Setting}${userSetting ? `\nExtra instructions from Noel: ${userSetting}` : ''}`;
+    maxItems = 8;
+    prepareMsg =
+`This is a REVIEW session of an earlier conversation.
+Original setting: """${reviewOf.Setting}"""
+${userSetting ? `Extra instructions from Noel: """${userSetting}"""\n` : ''}Level: ${level}/10.
+Suggested tutor name: ${reviewOf.AIName || '(none)'}
+Corrections, better phrasings and gaps from that conversation (pick up to 8 of the most important as review items, covering different problems; if fewer exist, use what there is):
+${pf.map(e => `- [${e.FindingType}/${e.Category}] "${e.Original}" -> "${e.Corrected}" (${e.Explanation || ''})`).join('\n') || '(none - build items from the key vocabulary of the original setting instead)'}`;
+  } else {
+    setting = userSetting || 'Free conversation about everyday life.';
+    maxItems = 4;
+    const er = await pool.request().input('U', sql.Int, userID)
+      .query(`SELECT TOP 12 Category, Original, Corrected, Explanation FROM LangFinding
+              WHERE UserID = @U AND FindingType = 'error' AND Voided = 0 AND CreatedDate >= DATEADD(day, -30, GETDATE())
+              ORDER BY ISNULL(Severity, 1) DESC, CreatedDate DESC`);
+    const cr = await pool.request().input('U', sql.Int, userID)
+      .query(`SELECT TOP 3 Category, COUNT(*) AS N FROM LangFinding
+              WHERE UserID = @U AND FindingType = 'error' AND Voided = 0 AND CreatedDate >= DATEADD(day, -30, GETDATE())
+              GROUP BY Category ORDER BY COUNT(*) DESC`);
+    prepareMsg =
 `Setting description from Noel: """${setting}"""
 Level: ${level}/10.
 Recent mistakes (pick up to 4 of the most instructive for a quick warm-up; skip duplicates; return none if the list is empty):
-${pastErrors.map(e => `- [${e.Category}] "${e.Original}" -> "${e.Corrected}" (${e.Explanation || ''})`).join('\n') || '(none)'}
-Weakest categories recently: ${weak.join(', ') || '(none)'}` }],
-    {
-      name: 'prepare_session',
-      description: 'Prepare the session.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          ai_role: { type: 'string', description: 'Short English description of the role Claude plays, e.g. "Listener to your story" or "Porter on the Inca Trail, day 2".' },
-          focus_grammar: { type: 'string', description: 'Grammar Noel wants to focus on, e.g. "imperfect". Empty string if none was mentioned; you may add one weak category if it fits naturally.' },
-          warmup: {
-            type: 'array', maxItems: 4,
-            items: { type: 'object', properties: {
-              prompt: { type: 'string', description: 'Short instruction to Noel, e.g. "Last time you wrote \'si yo tendría\'. Say: If I had time, I would go." ' },
-              target: { type: 'string', description: 'The correct Spanish answer.' } }, required: ['prompt', 'target'] }
-          }
-        },
-        required: ['ai_role', 'focus_grammar', 'warmup']
-      }
-    }, 1200);
+${er.recordset.map(e => `- [${e.Category}] "${e.Original}" -> "${e.Corrected}" (${e.Explanation || ''})`).join('\n') || '(none)'}
+Weakest categories recently: ${cr.recordset.map(r => r.Category).join(', ') || '(none)'}`;
+  }
+
+  const setup = await callTool(
+    'You prepare Spanish conversation practice sessions. Interpret the learner\'s setting description and prepare the session.',
+    [{ role: 'user', content: prepareMsg }], PREPARE_TOOL(maxItems), 1500);
 
   const ins = await pool.request()
     .input('U', sql.Int, userID).input('L', sql.Int, languageID).input('D', sql.Int, deckID)
-    .input('P', sql.Int, b.parentSessionID ? parseInt(b.parentSessionID) : null)
+    .input('P', sql.Int, reviewOf ? reviewOf.LangSessionID : null)
     .input('Level', sql.TinyInt, level).input('Min', sql.SmallInt, minutes)
     .input('Setting', sql.NVarChar(2000), setting.slice(0, 2000))
     .input('Focus', sql.NVarChar(400), (setup.focus_grammar || '').slice(0, 400) || null)
     .input('Spain', sql.Bit, includeSpain)
     .input('Role', sql.NVarChar(200), (setup.ai_role || '').slice(0, 200))
+    .input('Name', sql.NVarChar(50), (setup.ai_name || 'Raúl').slice(0, 50))
+    .input('Type', sql.NVarChar(20), reviewOf ? 'review' : 'conversation')
     .input('Words', sql.NVarChar(sql.MAX), JSON.stringify(words))
     .input('Warm', sql.NVarChar(sql.MAX), JSON.stringify(setup.warmup || []))
-    .query(`INSERT INTO LangSession (UserID, LanguageID, DeckID, ParentSessionID, Level, DurationMinutes, Setting, FocusGrammar, IncludeSpainNotes, AIRole, WordsJson, WarmupJson)
+    .query(`INSERT INTO LangSession (UserID, LanguageID, DeckID, ParentSessionID, Level, DurationMinutes, Setting, FocusGrammar,
+                                     IncludeSpainNotes, AIRole, AIName, SessionType, WordsJson, WarmupJson, SegmentStart, ResumeTurnNumber)
             OUTPUT INSERTED.*
-            VALUES (@U, @L, @D, @P, @Level, @Min, @Setting, @Focus, @Spain, @Role, @Words, @Warm)`);
+            VALUES (@U, @L, @D, @P, @Level, @Min, @Setting, @Focus, @Spain, @Role, @Name, @Type, @Words, @Warm, GETDATE(), 0)`);
   const session = ins.recordset[0];
 
-  // Opening message
   const open = await callTool(buildSystemPrompt(session, minutes),
-    [{ role: 'user', content: '(Session start. Please begin: either the first warm-up item, or set the scene in one or two sentences and invite Noel to start. If Noel said he will tell a story, briefly invite him to begin.)' }],
+    [{ role: 'user', content: '(Session start. Please begin: either the first warm-up/review item, or set the scene in one or two sentences and invite Noel to start. If Noel said he will tell a story, briefly invite him to begin.)' }],
     RESPOND_TOOL, 800);
 
   await pool.request()
@@ -323,9 +365,47 @@ Weakest categories recently: ${weak.join(', ') || '(none)'}` }],
     .query(`INSERT INTO LangTurn (LangSessionID, TurnNumber, Role, TurnType, Content) VALUES (@S, 1, 'A', @Type, @C)`);
 
   return {
-    sessionID: session.LangSessionID, aiRole: session.AIRole, focusGrammar: session.FocusGrammar,
-    words, warmupCount: (setup.warmup || []).length, minutes, startedDate: session.StartedDate,
-    reply: open.reply, turnType: open.turn_type
+    sessionID: session.LangSessionID, aiName: session.AIName, aiRole: session.AIRole, focusGrammar: session.FocusGrammar,
+    sessionType: session.SessionType, title: reviewOf ? `Review: ${reviewOf.Title || 'conversation'}` : '',
+    minutes, messages: [{ role: 'A', text: open.reply, type: open.turn_type }]
+  };
+}
+
+async function continueSession(pool, b) {
+  const userID = parseInt(b.userID);
+  const s = await loadSession(pool, parseInt(b.sessionID), userID);
+  const deckID = b.deckID ? parseInt(b.deckID) : null;
+  const level = clampInt(b.level, 1, 10, s.Level);
+  const minutes = clampInt(b.minutes, 1, 120, s.DurationMinutes);
+  const words = await pickWords(pool, userID, s.LanguageID, deckID);
+  const turns = await loadTurns(pool, s.LangSessionID);
+  const lastNum = turns.length ? turns[turns.length - 1].TurnNumber : 0;
+
+  await pool.request()
+    .input('S', sql.Int, s.LangSessionID).input('D', sql.Int, deckID).input('Level', sql.TinyInt, level)
+    .input('Min', sql.SmallInt, minutes).input('Spain', sql.Bit, !!b.includeSpain)
+    .input('Words', sql.NVarChar(sql.MAX), JSON.stringify(words)).input('R', sql.Int, lastNum)
+    .query(`UPDATE LangSession SET Status = 'Active', DeckID = @D, Level = @Level, DurationMinutes = @Min, IncludeSpainNotes = @Spain,
+              WordsJson = @Words, WarmupJson = '[]', SegmentStart = GETDATE(), ResumeTurnNumber = @R, EndedDate = NULL
+            WHERE LangSessionID = @S`);
+  const s2 = await loadSession(pool, s.LangSessionID, userID);
+  const findings = await loadFindings(pool, s.LangSessionID);
+
+  const note = '(Noel is back to continue this conversation. Greet him briefly and pick up where you left off.)';
+  const out = await callTool(buildSystemPrompt(s2, minutes), buildMessages(turns, findings, note), RESPOND_TOOL, 800);
+
+  await pool.request()
+    .input('S', sql.Int, s.LangSessionID).input('N', sql.Int, lastNum + 1).input('C', sql.NVarChar(sql.MAX), note)
+    .query(`INSERT INTO LangTurn (LangSessionID, TurnNumber, Role, TurnType, Content) VALUES (@S, @N, 'U', 'resume', @C)`);
+  await pool.request()
+    .input('S', sql.Int, s.LangSessionID).input('N', sql.Int, lastNum + 2).input('C', sql.NVarChar(sql.MAX), out.reply)
+    .input('Type', sql.NVarChar(20), out.turn_type === 'aside' ? 'practice' : out.turn_type)
+    .query(`INSERT INTO LangTurn (LangSessionID, TurnNumber, Role, TurnType, Content) VALUES (@S, @N, 'A', @Type, @C)`);
+
+  const turns2 = await loadTurns(pool, s.LangSessionID);
+  return {
+    sessionID: s2.LangSessionID, aiName: s2.AIName, aiRole: s2.AIRole, focusGrammar: s2.FocusGrammar,
+    sessionType: s2.SessionType, title: s2.Title || '', minutes, messages: visibleMessages(turns2, findings)
   };
 }
 
@@ -338,14 +418,19 @@ async function takeTurn(pool, b) {
 
   const turns = await loadTurns(pool, s.LangSessionID);
   const findings = await loadFindings(pool, s.LangSessionID);
-  const minutesLeft = s.DurationMinutes - (Date.now() - new Date(s.StartedDate).getTime()) / 60000;
+  const segStart = new Date(s.SegmentStart || s.StartedDate).getTime();
+  const minutesLeft = s.DurationMinutes - (Date.now() - segStart) / 60000;
 
   const out = await callTool(buildSystemPrompt(s, minutesLeft), buildMessages(turns, findings, message), RESPOND_TOOL, 2000);
 
   const validWordIDs = new Set(parseJson(s.WordsJson, []).map(w => w.id));
+  const usedWords = (out.words_used || []).filter(w => validWordIDs.has(w.word_id));
   const nextNum = (turns.length ? turns[turns.length - 1].TurnNumber : 0) + 1;
-  const userType = out.turn_type === 'aside' ? 'aside' : out.turn_type === 'retry' ? 'retry' : out.turn_type === 'warmup' ? 'warmup' : 'practice';
-  const meta = { tenses: out.tenses_used || [], englishUsed: !!out.english_used, words: wordCount(message) };
+  const userType = ['aside', 'retry', 'warmup'].includes(out.turn_type) ? out.turn_type : 'practice';
+  const meta = {
+    tenses: out.tenses_used || [], englishUsed: !!out.english_used, words: wordCount(message),
+    wordsUsed: usedWords.map(w => ({ id: w.word_id, ok: !!w.correct }))
+  };
 
   const tx = new sql.Transaction(pool);
   await tx.begin();
@@ -360,6 +445,7 @@ async function takeTurn(pool, b) {
     const userTurnID = ut.recordset[0].LangTurnID;
 
     for (const f of (out.findings || [])) {
+      if (f.type === 'strength') continue;
       const r = await new sql.Request(tx)
         .input('S', sql.Int, s.LangSessionID).input('T', sql.Int, userTurnID).input('U', sql.Int, userID)
         .input('Type', sql.NVarChar(20), f.type).input('Cat', sql.NVarChar(50), CATEGORIES.includes(f.category) ? f.category : 'naturalness')
@@ -380,8 +466,7 @@ async function takeTurn(pool, b) {
                 WHERE LangFindingID = @ID AND LangSessionID = @S`);
     }
 
-    for (const w of (out.words_used || [])) {
-      if (!validWordIDs.has(w.word_id)) continue;
+    for (const w of usedWords) {
       await new sql.Request(tx)
         .input('U', sql.Int, userID).input('W', sql.Int, w.word_id).input('Ok', sql.Bit, !!w.correct)
         .query(`
@@ -419,14 +504,21 @@ async function takeTurn(pool, b) {
 
 async function buildSummary(pool, s) {
   const turns = await loadTurns(pool, s.LangSessionID);
-  const findings = (await loadFindings(pool, s.LangSessionID)).filter(f => !f.Voided);
+  const allFindings = await loadFindings(pool, s.LangSessionID);
+  const findings = allFindings.filter(f => !f.Voided && f.FindingType !== 'strength');
   const userTurns = turns.filter(t => t.Role === 'U');
   const spoken = userTurns.filter(t => t.TurnType === 'practice' || t.TurnType === 'retry');
   const metas = spoken.map(t => parseJson(t.MetaJson, {}));
   const tenses = [...new Set(metas.flatMap(m => m.tenses || []))];
   const byCat = {};
   findings.filter(f => f.FindingType === 'error').forEach(f => { byCat[f.Category] = (byCat[f.Category] || 0) + 1; });
-  const ended = s.EndedDate ? new Date(s.EndedDate) : new Date();
+
+  // Active minutes: gaps between turns, each capped at 5 minutes (so breaks between sittings don't count)
+  let ms = 0;
+  for (let i = 1; i < turns.length; i++) {
+    const gap = new Date(turns[i].CreatedDate) - new Date(turns[i - 1].CreatedDate);
+    if (gap > 0) ms += Math.min(gap, 5 * 60000);
+  }
 
   // Score 0-100: accuracy per message (errors weighted by severity, better phrasings and gaps count
   // less), small penalties for English mixed in and for asking questions, scaled by level (level 10 = full value).
@@ -449,49 +541,52 @@ async function buildSummary(pool, s) {
 
   return {
     score,
-    minutes: Math.round((ended - new Date(s.StartedDate)) / 60000),
+    minutes: Math.round(ms / 60000),
     messages: spoken.length,
     avgWordsPerMessage: spoken.length ? Math.round(10 * metas.reduce((a, m) => a + (m.words || 0), 0) / spoken.length) / 10 : 0,
     englishMixRate: spoken.length ? Math.round(100 * metas.filter(m => m.englishUsed).length / spoken.length) : 0,
     tensesUsed: tenses,
-    asides: userTurns.filter(t => t.TurnType === 'aside').length,
+    asides: asideCount,
     retries: userTurns.filter(t => t.TurnType === 'retry').length,
     errors: findings.filter(f => f.FindingType === 'error').length,
     focusErrors: findings.filter(f => f.FindingType === 'error' && f.IsFocus).length,
     improvements: findings.filter(f => f.FindingType === 'improvement').length,
-    strengths: findings.filter(f => f.FindingType === 'strength').length,
     gaps: findings.filter(f => f.FindingType === 'gap').length,
     errorsByCategory: byCat,
-    withdrawnAfterDispute: (await loadFindings(pool, s.LangSessionID)).filter(f => f.Voided).length
+    withdrawnAfterDispute: allFindings.filter(f => f.Voided).length
   };
 }
 
+// End Session: stop the clock, compute stats and score. Notes are cleared so they cover everything next time.
 async function endSession(pool, b) {
   const s = await loadSession(pool, parseInt(b.sessionID), parseInt(b.userID));
-  if (s.Status === 'Active') {
-    await pool.request().input('S', sql.Int, s.LangSessionID)
-      .query(`UPDATE LangSession SET Status = 'Completed', EndedDate = GETDATE() WHERE LangSessionID = @S`);
-    s.EndedDate = new Date();
-  }
+  await pool.request().input('S', sql.Int, s.LangSessionID)
+    .query(`UPDATE LangSession SET Status = 'Completed', EndedDate = GETDATE() WHERE LangSessionID = @S`);
   const summary = await buildSummary(pool, s);
   await pool.request().input('S', sql.Int, s.LangSessionID).input('J', sql.NVarChar(sql.MAX), JSON.stringify(summary))
     .input('Score', sql.TinyInt, summary.score)
-    .query(`UPDATE LangSession SET SummaryJson = @J, Score = @Score WHERE LangSessionID = @S`);
+    .query(`UPDATE LangSession SET SummaryJson = @J, Score = @Score, StudyNotes = NULL, SuggestedLevel = NULL WHERE LangSessionID = @S`);
   return { summary };
 }
 
+// Save & Close: add to (or refresh in) the saved list.
 async function saveSession(pool, b) {
   const s = await loadSession(pool, parseInt(b.sessionID), parseInt(b.userID));
   let title = s.Title;
   if (!title) {
-    const turns = await loadTurns(pool, s.LangSessionID);
-    const opening = turns.slice(0, 8).map(t => `${t.Role === 'U' ? 'NOEL' : 'TUTOR'}: ${t.Content}`).join('\n');
-    try {
-      const out = await callTool('You name saved Spanish conversation practice sessions.',
-        [{ role: 'user', content: `Setting: ${s.Setting}\nRole: ${s.AIRole || ''}\nOpening of the conversation:\n${opening}\n\nGive a short, specific English title of 3-6 words.` }],
-        { name: 'name_session', description: 'Return the title.', input_schema: { type: 'object', properties: { title: { type: 'string' } }, required: ['title'] } }, 300);
-      title = String(out.title || '').trim();
-    } catch (e) { /* fall back below */ }
+    if (s.SessionType === 'review' && s.ParentSessionID) {
+      const p = await pool.request().input('P', sql.Int, s.ParentSessionID).query(`SELECT Title FROM LangSession WHERE LangSessionID = @P`);
+      title = `Review: ${(p.recordset[0] && p.recordset[0].Title) || 'conversation'}`;
+    } else {
+      const turns = await loadTurns(pool, s.LangSessionID);
+      const opening = turns.slice(0, 8).map(t => `${t.Role === 'U' ? 'NOEL' : 'TUTOR'}: ${t.Content}`).join('\n');
+      try {
+        const out = await callTool('You name saved Spanish conversation practice sessions.',
+          [{ role: 'user', content: `Setting: ${s.Setting}\nRole: ${s.AIRole || ''}\nOpening of the conversation:\n${opening}\n\nGive a short, specific English title of 3-6 words.` }],
+          { name: 'name_session', description: 'Return the title.', input_schema: { type: 'object', properties: { title: { type: 'string' } }, required: ['title'] } }, 300);
+        title = String(out.title || '').trim();
+      } catch (e) { /* fall back below */ }
+    }
     if (!title) title = (s.AIRole || s.Setting || 'Conversation').slice(0, 60);
   }
   await pool.request().input('S', sql.Int, s.LangSessionID).input('T', sql.NVarChar(200), title.slice(0, 200))
@@ -499,11 +594,60 @@ async function saveSession(pool, b) {
   return { title };
 }
 
+// Cancel: remove everything from this sitting, including corrections and word history.
+// A continued saved conversation keeps its earlier part; a new session is deleted entirely.
+async function discardSession(pool, b) {
+  const s = await loadSession(pool, parseInt(b.sessionID), parseInt(b.userID));
+  const keepUpTo = s.ResumeTurnNumber || 0;
+  const turns = (await loadTurns(pool, s.LangSessionID)).filter(t => t.TurnNumber > keepUpTo);
+  const deleteAll = keepUpTo === 0;
+
+  const tx = new sql.Transaction(pool);
+  await tx.begin();
+  try {
+    for (const t of turns.filter(t => t.Role === 'U')) {
+      for (const w of (parseJson(t.MetaJson, {}).wordsUsed || [])) {
+        await new sql.Request(tx).input('U', sql.Int, s.UserID).input('W', sql.Int, w.id).input('Ok', sql.Bit, !!w.ok)
+          .query(`UPDATE LangWordProgress SET
+                    TimesUsed = CASE WHEN TimesUsed > 0 THEN TimesUsed - 1 ELSE 0 END,
+                    TimesCorrect = CASE WHEN @Ok = 1 AND TimesCorrect > 0 THEN TimesCorrect - 1 ELSE TimesCorrect END,
+                    TimesWrong = CASE WHEN @Ok = 0 AND TimesWrong > 0 THEN TimesWrong - 1 ELSE TimesWrong END
+                  WHERE UserID = @U AND UserLanguageWordsID = @W`);
+      }
+    }
+    await new sql.Request(tx).input('S', sql.Int, s.LangSessionID).input('K', sql.Int, keepUpTo)
+      .query(`DELETE FROM LangFinding WHERE LangSessionID = @S AND LangTurnID IN (SELECT LangTurnID FROM LangTurn WHERE LangSessionID = @S AND TurnNumber > @K);
+              DELETE FROM LangTurn WHERE LangSessionID = @S AND TurnNumber > @K;`);
+    if (deleteAll) {
+      await new sql.Request(tx).input('S', sql.Int, s.LangSessionID)
+        .query(`UPDATE LangSession SET ParentSessionID = NULL WHERE ParentSessionID = @S;
+                DELETE FROM LangSession WHERE LangSessionID = @S;`);
+    } else {
+      await new sql.Request(tx).input('S', sql.Int, s.LangSessionID)
+        .query(`UPDATE LangSession SET Status = 'Completed', SegmentStart = NULL, EndedDate = ISNULL(EndedDate, GETDATE()) WHERE LangSessionID = @S`);
+    }
+    await tx.commit();
+  } catch (e) {
+    try { await tx.rollback(); } catch (_) {}
+    throw e;
+  }
+  if (!deleteAll) {
+    // Restore the earlier part's stats and score
+    const s2 = await loadSession(pool, s.LangSessionID, s.UserID);
+    const summary = await buildSummary(pool, s2);
+    await pool.request().input('S', sql.Int, s.LangSessionID).input('J', sql.NVarChar(sql.MAX), JSON.stringify(summary))
+      .input('Score', sql.TinyInt, summary.score)
+      .query(`UPDATE LangSession SET SummaryJson = @J, Score = @Score WHERE LangSessionID = @S`);
+  }
+  return { success: true };
+}
+
 async function listSessions(pool, b) {
   const r = await pool.request().input('U', sql.Int, parseInt(b.userID)).input('L', sql.Int, parseInt(b.languageID) || 1)
-    .query(`SELECT LangSessionID AS id, Title AS title, StartedDate AS date, Score AS score, Level AS level
+    .query(`SELECT LangSessionID AS id, Title AS title, ISNULL(SavedDate, StartedDate) AS date, Score AS score,
+                   Level AS level, DurationMinutes AS minutes, DeckID AS deckID, IncludeSpainNotes AS spain, SessionType AS type
             FROM LangSession WHERE UserID = @U AND LanguageID = @L AND IsSaved = 1
-            ORDER BY StartedDate DESC`);
+            ORDER BY ISNULL(SavedDate, StartedDate) DESC`);
   return { sessions: r.recordset };
 }
 
@@ -519,34 +663,31 @@ async function loadConversation(pool, b) {
   const s = await loadSession(pool, parseInt(b.sessionID), parseInt(b.userID));
   const turns = await loadTurns(pool, s.LangSessionID);
   const findings = await loadFindings(pool, s.LangSessionID);
-  const byTurn = {};
-  findings.filter(f => f.FindingType !== 'strength').forEach(f => { (byTurn[f.LangTurnID] = byTurn[f.LangTurnID] || []).push(fmtFinding(f)); });
   let summary = parseJson(s.SummaryJson, null);
   if (!summary || summary.score === undefined) summary = await buildSummary(pool, s);
   return {
-    title: s.Title, aiRole: s.AIRole, focusGrammar: s.FocusGrammar, languageID: s.LanguageID,
-    startedDate: s.StartedDate, summary, notes: s.StudyNotes,
-    messages: turns.map(t => t.Role === 'U'
-      ? { role: 'U', text: t.Content, findings: byTurn[t.LangTurnID] || [] }
-      : { role: 'A', text: t.Content, type: t.TurnType })
+    sessionID: s.LangSessionID, title: s.Title, aiName: s.AIName, aiRole: s.AIRole, focusGrammar: s.FocusGrammar,
+    sessionType: s.SessionType, date: s.SavedDate || s.StartedDate, summary, notes: s.StudyNotes,
+    messages: visibleMessages(turns, findings)
   };
 }
 
 async function studyNotes(pool, b) {
   const s = await loadSession(pool, parseInt(b.sessionID), parseInt(b.userID));
   if (s.StudyNotes && !b.regenerate) return { notes: s.StudyNotes, suggestedLevel: s.SuggestedLevel };
-  const turns = await loadTurns(pool, s.LangSessionID);
+  const turns = (await loadTurns(pool, s.LangSessionID)).filter(t => t.TurnType !== 'resume');
   const findings = await loadFindings(pool, s.LangSessionID);
   const summary = parseJson(s.SummaryJson, null) || await buildSummary(pool, s);
+  const name = s.AIName || 'TUTOR';
 
-  const transcript = turns.map(t => `${t.Role === 'U' ? 'NOEL' : 'TUTOR'} (${t.TurnType}): ${t.Content}`).join('\n');
-  const fbLines = findings.filter(f => !f.Voided).map(f =>
+  const transcript = turns.map(t => `${t.Role === 'U' ? 'NOEL' : name.toUpperCase()} (${t.TurnType}): ${t.Content}`).join('\n');
+  const fbLines = findings.filter(f => !f.Voided && f.FindingType !== 'strength').map(f =>
     `- ${f.FindingType}/${f.Category}${f.IsFocus ? ' [focus]' : ''}: "${f.Original}" -> "${f.Corrected}" - ${f.Explanation || ''}${f.SpainNote ? ' | Spain: ' + f.SpainNote : ''}`).join('\n');
 
   const out = await callTool(
-    'You write concise, practical study notes for an adult learner of conversational Spanish after a practice session. Write in English with Spanish examples. Use markdown: ## headings and - bullets, **bold** for key Spanish. No filler.',
+    'You write concise, practical study notes for an adult learner of conversational Spanish after a practice session. Write in English with Spanish examples. Use markdown: ## headings and - bullets, **bold** for key Spanish. No filler and no praise.',
     [{ role: 'user', content:
-`Session: level ${s.Level}/10, setting: ${s.Setting}. Focus grammar: ${s.FocusGrammar || 'none'}. ${s.IncludeSpainNotes ? 'Include a short "Spain vs Latin America" section if relevant.' : ''}
+`Session: level ${s.Level}/10, setting: ${s.Setting}. Focus grammar: ${s.FocusGrammar || 'none'}.
 
 Stats: ${JSON.stringify(summary)}
 
@@ -593,10 +734,12 @@ module.exports = async function (context, req) {
     let result;
     switch (b.action) {
       case 'start': result = await startSession(pool, b); break;
+      case 'continue': result = await continueSession(pool, b); break;
       case 'turn': result = await takeTurn(pool, b); break;
       case 'end': result = await endSession(pool, b); break;
-      case 'notes': result = await studyNotes(pool, b); break;
       case 'save': result = await saveSession(pool, b); break;
+      case 'discard': result = await discardSession(pool, b); break;
+      case 'notes': result = await studyNotes(pool, b); break;
       case 'list': result = await listSessions(pool, b); break;
       case 'delete': result = await deleteSession(pool, b); break;
       case 'load': result = await loadConversation(pool, b); break;

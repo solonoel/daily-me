@@ -292,19 +292,31 @@
     .conv-setup { padding:4px 0; display:flex; flex-direction:column; gap:14px; }
     .conv-setup label { display:block; font-size:12px; font-weight:600; color:var(--text-soft); margin-bottom:4px; }
     .conv-setup textarea { width:100%; resize:vertical; }
+    .conv-box { border:1.5px solid var(--border); border-radius:12px; padding:10px 14px 14px; margin:0; display:flex; flex-direction:column; gap:10px; }
+    .conv-box legend { font-family:'Playfair Display',serif; font-size:15px; color:var(--text); padding:0 6px; }
     .conv-grid { display:grid; grid-template-columns:1fr 1fr 2fr; gap:12px; }
     .conv-grid select { width:100%; }
-    .conv-setup .conv-check { display:flex; align-items:center; gap:8px; font-weight:500; color:var(--text); }
+    .conv-setup .conv-check { display:flex; align-items:center; gap:8px; font-weight:500; color:var(--text); margin:0; }
     .conv-hint { font-size:12px; color:var(--text-muted); }
+    .conv-saved-head { font-size:12px; font-weight:600; color:var(--text-soft); margin-top:4px; }
+    .conv-saved-list { max-height:320px; overflow-y:auto; }
+    .conv-saved-row { display:flex; align-items:center; gap:10px; padding:7px 8px; border-bottom:1px solid #e3eef8; border-radius:8px; cursor:pointer; }
+    .conv-saved-row:hover { background:#f5f9ff; }
+    .conv-saved-row.conv-sel { background:#e6f1ff; outline:1.5px solid var(--sky-deep); }
+    .conv-saved-info { flex:1; min-width:0; }
+    .conv-saved-name { font-size:14px; font-weight:600; color:var(--sky-deep); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .conv-saved-meta { font-size:12px; color:var(--text-muted); font-weight:400; }
+    .conv-saved-btns { display:flex; gap:6px; flex-shrink:0; }
+    .conv-sm { padding:4px 10px !important; font-size:12px !important; }
     .conv-chat { display:flex; flex-direction:column; gap:10px; }
     .conv-head { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; font-size:13px; }
-    .conv-head-right { display:flex; align-items:center; gap:10px; }
     .conv-focus { font-size:11px; background:#e6f1ff; color:var(--sky-deep); border-radius:4px; padding:2px 6px; margin-left:6px; font-weight:600; }
-    .conv-timer { font-size:12px; font-weight:600; color:var(--text-soft); }
+    .conv-timer { font-size:13px; font-weight:600; color:var(--text-soft); }
     .conv-timer-up { color:#c0392b; }
     .conv-log { max-height:60vh; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding:6px 2px; }
     .conv-msg { max-width:80%; padding:9px 13px; border-radius:14px; font-size:14px; line-height:1.45; white-space:pre-wrap; }
     .conv-ai { align-self:flex-start; background:#eef5fc; border:1px solid var(--border); }
+    .conv-name { font-weight:700; color:var(--sky-deep); }
     .conv-aside { background:#fff8e6; border-color:#e8c870; }
     .conv-user { align-self:flex-end; background:var(--sky-deep); color:white; }
     .conv-typing { color:var(--text-muted); }
@@ -312,7 +324,6 @@
     .conv-fb-item { display:flex; gap:8px; font-size:12px; padding:6px 10px; border-radius:8px; border-left:3px solid; background:white; }
     .conv-fb-error { border-color:#c0392b; }
     .conv-fb-improvement { border-color:#e8a020; }
-    .conv-fb-strength { border-color:#27ae60; }
     .conv-fb-gap { border-color:var(--sky-deep); }
     .conv-fb-void { opacity:0.5; text-decoration:line-through; }
     .conv-fb-icon { font-weight:700; }
@@ -323,28 +334,23 @@
     .conv-fb-spain { color:var(--text-soft); margin-top:2px; font-style:italic; }
     .conv-input { display:flex; gap:8px; align-items:flex-end; }
     .conv-input textarea { flex:1; resize:vertical; }
+    .conv-foot { display:flex; justify-content:flex-end; align-items:center; gap:12px; }
     .conv-end { border-top:1.5px solid var(--border); padding-top:12px; }
     .conv-end h3, .conv-notes h3 { font-family:'Playfair Display',serif; font-size:16px; margin:8px 0; }
     .conv-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:8px 0 12px; }
     .conv-stats div { background:#f5f9ff; border:1px solid var(--border); border-radius:10px; padding:8px; font-size:11px; color:var(--text-muted); text-align:center; }
     .conv-stats span { display:block; font-size:18px; font-weight:700; color:var(--text); }
-    .conv-end-line { font-size:13px; margin:4px 0; }
-    .conv-end-btns { display:flex; gap:10px; margin:12px 0; }
-    .conv-notes { background:white; border:1.5px solid var(--border); border-radius:12px; padding:14px 18px; font-size:14px; line-height:1.5; }
-    .conv-notes ul { margin:4px 0 10px 20px; }
-    .conv-notes h4 { margin:8px 0 4px; font-size:14px; }
-    .conv-notes li { margin-bottom:8px; }
-    .conv-tr { color:var(--text-soft); font-size:13px; margin-top:2px; }
     .conv-stats .conv-score { background:#e6f1ff; border-color:var(--sky-deep); }
     .conv-stats .conv-score span { color:var(--sky-deep); font-size:22px; }
-    .conv-saved { margin-top:10px; border-top:1.5px solid var(--border); padding-top:10px; }
-    .conv-saved h3 { font-family:'Playfair Display',serif; font-size:16px; margin:0 0 8px; }
-    .conv-saved-row { display:flex; align-items:center; gap:10px; padding:7px 4px; border-bottom:1px solid #e3eef8; font-size:14px; }
-    .conv-saved-row a { color:var(--sky-deep); font-weight:600; text-decoration:none; }
-    .conv-saved-row a:hover { text-decoration:underline; }
-    .conv-saved-meta { font-size:12px; color:var(--text-muted); font-weight:400; }
-    .conv-saved-row .conv-del { margin-left:auto; }
-    @media (max-width:700px) { .conv-grid { grid-template-columns:1fr 1fr; } .conv-stats { grid-template-columns:repeat(2,1fr); } .conv-msg { max-width:92%; } }
+    .conv-end-line { font-size:13px; margin:4px 0; }
+    .conv-end-btns { display:flex; align-items:center; gap:10px; margin:12px 0; flex-wrap:wrap; }
+    .conv-end-right { margin-left:auto; display:flex; gap:10px; }
+    .conv-notes { background:white; border:1.5px solid var(--border); border-radius:12px; padding:14px 18px; font-size:14px; line-height:1.5; }
+    .conv-notes ul { margin:4px 0 10px 20px; }
+    .conv-notes li { margin-bottom:8px; }
+    .conv-notes h4 { margin:8px 0 4px; font-size:14px; }
+    .conv-tr { color:var(--text-soft); font-size:13px; margin-top:2px; }
+    @media (max-width:700px) { .conv-grid { grid-template-columns:1fr 1fr; } .conv-msg { max-width:92%; } .conv-saved-row { flex-wrap:wrap; } .conv-end-right { margin-left:0; } }
   </style>
 </head>
 <body>
@@ -3482,10 +3488,11 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
 
   // ── CONVERSATION PRACTICE ──
   let conv={langID:null,sessionID:null,messages:[]};
-  let convSaved=[];
+  let convSaved=[],convSelID=null,convAudio=null;
 
   function convEsc(s){return escapeBriefingHtml(s==null?'':s).replace(/"/g,'&quot;');}
   function convDate(d){try{return new Date(d).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});}catch(e){return '';}}
+  function convErr(what,r){alert(what+': '+((r&&r.error)||'unknown error'));}
 
   function convMd(md){
     const lines=convEsc(md).split(/\r?\n/);let html='',inList=false,liOpen=false;
@@ -3505,17 +3512,43 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     return html;
   }
 
+  // ── sound ──
+  function convAudioInit(){try{convAudio=convAudio||new (window.AudioContext||window.webkitAudioContext)();if(convAudio.state==='suspended')convAudio.resume();}catch(e){}}
+  function convBeep(){
+    if(!convAudio)return;
+    try{
+      const t0=convAudio.currentTime+0.05;
+      for(let i=0;i<3;i++){
+        const o=convAudio.createOscillator(),g=convAudio.createGain(),st=t0+i*0.35;
+        o.type='sine';o.frequency.value=880;o.connect(g);g.connect(convAudio.destination);
+        g.gain.setValueAtTime(0.0001,st);g.gain.exponentialRampToValueAtTime(0.3,st+0.02);g.gain.exponentialRampToValueAtTime(0.0001,st+0.2);
+        o.start(st);o.stop(st+0.22);
+      }
+    }catch(e){}
+  }
+
+  // ── screens ──
   function renderConversation(langID){
     const panel=document.getElementById(`lang-feature-${langID}`);if(!panel)return;
     if(conv.sessionID&&conv.langID===langID){
       panel.innerHTML=renderConvChatHTML();
-      const log=document.getElementById('conv-log');if(log)log.scrollTop=log.scrollHeight;
+      const log=document.getElementById('conv-log');if(log&&conv.mode!=='view')log.scrollTop=log.scrollHeight;
       const ta=document.getElementById('conv-text');if(ta&&!conv.busy)ta.focus();
       convStartTimer();
     }else{
+      clearInterval(conv.timer);
       panel.innerHTML=renderConvSetupHTML(langID);
       loadConvSaved(langID);
     }
+  }
+
+  function convDeckOptions(sel){
+    const isFlag=d=>String(d.UserLanguageWordsDeckName||'').trim().toLowerCase()==='flagged';
+    const order={Active:1,Pending:2,Mastered:3};
+    const flagged=userDecks.filter(isFlag);
+    const rest=userDecks.filter(d=>!isFlag(d)).sort((a,b)=>((order[a.Status]||9)-(order[b.Status]||9))||String(a.UserLanguageWordsDeckName).localeCompare(String(b.UserLanguageWordsDeckName)));
+    const opt=d=>`<option value="${d.UserLanguageWordsDeckID}" ${String(d.UserLanguageWordsDeckID)===String(sel)?'selected':''}>${convEsc(d.UserLanguageWordsDeckName)}${!isFlag(d)&&d.Status!=='Active'?' ('+convEsc(d.Status)+')':''}</option>`;
+    return `<option value="">All my words</option>${flagged.map(opt).join('')}${rest.map(opt).join('')}`;
   }
 
   function renderConvSetupHTML(langID){
@@ -3523,69 +3556,127 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     const lvl=last.level||5,mins=last.minutes||15;
     const levelOpts=[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}" ${n===lvl?'selected':''}>${n}</option>`).join('');
     const minOpts=[5,10,15,20,30,45,60].map(n=>`<option value="${n}" ${n===mins?'selected':''}>${n}</option>`).join('');
-    const deckOpts=userDecks.map(d=>`<option value="${d.UserLanguageWordsDeckID}" ${String(d.UserLanguageWordsDeckID)===String(last.deckID)?'selected':''}>${convEsc(d.UserLanguageWordsDeckName)}${d.Status!=='Active'?' ('+convEsc(d.Status)+')':''}</option>`).join('');
     return `<div class="conv-setup">
-      <div><label for="conv-setting">Setting</label>
-        <textarea id="conv-setting" class="form-input" rows="4" placeholder="e.g. I want to tell you a story about fishing with my dad as a kid. I'll be using imperfect."></textarea></div>
-      <div class="conv-grid">
-        <div><label for="conv-level">Level (1–10)</label><select id="conv-level" class="form-select">${levelOpts}</select></div>
-        <div><label for="conv-minutes">Minutes</label><select id="conv-minutes" class="form-select">${minOpts}</select></div>
-        <div><label for="conv-deck">Words from</label><select id="conv-deck" class="form-select"><option value="">All my words</option>${deckOpts}</select></div>
-      </div>
-      <label class="conv-check"><input type="checkbox" id="conv-spain" ${last.spain?'checked':''}> Add notes on Spain Spanish</label>
-      <div><button class="btn-primary" id="conv-start-btn" onclick="startConversation(${langID})">Start conversation</button></div>
-      <div class="conv-hint">During the session you can type questions or comments in English at any time ("How do I say…?", "Is there a better way to say that?", "I think I was right"). Start a message with ? to make sure it's treated as a question.</div>
-      <div class="conv-saved">
-        <h3>Saved conversations</h3>
+      <fieldset class="conv-box"><legend>Conversation</legend>
+        <label for="conv-setting">Description</label>
+        <textarea id="conv-setting" class="form-input" rows="4" placeholder="e.g. I want to tell you a story about fishing with my dad as a kid. I'll be using imperfect. (You can also name your partner, e.g. 'Your name is Lucía.')"></textarea>
+        <div class="conv-saved-head">Saved conversations</div>
         <div id="conv-saved-list" class="conv-hint">Loading…</div>
-      </div>
+      </fieldset>
+      <fieldset class="conv-box"><legend>Settings</legend>
+        <div class="conv-grid">
+          <div><label for="conv-level">Level (1–10)</label><select id="conv-level" class="form-select">${levelOpts}</select></div>
+          <div><label for="conv-minutes">Minutes</label><select id="conv-minutes" class="form-select">${minOpts}</select></div>
+          <div><label for="conv-deck">Words from</label><select id="conv-deck" class="form-select">${convDeckOptions('')}</select></div>
+        </div>
+        <label class="conv-check"><input type="checkbox" id="conv-spain" ${last.spain?'checked':''}> Add notes on Spain Spanish</label>
+      </fieldset>
+      <div><button class="btn-primary" id="conv-start-btn" onclick="startConversation(${langID})">Start new conversation</button></div>
+      <div class="conv-hint">During a conversation you can type questions or comments in English at any time ("How do I say…?", "Is there a better way to say that?", "I think I was right"). Start a message with ? to make sure it's treated as a question.</div>
     </div>`;
   }
 
+  function convReadSettings(){
+    return {
+      level:parseInt(document.getElementById('conv-level').value),
+      minutes:parseInt(document.getElementById('conv-minutes').value),
+      deckID:document.getElementById('conv-deck').value||null,
+      includeSpain:document.getElementById('conv-spain').checked
+    };
+  }
+  function convRememberSettings(st){try{localStorage.setItem('dailyme_conv_last',JSON.stringify({level:st.level,minutes:st.minutes,spain:st.includeSpain}));}catch(e){}}
+
   async function loadConvSaved(langID){
     const r=await apiPost('LanguageChat',{action:'list',userID:USER_ID,languageID:langID});
-    const el=document.getElementById('conv-saved-list');if(!el)return;
-    if(!r||r.error){el.textContent='Could not load saved conversations.';return;}
+    if(!document.getElementById('conv-saved-list'))return;
+    if(!r||r.error){document.getElementById('conv-saved-list').textContent='Could not load saved conversations.';return;}
     convSaved=Array.isArray(r.sessions)?r.sessions:[];
+    convSelID=null;
+    renderConvSavedList(langID);
+  }
+
+  function renderConvSavedList(langID){
+    const el=document.getElementById('conv-saved-list');if(!el)return;
     if(!convSaved.length){el.className='conv-hint';el.textContent='No saved conversations yet.';return;}
-    el.className='';
-    el.innerHTML=convSaved.map(s=>`<div class="conv-saved-row">
-        <a href="#" onclick="openSavedConversation(${langID},${s.id});return false;">${convEsc(s.title||'Untitled')}</a>
-        <span class="conv-saved-meta">${convDate(s.date)} · Level ${s.level}${s.score!=null?` · Score ${s.score}`:''}</span>
-        <button class="btn-icon conv-del" title="Delete" onclick="deleteSavedConversation(${langID},${s.id})">🗑</button>
+    el.className='conv-saved-list';
+    el.innerHTML=convSaved.map(s=>`<div class="conv-saved-row${s.id===convSelID?' conv-sel':''}" onclick="selectSavedConversation(${langID},${s.id})">
+        <div class="conv-saved-info"><div class="conv-saved-name">${convEsc(s.title||'Untitled')}</div>
+          <div class="conv-saved-meta">${convDate(s.date)} · Level ${s.level} · ${s.minutes} min${s.score!=null?` · Score ${s.score}`:''}</div></div>
+        <div class="conv-saved-btns">
+          <button class="btn-primary conv-sm" onclick="event.stopPropagation();continueSavedConversation(${langID},${s.id})">Continue</button>
+          <button class="btn-secondary conv-sm" onclick="event.stopPropagation();reviewSavedConversation(${langID},${s.id})">Review</button>
+          <button class="btn-secondary conv-sm" onclick="event.stopPropagation();viewSavedConversation(${langID},${s.id})">Notes</button>
+          <button class="btn-icon conv-sm" title="Delete" onclick="event.stopPropagation();deleteSavedConversation(${langID},${s.id})">🗑</button>
+        </div>
       </div>`).join('');
   }
 
-  async function deleteSavedConversation(langID,id){
-    const s=convSaved.find(x=>x.id===id);
-    if(!confirm(`Delete "${(s&&s.title)||'this conversation'}"?`))return;
-    const r=await apiPost('LanguageChat',{action:'delete',userID:USER_ID,sessionID:id});
-    if(!r||r.error){alert('Could not delete: '+((r&&r.error)||'unknown error'));return;}
-    loadConvSaved(langID);
+  function selectSavedConversation(langID,id){
+    const s=convSaved.find(x=>x.id===id);if(!s)return;
+    convSelID=id;
+    const setVal=(elId,v)=>{const el=document.getElementById(elId);if(el&&v!=null)el.value=String(v);};
+    setVal('conv-level',s.level);setVal('conv-minutes',s.minutes);
+    const deck=document.getElementById('conv-deck');
+    if(deck)deck.value=s.deckID&&deck.querySelector(`option[value="${s.deckID}"]`)?String(s.deckID):'';
+    const sp=document.getElementById('conv-spain');if(sp)sp.checked=!!s.spain;
+    renderConvSavedList(langID);
   }
 
-  async function openSavedConversation(langID,id){
-    const r=await apiPost('LanguageChat',{action:'load',userID:USER_ID,sessionID:id});
-    if(!r||r.error){alert('Could not open the conversation: '+((r&&r.error)||'unknown error'));return;}
+  function convOpenChat(langID,r,extra){
     clearInterval(conv.timer);
-    conv={langID,sessionID:id,messages:r.messages||[],busy:false,ended:true,saved:true,title:r.title||'',date:r.startedDate,
-          aiRole:r.aiRole||'',focus:r.focusGrammar||'',summary:r.summary,notes:r.notes||null,showNotes:false,timer:null};
+    conv=Object.assign({langID,sessionID:r.sessionID,messages:r.messages||[],busy:false,mode:'chat',
+          minutes:r.minutes,startedAt:Date.now(),beeped:false,aiName:r.aiName||'Raúl',aiRole:r.aiRole||'',
+          focus:r.focusGrammar||'',title:r.title||'',sessionType:r.sessionType||'conversation',summary:null,notes:null,showNotes:false,timer:null},extra||{});
     renderConversation(langID);
   }
 
   async function startConversation(langID){
+    convAudioInit();
+    const st=convReadSettings();convRememberSettings(st);
     const setting=document.getElementById('conv-setting').value.trim();
-    const level=parseInt(document.getElementById('conv-level').value);
-    const minutes=parseInt(document.getElementById('conv-minutes').value);
-    const deckID=document.getElementById('conv-deck').value||null;
-    const spain=document.getElementById('conv-spain').checked;
-    try{localStorage.setItem('dailyme_conv_last',JSON.stringify({level,minutes,deckID,spain}));}catch(e){}
-    const btn=document.getElementById('conv-start-btn');btn.disabled=true;btn.textContent='⏳ Preparing session…';
-    const r=await apiPost('LanguageChat',{action:'start',userID:USER_ID,languageID:langID,level,minutes,deckID,setting,includeSpain:spain});
-    if(!r||r.error){alert('Could not start the session: '+((r&&r.error)||'unknown error'));btn.disabled=false;btn.textContent='Start conversation';return;}
-    conv={langID,sessionID:r.sessionID,messages:[{role:'A',text:r.reply,type:r.turnType}],busy:false,ended:false,saved:false,
-          minutes,startedAt:Date.now(),aiRole:r.aiRole||'',focus:r.focusGrammar||'',summary:null,notes:null,showNotes:false,timer:null};
+    const btn=document.getElementById('conv-start-btn');btn.disabled=true;btn.textContent='⏳ Preparing conversation…';
+    const r=await apiPost('LanguageChat',Object.assign({action:'start',userID:USER_ID,languageID:langID,setting},st));
+    if(!r||r.error){convErr('Could not start the conversation',r);btn.disabled=false;btn.textContent='Start new conversation';return;}
+    convOpenChat(langID,r);
+  }
+
+  async function continueSavedConversation(langID,id){
+    convAudioInit();
+    if(convSelID!==id)selectSavedConversation(langID,id);
+    const st=convReadSettings();convRememberSettings(st);
+    const list=document.getElementById('conv-saved-list');if(list)list.innerHTML='<div class="conv-hint">⏳ Opening conversation…</div>';
+    const r=await apiPost('LanguageChat',Object.assign({action:'continue',userID:USER_ID,sessionID:id},st));
+    if(!r||r.error){convErr('Could not continue the conversation',r);renderConvSavedList(langID);return;}
+    convOpenChat(langID,r,{saved:true});
+  }
+
+  async function reviewSavedConversation(langID,id){
+    convAudioInit();
+    if(convSelID!==id)selectSavedConversation(langID,id);
+    const st=convReadSettings();convRememberSettings(st);
+    const setting=document.getElementById('conv-setting').value.trim();
+    const list=document.getElementById('conv-saved-list');if(list)list.innerHTML='<div class="conv-hint">⏳ Preparing review…</div>';
+    const r=await apiPost('LanguageChat',Object.assign({action:'start',userID:USER_ID,languageID:langID,setting,reviewOf:id},st));
+    if(!r||r.error){convErr('Could not start the review',r);renderConvSavedList(langID);return;}
+    convOpenChat(langID,r);
+  }
+
+  async function viewSavedConversation(langID,id){
+    const r=await apiPost('LanguageChat',{action:'load',userID:USER_ID,sessionID:id});
+    if(!r||r.error){convErr('Could not open the conversation',r);return;}
+    clearInterval(conv.timer);
+    conv={langID,sessionID:id,messages:r.messages||[],busy:false,mode:'view',saved:true,title:r.title||'',date:r.date,
+          aiName:r.aiName||'Raúl',aiRole:r.aiRole||'',focus:r.focusGrammar||'',sessionType:r.sessionType,
+          summary:r.summary,notes:r.notes||null,showNotes:!!r.notes,timer:null};
     renderConversation(langID);
+  }
+
+  async function deleteSavedConversation(langID,id){
+    const s=convSaved.find(x=>x.id===id);
+    if(!confirm(`Delete "${(s&&s.title)||'this conversation'}" from your saved conversations?`))return;
+    const r=await apiPost('LanguageChat',{action:'delete',userID:USER_ID,sessionID:id});
+    if(!r||r.error){convErr('Could not delete',r);return;}
+    loadConvSaved(langID);
   }
 
   function renderConvFindings(fs){
@@ -3602,24 +3693,57 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
   function renderConvChatHTML(){
     const msgs=conv.messages.map(m=>m.role==='U'
       ? `<div class="conv-msg conv-user">${convEsc(m.text)}</div>${renderConvFindings(m.findings)}`
-      : `<div class="conv-msg conv-ai${m.type==='aside'?' conv-aside':''}">${convEsc(m.text)}</div>`).join('');
-    const heading=conv.title?`${convEsc(conv.title)}<span class="conv-saved-meta"> ${convDate(conv.date)}</span>`:convEsc(conv.aiRole||'Conversation');
+      : `<div class="conv-msg conv-ai${m.type==='aside'?' conv-aside':''}"><span class="conv-name">${convEsc(conv.aiName)}:</span> ${convEsc(m.text)}</div>`).join('');
+    const heading=convEsc(conv.title||conv.aiRole||'Conversation');
+    let bottom='';
+    if(conv.mode==='chat'){
+      bottom=`<div class="conv-input">
+          <textarea id="conv-text" class="form-input" rows="2" placeholder="Escribe en español… (Enter to send, Shift+Enter for a new line)" onkeydown="convKey(event)" ${conv.busy?'disabled':''}></textarea>
+          <button class="btn-primary" onclick="sendConvMessage()" ${conv.busy?'disabled':''}>Send</button></div>
+        <div class="conv-foot"><span id="conv-timer" class="conv-timer"></span>
+          <button class="btn-secondary" onclick="endConversation()" ${conv.busy?'disabled':''}>End Session</button></div>`;
+    }else if(conv.mode==='ended'){
+      bottom=renderConvSummaryHTML(`
+          <button class="btn-primary" id="conv-save-btn" onclick="saveAndCloseConversation()" ${conv.busy?'disabled':''}>💾 Save &amp; Close</button>
+          <button class="btn-secondary" onclick="closeConversation()" ${conv.busy?'disabled':''}>Close</button>
+          <button class="btn-secondary" onclick="cancelConversation()" ${conv.busy?'disabled':''}>Cancel</button>`);
+    }else{
+      bottom=renderConvSummaryHTML(`<button class="btn-secondary" onclick="closeConversation()">Back</button>`);
+    }
     return `<div class="conv-chat">
       <div class="conv-head">
-        <div><strong>${heading}</strong>${conv.focus?`<span class="conv-focus">Focus: ${convEsc(conv.focus)}</span>`:''}</div>
-        <div class="conv-head-right"><span id="conv-timer" class="conv-timer"></span>${conv.ended?'':`<button class="btn-secondary" onclick="endConversation()" ${conv.busy?'disabled':''}>End session</button>`}</div>
+        <div><strong>${heading}</strong>${conv.sessionType==='review'?'<span class="conv-focus">Review</span>':''}${conv.focus?`<span class="conv-focus">Focus: ${convEsc(conv.focus)}</span>`:''}${conv.mode==='view'&&conv.date?`<span class="conv-saved-meta"> ${convDate(conv.date)}</span>`:''}</div>
       </div>
-      <div id="conv-log" class="conv-log">${msgs}${conv.busy&&!conv.ended?'<div class="conv-msg conv-ai conv-typing">…</div>':''}</div>
-      ${conv.ended?renderConvEndHTML():`<div class="conv-input">
-        <textarea id="conv-text" class="form-input" rows="2" placeholder="Escribe en español… (Enter to send, Shift+Enter for a new line)" onkeydown="convKey(event)" ${conv.busy?'disabled':''}></textarea>
-        <button class="btn-primary" onclick="sendConvMessage()" ${conv.busy?'disabled':''}>Send</button></div>`}
+      <div id="conv-log" class="conv-log">${msgs}${conv.busy&&conv.mode==='chat'?'<div class="conv-msg conv-ai conv-typing">…</div>':''}</div>
+      ${bottom}
+    </div>`;
+  }
+
+  function renderConvSummaryHTML(buttons){
+    const s=conv.summary||{};
+    const cats=Object.entries(s.errorsByCategory||{}).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`${convEsc(c)} (${n})`).join(', ');
+    const stat=(v,label,cls)=>`<div${cls?` class="${cls}"`:''}><span>${v}</span>${label}</div>`;
+    return `<div class="conv-end">
+      <h3>${conv.mode==='view'?'Summary':'Session complete'}</h3>
+      <div class="conv-stats">
+        ${stat(s.score??'–','score (0–100)','conv-score')}${stat(s.minutes??'–','minutes')}${stat(s.messages??0,'messages')}
+        ${stat(s.avgWordsPerMessage??0,'words / message')}${stat(s.errors??0,'errors')}${stat(s.improvements??0,'better phrasings')}
+      </div>
+      ${(s.tensesUsed||[]).length?`<div class="conv-end-line"><strong>Tenses used:</strong> ${convEsc(s.tensesUsed.join(', '))}</div>`:''}
+      ${cats?`<div class="conv-end-line"><strong>Errors by type:</strong> ${cats}</div>`:''}
+      ${s.withdrawnAfterDispute?`<div class="conv-end-line">${s.withdrawnAfterDispute} correction(s) withdrawn after you challenged them.</div>`:''}
+      <div class="conv-end-btns">
+        <button class="btn-secondary" id="conv-notes-btn" onclick="showConvNotes()">${conv.notes&&conv.showNotes?'Hide study notes':'📖 Study notes'}</button>
+        <div class="conv-end-right">${buttons}</div>
+      </div>
+      ${conv.notes&&conv.showNotes?`<div class="conv-notes">${convMd(conv.notes)}</div>`:''}
     </div>`;
   }
 
   function convKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendConvMessage();}}
 
   async function sendConvMessage(){
-    if(conv.busy||conv.ended)return;
+    if(conv.busy||conv.mode!=='chat')return;
     const ta=document.getElementById('conv-text');const text=((ta&&ta.value)||'').trim();if(!text)return;
     const userMsg={role:'U',text,findings:[]};
     conv.messages.push(userMsg);conv.busy=true;renderConversation(conv.langID);
@@ -3628,7 +3752,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     if(!r||r.error){
       conv.messages.pop();renderConversation(conv.langID);
       const t=document.getElementById('conv-text');if(t)t.value=text;
-      alert('Message failed: '+((r&&r.error)||'unknown error'));return;
+      convErr('Message failed',r);return;
     }
     userMsg.findings=r.findings||[];
     (r.disputed||[]).filter(d=>d.upheld).forEach(d=>conv.messages.forEach(m=>(m.findings||[]).forEach(f=>{if(f.id===d.id)f.voided=true;})));
@@ -3640,58 +3764,54 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     clearInterval(conv.timer);
     const tick=()=>{
       const el=document.getElementById('conv-timer');
-      if(!el||conv.ended){clearInterval(conv.timer);if(el)el.textContent='';return;}
+      if(!el||conv.mode!=='chat'){clearInterval(conv.timer);return;}
       const left=Math.max(0,conv.minutes*60-Math.floor((Date.now()-conv.startedAt)/1000));
-      el.textContent=left>0?`⏱ ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`:"⏱ Time's up";
+      el.textContent=left>0?`⏱ ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')} left`:"⏱ Time's up";
       el.classList.toggle('conv-timer-up',left===0);
+      if(left===0&&!conv.beeped){conv.beeped=true;convBeep();}
     };
     tick();conv.timer=setInterval(tick,1000);
   }
 
   async function endConversation(){
-    if(conv.busy||conv.ended)return;
+    if(conv.busy||conv.mode!=='chat')return;
     conv.busy=true;renderConversation(conv.langID);
     const r=await apiPost('LanguageChat',{action:'end',userID:USER_ID,sessionID:conv.sessionID});
     conv.busy=false;
-    if(!r||r.error){renderConversation(conv.langID);alert('Could not end the session: '+((r&&r.error)||'unknown error'));return;}
-    conv.ended=true;conv.summary=r.summary;clearInterval(conv.timer);
+    if(!r||r.error){renderConversation(conv.langID);convErr('Could not end the session',r);return;}
+    clearInterval(conv.timer);
+    conv.mode='ended';conv.summary=r.summary;conv.notes=null;conv.showNotes=false;
     renderConversation(conv.langID);
-  }
-
-  function renderConvEndHTML(){
-    const s=conv.summary||{};
-    const cats=Object.entries(s.errorsByCategory||{}).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`${convEsc(c)} (${n})`).join(', ');
-    const stat=(v,label,cls)=>`<div${cls?` class="${cls}"`:''}><span>${v}</span>${label}</div>`;
-    return `<div class="conv-end">
-      <h3>Session complete</h3>
-      <div class="conv-stats">
-        ${stat(s.score??'–','score (0–100)','conv-score')}${stat(s.minutes??'–','minutes')}${stat(s.messages??0,'messages')}
-        ${stat(s.avgWordsPerMessage??0,'words / message')}${stat(s.errors??0,'errors')}${stat(s.improvements??0,'better phrasings')}
-      </div>
-      ${(s.tensesUsed||[]).length?`<div class="conv-end-line"><strong>Tenses used:</strong> ${convEsc(s.tensesUsed.join(', '))}</div>`:''}
-      ${cats?`<div class="conv-end-line"><strong>Errors by type:</strong> ${cats}</div>`:''}
-      ${s.withdrawnAfterDispute?`<div class="conv-end-line">${s.withdrawnAfterDispute} correction(s) withdrawn after you challenged them.</div>`:''}
-      <div class="conv-end-btns">
-        <button class="btn-primary" id="conv-notes-btn" onclick="showConvNotes()">${conv.notes&&conv.showNotes?'Hide study notes':'📖 Study notes'}</button>
-        ${conv.saved?'':`<button class="btn-primary" id="conv-save-btn" onclick="saveAndCloseConversation()">💾 Save &amp; Close</button>`}
-        <button class="btn-secondary" onclick="closeConversation()">Close</button>
-      </div>
-      ${conv.notes&&conv.showNotes?`<div class="conv-notes">${convMd(conv.notes)}</div>`:''}
-    </div>`;
   }
 
   async function showConvNotes(){
     if(conv.notes){conv.showNotes=!conv.showNotes;renderConversation(conv.langID);return;}
     const btn=document.getElementById('conv-notes-btn');if(btn){btn.disabled=true;btn.textContent='⏳ Writing study notes…';}
     const r=await apiPost('LanguageChat',{action:'notes',userID:USER_ID,sessionID:conv.sessionID});
-    if(!r||r.error){alert('Could not create study notes: '+((r&&r.error)||'unknown error'));renderConversation(conv.langID);return;}
+    if(!r||r.error){convErr('Could not create study notes',r);renderConversation(conv.langID);return;}
     conv.notes=r.notes;conv.showNotes=true;renderConversation(conv.langID);
   }
 
   async function saveAndCloseConversation(){
+    if(conv.busy)return;
+    conv.busy=true;
     const btn=document.getElementById('conv-save-btn');if(btn){btn.disabled=true;btn.textContent='⏳ Saving…';}
     const r=await apiPost('LanguageChat',{action:'save',userID:USER_ID,sessionID:conv.sessionID});
-    if(!r||r.error){alert('Could not save: '+((r&&r.error)||'unknown error'));renderConversation(conv.langID);return;}
+    conv.busy=false;
+    if(!r||r.error){convErr('Could not save',r);renderConversation(conv.langID);return;}
+    closeConversation();
+  }
+
+  async function cancelConversation(){
+    if(conv.busy)return;
+    const msg=conv.saved
+      ? 'Cancel this sitting? Everything since you clicked Continue, including corrections, will be discarded. The earlier part of the conversation is kept.'
+      : 'Cancel this conversation? Nothing will be saved, including corrections.';
+    if(!confirm(msg))return;
+    conv.busy=true;renderConversation(conv.langID);
+    const r=await apiPost('LanguageChat',{action:'discard',userID:USER_ID,sessionID:conv.sessionID});
+    conv.busy=false;
+    if(!r||r.error){convErr('Could not cancel',r);renderConversation(conv.langID);return;}
     closeConversation();
   }
 
@@ -4214,11 +4334,22 @@ async function openConjTips(moodEng, moodName, tenseEng, tenseName) {
     return 'Other';
   }
 
+  async function setStaticFlag(type,id,cb){
+    const r=await apiPost('SetStaticFlag',{userID:USER_ID,type,id,isStatic:cb.checked});
+    if(!r||r.error||!r.success){cb.checked=!cb.checked;alert('Could not save the Static setting: '+((r&&r.error)||'not found'));return;}
+    const item=type==='keyword'?keywords.find(k=>k.KeywordID===id):userOwnedSources.find(s=>s.UserOwnedSourceID===id);
+    if(item)item.IsStatic=cb.checked;
+    updateMenuNavCounts(allHeadlinesCache.filter(h=>!deletedLinks.has(h.Link)));
+  }
+
   function updateMenuNavCounts(allData){
     window._emptyMenuNames = [];
+    // Static sources/keywords (e.g. a schedule that's always there) don't count toward a menu having content
+    const staticKw=new Set((keywords||[]).filter(k=>k.IsStatic).map(k=>k.KeywordID));
+    const staticSrc=new Set((userOwnedSources||[]).filter(s=>s.IsStatic).map(s=>s.UserOwnedSourceID));
     userMenu.filter(m=>!m.IsInactive).forEach(m=>{
-      const srcCount=userOwnedSources.filter(s=>!s.IsInactive&&s.UserMenuID===m.UserMenuID&&s.SourceType!=='YT Sub'&&!(s.IsSysHeader===1||s.IsSysHeader===true)).length;
-      const hlCount=allData.filter(h=>h.UserMenuID===m.UserMenuID).length;
+      const srcCount=userOwnedSources.filter(s=>!s.IsInactive&&!s.IsStatic&&s.UserMenuID===m.UserMenuID&&s.SourceType!=='YT Sub'&&!(s.IsSysHeader===1||s.IsSysHeader===true)).length;
+      const hlCount=allData.filter(h=>h.UserMenuID===m.UserMenuID&&!(h.KeywordID&&staticKw.has(h.KeywordID))&&!(h.UserOwnedSourceID&&staticSrc.has(h.UserOwnedSourceID))).length;
       const count=srcCount+hlCount;
       if(count===0)window._emptyMenuNames.push(m.UserMenuName);
       [`nav-usermenu-${m.UserMenuID}`,`nav-panel-btn-${m.UserMenuID}`].forEach(id=>{
@@ -5117,7 +5248,7 @@ function renderSettingsKeywords(){
     const kwMenuFilter=document.getElementById('kw-menu-filter')?.value||'';
     const menuOpts=`<option value="">All Menus</option>`+userMenu.map(m=>`<option value="${m.UserMenuID}" ${kwMenuFilter==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('')+`<option value="none" ${kwMenuFilter==='none'?'selected':''}>— None —</option>`;
     const ss=`style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif" onchange="renderSettingsKeywords()"`;
-    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th style="cursor:pointer" onclick="sortKwClick('30d')" title="Hits in the last 30 days">30d ${kwSortColClick==='30d'?(kwSortDirClick==='asc'?'▲':'▼'):''}</th><th><select id="kw-menu-filter" ${ss}>${menuOpts}</select></th><th><select id="kw-group-filter" ${ss}>${groupOpts}</select></th><th><select id="kw-src-filter" ${ss}>${srcOpts}</select></th><th style="cursor:pointer" onclick="sortKwClick('Keyword')">Keyword ${kwSortColClick==='Keyword'?(kwSortDirClick==='asc'?'▲':'▼'):''}</th><th>Image</th><th>Active</th><th style="cursor:pointer" onclick="sortKwClick('DateAdded')">Date Added ${kwSortColClick==='DateAdded'?(kwSortDirClick==='asc'?'▲':'▼'):''}</th><th></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px">⠇</th><th style="cursor:pointer" onclick="sortKwClick('30d')" title="Hits in the last 30 days">30d ${kwSortColClick==='30d'?(kwSortDirClick==='asc'?'▲':'▼'):''}</th><th><select id="kw-menu-filter" ${ss}>${menuOpts}</select></th><th><select id="kw-group-filter" ${ss}>${groupOpts}</select></th><th><select id="kw-src-filter" ${ss}>${srcOpts}</select></th><th style="cursor:pointer" onclick="sortKwClick('Keyword')">Keyword ${kwSortColClick==='Keyword'?(kwSortDirClick==='asc'?'▲':'▼'):''}</th><th>Image</th><th>Active</th><th title="Static items (like a schedule) don't count when deciding whether a menu is empty">Static</th><th style="cursor:pointer" onclick="sortKwClick('DateAdded')">Date Added ${kwSortColClick==='DateAdded'?(kwSortDirClick==='asc'?'▲':'▼'):''}</th><th></th>`;
     const kwGroupFilterVal=document.getElementById('kw-group-filter')?.value||'';
     const kwSrcFilterVal=document.getElementById('kw-src-filter')?.value||'';
     const kwMenuFilterVal=document.getElementById('kw-menu-filter')?.value||'';
@@ -5156,6 +5287,7 @@ function renderSettingsKeywords(){
           </div>
         </td>
         <td><button class="toggle ${k.IsActive==='Y'?'on':''}" onclick="toggleKeyword(${k.KeywordID},this)"></button></td>
+        <td style="text-align:center"><input type="checkbox" ${k.IsStatic?'checked':''} onchange="setStaticFlag('keyword',${k.KeywordID},this)" title="Static items (like a schedule) don't count when deciding whether a menu is empty"></td>
         <td style="font-size:11px;color:var(--text-soft);white-space:nowrap">${k.CreatedDate?formatDate(k.CreatedDate):'—'}</td>
         <td style="display:flex;gap:6px"><button class="btn-icon" onclick="openModal('keyword',${k.KeywordID})">✏️</button><button class="btn-icon danger" onclick="deleteKeyword(${k.KeywordID})">🗑️</button></td>
       </tr>`;
@@ -6883,7 +7015,7 @@ function renderMySourcesTable() {
     const menuOpts = `<option value="">All Menus</option>`+userMenu.map(m=>`<option value="${m.UserMenuID}" ${msMenuFilter==m.UserMenuID?'selected':''}>${m.UserMenuName}</option>`).join('')+`<option value="__none__" ${msMenuFilter==='__none__'?'selected':''}>— None —</option>`;
     const activeOpts = `<option value="">All Active</option><option value="active" ${msActiveFilter==='active'?'selected':''}>Active</option><option value="inactive" ${msActiveFilter==='inactive'?'selected':''}>Inactive</option>`;
 
-    if(thead)thead.innerHTML=`<th style="width:30px"></th><th style="cursor:pointer" onclick="sortMsSources('30d')" title="Hits in the last 30 days">30d ${msSortColClick==='30d'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th><select id="ms-menu-filter-hdr" ${ss}>${menuOpts}</select></th><th><select id="ms-group-filter-hdr" ${ss}>${groupOpts}</select></th><th style="cursor:pointer" onclick="sortMsSources('Name')">Name ${msSortColClick==='Name'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th style="cursor:pointer" onclick="sortMsSources('URL')">URL ${msSortColClick==='URL'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th>Image</th><th><select id="ms-type-filter" ${ss}>${typeOpts}</select></th><th><select id="ms-active-filter" ${ss}>${activeOpts}</select></th><th>Exclusions</th><th style="cursor:pointer" onclick="sortMsSources('DateAdded')">Date Added ${msSortColClick==='DateAdded'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th></th>`;
+    if(thead)thead.innerHTML=`<th style="width:30px"></th><th style="cursor:pointer" onclick="sortMsSources('30d')" title="Hits in the last 30 days">30d ${msSortColClick==='30d'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th><select id="ms-menu-filter-hdr" ${ss}>${menuOpts}</select></th><th><select id="ms-group-filter-hdr" ${ss}>${groupOpts}</select></th><th style="cursor:pointer" onclick="sortMsSources('Name')">Name ${msSortColClick==='Name'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th style="cursor:pointer" onclick="sortMsSources('URL')">URL ${msSortColClick==='URL'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th>Image</th><th><select id="ms-type-filter" ${ss}>${typeOpts}</select></th><th><select id="ms-active-filter" ${ss}>${activeOpts}</select></th><th title="Static items (like a schedule) don't count when deciding whether a menu is empty">Static</th><th>Exclusions</th><th style="cursor:pointer" onclick="sortMsSources('DateAdded')">Date Added ${msSortColClick==='DateAdded'?(msSortDirClick==='asc'?'▲':'▼'):''}</th><th></th>`;
 
     const profileVisible = userOwnedSources.filter(s => !s.UserMenuID || userMenu.some(m => m.UserMenuID === s.UserMenuID));
     let sorted = [...profileVisible].sort((a, b) => {
@@ -6937,6 +7069,7 @@ function renderMySourcesTable() {
         </td>
         <td><span class="badge">${s.SourceType}</span>${s.SourceType==='YT Sub'&&!s.YoutubeChannelID?' <span style="color:#e05050;font-weight:700;font-size:11px">(no ID)</span>':''}</td>
         <td><button class="toggle ${!s.IsInactive ? 'on' : ''}" onclick="toggleMySite(${s.UserOwnedSourceID},this)"></button></td>
+        <td style="text-align:center"><input type="checkbox" ${s.IsStatic?'checked':''} onchange="setStaticFlag('source',${s.UserOwnedSourceID},this)" title="Static items (like a schedule) don't count when deciding whether a menu is empty"></td>
         <td><input type="text" value="${(s.Exclusions || '').replace(/"/g, '&quot;')}" placeholder="" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;width:120px;font-family:'DM Sans',sans-serif" onchange="saveMySiteExclusions(${s.UserOwnedSourceID},this)"></td>
         <td style="font-size:11px;color:var(--text-soft);white-space:nowrap">${s.DateAdded?formatDate(s.DateAdded):'—'}</td>
         <td style="display:flex;gap:6px">

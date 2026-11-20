@@ -14,7 +14,7 @@ module.exports = async function(context, req) {
       .input('UserID', sql.Int, userID)
       .query(`
         SELECT k.KeywordID, k.Keyword, k.IsActive, k.Sequence, k.CreatedDate,
-               k.GroupLabel, k.ImageURL, k.SourceID, k.UserMenuID, k.UserOwnedSourceID,
+               k.GroupLabel, k.ImageURL, k.SourceID, k.UserMenuID, k.UserOwnedSourceID, k.IsStatic,
                COALESCE(h.Name, u.SourceName) AS SourceName,
                ISNULL(act.Count30d,0) AS Count30d
         FROM [HeadlineKeyword] k

@@ -16,7 +16,7 @@ module.exports = async function(context, req) {
       .input('UserID', sql.Int, userID)
       .query(`SELECT u.UserOwnedSourceID, u.SourceName, u.Description, u.SourceType, u.URL,
                      u.ThumbnailURL, u.Exclusions, u.Sequence, u.IsInactive, u.DateAdded,
-                     u.UserMenuID, u.GroupLabel, u.IsSysHeader, u.YoutubeChannelID,
+                     u.UserMenuID, u.GroupLabel, u.IsSysHeader, u.YoutubeChannelID, u.IsStatic,
                      ISNULL(act.Count30d,0) AS Count30d
               FROM UserOwnedSource u
               OUTER APPLY (
