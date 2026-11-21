@@ -1,6 +1,6 @@
 // LanguageChat - Spanish conversation practice
 // POST body: { action, userID, ... }
-// actions: start | continue | turn | end | save | discard | notes | list | delete | load
+// actions: start | continue | turn | end | save | discard | notes | list | delete | load | assess | voices | setVoice | speak
 const sql = require('mssql');
 const https = require('https');
 
@@ -11,6 +11,7 @@ const config = {
 };
 
 const MODEL = process.env.LANGCHAT_MODEL || 'claude-sonnet-5-5';
+const DEFAULT_VOICE = 'es-PE-CamilaNeural';
 
 const CATEGORIES = [
   'conjugation', 'tense-mood', 'agreement', 'ser-estar', 'por-para', 'preposition',
@@ -112,9 +113,11 @@ async function loadFindings(pool, sessionID) {
 function visibleMessages(turns, findings) {
   const byTurn = {};
   findings.filter(f => f.FindingType !== 'strength').forEach(f => { (byTurn[f.LangTurnID] = byTurn[f.LangTurnID] || []).push(fmtFinding(f)); });
-  return turns.filter(t => t.TurnType !== 'resume').map(t => t.Role === 'U'
-    ? { role: 'U', text: t.Content, findings: byTurn[t.LangTurnID] || [] }
-    : { role: 'A', text: t.Content, type: t.TurnType });
+  return turns.filter(t => t.TurnType !== 'resume').map(t => {
+    if (t.Role === 'U') return { role: 'U', text: t.Content, findings: byTurn[t.LangTurnID] || [] };
+    const m = parseJson(t.MetaJson, {});
+    return { role: 'A', text: t.Content, type: t.TurnType, speaker: m.speaker || null, spoken: m.spoken || '' };
+  });
 }
 
 // Words from: '__none__' = don't use My Words, '' = all words, otherwise a deck ID
@@ -155,6 +158,134 @@ async function pickWords(pool, userID, languageID, deckID, useWords) {
   return wr.recordset.map(w => ({ id: w.UserLanguageWordsID, word: w.WordsName, translation: w.WordsTranslation, flagged: !!w.Flag }));
 }
 
+// ---------- voices ----------
+async function activeVoices(pool) {
+  const r = await pool.request().query(`SELECT VoiceCode, Region, VoiceName, Gender FROM SpeechVoice WHERE IsActive = 1 ORDER BY Sequence`);
+  return r.recordset;
+}
+
+async function sessionVoices(pool, sessionID) {
+  const r = await pool.request().input('S', sql.Int, sessionID)
+    .query(`SELECT CharacterName, VoiceCode FROM LangSessionVoice WHERE LangSessionID = @S`);
+  const map = {};
+  r.recordset.forEach(v => { map[v.CharacterName] = v.VoiceCode; });
+  return map;
+}
+
+// The user's default voice for new conversations (last voice chosen for a main character)
+async function userDefaultVoice(pool, userID, voices) {
+  const r = await pool.request().input('U', sql.Int, userID).query(`SELECT LastVoiceCode FROM [User] WHERE UserID = @U`);
+  const last = r.recordset[0] && r.recordset[0].LastVoiceCode;
+  return voices.some(v => v.VoiceCode === last) ? last : (voices.some(v => v.VoiceCode === DEFAULT_VOICE) ? DEFAULT_VOICE : (voices[0] ? voices[0].VoiceCode : DEFAULT_VOICE));
+}
+
+async function saveDefaultVoice(pool, userID, voiceCode) {
+  await pool.request().input('U', sql.Int, userID).input('V', sql.NVarChar(60), voiceCode)
+    .query(`UPDATE [User] SET LastVoiceCode = @V WHERE UserID = @U`);
+}
+
+// Gives a character a voice if it doesn't have one yet. voiceCode = explicit choice;
+// otherwise an unused voice of the character's gender, preferring the main character's region.
+async function assignVoice(pool, s, name, gender, voiceCode) {
+  const map = await sessionVoices(pool, s.LangSessionID);
+  if (map[name]) return map;
+  const voices = await activeVoices(pool);
+  let pick = voices.find(v => v.VoiceCode === voiceCode);
+  if (!pick) {
+    const used = new Set(Object.values(map));
+    const main = voices.find(v => v.VoiceCode === map[s.AIName]);
+    const free = voices.filter(v => !used.has(v.VoiceCode));
+    const g = String(gender || '').toUpperCase();
+    pick = free.find(v => v.Gender === g && main && v.Region === main.Region)
+      || free.find(v => v.Gender === g)
+      || free.find(v => main && v.Region === main.Region)
+      || free[0] || voices[0];
+  }
+  if (!pick) return map;
+  await pool.request().input('S', sql.Int, s.LangSessionID).input('N', sql.NVarChar(50), name).input('V', sql.NVarChar(60), pick.VoiceCode)
+    .query(`IF NOT EXISTS (SELECT 1 FROM LangSessionVoice WHERE LangSessionID = @S AND CharacterName = @N)
+              INSERT INTO LangSessionVoice (LangSessionID, CharacterName, VoiceCode) VALUES (@S, @N, @V)`);
+  map[name] = pick.VoiceCode;
+  return map;
+}
+
+// Older conversations have no voice yet: give the main character the user's default.
+async function ensureMainVoice(pool, s) {
+  const map = await sessionVoices(pool, s.LangSessionID);
+  if (map[s.AIName]) return map;
+  return assignVoice(pool, s, s.AIName, '', await userDefaultVoice(pool, s.UserID, await activeVoices(pool)));
+}
+
+// Who is speaking, and the Spanish dialogue to voice. Corrections, asides and warm-up items are never voiced.
+function aiTurnMeta(s, out, aiType) {
+  out.reply = String(out.reply || '').replace(/^\s*\[[^\]]{1,60} speaking\]\s*/i, '');
+  let speaker = String(out.speaker || '').trim().slice(0, 50);
+  if (!speaker || speaker.toLowerCase() === String(s.AIName || '').toLowerCase()) speaker = s.AIName;
+  else speaker = speaker.charAt(0).toUpperCase() + speaker.slice(1);
+  const voiced = !['correction', 'aside', 'warmup'].includes(aiType);
+  const spoken = voiced ? (String(out.spoken || '').trim() || String(out.reply || '').trim()) : '';
+  return { speaker, spoken, gender: out.speaker_gender || '' };
+}
+
+async function voicesAction(pool, b) {
+  const voices = await activeVoices(pool);
+  return {
+    voices: voices.map(v => ({ code: v.VoiceCode, label: `${v.Region} - ${v.VoiceName}`, region: v.Region })),
+    defaultVoice: await userDefaultVoice(pool, parseInt(b.userID), voices)
+  };
+}
+
+// Change one character's voice. Changing the main character's voice also sets the default for new conversations.
+async function setVoice(pool, b) {
+  const userID = parseInt(b.userID);
+  const s = await loadSession(pool, parseInt(b.sessionID), userID);
+  const name = String(b.character || '').trim().slice(0, 50) || s.AIName;
+  const voice = (await activeVoices(pool)).find(v => v.VoiceCode === b.voiceCode);
+  if (!voice) throw new Error('Unknown voice');
+  await pool.request().input('S', sql.Int, s.LangSessionID).input('N', sql.NVarChar(50), name).input('V', sql.NVarChar(60), voice.VoiceCode)
+    .query(`UPDATE LangSessionVoice SET VoiceCode = @V WHERE LangSessionID = @S AND CharacterName = @N;
+            IF @@ROWCOUNT = 0 INSERT INTO LangSessionVoice (LangSessionID, CharacterName, VoiceCode) VALUES (@S, @N, @V);`);
+  if (name === s.AIName) await saveDefaultVoice(pool, userID, voice.VoiceCode);
+  return { voices: await sessionVoices(pool, s.LangSessionID) };
+}
+
+// Text to speech via Azure AI Speech. Returns base64 MP3.
+function speak(b) {
+  const voice = String(b.voiceCode || '');
+  const text = String(b.text || '').trim().slice(0, 1500);
+  if (!/^[a-z]{2}-[A-Z]{2}-[A-Za-z]+Neural$/.test(voice)) return Promise.reject(new Error('Invalid voice'));
+  if (!text) return Promise.reject(new Error('Nothing to say'));
+  const key = process.env.SPEECH_KEY, region = process.env.SPEECH_REGION;
+  if (!key || !region) return Promise.reject(new Error('Speech is not configured (SPEECH_KEY / SPEECH_REGION)'));
+  const rate = process.env.SPEECH_RATE || '-10%';
+  const esc = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${voice.slice(0, 5)}"><voice name="${voice}"><prosody rate="${rate}">${esc}</prosody></voice></speak>`;
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: `${region}.tts.speech.microsoft.com`, path: '/cognitiveservices/v1', method: 'POST',
+      headers: {
+        'Ocp-Apim-Subscription-Key': key,
+        'Content-Type': 'application/ssml+xml',
+        'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+        'User-Agent': 'DailyMe',
+        'Content-Length': Buffer.byteLength(ssml)
+      }
+    }, res => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => {
+        const buf = Buffer.concat(chunks);
+        if (res.statusCode !== 200) return reject(new Error(`Speech ${res.statusCode}: ${buf.toString().slice(0, 200)}`));
+        resolve({ audio: buf.toString('base64') });
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(30000, () => req.destroy(new Error('Speech request timed out')));
+    req.write(ssml);
+    req.end();
+  });
+}
+
 // ---------- system prompt ----------
 function buildSystemPrompt(s, minutesLeft) {
   const words = parseJson(s.WordsJson, []);
@@ -179,6 +310,8 @@ Match your own Spanish to this level. Keep your replies short (1-3 sentences at 
 
 SETTING (Noel's description): ${s.Setting}
 YOUR ROLE: ${s.AIRole || 'conversation partner'}
+CHARACTERS: You are mainly ${name}. If the scene naturally brings in another character (a vendor, a driver, a waiter), that character may speak for a reply: set speaker to that character's first name (keep the same name every time they speak) and speaker_gender to "F" or "M". Otherwise speaker is "${name}". One character per reply. Never write a name at the start of the reply; the app shows it.
+SPOKEN: The app reads the in-character Spanish dialogue aloud. Put exactly that dialogue in spoken (no English, no corrections, no notes). For corrections, asides and warm-up items, spoken is "".
 ${s.FocusGrammar ? `GRAMMAR FOCUS: ${s.FocusGrammar}. This is an emphasis, not a restriction: Noel may use any tense or mood. Steer the conversation so he gets plenty of chances to use the focus grammar, and set is_focus=true on findings about it.` : 'No specific grammar focus.'}
 
 NOEL'S WORDS (weave these in naturally, favour TROUBLE WORDs; report each one Noel uses in words_used with its id):
@@ -217,6 +350,9 @@ const RESPOND_TOOL = {
     properties: {
       turn_type: { type: 'string', enum: ['warmup', 'practice', 'retry', 'aside', 'wrapup'] },
       reply: { type: 'string', description: 'The message shown to Noel in the chat (without your name in front).' },
+      speaker: { type: 'string', description: 'First name of the character speaking in this reply.' },
+      speaker_gender: { type: 'string', enum: ['F', 'M'] },
+      spoken: { type: 'string', description: 'Only the in-character Spanish dialogue from the reply, to be read aloud. Empty for corrections, asides and warm-up items.' },
       ask_retry: { type: 'boolean' },
       findings: {
         type: 'array',
@@ -251,7 +387,7 @@ const RESPOND_TOOL = {
 };
 
 // Rebuild the conversation for Claude from the stored transcript.
-function buildMessages(turns, findings, newMessage) {
+function buildMessages(turns, findings, newMessage, aiName) {
   const byTurn = {};
   findings.forEach(f => { (byTurn[f.LangTurnID] = byTurn[f.LangTurnID] || []).push(f); });
   const msgs = [{ role: 'user', content: '(Session start. Please begin.)' }];
@@ -262,6 +398,8 @@ function buildMessages(turns, findings, newMessage) {
       lastUserTurnID = t.LangTurnID;
     } else {
       let content = t.Content;
+      const sp = parseJson(t.MetaJson, {}).speaker;
+      if (sp && aiName && sp !== aiName) content = `[${sp} speaking] ` + content;
       const fb = lastUserTurnID ? byTurn[lastUserTurnID] : null;
       if (fb && fb.length) {
         content += '\n\n[Feedback given on his previous message: ' + fb.map(f =>
@@ -341,6 +479,12 @@ ${er.recordset.map(e => `- [${e.Category}] "${e.Original}" -> "${e.Corrected}" (
 Weakest categories recently: ${cr.recordset.map(r => r.Category).join(', ') || '(none)'}`;
   }
 
+  // Main character's voice: the one picked on the setup screen, else the user's default
+  const allVoices = await activeVoices(pool);
+  const dfltVoice = await userDefaultVoice(pool, userID, allVoices);
+  const mainVoice = allVoices.find(v => v.VoiceCode === b.voiceCode) || allVoices.find(v => v.VoiceCode === dfltVoice);
+  if (mainVoice) prepareMsg += `\nThe tutor's voice is ${mainVoice.Gender === 'F' ? 'female' : 'male'}: unless the setting names the tutor, choose a ${mainVoice.Gender === 'F' ? 'female' : 'male'} first name (the suggested name only if it fits).`;
+
   const setup = await callTool(
     'You prepare Spanish conversation practice sessions. Interpret the learner\'s setting description and prepare the session.',
     [{ role: 'user', content: prepareMsg }], PREPARE_TOOL(maxItems), 1500);
@@ -368,16 +512,26 @@ Weakest categories recently: ${cr.recordset.map(r => r.Category).join(', ') || '
     [{ role: 'user', content: '(Session start. Please begin: either the first warm-up/review item, or set the scene in one or two sentences and invite Noel to start. If Noel said he will tell a story, briefly invite him to begin.)' }],
     RESPOND_TOOL, 800);
 
+  const openType = open.turn_type === 'warmup' ? 'warmup' : 'practice';
+  const openMeta = aiTurnMeta(session, open, openType);
+  let voices = {};
+  if (mainVoice) {
+    voices = await assignVoice(pool, session, session.AIName, mainVoice.Gender, mainVoice.VoiceCode);
+    await saveDefaultVoice(pool, userID, mainVoice.VoiceCode);
+  }
+  if (openMeta.speaker !== session.AIName && openMeta.spoken) voices = await assignVoice(pool, session, openMeta.speaker, openMeta.gender);
+
   await pool.request()
     .input('S', sql.Int, session.LangSessionID)
-    .input('Type', sql.NVarChar(20), open.turn_type === 'warmup' ? 'warmup' : 'practice')
+    .input('Type', sql.NVarChar(20), openType)
     .input('C', sql.NVarChar(sql.MAX), open.reply)
-    .query(`INSERT INTO LangTurn (LangSessionID, TurnNumber, Role, TurnType, Content) VALUES (@S, 1, 'A', @Type, @C)`);
+    .input('M', sql.NVarChar(sql.MAX), JSON.stringify({ speaker: openMeta.speaker, spoken: openMeta.spoken }))
+    .query(`INSERT INTO LangTurn (LangSessionID, TurnNumber, Role, TurnType, Content, MetaJson) VALUES (@S, 1, 'A', @Type, @C, @M)`);
 
   return {
     sessionID: session.LangSessionID, aiName: session.AIName, aiRole: session.AIRole, focusGrammar: session.FocusGrammar,
     sessionType: session.SessionType, title: reviewOf ? `Review: ${reviewOf.Title || 'conversation'}` : '',
-    minutes, messages: [{ role: 'A', text: open.reply, type: open.turn_type }]
+    minutes, voices, messages: [{ role: 'A', text: open.reply, type: openType, speaker: openMeta.speaker, spoken: openMeta.spoken }]
   };
 }
 
@@ -402,20 +556,25 @@ async function continueSession(pool, b) {
   const findings = await loadFindings(pool, s.LangSessionID);
 
   const note = '(Noel is back to continue this conversation. Greet him briefly and pick up where you left off.)';
-  const out = await callTool(buildSystemPrompt(s2, minutes), buildMessages(turns, findings, note), RESPOND_TOOL, 800);
+  const out = await callTool(buildSystemPrompt(s2, minutes), buildMessages(turns, findings, note, s2.AIName), RESPOND_TOOL, 800);
+  const outType = out.turn_type === 'aside' ? 'practice' : out.turn_type;
+  const meta = aiTurnMeta(s2, out, outType);
+  let voices = await ensureMainVoice(pool, s2);   // resumed conversations keep their saved voices
+  if (meta.speaker !== s2.AIName && meta.spoken) voices = await assignVoice(pool, s2, meta.speaker, meta.gender);
 
   await pool.request()
     .input('S', sql.Int, s.LangSessionID).input('N', sql.Int, lastNum + 1).input('C', sql.NVarChar(sql.MAX), note)
     .query(`INSERT INTO LangTurn (LangSessionID, TurnNumber, Role, TurnType, Content) VALUES (@S, @N, 'U', 'resume', @C)`);
   await pool.request()
     .input('S', sql.Int, s.LangSessionID).input('N', sql.Int, lastNum + 2).input('C', sql.NVarChar(sql.MAX), out.reply)
-    .input('Type', sql.NVarChar(20), out.turn_type === 'aside' ? 'practice' : out.turn_type)
-    .query(`INSERT INTO LangTurn (LangSessionID, TurnNumber, Role, TurnType, Content) VALUES (@S, @N, 'A', @Type, @C)`);
+    .input('Type', sql.NVarChar(20), outType)
+    .input('M', sql.NVarChar(sql.MAX), JSON.stringify({ speaker: meta.speaker, spoken: meta.spoken }))
+    .query(`INSERT INTO LangTurn (LangSessionID, TurnNumber, Role, TurnType, Content, MetaJson) VALUES (@S, @N, 'A', @Type, @C, @M)`);
 
   const turns2 = await loadTurns(pool, s.LangSessionID);
   return {
     sessionID: s2.LangSessionID, aiName: s2.AIName, aiRole: s2.AIRole, focusGrammar: s2.FocusGrammar,
-    sessionType: s2.SessionType, title: s2.Title || '', minutes, messages: visibleMessages(turns2, findings)
+    sessionType: s2.SessionType, title: s2.Title || '', minutes, voices, messages: visibleMessages(turns2, findings)
   };
 }
 
@@ -432,7 +591,7 @@ async function takeTurn(pool, b) {
   const minutesLeft = s.DurationMinutes - (Date.now() - segStart) / 60000;
 
   const sys = buildSystemPrompt(s, minutesLeft);
-  const msgs = buildMessages(turns, findings, message);
+  const msgs = buildMessages(turns, findings, message, s.AIName);
   const needsRetry = o => o.turn_type !== 'aside' && (o.findings || []).some(f => f.type === 'error' || f.type === 'gap');
   let out = await callTool(sys, msgs, RESPOND_TOOL, 2000);
   if (needsRetry(out) && !out.ask_retry) {
@@ -445,6 +604,9 @@ async function takeTurn(pool, b) {
   }
   if (needsRetry(out)) out.ask_retry = true;
   const aiType = out.ask_retry ? 'correction' : out.turn_type;
+  const aiMeta = aiTurnMeta(s, out, aiType);
+  let voices = await ensureMainVoice(pool, s);
+  if (aiMeta.speaker !== s.AIName && aiMeta.spoken) voices = await assignVoice(pool, s, aiMeta.speaker, aiMeta.gender);
 
   const validWordIDs = new Set(parseJson(s.WordsJson, []).map(w => w.id));
   const usedWords = (out.words_used || []).filter(w => validWordIDs.has(w.word_id));
@@ -509,7 +671,8 @@ async function takeTurn(pool, b) {
     await new sql.Request(tx)
       .input('S', sql.Int, s.LangSessionID).input('N', sql.Int, nextNum + 1)
       .input('Type', sql.NVarChar(20), aiType).input('C', sql.NVarChar(sql.MAX), out.reply)
-      .query(`INSERT INTO LangTurn (LangSessionID, TurnNumber, Role, TurnType, Content) VALUES (@S, @N, 'A', @Type, @C)`);
+      .input('M', sql.NVarChar(sql.MAX), JSON.stringify({ speaker: aiMeta.speaker, spoken: aiMeta.spoken }))
+      .query(`INSERT INTO LangTurn (LangSessionID, TurnNumber, Role, TurnType, Content, MetaJson) VALUES (@S, @N, 'A', @Type, @C, @M)`);
 
     await tx.commit();
   } catch (e) {
@@ -519,6 +682,7 @@ async function takeTurn(pool, b) {
 
   return {
     reply: out.reply, turnType: aiType, askRetry: !!out.ask_retry,
+    speaker: aiMeta.speaker, spoken: aiMeta.spoken, voices,
     findings: saved.map(fmtFinding),
     disputed: out.disputed_findings || [],
     minutesLeft: Math.max(0, minutesLeft)
@@ -645,6 +809,7 @@ async function discardSession(pool, b) {
     if (deleteAll) {
       await new sql.Request(tx).input('S', sql.Int, s.LangSessionID)
         .query(`UPDATE LangSession SET ParentSessionID = NULL WHERE ParentSessionID = @S;
+                DELETE FROM LangSessionVoice WHERE LangSessionID = @S;
                 DELETE FROM LangSession WHERE LangSessionID = @S;`);
     } else {
       await new sql.Request(tx).input('S', sql.Int, s.LangSessionID)
@@ -870,6 +1035,7 @@ module.exports = async function (context, req) {
   try {
     const b = req.body || {};
     if (!b.userID) return respond(context, 400, { error: 'userID required' });
+    if (b.action === 'speak') return respond(context, 200, await speak(b));   // no database needed
     const pool = await sql.connect(config);
     let result;
     switch (b.action) {
@@ -884,6 +1050,8 @@ module.exports = async function (context, req) {
       case 'delete': result = await deleteSession(pool, b); break;
       case 'load': result = await loadConversation(pool, b); break;
       case 'assess': result = await assessLevel(pool, b); break;
+      case 'voices': result = await voicesAction(pool, b); break;
+      case 'setVoice': result = await setVoice(pool, b); break;
       default: return respond(context, 400, { error: 'Unknown action' });
     }
     respond(context, 200, result);

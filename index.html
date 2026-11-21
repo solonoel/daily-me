@@ -294,7 +294,7 @@
     .conv-setup textarea { width:100%; resize:vertical; }
     .conv-box { border:1.5px solid var(--border); border-radius:12px; padding:10px 14px 14px; margin:0; display:flex; flex-direction:column; gap:10px; }
     .conv-box legend { font-family:'Playfair Display',serif; font-size:15px; color:var(--text); padding:0 6px; }
-    .conv-grid { display:grid; grid-template-columns:1fr 1fr 2fr; gap:12px; }
+    .conv-grid { display:grid; grid-template-columns:1fr 1fr 2fr 2fr; gap:12px; }
     .conv-grid select { width:100%; }
     .conv-setup .conv-check { display:flex; align-items:center; gap:8px; font-weight:500; color:var(--text); margin:0; }
     .conv-hint { font-size:12px; color:var(--text-muted); }
@@ -317,6 +317,10 @@
     .conv-msg { max-width:80%; padding:9px 13px; border-radius:14px; font-size:14px; line-height:1.45; white-space:pre-wrap; }
     .conv-ai { align-self:flex-start; background:#eef5fc; border:1px solid var(--border); }
     .conv-name { font-weight:700; color:var(--sky-deep); }
+    .conv-play { border:none; background:none; cursor:pointer; font-size:11px; opacity:.3; padding:0 3px; }
+    .conv-play:hover { opacity:.9; }
+    .conv-voice-pick { display:inline-flex; align-items:center; gap:2px; margin:0 4px; }
+    .conv-voice-sel { font-size:12px; padding:1px 4px; border:1px solid var(--border); border-radius:6px; background:#fff; }
     .conv-aside { background:#fff8e6; border-color:#e8c870; }
     .conv-corr { background:#fdf0ef; border-color:#e8b4ae; font-style:italic; }
     .conv-user { align-self:flex-end; background:var(--sky-deep); color:white; }
@@ -3511,6 +3515,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
   // ── CONVERSATION PRACTICE ──
   let conv={langID:null,sessionID:null,messages:[]};
   let convSaved=[],convSelID=null,convAudio=null;
+  let convVoiceList=[],convDefaultVoice=null,convSpeech=null,convAudioCache={};
 
   function convEsc(s){return escapeBriefingHtml(s==null?'':s).replace(/"/g,'&quot;');}
   function convDate(d){try{return new Date(d).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});}catch(e){return '';}}
@@ -3552,6 +3557,58 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
   }
 
   // ── screens ──
+  // ---- Conversation voices ----
+  async function convLoadVoices(){
+    if(convVoiceList.length)return;
+    const r=await apiPost('LanguageChat',{action:'voices',userID:USER_ID});
+    if(r&&!r.error){convVoiceList=r.voices||[];convDefaultVoice=r.defaultVoice||null;}
+  }
+  async function convFillVoiceSelect(){
+    await convLoadVoices();
+    const el=document.getElementById('conv-voice');if(el)el.innerHTML=convVoiceOptions(convDefaultVoice);
+  }
+  function convVoiceOptions(sel){return convVoiceList.map(v=>`<option value="${v.code}" ${v.code===sel?'selected':''}>${convEsc(v.label)}</option>`).join('');}
+  function convVoiceFor(name){const v=conv.voices||{};return v[name]||v[conv.aiName]||convDefaultVoice;}
+  // Only in-character Spanish dialogue is voiced (never corrections, asides or warm-up items)
+  function convSpokenText(m){return m.role==='A'?(m.spoken||(['practice','retry','wrapup'].includes(m.type)?m.text:'')):'';}
+  async function convSpeak(i){
+    const m=conv.messages[i];const text=m&&convSpokenText(m);if(!text)return;
+    const voice=convVoiceFor(m.speaker||conv.aiName);if(!voice)return;
+    const key=voice+'|'+text;
+    try{
+      if(convSpeech)convSpeech.pause();
+      if(!convAudioCache[key]){
+        const r=await apiPost('LanguageChat',{action:'speak',userID:USER_ID,voiceCode:voice,text});
+        if(!r||r.error||!r.audio){console.error('speak failed',r);return;}
+        convAudioCache[key]='data:audio/mpeg;base64,'+r.audio;
+      }
+      convSpeech=new Audio(convAudioCache[key]);await convSpeech.play();
+    }catch(e){console.error('speak failed',e);}
+  }
+  function convRerenderKeepScroll(){
+    const log=document.getElementById('conv-log');const top=log?log.scrollTop:null;
+    renderConversation(conv.langID);
+    const log2=document.getElementById('conv-log');if(log2&&top!=null)log2.scrollTop=top;
+  }
+  async function convPickVoice(i){
+    await convLoadVoices();
+    conv.voicePick=conv.voicePick===i?null:i;convRerenderKeepScroll();
+  }
+  async function convSetVoice(i,code){
+    const m=conv.messages[i];if(!m)return;const name=m.speaker||conv.aiName;
+    conv.voicePick=null;
+    const r=await apiPost('LanguageChat',{action:'setVoice',userID:USER_ID,sessionID:conv.sessionID,character:name,voiceCode:code});
+    if(!r||r.error){convErr('Could not change the voice',r);convRerenderKeepScroll();return;}
+    conv.voices=r.voices||conv.voices;
+    if(name===conv.aiName)convDefaultVoice=code;   // main character's voice becomes the default for new conversations
+    convRerenderKeepScroll();
+    convSpeak(i);
+  }
+  function convSpeakLast(){
+    const i=conv.messages.length-1;const m=conv.messages[i];
+    if(m&&convSpokenText(m))convSpeak(i);
+  }
+
   function renderConversation(langID){
     const panel=document.getElementById(`lang-feature-${langID}`);if(!panel)return;
     if(conv.sessionID&&conv.langID===langID){
@@ -3563,6 +3620,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
       clearInterval(conv.timer);
       panel.innerHTML=renderConvSetupHTML(langID);
       loadConvSaved(langID);
+      convFillVoiceSelect();
     }
   }
 
@@ -3593,6 +3651,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
           <div><label for="conv-level">Level (1–10)</label><select id="conv-level" class="form-select">${levelOpts}</select></div>
           <div><label for="conv-minutes">Minutes</label><select id="conv-minutes" class="form-select">${minOpts}</select></div>
           <div><label for="conv-deck">Words from</label><select id="conv-deck" class="form-select">${convDeckOptions('')}</select></div>
+          <div><label for="conv-voice">Voice</label><select id="conv-voice" class="form-select">${convVoiceOptions(convDefaultVoice)}</select></div>
         </div>
         <label class="conv-check"><input type="checkbox" id="conv-spain" ${last.spain?'checked':''}> Add notes on Spain Spanish</label>
       </fieldset>
@@ -3606,7 +3665,8 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
       level:parseInt(document.getElementById('conv-level').value),
       minutes:parseInt(document.getElementById('conv-minutes').value),
       deckID:document.getElementById('conv-deck').value||null,
-      includeSpain:document.getElementById('conv-spain').checked
+      includeSpain:document.getElementById('conv-spain').checked,
+      voiceCode:(document.getElementById('conv-voice')||{}).value||null
     };
   }
   function convRememberSettings(st){try{localStorage.setItem('dailyme_conv_last',JSON.stringify({level:st.level,minutes:st.minutes,spain:st.includeSpain}));}catch(e){}}
@@ -3651,8 +3711,10 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     clearInterval(conv.timer);
     conv=Object.assign({langID,sessionID:r.sessionID,messages:r.messages||[],busy:false,mode:'chat',
           minutes:r.minutes,startedAt:Date.now(),beeped:false,aiName:r.aiName||'Raúl',aiRole:r.aiRole||'',
-          focus:r.focusGrammar||'',title:r.title||'',sessionType:r.sessionType||'conversation',summary:null,notes:null,showNotes:false,timer:null},extra||{});
+          focus:r.focusGrammar||'',title:r.title||'',sessionType:r.sessionType||'conversation',summary:null,notes:null,showNotes:false,timer:null,
+          voices:r.voices||{},voicePick:null},extra||{});
     renderConversation(langID);
+    convSpeakLast();
   }
 
   async function startConversation(langID){
@@ -3662,6 +3724,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     const btn=document.getElementById('conv-start-btn');btn.disabled=true;btn.textContent='⏳ Preparing conversation…';
     const r=await apiPost('LanguageChat',Object.assign({action:'start',userID:USER_ID,languageID:langID,setting},st));
     if(!r||r.error){convErr('Could not start the conversation',r);btn.disabled=false;btn.textContent='Start new conversation';return;}
+    if(st.voiceCode)convDefaultVoice=st.voiceCode;
     convOpenChat(langID,r);
   }
 
@@ -3683,6 +3746,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     const list=document.getElementById('conv-saved-list');if(list)list.innerHTML='<div class="conv-hint">⏳ Preparing review…</div>';
     const r=await apiPost('LanguageChat',Object.assign({action:'start',userID:USER_ID,languageID:langID,setting,reviewOf:id},st));
     if(!r||r.error){convErr('Could not start the review',r);renderConvSavedList(langID);return;}
+    if(st.voiceCode)convDefaultVoice=st.voiceCode;
     convOpenChat(langID,r);
   }
 
@@ -3740,11 +3804,15 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
 
   function renderConvChatHTML(){
     if(conv.mode==='view')return renderConvNotesViewHTML();
-    const msgs=conv.messages.map(m=>m.role==='U'
+    const voiceCtl=(m,i)=>!convSpokenText(m)?''
+      : conv.voicePick===i
+        ? `<span class="conv-voice-pick"><select class="conv-voice-sel" title="Voice for ${convEsc(m.speaker||conv.aiName)}" onchange="convSetVoice(${i},this.value)">${convVoiceOptions(convVoiceFor(m.speaker||conv.aiName))}</select><button class="conv-play" title="Play" onclick="convSpeak(${i})">▶</button><button class="conv-play" title="Close" onclick="convPickVoice(${i})">✕</button></span>`
+        : `<button class="conv-play" title="Play / change voice" onclick="convPickVoice(${i});convSpeak(${i})">🔊</button>`;
+    const msgs=conv.messages.map((m,i)=>m.role==='U'
       ? `<div class="conv-msg conv-user">${convEsc(m.text)}</div>${renderConvFindings(m.findings)}`
       : (m.type==='correction'||m.type==='aside')
         ? `<div class="conv-msg conv-ai ${m.type==='aside'?'conv-aside':'conv-corr'}">${convEsc(m.text)}</div>`
-        : `<div class="conv-msg conv-ai"><span class="conv-name">${convEsc(conv.aiName)}:</span> ${convEsc(m.text)}</div>`).join('');
+        : `<div class="conv-msg conv-ai"><span class="conv-name">${convEsc(m.speaker||conv.aiName)}:</span>${voiceCtl(m,i)} ${convEsc(m.text)}</div>`).join('');
     const heading=convEsc(conv.title||conv.aiRole||'Conversation');
     let bottom='';
     if(conv.mode==='chat'){
@@ -3805,8 +3873,10 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     }
     userMsg.findings=r.findings||[];
     (r.disputed||[]).filter(d=>d.upheld).forEach(d=>conv.messages.forEach(m=>(m.findings||[]).forEach(f=>{if(f.id===d.id)f.voided=true;})));
-    conv.messages.push({role:'A',text:r.reply,type:r.turnType});
+    if(r.voices)conv.voices=r.voices;
+    conv.messages.push({role:'A',text:r.reply,type:r.turnType,speaker:r.speaker||null,spoken:r.spoken||''});
     renderConversation(conv.langID);
+    convSpeakLast();
   }
 
   function convStartTimer(){
