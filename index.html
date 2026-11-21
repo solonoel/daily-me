@@ -3694,7 +3694,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
           <div class="conv-saved-meta">${convDate(s.date)} · Level ${s.level}${s.actualMinutes!=null?` · ${s.actualMinutes} min`:''}${s.score!=null?` · Score ${s.score}`:''}</div></div>
         <div class="conv-saved-btns">
           <button class="btn-icon conv-sm" title="Continue" onclick="event.stopPropagation();continueSavedConversation(${langID},${s.id})">▶️</button>
-          <button class="btn-icon conv-sm" title="Review" onclick="event.stopPropagation();reviewSavedConversation(${langID},${s.id})">🔁</button>
+          <button class="btn-icon conv-sm" title="Review" onclick="event.stopPropagation();reviewSavedConversation(${langID},${s.id})">✏️</button>
           <button class="btn-icon conv-sm" title="Session Notes" onclick="event.stopPropagation();viewSavedConversation(${langID},${s.id})">📖</button>
           <button class="btn-icon conv-sm" title="Delete" onclick="event.stopPropagation();deleteSavedConversation(${langID},${s.id})">🗑</button>
         </div>
