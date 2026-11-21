@@ -308,6 +308,9 @@
     .conv-saved-meta { font-size:12px; color:var(--text-muted); font-weight:400; }
     .conv-saved-btns { display:flex; gap:6px; flex-shrink:0; }
     .conv-desc-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    #conv-review-btn { white-space:nowrap; justify-content:center; text-align:center; }
+    .conv-ask { font-size:13px; color:var(--text-soft); align-self:center; }
+    .conv-busy { font-size:14px; font-weight:600; color:var(--sky-deep); padding:8px 10px; background:#eef5fc; border-radius:8px; }
     .conv-sm { padding:4px 10px !important; font-size:12px !important; }
     .conv-chat { display:flex; flex-direction:column; gap:10px; }
     .conv-head { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; font-size:13px; }
@@ -3696,6 +3699,38 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
           <button class="btn-icon conv-sm" title="Delete" onclick="event.stopPropagation();deleteSavedConversation(${langID},${s.id})">🗑</button>
         </div>
       </div>`).join('');
+    convAlignReviewBtn();
+  }
+
+  // Personal Review button: same width as, and right-aligned with, the saved-conversation buttons below it
+  function convAlignReviewBtn(){
+    const btn=document.getElementById('conv-review-btn');if(!btn)return;
+    const grp=document.querySelector('#conv-saved-list .conv-saved-btns');
+    btn.style.width='';btn.style.marginRight='';btn.style.paddingLeft='';btn.style.paddingRight='';
+    if(!grp)return;
+    const g=grp.getBoundingClientRect(),row=btn.parentElement.getBoundingClientRect();
+    if(!g.width)return;
+    btn.style.paddingLeft=btn.style.paddingRight='4px';
+    btn.style.width=g.width+'px';
+    btn.style.marginRight=Math.max(0,row.right-g.right)+'px';
+  }
+  window.addEventListener('resize',()=>convAlignReviewBtn());
+
+  // Busy state while a review/continue is being prepared: hourglass on the clicked button, message above the list
+  function convListBusy(btnTitle,msg){
+    const list=document.getElementById('conv-saved-list');if(!list)return;
+    list.querySelectorAll('button').forEach(b=>b.disabled=true);
+    const start=document.getElementById('conv-start-btn');if(start)start.disabled=true;
+    const b=btnTitle&&list.querySelector(`.conv-sel button[title="${btnTitle}"]`);if(b)b.textContent='⏳';
+    let s=document.getElementById('conv-busy-msg');
+    if(!s){s=document.createElement('div');s.id='conv-busy-msg';s.className='conv-busy';list.parentNode.insertBefore(s,list);}
+    s.textContent='⏳ '+msg;
+    document.body.style.cursor='progress';
+  }
+  function convListIdle(){
+    const s=document.getElementById('conv-busy-msg');if(s)s.remove();
+    const start=document.getElementById('conv-start-btn');if(start)start.disabled=false;
+    document.body.style.cursor='';
   }
 
   function selectSavedConversation(langID,id){
@@ -3710,6 +3745,7 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
   }
 
   function convOpenChat(langID,r,extra){
+    convListIdle();
     clearInterval(conv.timer);
     conv=Object.assign({langID,sessionID:r.sessionID,messages:r.messages||[],busy:false,mode:'chat',
           minutes:r.minutes,startedAt:Date.now(),beeped:false,aiName:r.aiName||'Raúl',aiRole:r.aiRole||'',
@@ -3734,9 +3770,10 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     convAudioInit();
     const st=convReadSettings();convRememberSettings(st);
     const setting=document.getElementById('conv-setting').value.trim();
-    const btn=document.getElementById('conv-review-btn');btn.disabled=true;btn.textContent='⏳ Preparing review…';
+    const btn=document.getElementById('conv-review-btn');btn.disabled=true;btn.textContent='⏳ Preparing…';
+    convListBusy(null,'Preparing your personal review… (this can take 20–30 seconds)');
     const r=await apiPost('LanguageChat',Object.assign({action:'start',userID:USER_ID,languageID:langID,setting,personalReview:true},st));
-    if(!r||r.error){convErr('Could not start the personal review',r);btn.disabled=false;btn.textContent='🎯 Personal Review';return;}
+    if(!r||r.error){convListIdle();convErr('Could not start the personal review',r);btn.disabled=false;btn.textContent='🎯 Personal Review';renderConvSavedList(langID);return;}
     if(st.voiceCode)convDefaultVoice=st.voiceCode;
     convOpenChat(langID,r);
   }
@@ -3745,9 +3782,9 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     convAudioInit();
     if(convSelID!==id)selectSavedConversation(langID,id);
     const st=convReadSettings();convRememberSettings(st);
-    const list=document.getElementById('conv-saved-list');if(list)list.innerHTML='<div class="conv-hint">⏳ Opening conversation…</div>';
+    convListBusy('Continue','Opening conversation…');
     const r=await apiPost('LanguageChat',Object.assign({action:'continue',userID:USER_ID,sessionID:id},st));
-    if(!r||r.error){convErr('Could not continue the conversation',r);renderConvSavedList(langID);return;}
+    if(!r||r.error){convListIdle();convErr('Could not continue the conversation',r);renderConvSavedList(langID);return;}
     convOpenChat(langID,r,{saved:true});
   }
 
@@ -3756,9 +3793,9 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     if(convSelID!==id)selectSavedConversation(langID,id);
     const st=convReadSettings();convRememberSettings(st);
     const setting=document.getElementById('conv-setting').value.trim();
-    const list=document.getElementById('conv-saved-list');if(list)list.innerHTML='<div class="conv-hint">⏳ Preparing review…</div>';
+    convListBusy('Review','Preparing review… (this can take 20–30 seconds)');
     const r=await apiPost('LanguageChat',Object.assign({action:'start',userID:USER_ID,languageID:langID,setting,reviewOf:id},st));
-    if(!r||r.error){convErr('Could not start the review',r);renderConvSavedList(langID);return;}
+    if(!r||r.error){convListIdle();convErr('Could not start the review',r);renderConvSavedList(langID);return;}
     if(st.voiceCode)convDefaultVoice=st.voiceCode;
     convOpenChat(langID,r);
   }
@@ -3835,9 +3872,13 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
         <div class="conv-foot"><span id="conv-timer" class="conv-timer"></span>
           <button class="btn-secondary" onclick="endConversation()" ${conv.busy?'disabled':''}>End Session</button></div>`;
     }else if(conv.mode==='ended'){
-      bottom=renderConvSummaryHTML(`
+      bottom=renderConvSummaryHTML(conv.askClose
+        ? `<span class="conv-ask">Save this conversation before closing?</span>
           <button class="btn-primary" id="conv-save-btn" onclick="saveAndCloseConversation()" ${conv.busy?'disabled':''}>💾 Save &amp; Close</button>
-          <button class="btn-secondary" onclick="closeConversation()" ${conv.busy?'disabled':''}>Close</button>
+          <button class="btn-secondary" onclick="closeConversation()" ${conv.busy?'disabled':''}>Close without saving</button>
+          <button class="btn-secondary" onclick="conv.askClose=false;renderConversation(conv.langID)" ${conv.busy?'disabled':''}>Back</button>`
+        : `<button class="btn-primary" id="conv-save-btn" onclick="saveAndCloseConversation()" ${conv.busy?'disabled':''}>💾 Save &amp; Close</button>
+          <button class="btn-secondary" onclick="askCloseConversation()" ${conv.busy?'disabled':''}>Close</button>
           <button class="btn-secondary" onclick="cancelConversation()" ${conv.busy?'disabled':''}>Cancel</button>`);
     }
     return `<div class="conv-chat">
@@ -3914,16 +3955,33 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     conv.busy=false;
     if(!r||r.error){renderConversation(conv.langID);convErr('Could not end the session',r);return;}
     clearInterval(conv.timer);
-    conv.mode='ended';conv.summary=r.summary;conv.notes=null;conv.showNotes=false;
+    conv.mode='ended';conv.summary=r.summary;conv.notes=null;conv.showNotes=false;conv.askClose=false;
+    // Start writing the study notes now, in the background, so they're ready when the button is clicked
+    const sid=conv.sessionID;
+    conv.notesPromise=apiPost('LanguageChat',{action:'notes',userID:USER_ID,sessionID:sid}).then(n=>{
+      if(conv.sessionID===sid&&n&&!n.error)conv.notes=n.notes;
+      return n;
+    });
     renderConversation(conv.langID);
   }
 
   async function showConvNotes(){
     if(conv.notes){conv.showNotes=!conv.showNotes;renderConversation(conv.langID);return;}
     const btn=document.getElementById('conv-notes-btn');if(btn){btn.disabled=true;btn.textContent='⏳ Writing study notes…';}
-    const r=await apiPost('LanguageChat',{action:'notes',userID:USER_ID,sessionID:conv.sessionID});
+    const sid=conv.sessionID;
+    let r=conv.notesPromise?await conv.notesPromise:null;
+    if(conv.sessionID!==sid)return;
+    if(!r||r.error){conv.notesPromise=null;r=await apiPost('LanguageChat',{action:'notes',userID:USER_ID,sessionID:sid});}   // retry once if the background run failed
+    if(conv.sessionID!==sid)return;
     if(!r||r.error){convErr('Could not create study notes',r);renderConversation(conv.langID);return;}
     conv.notes=r.notes;conv.showNotes=true;renderConversation(conv.langID);
+  }
+
+  // Close from the end screen: an unsaved conversation asks first
+  function askCloseConversation(){
+    if(conv.busy)return;
+    if(conv.saved){closeConversation();return;}
+    conv.askClose=true;renderConversation(conv.langID);
   }
 
   async function saveAndCloseConversation(){

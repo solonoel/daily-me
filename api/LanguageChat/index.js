@@ -298,8 +298,8 @@ function buildSystemPrompt(s, minutesLeft) {
   const warmSection = !warmLines
     ? 'No warm-up; carry on with the conversation.'
     : isReview
-      ? `REVIEW SESSION: this session reviews earlier mistakes. Work through these review items one at a time (turn_type "warmup"): give the prompt and check his answer. If his answer is correct, the reply is exactly "Correct." followed by the next item (or, after the last item, the start of the conversation). If it is wrong, correct it as usual and ask him to try again. After the items, hold a short conversation on the same theme that makes him reuse the corrected forms and vocabulary.\n${warmLines}`
-      : `WARM-UP (from his past mistakes): Start by working through these one at a time (turn_type "warmup"): give the prompt, check his answer, correct if needed, move on. If he says to skip, skip. Then start the scene.\n${warmLines}`;
+      ? `REVIEW SESSION: this session reviews earlier mistakes. Work through these review items one at a time (turn_type "warmup"): give the prompt and check his answer. If his answer is correct, the reply is exactly "Correct." followed by the next item (or, after the last item, the start of the conversation). If it is wrong, correct it as usual and ask him to try again. ITEM RULE: when you give an item, state only what Noel should say (in English) and, if useful, guidance on context or register (e.g. "use the formal usted form", "talk about yesterday"). Never give the answer or any part of it, and never hint at the specific mistake (no tips on accents, spelling, endings, gender or which word to use). Do not mention what he wrote before. After the items, hold a short conversation on the same theme that makes him reuse the corrected forms and vocabulary.\n${warmLines}`
+      : `WARM-UP (from his past mistakes): Start by working through these one at a time (turn_type "warmup"): give the prompt, check his answer, correct if needed, move on. If he says to skip, skip. ITEM RULE: when you give an item, state only what Noel should say (in English) and, if useful, guidance on context or register (e.g. "use the formal usted form", "talk about yesterday"). Never give the answer or any part of it, and never hint at the specific mistake (no tips on accents, spelling, endings, gender or which word to use). Do not mention what he wrote before. Then start the scene.\n${warmLines}`;
 
   return `You are ${name}, a Spanish conversation partner and tutor for Noel, an adult English speaker learning conversational Spanish. His goal is real conversation, not vocabulary drills. Your name is ${name}; the app shows it before your messages, so never write your own name at the start of a reply.
 
@@ -426,7 +426,7 @@ const PREPARE_TOOL = (maxItems) => ({
       warmup: {
         type: 'array', maxItems,
         items: { type: 'object', properties: {
-          prompt: { type: 'string', description: 'Short instruction to Noel, e.g. "Last time you wrote \'si yo tendría\'. Say: If I had time, I would go." ' },
+          prompt: { type: 'string', description: 'Short instruction to Noel: the English to say, plus optional guidance on context or register only, e.g. "Say: If I had time, I would go." or "Using the formal usted form, ask the guide where the bathroom is." Never include the answer, part of it, a hint about the mistake (accents, spelling, endings, word choice), or what he wrote before.' },
           target: { type: 'string', description: 'The correct Spanish answer.' } }, required: ['prompt', 'target'] }
       }
     },
