@@ -298,7 +298,7 @@ function buildSystemPrompt(s, minutesLeft) {
   const warmSection = !warmLines
     ? 'No warm-up; carry on with the conversation.'
     : isReview
-      ? `REVIEW SESSION: this session reviews an earlier conversation. Work through these review items one at a time (turn_type "warmup"): give the prompt and check his answer. If his answer is correct, the reply is exactly "Correct." followed by the next item (or, after the last item, the start of the conversation). If it is wrong, correct it as usual and ask him to try again. After the items, hold a short conversation on the same theme that makes him reuse the corrected forms and vocabulary.\n${warmLines}`
+      ? `REVIEW SESSION: this session reviews earlier mistakes. Work through these review items one at a time (turn_type "warmup"): give the prompt and check his answer. If his answer is correct, the reply is exactly "Correct." followed by the next item (or, after the last item, the start of the conversation). If it is wrong, correct it as usual and ask him to try again. After the items, hold a short conversation on the same theme that makes him reuse the corrected forms and vocabulary.\n${warmLines}`
       : `WARM-UP (from his past mistakes): Start by working through these one at a time (turn_type "warmup"): give the prompt, check his answer, correct if needed, move on. If he says to skip, skip. Then start the scene.\n${warmLines}`;
 
   return `You are ${name}, a Spanish conversation partner and tutor for Noel, an adult English speaker learning conversational Spanish. His goal is real conversation, not vocabulary drills. Your name is ${name}; the app shows it before your messages, so never write your own name at the start of a reply.
@@ -460,13 +460,27 @@ ${userSetting ? `Extra instructions from Noel: """${userSetting}"""\n` : ''}Leve
 Suggested tutor name: ${reviewOf.AIName || '(none)'}
 Corrections, better phrasings and gaps from that conversation (pick up to 8 of the most important as review items, covering different problems; if fewer exist, use what there is):
 ${pf.map(e => `- [${e.FindingType}/${e.Category}] "${e.Original}" -> "${e.Corrected}" (${e.Explanation || ''})`).join('\n') || '(none - build items from the key vocabulary of the original setting instead)'}`;
+  } else if (b.personalReview) {
+    // Personal Review: drill recent mistakes from all conversations, then a short conversation that reuses them
+    const recent = async days => (await pool.request().input('U', sql.Int, userID).input('D', sql.Int, days)
+      .query(`SELECT TOP 20 FindingType, Category, Original, Corrected, Explanation FROM LangFinding
+              WHERE UserID = @U AND FindingType IN ('error', 'gap') AND Voided = 0
+                AND (@D IS NULL OR CreatedDate >= DATEADD(day, -@D, GETDATE()))
+              ORDER BY ISNULL(Severity, 1) DESC, CreatedDate DESC`)).recordset;
+    let pf = await recent(30);
+    if (!pf.length) pf = await recent(null);
+    if (!pf.length) throw new Error('No mistakes to review yet. Have a conversation first.');
+    setting = `Personal review of Noel's recent mistakes.${userSetting ? ` Setting for the conversation afterwards: ${userSetting}` : ' Afterwards, a short everyday conversation.'}`;
+    maxItems = 8;
+    prepareMsg =
+`This is a PERSONAL REVIEW session: drill Noel's recent mistakes from all his conversations.
+${userSetting ? `Setting for the short conversation after the review items: """${userSetting}"""\n` : ''}Level: ${level}/10.
+Recent mistakes (pick up to 8 of the most instructive as review items, covering different problems; skip duplicates):
+${pf.map(e => `- [${e.FindingType}/${e.Category}] "${e.Original}" -> "${e.Corrected}" (${e.Explanation || ''})`).join('\n')}`;
   } else {
+    // New conversation: no warm-up (that's what Personal Review is for). Weak categories may suggest a focus.
     setting = userSetting || 'Free conversation about everyday life.';
-    maxItems = 4;
-    const er = await pool.request().input('U', sql.Int, userID)
-      .query(`SELECT TOP 12 Category, Original, Corrected, Explanation FROM LangFinding
-              WHERE UserID = @U AND FindingType = 'error' AND Voided = 0 AND CreatedDate >= DATEADD(day, -30, GETDATE())
-              ORDER BY ISNULL(Severity, 1) DESC, CreatedDate DESC`);
+    maxItems = 0;
     const cr = await pool.request().input('U', sql.Int, userID)
       .query(`SELECT TOP 3 Category, COUNT(*) AS N FROM LangFinding
               WHERE UserID = @U AND FindingType = 'error' AND Voided = 0 AND CreatedDate >= DATEADD(day, -30, GETDATE())
@@ -474,8 +488,7 @@ ${pf.map(e => `- [${e.FindingType}/${e.Category}] "${e.Original}" -> "${e.Correc
     prepareMsg =
 `Setting description from Noel: """${setting}"""
 Level: ${level}/10.
-Recent mistakes (pick up to 4 of the most instructive for a quick warm-up; skip duplicates; return none if the list is empty):
-${er.recordset.map(e => `- [${e.Category}] "${e.Original}" -> "${e.Corrected}" (${e.Explanation || ''})`).join('\n') || '(none)'}
+No warm-up: return an empty warmup list.
 Weakest categories recently: ${cr.recordset.map(r => r.Category).join(', ') || '(none)'}`;
   }
 
@@ -488,6 +501,7 @@ Weakest categories recently: ${cr.recordset.map(r => r.Category).join(', ') || '
   const setup = await callTool(
     'You prepare Spanish conversation practice sessions. Interpret the learner\'s setting description and prepare the session.',
     [{ role: 'user', content: prepareMsg }], PREPARE_TOOL(maxItems), 1500);
+  if (!maxItems) setup.warmup = [];
 
   const ins = await pool.request()
     .input('U', sql.Int, userID).input('L', sql.Int, languageID).input('D', sql.Int, deckID)
@@ -498,7 +512,7 @@ Weakest categories recently: ${cr.recordset.map(r => r.Category).join(', ') || '
     .input('Spain', sql.Bit, includeSpain)
     .input('Role', sql.NVarChar(200), (setup.ai_role || '').slice(0, 200))
     .input('Name', sql.NVarChar(50), (setup.ai_name || 'Raúl').slice(0, 50))
-    .input('Type', sql.NVarChar(20), reviewOf ? 'review' : 'conversation')
+    .input('Type', sql.NVarChar(20), (reviewOf || b.personalReview) ? 'review' : 'conversation')
     .input('Words', sql.NVarChar(sql.MAX), JSON.stringify(words))
     .input('Warm', sql.NVarChar(sql.MAX), JSON.stringify(setup.warmup || []))
     .input('UseW', sql.Bit, useWords)
@@ -530,7 +544,7 @@ Weakest categories recently: ${cr.recordset.map(r => r.Category).join(', ') || '
 
   return {
     sessionID: session.LangSessionID, aiName: session.AIName, aiRole: session.AIRole, focusGrammar: session.FocusGrammar,
-    sessionType: session.SessionType, title: reviewOf ? `Review: ${reviewOf.Title || 'conversation'}` : '',
+    sessionType: session.SessionType, title: reviewOf ? `Review: ${reviewOf.Title || 'conversation'}` : b.personalReview ? 'Personal Review' : '',
     minutes, voices, messages: [{ role: 'A', text: open.reply, type: openType, speaker: openMeta.speaker, spoken: openMeta.spoken }]
   };
 }
@@ -765,6 +779,8 @@ async function saveSession(pool, b) {
     if (s.SessionType === 'review' && s.ParentSessionID) {
       const p = await pool.request().input('P', sql.Int, s.ParentSessionID).query(`SELECT Title FROM LangSession WHERE LangSessionID = @P`);
       title = `Review: ${(p.recordset[0] && p.recordset[0].Title) || 'conversation'}`;
+    } else if (s.SessionType === 'review' && /^Personal review/.test(s.Setting || '')) {
+      title = `Personal Review ${new Date(s.StartedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
     } else {
       const turns = await loadTurns(pool, s.LangSessionID);
       const opening = turns.slice(0, 8).map(t => `${t.Role === 'U' ? 'NOEL' : 'TUTOR'}: ${t.Content}`).join('\n');

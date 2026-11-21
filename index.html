@@ -307,6 +307,7 @@
     .conv-saved-name { font-size:14px; font-weight:600; color:var(--sky-deep); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .conv-saved-meta { font-size:12px; color:var(--text-muted); font-weight:400; }
     .conv-saved-btns { display:flex; gap:6px; flex-shrink:0; }
+    .conv-desc-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
     .conv-sm { padding:4px 10px !important; font-size:12px !important; }
     .conv-chat { display:flex; flex-direction:column; gap:10px; }
     .conv-head { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; font-size:13px; }
@@ -3641,7 +3642,8 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     return `<div class="conv-setup">
       <div class="conv-top"><button class="btn-secondary" onclick="showSpanishLevel(${langID})">📊 Spanish Level</button></div>
       <fieldset class="conv-box"><legend>Conversation</legend>
-        <label for="conv-setting">Description</label>
+        <div class="conv-desc-row"><label for="conv-setting">Description</label>
+          <button class="btn-secondary conv-sm" id="conv-review-btn" title="Drill your recent mistakes, then a short conversation (uses the Description, if any, as the setting)" onclick="startPersonalReview(${langID})">🎯 Personal Review</button></div>
         <textarea id="conv-setting" class="form-input" rows="2" placeholder="e.g. I want to tell you a story about fishing with my dad as a kid. I'll be using imperfect. (You can also name your partner, e.g. 'Your name is Lucía.')"></textarea>
         <div class="conv-saved-head">Saved conversations</div>
         <div id="conv-saved-list" class="conv-hint">Loading…</div>
@@ -3688,9 +3690,9 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
         <div class="conv-saved-info"><div class="conv-saved-name">${convEsc(s.title||'Untitled')}</div>
           <div class="conv-saved-meta">${convDate(s.date)} · Level ${s.level}${s.actualMinutes!=null?` · ${s.actualMinutes} min`:''}${s.score!=null?` · Score ${s.score}`:''}</div></div>
         <div class="conv-saved-btns">
-          <button class="btn-primary conv-sm" onclick="event.stopPropagation();continueSavedConversation(${langID},${s.id})">Continue</button>
-          <button class="btn-secondary conv-sm" onclick="event.stopPropagation();reviewSavedConversation(${langID},${s.id})">Review</button>
-          <button class="btn-secondary conv-sm" onclick="event.stopPropagation();viewSavedConversation(${langID},${s.id})">Session Notes</button>
+          <button class="btn-icon conv-sm" title="Continue" onclick="event.stopPropagation();continueSavedConversation(${langID},${s.id})">▶️</button>
+          <button class="btn-icon conv-sm" title="Review" onclick="event.stopPropagation();reviewSavedConversation(${langID},${s.id})">🔁</button>
+          <button class="btn-icon conv-sm" title="Session Notes" onclick="event.stopPropagation();viewSavedConversation(${langID},${s.id})">📖</button>
           <button class="btn-icon conv-sm" title="Delete" onclick="event.stopPropagation();deleteSavedConversation(${langID},${s.id})">🗑</button>
         </div>
       </div>`).join('');
@@ -3724,6 +3726,17 @@ const leftCol=`<div style="display:flex;flex-direction:column;align-items:center
     const btn=document.getElementById('conv-start-btn');btn.disabled=true;btn.textContent='⏳ Preparing conversation…';
     const r=await apiPost('LanguageChat',Object.assign({action:'start',userID:USER_ID,languageID:langID,setting},st));
     if(!r||r.error){convErr('Could not start the conversation',r);btn.disabled=false;btn.textContent='Start new conversation';return;}
+    if(st.voiceCode)convDefaultVoice=st.voiceCode;
+    convOpenChat(langID,r);
+  }
+
+  async function startPersonalReview(langID){
+    convAudioInit();
+    const st=convReadSettings();convRememberSettings(st);
+    const setting=document.getElementById('conv-setting').value.trim();
+    const btn=document.getElementById('conv-review-btn');btn.disabled=true;btn.textContent='⏳ Preparing review…';
+    const r=await apiPost('LanguageChat',Object.assign({action:'start',userID:USER_ID,languageID:langID,setting,personalReview:true},st));
+    if(!r||r.error){convErr('Could not start the personal review',r);btn.disabled=false;btn.textContent='🎯 Personal Review';return;}
     if(st.voiceCode)convDefaultVoice=st.voiceCode;
     convOpenChat(langID,r);
   }
